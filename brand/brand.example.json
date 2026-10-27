@@ -1,0 +1,40 @@
+{
+  "name": "By Mel Ross",
+  "resolution": [1080, 1920],
+  "pacing": "natural",
+  "graphics": "minimal",
+  "max_seconds": 150,
+  "colors": {
+    "main": "#0d2b2d",
+    "pop": "#B9C8A5",
+    "light": "#f5f2ec",
+    "caption": "#FFFFFF",
+    "caption_accent": "#B9C8A5"
+  },
+  "capcut": false,
+  "capcut_font": null,
+  "sfx": "none",
+  "deliver_dir": "footage",
+  "grade": null,
+  "require_carousel": false,
+  "title_outline": "#f5f2ec",
+  "captions": {
+    "mode": "phrase",
+    "case": "sentence",
+    "size": 92,
+    "y": 1250
+  },
+  "zoom": {
+    "scale": 1.04,
+    "seconds": 2.5,
+    "ease": "sine.inOut",
+    "every": 6
+  },
+  "cover_title_y": 300,
+  "fonts": {
+    "head": { "family": "Lora", "file": "~/reels/fonts/Lora.ttf", "weight": 600 },
+    "body": { "family": "Inter", "file": "~/reels/fonts/Inter.ttf", "weight": 600 },
+    "accent": { "family": "Lora", "file": "~/reels/fonts/Lora-Italic.ttf", "weight": 500, "style": "italic" }
+  },
+  "caption_accent_shadow": "0 0 4px rgba(13,43,45,.55), 0 2px 12px rgba(13,43,45,.55), 0 4px 30px rgba(13,43,45,.4)"
+}

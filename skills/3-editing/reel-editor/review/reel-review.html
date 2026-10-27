@@ -1,0 +1,608 @@
+<title>Reel Review</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;700;800&family=Caveat:wght@700&family=JetBrains+Mono:wght@500&display=swap">
+<style>
+/* layout: sticky phone-shaped player on the left (stacks at phone width), the active review step on the right */
+:root{
+  --bg:#FFF8FB; --surface:#FFFFFF; --ink:#141414; --muted:#6E5A63; --line:#F3D3E1;
+  --pink:#ED84B0; --pink-soft:#FFEEF5; --now:#FCE3EE;
+  --cut-bg:#141414; --cut-fg:#FFEEF5; --auto:#9A7F8B;
+  --keep:#2F7D5B; --change:#B8741A; --drop:#B4234F; --warn:#9C5B00;
+  --f-display:"Caveat",cursive; --f-body:"Figtree",system-ui,-apple-system,sans-serif; --f-mono:"JetBrains Mono",ui-monospace,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#161013;--surface:#21181C;--ink:#FFEEF5;--muted:#C9A9B7;--line:#3A2A31;--pink-soft:#2C1D24;--now:#3A2430;--cut-bg:#ED84B0;--cut-fg:#141414;--auto:#A88E9A;--keep:#6FCF9F;--change:#F2B45C;--drop:#FF7A9C;--warn:#F2B45C;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#161013;--surface:#21181C;--ink:#FFEEF5;--muted:#C9A9B7;--line:#3A2A31;--pink-soft:#2C1D24;--now:#3A2430;--cut-bg:#ED84B0;--cut-fg:#141414;--auto:#A88E9A;--keep:#6FCF9F;--change:#F2B45C;--drop:#FF7A9C;--warn:#F2B45C;color-scheme:dark}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:16px;line-height:1.5}
+.wrap{max-width:1200px;margin:0 auto;padding-inline:16px;padding-block:16px 120px;display:grid;grid-template-columns:330px minmax(0,1fr);gap:28px;align-items:start}
+@media (max-width:820px){.wrap{grid-template-columns:minmax(0,1fr)}}
+.side{position:sticky;top:calc(env(safe-area-inset-top,0px) + 12px);display:flex;flex-direction:column;gap:10px}
+@media (max-width:820px){.side{position:static}}
+h1{font-family:var(--f-display);font-size:44px;line-height:1;margin:0;color:var(--pink)}
+.reel-name{font-size:14px;color:var(--muted);margin:0}
+.player{position:relative;border-radius:20px;overflow:hidden;background:#000;border:4px solid var(--surface);box-shadow:0 8px 30px rgba(237,132,176,.25);aspect-ratio:9/16;width:100%;max-width:330px;margin-inline:auto;container-type:inline-size}
+@media (max-width:820px){.player{max-width:260px}}
+.player video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block}
+.overlay{position:absolute;inset:0;pointer-events:none;overflow:hidden}
+.gbox{position:absolute;border:2px dashed rgba(255,255,255,.9);background:rgba(237,132,176,.28);border-radius:10px;display:flex;align-items:flex-start;justify-content:center;font:700 11px var(--f-body);color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.6);padding:4px;box-sizing:border-box;background-size:cover;background-position:top center}
+.capov{position:absolute;left:5%;right:5%;overflow:visible;text-align:center;line-height:1.02;text-shadow:0 2px 10px rgba(0,0,0,.4)}
+.capov .a{display:inline}
+.capov.ed .a{display:block;line-height:.95}
+.clock{position:absolute;right:8px;bottom:8px;font:500 11px var(--f-mono);background:rgba(20,20,20,.72);color:#fff;border-radius:8px;padding:2px 7px}
+.scrub{display:flex;gap:10px;align-items:center}
+.scrub input{flex:1;min-width:0;accent-color:var(--pink)}
+.mode{font-size:13px;color:var(--muted);margin:0}
+.mode b{color:var(--ink)}
+.ctl{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.savebar{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.pill{font:600 12px var(--f-body);border-radius:999px;padding:3px 10px;background:var(--pink-soft);color:var(--muted);border:1px solid var(--line)}
+.pill.err{background:transparent;color:var(--drop);border-color:var(--drop)}
+.tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
+.tab{font:inherit;font-weight:700;font-size:14px;border:2px solid var(--line);background:var(--surface);color:var(--ink);border-radius:999px;padding:7px 14px;cursor:pointer;display:flex;gap:7px;align-items:center}
+.tab[aria-selected="true"]{border-color:var(--pink);background:var(--pink);color:#141414}
+.tab .dot{width:8px;height:8px;border-radius:50%;background:var(--keep)}
+.lede{margin:0 0 10px;color:var(--muted);font-size:15px;max-width:66ch}
+.tally{font:500 13px var(--f-mono);color:var(--muted);font-variant-numeric:tabular-nums;margin-bottom:10px;display:flex;gap:6px 14px;flex-wrap:wrap}
+.tally b{color:var(--ink)}
+button.b{font:inherit;font-weight:700;font-size:14px;border-radius:999px;padding:7px 14px;border:2px solid var(--pink);background:var(--surface);color:var(--ink);cursor:pointer}
+button.b.primary{background:var(--pink);color:#141414}
+button.b.quiet{border-color:var(--line);font-weight:600}
+button.b:disabled{opacity:.45;cursor:default}
+button:focus-visible,.w:focus-visible,input:focus-visible,textarea:focus-visible,summary:focus-visible{outline:3px solid var(--pink);outline-offset:2px}
+textarea,input[type=text]{font:inherit;font-size:16px;border-radius:12px;border:2px solid var(--line);background:var(--surface);color:var(--ink);padding:8px 10px;width:100%;box-sizing:border-box}
+textarea{min-height:80px;resize:vertical}
+.ts{font:500 11px var(--f-mono);color:var(--muted);background:none;border:0;cursor:pointer;padding:6px 0 0;text-align:left;font-variant-numeric:tabular-nums;white-space:nowrap}
+.ts:hover{color:var(--pink)}
+.ts .src::before{content:"src ";opacity:.6}
+.tc{font:500 11px var(--f-mono);font-variant-numeric:tabular-nums;color:var(--pink);white-space:nowrap}
+.tc::before{content:"cut ";opacity:.7}
+/* cuts */
+.sent{display:grid;grid-template-columns:62px minmax(0,1fr);gap:8px;padding:6px 8px;border-radius:12px}
+.sent:hover{background:var(--pink-soft)}
+.words{display:flex;flex-wrap:wrap;gap:2px;font-size:19px;line-height:1.55;user-select:none;-webkit-user-select:none;touch-action:pan-y;align-items:center}
+.w{padding:0 4px;border-radius:7px;cursor:pointer}
+.w:hover{background:var(--line)}
+.w.now{background:var(--now);box-shadow:inset 0 -3px 0 var(--pink)}
+.w.cut{background:var(--cut-bg);color:var(--cut-fg);text-decoration:line-through;text-decoration-thickness:2px}
+.w.filler{color:var(--auto);text-decoration:line-through dotted;font-style:italic}
+.w.filler.back{color:var(--ink);text-decoration:none;outline:2px solid var(--keep);outline-offset:-2px}
+.pz{font:600 11px var(--f-mono);border:1.5px dashed var(--auto);color:var(--auto);background:none;border-radius:999px;padding:0 7px;cursor:pointer}
+.pz.kept{border-style:solid;border-color:var(--keep);color:var(--keep)}
+/* graphics */
+.cards{display:flex;flex-direction:column;gap:10px}
+.card{display:grid;grid-template-columns:90px minmax(0,1fr);gap:14px;padding:12px;border-radius:16px;background:var(--surface);border:2px solid var(--line)}
+.card.now{border-color:var(--pink)}
+.card.dropped{opacity:.55}
+.thumb{position:relative;width:90px;aspect-ratio:9/16;border-radius:10px;overflow:hidden;background:#222 center/cover}
+.thumb .gbox{border-width:1.5px;font-size:0}
+.approx{font:600 10px var(--f-body);color:var(--muted);text-align:center;margin-top:3px;text-transform:uppercase;letter-spacing:.05em}
+.card .kind{font:700 12px var(--f-body);text-transform:uppercase;letter-spacing:.06em;color:var(--pink)}
+.card .what{margin:2px 0 4px}
+.card .meta{font-size:13px;color:var(--muted);display:flex;gap:4px 12px;flex-wrap:wrap;margin-bottom:8px}
+.card .warnline{font-size:13px;color:var(--warn)}
+.seg{display:inline-flex;border:2px solid var(--line);border-radius:999px;overflow:hidden}
+.seg button{font:inherit;font-size:13px;font-weight:700;background:none;border:0;padding:5px 12px;cursor:pointer;color:var(--muted)}
+.seg button[aria-pressed="true"].k{background:var(--keep);color:#fff}
+.seg button[aria-pressed="true"].c{background:var(--change);color:#fff}
+.seg button[aria-pressed="true"].d{background:var(--drop);color:#fff}
+.card input{margin-top:8px}
+/* captions */
+.caps{display:flex;flex-direction:column;gap:2px}
+.caprow{display:grid;grid-template-columns:70px minmax(0,1fr) auto;gap:10px;align-items:start;padding:5px 8px;border-radius:12px}
+.caprow.now{background:var(--now)}
+.caprow.gone{opacity:.5}
+.cw{display:flex;flex-wrap:wrap;gap:4px;font-size:18px;align-items:center}
+.cw .x{border:0;background:none;font:inherit;font-weight:700;color:var(--ink);padding:1px 6px;border-radius:8px;cursor:pointer}
+.cw .x:hover{background:var(--line)}
+.cw .x.acc{font-style:italic;color:var(--pink);background:var(--pink-soft)}
+.cw .flag{font-size:12px;color:var(--warn)}
+.tools{display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end}
+.tools button{font:600 12px var(--f-mono);border:1.5px solid var(--line);background:var(--surface);color:var(--ink);border-radius:8px;padding:3px 7px;cursor:pointer}
+.tools button:hover{border-color:var(--pink)}
+/* sound & colour */
+.pair{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;margin-bottom:18px}
+.pair figure{margin:0;display:flex;flex-direction:column;gap:6px}
+.pair img{border-radius:12px;width:100%;aspect-ratio:9/16;object-fit:cover;max-width:260px}
+.pair figcaption{font-size:14px;font-weight:700}
+.pair audio{width:100%}
+h2{font-size:18px;margin:18px 0 8px}
+.cue{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:10px;align-items:center;padding:6px 8px;border-radius:10px}
+.cue:hover{background:var(--pink-soft)}
+.cue .what{font-size:14px}
+.cue.off .what{text-decoration:line-through;color:var(--muted)}
+/* preview */
+.state{font-weight:700;padding:10px 14px;border-radius:12px;border:2px solid var(--line);margin-bottom:12px}
+.state.out{border-color:var(--warn);color:var(--warn)}
+.state.ok{border-color:var(--keep);color:var(--keep)}
+.rev{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:10px;align-items:center;padding:6px 0;border-bottom:1px solid var(--line)}
+.notes{display:flex;flex-direction:column;gap:6px;margin-top:20px}
+.notes label{font-weight:700}
+details{margin-top:14px;border:2px solid var(--line);border-radius:12px;padding:8px 12px}
+summary{cursor:pointer;font-weight:700}
+.empty{padding:20px;border:2px dashed var(--line);border-radius:16px;color:var(--muted)}
+.confirm{display:inline-flex;gap:6px;align-items:center;font-size:14px}
+</style>
+
+<div class="wrap">
+  <aside class="side">
+    <h1>reel review</h1>
+    <p class="reel-name" id="reelname">Loading the reel…</p>
+    <div class="player" id="player">
+      <video id="v" playsinline preload="metadata"></video>
+      <div class="overlay" id="ov"></div>
+      <div class="clock" id="clock" hidden></div>
+    </div>
+    <div class="ctl">
+      <button class="b quiet" id="back5" type="button" aria-label="Back 5 seconds">−5s</button>
+      <button class="b primary" id="rough" type="button">Play rough cut</button>
+      <button class="b quiet" id="fwd5" type="button" aria-label="Forward 5 seconds">+5s</button>
+    </div>
+    <div class="scrub"><input type="range" id="scrub" min="0" max="60" step="0.1" value="0" aria-label="Position in the rough cut"><span class="tc" id="pos">0:00.0</span></div>
+    <p class="mode" id="mode">The rough cut plays the raw clip with your current decisions applied, live, on the <b>cut</b> timeline. Jumps aren't smoothed, and graphics show as approximate boxes.</p>
+    <div class="savebar">
+      <span class="pill" id="save" aria-live="polite">Not loaded</span>
+      <button class="b quiet" id="retry" type="button" hidden>Retry save</button>
+      <button class="b quiet" id="undo" type="button" disabled>Undo</button>
+    </div>
+  </aside>
+  <main>
+    <div class="tabs" role="tablist">
+      <button class="tab" role="tab" data-tab="cuts">Cuts <span class="dot" hidden></span></button>
+      <button class="tab" role="tab" data-tab="graphics">Graphics <span class="dot" hidden></span></button>
+      <button class="tab" role="tab" data-tab="captions">Captions <span class="dot" hidden></span></button>
+      <button class="tab" role="tab" data-tab="sound">Sound &amp; colour <span class="dot" hidden></span></button>
+      <button class="tab" role="tab" data-tab="preview">Preview</button>
+    </div>
+
+    <section data-p="cuts">
+      <p class="lede">Struck words are cut. Tap a word to cut or keep it; drag across a phrase for the lot. Tap a <b>src</b> time to hear that line from the raw clip.</p>
+      <p class="lede">Removed automatically, and yours to undo: fillers like "um" (dotted, grey) and pauses over 0.25 s between kept words (⏸ chips, shortened to about 0.1 s). Tap either to keep it. A pause after a question, or a long beat after a sentence, stays by default. Repeated phrases are never removed unless you cut them.</p>
+      <div class="tally" id="ctally"></div>
+      <div id="tx"><div class="empty">The transcript appears here once the reel loads.</div></div>
+    </section>
+
+    <section data-p="graphics" hidden>
+      <p class="lede">Every graphic I plan to add, on the <b>cut</b> timeline. The thumbnail is an approximate layout on a frame from that moment, not the final animation. Keep it, ask for a change (your note stays with that graphic), or drop it.</p>
+      <div class="tally" id="gtally"></div>
+      <div class="cards" id="cards"><div class="empty">Graphics appear here once the reel loads.</div></div>
+    </section>
+
+    <section data-p="captions" hidden>
+      <p class="lede">Captions follow your cuts: a caption whose words you cut disappears, and times move with the edit. Tap a word to make it an accent. <b>edit</b> fixes wording, ±0.1 nudges the start, <b>merge</b> joins it with the next. The player shows a static style preview in your fonts; the final captions also animate in.</p>
+      <div class="tally" id="captally"></div>
+      <div class="caps" id="caps"><div class="empty">Captions appear here once the reel loads.</div></div>
+    </section>
+
+    <section data-p="sound" hidden>
+      <h2>Voice clean-up</h2>
+      <p class="lede">The same 10 seconds, before and after: light noise removal, de-essing, EQ and compression, levelled to Instagram's loudness.</p>
+      <div class="pair" id="audio"></div>
+      <h2>Colour</h2>
+      <p class="lede">One representative frame, before and after the grade: slightly warm, gently lifted shadows, softened bright windows, restrained saturation.</p>
+      <div class="pair" id="colour"></div>
+      <h2>Sound effects</h2>
+      <p class="lede">Each sound sits on a graphic's entrance, at the cut time shown. Play to hear it; switch off any you don't want. These are the local preview sounds. On the CapCut route, CapCut's library versions replace them.</p>
+      <div id="cues"></div>
+    </section>
+
+    <section data-p="preview" hidden>
+      <p class="lede">Build preview renders a draft from your current decisions (about 3 minutes). Watch it, then add notes at exact moments before the final 4K export.</p>
+      <div class="state" id="bstate">No preview built yet.</div>
+      <div class="ctl"><button class="b primary" id="build" type="button">Build preview</button></div>
+      <h2>Notes on the draft</h2>
+      <div class="ctl"><input type="text" id="revtext" placeholder="What to change at this moment"><button class="b" id="revadd" type="button">Add note at current time</button></div>
+      <div id="revs"></div>
+    </section>
+
+    <div class="notes" id="notesbox">
+      <label for="notes">Anything else about this reel's <span id="notetab">cuts</span>?</label>
+      <textarea id="notes" placeholder="Applies to this reel only."></textarea>
+      <div class="ctl"><span id="resetbox"><button class="b quiet" id="reset" type="button">Reset this section</button></span></div>
+      <details>
+        <summary>Change my brand defaults (every future reel)</summary>
+        <p class="lede">Only fill this in for a permanent change, like "captions always one size smaller". Notes above stay with this reel.</p>
+        <textarea id="brand" placeholder="Leave empty unless you want every future reel to change."></textarea>
+      </details>
+    </div>
+  </main>
+</div>
+
+<script src="core.js"></script>
+<script>
+const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
+const v = $("#v"), ov = $("#ov");
+const fmt = t => `${Math.floor(t / 60)}:${(Math.max(0, t) % 60).toFixed(1).padStart(4, "0")}`;
+let R = null, B = null, S = blank(), P = null, CAPS = [], GFX = [];
+let tab = "cuts", ref = null, saving = Promise.resolve(), timer = null, undo = [], mode = "idle", loop = null;
+function blank() { return { cut: null, restoredFillers: [], restoredPauses: [], trimmedPauses: [], captions: null, board: {}, sfxOff: {}, notes: {}, brandRequest: "", revisions: [], buildRequest: null }; }
+
+// ---------- saving, undo ----------
+const pill = (t, err) => { $("#save").textContent = t; $("#save").classList.toggle("err", !!err); $("#retry").hidden = !err; };
+let dirty = false, mine = null;   // dirty: local edits not yet sent; mine: updatedAt of our last write (to spot other writers)
+function queueSave() {
+  clearTimeout(timer); dirty = true; pill("Unsaved changes…");
+  timer = setTimeout(saveNow, 600);
+}
+function saveNow() {
+  if (!ref) { pill("Not connected: changes won't save", true); return; }
+  dirty = false;
+  const body = JSON.parse(JSON.stringify({ ...S, updatedAt: new Date().toISOString() }));
+  mine = body.updatedAt;
+  pill("Saving…");
+  saving = saving.then(() => ref.set(body)).then(() => pill("Saved " + new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })),
+    e => pill("Couldn't save (" + (e?.code || "error") + ")", true));
+}
+$("#retry").addEventListener("click", saveNow);
+function mutate(fn) {
+  undo.push(JSON.stringify(S)); if (undo.length > 60) undo.shift();
+  fn(); $("#undo").disabled = false; recompute(); renderAll(); setPos(pos); queueSave();
+}
+function doUndo() { if (!undo.length) return; S = JSON.parse(undo.pop()); $("#undo").disabled = !undo.length; recompute(); renderAll(); queueSave(); }
+$("#undo").addEventListener("click", doUndo);
+document.addEventListener("keydown", e => { if ((e.metaKey || e.ctrlKey) && e.key === "z" && !/INPUT|TEXTAREA/.test(document.activeElement.tagName)) { e.preventDefault(); doUndo(); } });
+
+// ---------- derived timeline ----------
+function decisions() { return { ...S, cut: S.cut || R.proposedCut, captions: S.captions || R.captions }; }
+function recompute() { const d = decisions(); P = ReelCore.plan(R, d); CAPS = ReelCore.captions(R, d, P); GFX = ReelCore.graphics(R, d, P); }
+
+// ---------- tabs ----------
+function showTab(t) {
+  tab = t;
+  $$(".tab").forEach(b => b.setAttribute("aria-selected", b.dataset.tab === t));
+  $$("section[data-p]").forEach(s => s.hidden = s.dataset.p !== t);
+  $("#notetab").textContent = { cuts: "cuts", graphics: "graphics", captions: "captions", sound: "sound and colour", preview: "preview" }[t];
+  $("#notes").value = S.notes[t] || ""; $("#resetbox").hidden = t === "preview";
+  stopPlay();
+  if (t === "preview") { if (B?.url && v.getAttribute("src") !== B.url) { v.setAttribute("src", B.url); v.load(); } $("#rough").hidden = $("#back5").hidden = $("#fwd5").hidden = true; $(".scrub").hidden = true; v.controls = true; }
+  else { if (v.getAttribute("src") !== R.srcUrl) { v.setAttribute("src", R.srcUrl); v.load(); } $("#rough").hidden = $("#back5").hidden = $("#fwd5").hidden = false; $(".scrub").hidden = false; v.controls = false; }
+  overlay(0);
+}
+$$(".tab").forEach(b => b.addEventListener("click", () => showTab(b.dataset.tab)));
+$("#notes").addEventListener("input", e => { S.notes[tab] = e.target.value; queueSave(); });
+$("#brand").addEventListener("input", e => { S.brandRequest = e.target.value; queueSave(); });
+$("#reset").addEventListener("click", () => {
+  const box = $("#resetbox"); box.textContent = "";
+  const msg = document.createElement("span"); msg.className = "confirm"; msg.textContent = "Reset this section to my proposal? ";
+  const yes = document.createElement("button"); yes.className = "b"; yes.type = "button"; yes.textContent = "Reset";
+  const no = document.createElement("button"); no.className = "b quiet"; no.type = "button"; no.textContent = "Cancel";
+  const back = () => { box.textContent = ""; box.append(resetBtn); };
+  yes.addEventListener("click", () => { mutate(() => {
+    if (tab === "cuts") Object.assign(S, { cut: null, restoredFillers: [], restoredPauses: [], trimmedPauses: [] });
+    if (tab === "graphics") S.board = {};
+    if (tab === "captions") S.captions = null;
+    if (tab === "sound") S.sfxOff = {};
+  }); back(); });
+  no.addEventListener("click", back); msg.append(yes, no); box.append(msg);
+});
+const resetBtn = $("#reset");
+
+// ---------- playback: line (raw) and continuous rough cut ----------
+let pos = 0;   // where the rough cut is, in cut time: pause, scrub and ±5 s all keep it
+function stopPlay() { mode = "idle"; cancelAnimationFrame(loop); v.pause(); v.playbackRate = 1; $("#rough").textContent = "Play rough cut"; }
+function setPos(c) {
+  pos = Math.max(0, Math.min(c, P.cutDur - 0.05));
+  $("#scrub").max = P.cutDur.toFixed(1); $("#scrub").value = pos.toFixed(1);
+  $("#pos").textContent = `${fmt(pos)} / ${fmt(P.cutDur)}`; $("#clock").textContent = `cut ${fmt(pos)} / ${fmt(P.cutDur)}`;
+}
+function seekCut(c) {   // jump within the rough cut; keeps playing if it was playing, else shows that frame
+  setPos(c); v.currentTime = P.toSrc(pos); $("#clock").hidden = false;
+  if (mode !== "rough") { mode = "roughPaused"; overlay(pos); }
+}
+$("#scrub").addEventListener("input", e => seekCut(+e.target.value));
+$("#back5").addEventListener("click", () => seekCut(pos - 5));
+$("#fwd5").addEventListener("click", () => seekCut(pos + 5));
+function playLine(s, e) {
+  stopPlay(); mode = "line"; v.currentTime = s; v.play().catch(() => { stopPlay(); pill("Playback was blocked. Tap the time again.", true); });
+  const tick = () => { if (mode !== "line") return; if (v.currentTime >= e) { stopPlay(); return; } overlay(); loop = requestAnimationFrame(tick); };
+  loop = requestAnimationFrame(tick);
+}
+function playRough(fromCut = pos) {
+  if (fromCut >= P.cutDur - 0.1) fromCut = 0;
+  stopPlay(); mode = "rough"; v.playbackRate = P.speed; setPos(fromCut); v.currentTime = P.toSrc(pos); $("#clock").hidden = false;
+  $("#rough").textContent = "Pause";
+  v.play().catch(() => { stopPlay(); pill("Playback was blocked. Tap Play rough cut again.", true); });
+  const tick = () => {
+    if (mode !== "rough") return;
+    const t = v.currentTime, sp = P.spans;
+    const k = sp.findIndex(([a, b]) => t < b);
+    if (k === -1) { stopPlay(); mode = "roughPaused"; setPos(P.cutDur); return; }
+    if (t < sp[k][0] - 0.02) v.currentTime = sp[k][0];          // inside a cut: jump to the next kept span
+    const c = P.toCut(Math.max(t, sp[k][0]));
+    setPos(c); overlay(c); loop = requestAnimationFrame(tick);
+  };
+  loop = requestAnimationFrame(tick);
+}
+$("#rough").addEventListener("click", () => { if (mode === "rough") { stopPlay(); mode = "roughPaused"; overlay(pos); } else playRough(pos); });
+v.addEventListener("error", () => pill("The video didn't load. Reload the page; if it keeps failing, ask Claude to re-upload it.", true));
+
+// overlay at a cut time: approximate graphic boxes + caption style preview
+function overlay(c) {
+  ov.textContent = "";
+  if (!R || tab === "preview" || c == null || (mode !== "rough" && mode !== "roughPaused")) { highlight(null); return; }
+  for (const g of GFX) if (!g.gone && g.state !== "d" && c >= g.start && c < g.end) ov.appendChild(box(g, true));
+  const cap = CAPS.find(x => !x.gone && c >= x.start && c < x.end);
+  if (cap) { const el = capEl(cap); ov.appendChild(el); fitCap(el); }
+  highlight(c, cap);
+}
+function box(g, label) {
+  const [x, y, w, h] = g.place || [90, 200, 900, 500];
+  const el = document.createElement("div"); el.className = "gbox";
+  Object.assign(el.style, { left: x / 10.8 + "%", top: y / 19.2 + "%", width: w / 10.8 + "%", height: h / 19.2 + "%" });
+  if (g.imgUrl) el.style.backgroundImage = `linear-gradient(rgba(237,132,176,.15),rgba(237,132,176,.15)),url(${JSON.stringify(g.imgUrl)})`;
+  if (label) el.textContent = g.kind;
+  return el;
+}
+function capEl(cap) {
+  const st = R.style, W = $("#player").clientWidth, one = cap.words.length === 1;
+  const el = document.createElement("div"); el.className = "capov" + (st.editorial && !one ? " ed" : "");
+  const base = st.capSize / 1080 * W * (one ? 1.35 : 1);
+  Object.assign(el.style, { top: st.capY / 19.2 + "%", fontFamily: "rb, var(--f-body)", fontSize: base + "px", color: st.cap });
+  for (const w of cap.words) {
+    const s = document.createElement("span");
+    if (w.accent) { s.className = "a"; Object.assign(s.style, { fontFamily: "ra, Georgia, serif", fontStyle: "italic", color: st.acc, fontSize: (st.editorial ? 1.7 : 1.12) + "em" }); }
+    const t = w.text.replace(/[.,!?;:]+$/, "");   // captions carry no punctuation
+    s.textContent = (st.case === "lower" ? t.toLowerCase() : t) + " "; el.appendChild(s);
+  }
+  return el;
+}
+function fitCap(el) {   // shrink until the widest word fits the frame, measured in the real fonts (the render does the same)
+  let fs = parseFloat(el.style.fontSize);
+  for (let i = 0; i < 25 && el.scrollWidth > el.clientWidth + 1; i++) { fs *= 0.92; el.style.fontSize = fs + "px"; }
+}
+function highlight(c, cap) {
+  $$(".card").forEach(el => { const g = GFX.find(x => x.id === el.dataset.id); el.classList.toggle("now", c != null && g && !g.gone && c >= g.start && c < g.end); });
+  $$(".caprow").forEach(el => el.classList.toggle("now", !!cap && +el.dataset.ci === cap.ci));
+  if (mode === "line" || mode === "rough") { const t = v.currentTime; $$(".w").forEach(e => { const w = R.words[+e.dataset.i]; e.classList.toggle("now", t >= w.s && t < w.e); }); }
+}
+
+// ---------- 1. cuts ----------
+function renderCuts() {
+  const tx = $("#tx"); tx.textContent = "";
+  const cut = new Set(S.cut || R.proposedCut), fb = new Set(S.restoredFillers);
+  const pz = new Map(P.pauses.map(p => [p.after, p]));
+  const sents = []; let cur = [];
+  R.words.forEach((w, i) => { cur.push(i); if (/[.?!]$/.test(w.text) || i === R.words.length - 1) { sents.push(cur); cur = []; } });
+  for (const idx of sents) {
+    const row = document.createElement("div"); row.className = "sent";
+    const ts = document.createElement("button"); ts.className = "ts"; ts.type = "button";
+    ts.innerHTML = `<span class="src">${fmt(R.words[idx[0]].s)}</span>`; ts.title = "Play this line from the raw clip";
+    ts.addEventListener("click", () => playLine(R.words[idx[0]].s, R.words[idx[idx.length - 1]].e + 0.2));
+    const ws = document.createElement("div"); ws.className = "words";
+    for (const i of idx) {
+      const w = R.words[i], s = document.createElement("span");
+      s.className = "w" + (w.filler ? " filler" + (fb.has(i) ? " back" : "") : cut.has(i) ? " cut" : "");
+      s.tabIndex = 0; s.setAttribute("role", "button"); s.dataset.i = i; s.textContent = w.text;
+      s.title = w.filler ? (fb.has(i) ? "Filler kept (tap to remove again)" : "Filler removed automatically (tap to keep)") : "";
+      ws.appendChild(s);
+      const p = pz.get(i);
+      if (p) {
+        const b = document.createElement("button"); b.type = "button"; b.className = "pz" + (p.kept ? " kept" : "");
+        b.textContent = `⏸ ${p.len.toFixed(2)}s ${p.kept ? "kept" : "trimmed"}`;
+        b.title = p.kept ? "Pause kept. Tap to trim it" : "Pause trimmed to ~0.1 s. Tap to keep it";
+        b.addEventListener("click", () => mutate(() => {
+          const keepDefault = (R.keepPauses || []).includes(i);
+          S.restoredPauses = S.restoredPauses.filter(x => x !== i); S.trimmedPauses = S.trimmedPauses.filter(x => x !== i);
+          if (p.kept) { if (keepDefault) S.trimmedPauses.push(i); } else if (!keepDefault) S.restoredPauses.push(i);
+        }));
+        ws.appendChild(b);
+      }
+    }
+    row.append(ts, ws); tx.appendChild(row);
+  }
+  const words = [...cut].length, fills = R.words.filter((w, i) => w.filler && !fb.has(i)).length, pt = P.pauses.filter(p => !p.kept).length;
+  $("#ctally").innerHTML = `<span>reel <b>${fmt(P.cutDur)}</b></span><span><b>${words}</b> words cut</span><span><b>${fills}</b> fillers removed</span><span><b>${pt}</b> of ${P.pauses.length} pauses trimmed</span>`;
+}
+(function wireCuts() {
+  const tx = $("#tx"); let drag = null;
+  const toggle = (i, val) => { const set = new Set(S.cut || R.proposedCut); val ? set.add(i) : set.delete(i); S.cut = [...set].sort((a, b) => a - b); };
+  tx.addEventListener("pointerdown", e => {
+    const w = e.target.closest(".w"); if (!w) return; e.preventDefault();
+    const i = +w.dataset.i;
+    if (R.words[i].filler) { mutate(() => { const fb = new Set(S.restoredFillers); fb.has(i) ? fb.delete(i) : fb.add(i); S.restoredFillers = [...fb]; }); return; }
+    undo.push(JSON.stringify(S)); $("#undo").disabled = false;
+    drag = { start: i, val: !(S.cut || R.proposedCut).includes(i), base: JSON.stringify(S.cut || R.proposedCut) };
+    toggle(i, drag.val); recompute(); renderCuts();
+  });
+  tx.addEventListener("pointermove", e => {
+    if (!drag) return;
+    const w = document.elementFromPoint(e.clientX, e.clientY)?.closest?.(".w"); if (!w) return;
+    S.cut = JSON.parse(drag.base); const j = +w.dataset.i, [lo, hi] = drag.start < j ? [drag.start, j] : [j, drag.start];
+    for (let i = lo; i <= hi; i++) if (!R.words[i].filler) toggle(i, drag.val);
+    recompute(); renderCuts();
+  });
+  window.addEventListener("pointerup", () => { if (drag) { drag = null; renderAll(); queueSave(); } });
+  tx.addEventListener("keydown", e => {
+    const w = e.target.closest(".w"); if (!w || (e.key !== "Enter" && e.key !== " ")) return; e.preventDefault();
+    const i = +w.dataset.i;
+    mutate(() => { if (R.words[i].filler) { const fb = new Set(S.restoredFillers); fb.has(i) ? fb.delete(i) : fb.add(i); S.restoredFillers = [...fb]; } else toggle(i, !(S.cut || R.proposedCut).includes(i)); });
+  });
+})();
+
+// ---------- 2. graphics ----------
+const LABEL = { k: "Keep", c: "Change", d: "Drop" };
+function placeText(g) {
+  const [x, y, w, h] = g.place || [0, 0, 1080, 1920];
+  if (w >= 1000 && h >= 1800) return "Full screen";
+  const mid = y + h / 2; return (mid < 700 ? "Top, above your head" : mid < 1250 ? "Middle" : "Lower third") + (w < 600 ? (x + w / 2 < 540 ? ", left" : ", right") : "");
+}
+function renderGraphics() {
+  const box = $("#cards"); box.textContent = ""; const n = { k: 0, c: 0, d: 0 };
+  for (const g of GFX) {
+    const st = (S.board[g.id] || {}).state || "k"; n[st]++;
+    const el = document.createElement("div"); el.className = "card" + (st === "d" ? " dropped" : ""); el.dataset.id = g.id;
+    const th = document.createElement("div");
+    const tb = document.createElement("div"); tb.className = "thumb"; if (g.thumbUrl) tb.style.backgroundImage = `url(${JSON.stringify(g.thumbUrl)})`;
+    tb.appendChild(box_(g)); const ap = document.createElement("div"); ap.className = "approx"; ap.textContent = "Approx. layout";
+    th.append(tb, ap);
+    const body = document.createElement("div");
+    const kind = document.createElement("div"); kind.className = "kind"; kind.textContent = g.kind;
+    const what = document.createElement("div"); what.className = "what"; what.textContent = g.what;
+    const meta = document.createElement("div"); meta.className = "meta";
+    if (g.gone) meta.innerHTML = `<span class="warnline">Its line is cut, so this graphic won't appear.</span>`;
+    else {
+      const t = document.createElement("button"); t.className = "ts"; t.type = "button"; t.innerHTML = `<span class="tc">${fmt(g.start)}</span>`;
+      t.title = "Play the rough cut from here"; t.addEventListener("click", () => playRough(g.start));
+      meta.append(t);
+      const d = document.createElement("span"); d.textContent = `${(g.end - g.start).toFixed(1)} s on screen`; meta.append(d);
+      const p = document.createElement("span"); p.textContent = placeText(g); meta.append(p);
+      if (g.moved) { const m = document.createElement("span"); m.className = "warnline"; m.textContent = "Its first word is cut, so it moved to the next kept word."; meta.append(m); }
+    }
+    const seg = document.createElement("div"); seg.className = "seg"; seg.setAttribute("role", "group"); seg.setAttribute("aria-label", "Decision for " + g.kind);
+    for (const k of ["k", "c", "d"]) {
+      const b = document.createElement("button"); b.type = "button"; b.className = k; b.textContent = LABEL[k]; b.setAttribute("aria-pressed", st === k);
+      b.addEventListener("click", () => mutate(() => { S.board[g.id] = { ...(S.board[g.id] || {}), state: k }; }));
+      seg.appendChild(b);
+    }
+    body.append(kind, what, meta, seg);
+    if (st === "c") {
+      const inp = document.createElement("input"); inp.type = "text"; inp.id = "note-" + g.id; inp.placeholder = "What should change?"; inp.value = (S.board[g.id] || {}).note || "";
+      inp.addEventListener("input", () => { S.board[g.id] = { ...(S.board[g.id] || { state: "c" }), note: inp.value }; queueSave(); });
+      body.appendChild(inp);
+    }
+    el.append(th, body); box.appendChild(el);
+  }
+  $("#gtally").innerHTML = `<span><b>${GFX.length}</b> graphics</span><span><b>${n.k}</b> keep</span><span><b>${n.c}</b> change</span><span><b>${n.d}</b> drop</span>`;
+}
+const box_ = g => box(g, false);
+
+// ---------- 3. captions ----------
+function capsEditable() { if (!S.captions) S.captions = JSON.parse(JSON.stringify(R.captions)); return S.captions; }
+function renderCaptions() {
+  const box = $("#caps"); box.textContent = "";
+  const live = CAPS.filter(c => !c.gone);
+  for (const c of CAPS) {
+    const src = (S.captions || R.captions)[c.ci];
+    const row = document.createElement("div"); row.className = "caprow" + (c.gone ? " gone" : ""); row.dataset.ci = c.ci;
+    const ts = document.createElement("button"); ts.className = "ts"; ts.type = "button";
+    const cw = document.createElement("div"); cw.className = "cw";
+    if (c.gone) {
+      ts.textContent = "cut out"; ts.disabled = true;
+      cw.textContent = src.text || src.w.map(i => R.words[i].text).join(" ");
+      row.append(ts, cw, document.createElement("span")); box.appendChild(row); continue;
+    }
+    ts.innerHTML = `<span class="tc">${fmt(c.start)}</span>`; ts.addEventListener("click", () => playRough(c.start));
+    c.words.forEach((w, k) => {
+      const b = document.createElement("button"); b.type = "button"; b.className = "x" + (w.accent ? " acc" : ""); b.textContent = w.text;
+      b.title = w.accent ? "Accent (tap for plain)" : "Tap to make this an accent";
+      b.addEventListener("click", () => mutate(() => {
+        const cc = capsEditable()[c.ci];
+        if (cc.text) { const a = new Set(cc.accText || []); a.has(k) ? a.delete(k) : a.add(k); cc.accText = [...a]; }
+        else { const a = new Set(cc.acc || []); a.has(w.i) ? a.delete(w.i) : a.add(w.i); cc.acc = [...a]; }
+      }));
+      cw.appendChild(b);
+    });
+    if (c.overlapFixed) { const f = document.createElement("span"); f.className = "flag"; f.textContent = "shortened so it doesn't overlap the next"; cw.appendChild(f); }
+    const tools = document.createElement("div"); tools.className = "tools";
+    const tool = (label, title, fn) => { const b = document.createElement("button"); b.type = "button"; b.textContent = label; b.title = title; b.addEventListener("click", fn); tools.appendChild(b); };
+    tool("edit", "Fix the wording", () => {
+      const inp = document.createElement("input"); inp.type = "text"; inp.id = "cap-" + c.ci; inp.value = c.words.map(w => w.text).join(" ");
+      let done = false;
+      const finish = keep => { if (done) return; done = true; if (!keep) { renderCaptions(); return; }
+        const val = inp.value.trim(), orig = src.w.filter(i => !P.removed(i)).map(i => R.words[i].text).join(" ");
+        mutate(() => { const cc = capsEditable()[c.ci]; if (!val || val === orig) { delete cc.text; delete cc.accText; } else { cc.text = val; cc.accText = []; } }); };
+      inp.addEventListener("keydown", e => { if (e.key === "Enter") finish(true); if (e.key === "Escape") finish(false); });
+      inp.addEventListener("blur", () => finish(true));
+      cw.replaceWith(inp); inp.focus();
+    });
+    tool("−0.1", "Start 0.1 s earlier", () => mutate(() => { const cc = capsEditable()[c.ci]; cc.nudge = +Math.max(-1, (cc.nudge || 0) - 0.1).toFixed(2); }));
+    tool("+0.1", "Start 0.1 s later", () => mutate(() => { const cc = capsEditable()[c.ci]; cc.nudge = +Math.min(1, (cc.nudge || 0) + 0.1).toFixed(2); }));
+    const nextLive = live[live.indexOf(c) + 1];
+    if (nextLive) tool("merge", "Join with the next caption", () => mutate(() => {
+      const arr = capsEditable(), a = arr[c.ci], b = arr[nextLive.ci];
+      if (a.text || b.text) { a.text = [a.text || a.w.map(i => R.words[i].text).join(" "), b.text || b.w.map(i => R.words[i].text).join(" ")].join(" "); a.accText = []; }
+      a.w = a.w.concat(b.w); a.acc = (a.acc || []).concat(b.acc || []); arr.splice(nextLive.ci, 1);
+    }));
+    row.append(ts, cw, tools); box.appendChild(row);
+  }
+  const acc = live.reduce((n, c) => n + c.words.filter(w => w.accent).length, 0);
+  $("#captally").innerHTML = `<span><b>${live.length}</b> captions</span><span><b>${CAPS.length - live.length}</b> cut out with their words</span><span><b>${acc}</b> accent words</span>`;
+}
+
+// ---------- 4. sound & colour ----------
+function renderSound() {
+  const A = R.assets || {};
+  const fig = (label, el) => { const f = document.createElement("figure"); const c = document.createElement("figcaption"); c.textContent = label; f.append(c, el); return f; };
+  const au = u => { const a = document.createElement("audio"); a.controls = true; a.preload = "none"; a.src = u; return a; };
+  const im = (u, alt) => { const i = document.createElement("img"); i.src = u; i.alt = alt; return i; };
+  $("#audio").replaceChildren(...(A.audioOriginal ? [fig("Original", au(A.audioOriginal)), fig("Cleaned", au(A.audioCleaned))] : [Object.assign(document.createElement("div"), { className: "empty", textContent: "No audio comparison for this reel yet." })]));
+  $("#colour").replaceChildren(...(A.colourBefore && R.grade ? [fig("Original", im(A.colourBefore, "Frame before grading")), fig("Graded", im(A.colourAfter, "Same frame after grading"))] : [Object.assign(document.createElement("div"), { className: "empty", textContent: "No colour grade is set for this brand, so the reel keeps its original colour." })]));
+  const cues = $("#cues"); cues.textContent = "";
+  for (const g of GFX.filter(g => g.sfx && !g.gone && g.state !== "d")) {
+    const off = !!S.sfxOff[g.id];
+    const row = document.createElement("div"); row.className = "cue" + (off ? " off" : "");
+    const t = document.createElement("span"); t.className = "tc"; t.textContent = fmt(g.start);
+    const w = document.createElement("span"); w.className = "what"; w.textContent = `${g.sfx.name} · ${g.kind}`;
+    const ctl = document.createElement("span"); ctl.className = "ctl";
+    const play = document.createElement("button"); play.type = "button"; play.className = "b quiet"; play.textContent = "Play";
+    play.addEventListener("click", () => { const u = A.sfx?.[g.sfx.name]; if (!u) return; const a = new Audio(u); a.volume = Math.min(1, Math.pow(10, (g.sfx.db + 8) / 20)); a.play().catch(() => {}); });
+    const tg = document.createElement("button"); tg.type = "button"; tg.className = "b quiet"; tg.textContent = off ? "Switch on" : "Switch off";
+    tg.addEventListener("click", () => mutate(() => { if (off) delete S.sfxOff[g.id]; else S.sfxOff[g.id] = true; }));
+    ctl.append(play, tg); row.append(t, w, ctl); cues.appendChild(row);
+  }
+}
+
+// ---------- 5. preview ----------
+function renderPreview() {
+  const h = ReelCore.hash(decisions()), st = $("#bstate");
+  st.className = "state";
+  if (B?.url && B.hash === h) { st.textContent = `Preview is up to date (built ${new Date(B.at).toLocaleString()}). Press play on the video.`; st.classList.add("ok"); }
+  else if (B?.url) { st.textContent = "Preview is outdated: you've changed decisions since it was built. Build again to see them."; st.classList.add("out"); }
+  else if (S.buildRequest?.hash === h) st.textContent = "Build requested. Tell Claude \"build preview\" in chat; the page can't start a render on its own.";
+  else st.textContent = "No preview built yet. Build one when your decisions look right.";
+  const revs = $("#revs"); revs.textContent = "";
+  S.revisions.forEach((r, k) => {
+    const row = document.createElement("div"); row.className = "rev";
+    const t = document.createElement("button"); t.className = "ts"; t.type = "button"; t.innerHTML = `<span class="tc">${fmt(r.t)}</span>`;
+    t.addEventListener("click", () => { if (B?.url) { v.currentTime = r.t; v.play().catch(() => {}); } });
+    const x = document.createElement("span"); x.textContent = r.text;
+    const del = document.createElement("button"); del.type = "button"; del.className = "b quiet"; del.textContent = "Remove";
+    del.addEventListener("click", () => mutate(() => S.revisions.splice(k, 1)));
+    row.append(t, x, del); revs.appendChild(row);
+  });
+  if (!S.revisions.length) revs.innerHTML = `<div class="empty">No notes yet. Pause the draft where something's off, describe it, and add the note.</div>`;
+}
+$("#build").addEventListener("click", () => mutate(() => { S.buildRequest = { hash: ReelCore.hash(decisions()), at: new Date().toISOString() }; }));
+$("#revadd").addEventListener("click", () => {
+  const text = $("#revtext").value.trim(); if (!text) { $("#revtext").focus(); return; }
+  if (!B?.url) { pill("Build a preview first, then add notes at moments in it.", true); return; }
+  mutate(() => { S.revisions.push({ t: +v.currentTime.toFixed(2), text, hash: B.hash }); S.revisions.sort((a, b) => a.t - b.t); }); $("#revtext").value = "";
+});
+
+function renderAll() {
+  renderCuts(); renderGraphics(); renderCaptions(); renderSound(); renderPreview();
+  const sent = { cuts: S.cut != null, graphics: Object.keys(S.board).length, captions: S.captions != null, sound: Object.keys(S.sfxOff).length };
+  $$(".tab").forEach(b => { const d = b.querySelector(".dot"); if (d) d.hidden = !sent[b.dataset.tab]; });
+}
+
+// ---------- load ----------
+(async () => {
+  const db = await window.claude?.use?.("db");
+  if (!db) { pill("This view can't load the reel. Open it from your claude.ai link.", true); $("#reelname").textContent = "Not connected."; return; }
+  try {
+    const rs = await db.doc("reel/current").get();
+    if (!rs.exists) { $("#reelname").textContent = "No reel loaded yet. Ask Claude to load one."; pill("Nothing to review", true); return; }
+    R = rs.data();
+    if (R.fonts) {   // brand fonts, so the caption preview uses the real faces
+      const css = [["rb", R.fonts.body], ["ra", R.fonts.accent]].filter(f => f[1]).map(([n, u]) => `@font-face{font-family:${n};src:url(${u});font-display:swap}`).join("");
+      document.head.appendChild(Object.assign(document.createElement("style"), { textContent: css }));
+    }
+    ref = db.doc("review/current");
+    const rv = await ref.get(); if (rv.exists) S = { ...blank(), ...JSON.parse(JSON.stringify(rv.data())) };
+    // someone else (Claude, another tab) changed the decisions: take theirs instead of saving a stale copy over it
+    ref.onSnapshot(s => {
+      if (!s.exists || !R) return;
+      const d = s.data(); if (d.updatedAt === mine || dirty) return;
+      if (JSON.stringify(d) === JSON.stringify({ ...S })) return;
+      S = { ...blank(), ...JSON.parse(JSON.stringify(d)) }; undo = []; $("#undo").disabled = true;
+      recompute(); renderAll(); setPos(pos); pill("Updated by Claude");
+    }, () => {});
+    let firstReel = true;
+    db.doc("reel/current").onSnapshot(() => { if (firstReel) { firstReel = false; return; } pill("Claude loaded new footage: reload the page", true); }, () => {});
+    db.doc("builds/latest").onSnapshot(s => { B = s.exists ? s.data() : null; if (R) renderPreview(); if (tab === "preview") showTab("preview"); }, () => {});
+    recompute();
+    $("#reelname").textContent = `${R.title} · raw ${fmt(R.srcDur)} → reel ${fmt(P.cutDur)}`; setPos(0);
+    $("#brand").value = S.brandRequest || "";
+    renderAll(); showTab(["cuts", "graphics", "captions", "sound", "preview"].includes(location.hash.slice(1)) ? location.hash.slice(1) : "cuts");
+    pill(rv.exists ? "Saved decisions loaded" : "Ready");
+  } catch (e) { pill("Couldn't load the reel (" + (e?.code || "error") + "). Reload to try again.", true); }
+})();
+</script>

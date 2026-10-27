@@ -1,0 +1,34 @@
+{
+  "name": "reel-studio",
+  "displayName": "Reel Studio",
+  "version": "0.1.0",
+  "description": "AI reel editing for Claude Code: FavStash creator skills + Claude Reel Editor, with By Mel Ross's workflow. Local only: edits on your computer, never posts for you.",
+  "author": {
+    "name": "By Mel Ross",
+    "url": "https://github.com/mtravagl26"
+  },
+  "homepage": "https://github.com/mtravagl26/reel-studio",
+  "repository": "https://github.com/mtravagl26/reel-studio",
+  "license": "Apache-2.0",
+  "documentationUrl": "https://github.com/mtravagl26/reel-studio#readme",
+  "supportUrl": "https://github.com/mtravagl26/reel-studio/issues",
+  "keywords": [
+    "short-form-video",
+    "video-editing",
+    "reels",
+    "tiktok",
+    "youtube-shorts",
+    "captions",
+    "content-creation",
+    "social-media",
+    "talking-head",
+    "reel-cover"
+  ],
+  "skills": [
+    "./skills/1-research/",
+    "./skills/2-scripting/",
+    "./skills/3-editing/",
+    "./skills/3-editing-styles/",
+    "./skills/4-publish-and-learn/"
+  ]
+}

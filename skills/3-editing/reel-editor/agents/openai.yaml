@@ -1,0 +1,6 @@
+interface:
+  display_name: "Reel Editor"
+  short_description: "Turn a talking-head clip into an on-brand reel with cover"
+  default_prompt: "Use $reel-editor to edit this talking-head clip into a reel in my brand, with a cover and a phone-size copy."
+policy:
+  allow_implicit_invocation: true

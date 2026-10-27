@@ -1,0 +1,50 @@
+Reel Studio
+Copyright 2026 By Mel Ross (https://github.com/mtravagl26)
+
+This product combines and modifies two open-source projects:
+
+1. FavStash creator skills
+   Copyright Ali Sadiq / FavStash (https://www.favstash.app)
+   https://github.com/alisadiq-ai/favstash-ai-video-editing-skills
+   Licensed under the Apache License, Version 2.0 (see LICENSE).
+   Included: skills/1-research, skills/2-scripting, skills/3-editing/edit-video,
+   skills/3-editing-styles, skills/4-publish-and-learn, scripts/, tests/,
+   AGENTS.md, INSTALL_FOR_AGENTS.md, THIRD_PARTY_NOTICES.md and the repository
+   tooling. "FavStash" is a name of its owner; this project is not affiliated
+   with or endorsed by FavStash.
+
+2. Claude Reel Editor
+   Copyright (c) 2026 Nicola Pocock (getgitgirl)
+   https://github.com/nicolapocock/claude-reel-editor
+   Licensed under the MIT License (see skills/3-editing/reel-editor/LICENSE).
+   Included: skills/3-editing/reel-editor (with changes), docs/images and
+   brand/examples/getgitgirl. The setup steps in README.md follow the structure of
+   its beginner guide.
+
+Changes made by By Mel Ross (files carry a "Modified by By Mel Ross" or
+"Added by By Mel Ross" note where they can hold a comment):
+- Combined both projects into one skills folder and plugin (reel-editor sits in
+  skills/3-editing/ beside edit-video); added skills/README.md, a guide to which
+  skill to use when.
+- reel-editor: gentle eased zooms by default, configurable in brand.json "zoom"
+  (build_reel.py, auto_edit.py); configurable caption highlight shadow
+  (build_reel.py); a Reel cover for every reel (new scripts/cover.py); delivery
+  of a phone-size copy and the cover beside the full-quality file, optionally
+  back to the footage folder (deliver.sh); a local review page for sessions
+  without Artifact tools (new review/serve.mjs, references/review-local.md); a
+  render option without "nice" (new scripts/render-nonice.sh, REEL_NO_NICE in
+  render.sh and cut.py); ffmpeg 7+ filter-script flag (cut.py); HyperFrames
+  pinned and telemetry off by default (render.sh, transcribe.py, tighten.py,
+  qa.py, setup_engine.sh); doctor.sh finds HyperFrames skills kept outside the
+  auto-loaded folder and checks for Chrome; SKILL.md, setup-interview.md and
+  review.md updated to match.
+- FavStash parts: plugin and package renamed to reel-studio; the remote FavStash
+  connection is no longer added by the plugin (local only); validate-repo.mjs
+  expects the reel-editor skill; AGENTS.md, INSTALL_FOR_AGENTS.md, README.md,
+  CONTRIBUTING.md, SECURITY.md and THIRD_PARTY_NOTICES.md rewritten or updated;
+  edit-video/SKILL.md points to reel-editor for talking-head clips. FavStash's
+  logo, social preview and style preview images (from its maintainer's own reels)
+  are not included.
+- Added brand/: the By Mel Ross example brand (brand.example.json,
+  brand.example.md, style-reference.md) with the Lora and Inter fonts, which are
+  licensed under the SIL Open Font License 1.1 (license texts in brand/fonts/).

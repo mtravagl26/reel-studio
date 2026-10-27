@@ -1,0 +1,24 @@
+{
+  "name": "reel-studio",
+  "version": "0.1.0",
+  "private": true,
+  "description": "AI reel editing for Claude Code: FavStash + Claude Reel Editor, with By Mel Ross's workflow.",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "doctor": "node skills/3-editing/edit-video/scripts/doctor.mjs",
+    "setup": "node skills/3-editing/edit-video/scripts/init-workspace.mjs",
+    "new-edit": "node skills/3-editing/edit-video/scripts/new-edit.mjs",
+    "index-broll": "node skills/3-editing/edit-video/scripts/index-broll.mjs",
+    "analyze-reference": "node skills/3-editing/edit-video/scripts/reference-analyze.mjs",
+    "scaffold-glass": "node skills/3-editing-styles/adaptive-glass/scripts/scaffold-glass.mjs",
+    "sfx-sync": "node skills/3-editing/edit-video/scripts/sfx-sync.mjs",
+    "generate:sfx": "node scripts/generate-sfx.mjs",
+    "test": "node --test",
+    "validate": "node scripts/validate-repo.mjs",
+    "doctor:reel": "bash skills/3-editing/reel-editor/scripts/doctor.sh"
+  },
+  "license": "Apache-2.0"
+}
