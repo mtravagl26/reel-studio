@@ -26,6 +26,9 @@ jobs:
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 22
+      # Added by By Mel Ross: the reel editor's tests use ffmpeg and python3 (they skip what is missing).
+      - name: Install ffmpeg
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
       - run: npm test
       - run: npm run validate
       - name: Validate the Claude plugin

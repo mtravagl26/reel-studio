@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Modified by By Mel Ross: also expects the reel-editor skill.
+// Modified by By Mel Ross: also expects the reel-editor skill, checks its sound-effects manifest and that no media is committed.
 import { spawnSync } from "node:child_process";
 import fs from "node:fs/promises";
 import path from "node:path";
@@ -91,6 +91,16 @@ for (const sound of manifest.sounds ?? []) {
 const listedSounds = new Set((manifest.sounds ?? []).map((sound) => path.join(assetRoot, sound.file)));
 for (const file of await listFilesRecursively(assetRoot)) {
   if (file.endsWith(".wav") && !listedSounds.has(file)) failures.push(`SFX not in manifest: ${path.relative(root, file)}`);
+}
+// Reel editor sound library (Added by By Mel Ross): every effect lists its source and license, none is third-party,
+// and no generated audio or media is committed (engine/ is built on setup).
+const reelManifest = await readJson(path.join(skillRoot, "3-editing", "reel-editor", "assets", "sfx-manifest.json"));
+for (const effect of reelManifest.effects ?? []) {
+  if (!effect.source || !effect.license || effect.third_party !== false) failures.push(`reel-editor sfx manifest: ${effect.name} needs a source, a license and third_party: false`);
+}
+if (new Set((reelManifest.effects ?? []).map((effect) => effect.name)).size !== (reelManifest.effects ?? []).length) failures.push("reel-editor sfx manifest: duplicate effect name");
+for (const file of files) {
+  if (/\.(wav|mp3|m4a|mov|mp4|webm|mkv)$/i.test(file) && !file.startsWith("skills/3-editing/edit-video/assets/sfx/")) failures.push(`media file in the repository: ${file}`);
 }
 for (const folder of [".dev-private", ".favstash-studio"]) {
   const ignored = spawnSync("git", ["check-ignore", "-q", `${folder}/example`], { cwd: root });

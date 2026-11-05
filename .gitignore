@@ -25,3 +25,7 @@ yarn.lock
 skills/3-editing/reel-editor/engine/
 test-renders/
 *.norm
+
+# Python bytecode (Added by By Mel Ross: the reel editor's scripts and tests are Python)
+__pycache__/
+*.pyc

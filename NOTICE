@@ -48,3 +48,28 @@ Changes made by By Mel Ross (files carry a "Modified by By Mel Ross" or
 - Added brand/: the By Mel Ross example brand (brand.example.json,
   brand.example.md, style-reference.md) with the Lora and Inter fonts, which are
   licensed under the SIL Open Font License 1.1 (license texts in brand/fonts/).
+
+Changes made by By Mel Ross in Reel Studio 0.2.0 (November 2026). Modified files carry a
+"Modified by By Mel Ross" or "Added by By Mel Ross" note; everything below is in
+skills/3-editing/reel-editor unless a path says otherwise.
+- Speaker cutout and layered graphics: new scripts/cutout.py and scripts/cutout_matte.swift (a
+  person matte from Apple Vision on macOS, cleaned with ffmpeg, a transparent-video speaker
+  layer, per-shot edge checks with a fallback to plain overlays); build_reel.py gains the card
+  option "layer" (behind / front / both).
+- Studio look: new scripts/enhance.py (exposure, colour, denoise, sharpen, before/after frame)
+  called from cut.py, which also softens the background through cutout.py.
+- Sound: new scripts/make_sfx.py (34 synthesised effects) and assets/sfx-manifest.json (source
+  and license of all 40 effects, default level per effect); build_reel.py gains per-effect
+  volume ("sfx_volume"), "sfx_events" and a stem-based audio path; setup_engine.sh generates
+  the library; new scripts/mix_audio.py (voice / music / effects levels, music that dips under
+  speech, two-pass loudness to -14 LUFS, true-peak limit, a measured report); render.sh calls it;
+  new scripts/make_music_bed.py (an original, optional music bed).
+- Checks and delivery: qa.py also checks true peak, clipping and the cover size; deliver.sh
+  requires a 1080x1920 cover; doctor.sh checks the new needs.
+- Docs and tests: SKILL.md, references/look-and-layers.md and references/sound-and-mix.md;
+  README.md, brand/ examples (brand.example.json, brand.example.md), AGENTS.md and SECURITY.md
+  updated; tests/reel-*.test.mjs added; scripts/validate-repo.mjs and .github/workflows/ci.yml
+  extended; package.json and .claude-plugin/plugin.json version 0.2.0.
+No third-party code, model or asset was added to this repository for these changes: the new
+scripts use only the Python standard library, ffmpeg and (on macOS) Apple's Vision framework,
+all installed separately (see THIRD_PARTY_NOTICES.md).

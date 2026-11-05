@@ -18,9 +18,18 @@ HF=0; for d in ~/.claude/skills/hyperframes ~/.agents/skills/hyperframes "${HYPE
 [ "$HF" = 1 ] && ok "HyperFrames skills" || no "HyperFrames skills" "npx skills add heygen-com/hyperframes"
 
 ENG="$(cd "$(dirname "$0")/.." && pwd)/engine"
-if [ -s "$ENG/gsap.min.js" ] && [ -s "$ENG/sfx/whoosh.wav" ]; then ok "reel template engine"
+if [ -s "$ENG/gsap.min.js" ] && [ -s "$ENG/sfx/whoosh.wav" ] && [ -s "$ENG/sfx/ding.wav" ]; then ok "reel template engine and sound-effects library"
 else bash "$(dirname "$0")/setup_engine.sh" >/dev/null 2>&1 && ok "reel template engine (just set up)" || no "reel template engine" "bash scripts/setup_engine.sh"; fi
 
+# Added by By Mel Ross: what the mix, the studio look and the layered graphics need (all optional extras degrade gracefully).
+FILT="$(ffmpeg -hide_banner -filters 2>/dev/null)"
+for f in amultiply alimiter hqdn3d unsharp maskedmerge alphamerge; do
+  printf '%s' "$FILT" | grep -q " $f " || no "ffmpeg filter $f" "update ffmpeg (macOS: brew upgrade ffmpeg): the mix and studio look need it"
+done
+ffmpeg -hide_banner -encoders 2>/dev/null | grep -q libvpx-vp9 && ok "VP9 with transparency (graphics behind the speaker)" \
+  || warn "ffmpeg has no libvpx-vp9" "graphics can't sit behind the speaker; everything else works. macOS: brew install ffmpeg"
+if [ "$(uname)" = "Darwin" ] && command -v swiftc >/dev/null; then ok "speaker cutout (Apple Vision via the Swift compiler)"
+else warn "no speaker cutout on this computer" "needs macOS with the Swift compiler (xcode-select --install). Without it layered graphics are plain overlays and the background blur is skipped"; fi
 command -v deepFilter >/dev/null && ok "noise removal (DeepFilterNet)" \
   || warn "DeepFilterNet not installed" "background noise removal falls back to ffmpeg's weaker filter. Install: uv tool install deepfilternet"
 

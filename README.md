@@ -18,6 +18,10 @@ Two free, open-source skill sets in one folder, plus one creator's way of workin
   - **Every reel comes with a cover**: a 1080x1920 JPG from a smiling moment at the start or end, with a short topic title where Instagram's grid will show it.
   - **A phone-size copy** next to the full-quality one, small enough to text or AirDrop.
   - Finished files go **back into the folder your footage came from** (for example the iCloud Drive folder you film into), so they're on your phone when you're ready to post.
+  - **A studio look, on by default.** Gentle exposure and colour, mild denoise and sharpen, and a slight blur behind you. Natural, not plastic: no skin smoothing. You get a before/after frame to review, and every part is adjustable or can be switched off.
+  - **Graphics behind, in front, or both.** Big type or a shape can sit behind your head so you stand in front of it. If the cutout's edges aren't clean in a shot, that graphic is drawn as a normal overlay and you're told.
+  - **40 sound effects** (whoosh, pop, snap, impact, rise, ding, typing, paper, glitch and more), every one generated for this project, so there's nothing to license. Each has its own volume.
+  - **A music bed that follows your voice.** It dips while you speak and comes back up in the gaps, with a simple voice / music / effects mix and a final loudness of -14 LUFS (what Instagram, TikTok and Shorts play at) with no clipping.
   - Telemetry is off, and nothing is ever posted for you.
 
 Not sure which skill does what? See [skills/README.md](skills/README.md). The short version: **talking-head reel = reel editor**. Effects, styles, scripts and ideas = the FavStash skills.
@@ -118,6 +122,10 @@ Want to start from an example? [`brand/`](brand) holds By Mel Ross's brand:
 
 Useful `brand.json` settings this version adds:
 
+- `"enhance"`: the studio look. `{"on": true, "strength": 1, "color": 1, "exposure": 1, "denoise": 1, "sharpen": 1, "background": 1, "warmth": 1}`; each amount is a multiplier (1 default, 0 off, 2 double) and `"on": false` turns it off. See [look-and-layers](skills/3-editing/reel-editor/references/look-and-layers.md).
+- `"mix"`: `{"voice": 0, "music": -14, "duck": -10, "effects": 0}` in dB, with `"music"` set to a file of your own (or one made by `make_music_bed.py`). See [sound-and-mix](skills/3-editing/reel-editor/references/sound-and-mix.md).
+- `"sfx_volume"`: a level change per sound effect, e.g. `{"pop": -3}`.
+
 - `"zoom"`: `{"scale": 1.04, "seconds": 2.5, "ease": "sine.inOut", "every": 6}` is the gentle default. For quick punch-ins use `{"scale": 1.07, "seconds": 0.22, "ease": "power3.out", "every": 2.2}`.
 - `"deliver_dir"`: `"footage"` sends finished files back to the folder the clip came from; or give any folder, like `"~/Movies/Reels"`.
 - `"caption_accent_shadow"`: the shadow behind highlighted caption words.
@@ -138,6 +146,7 @@ Useful `brand.json` settings this version adds:
 
 - Your footage, transcripts and renders stay on your computer.
 - Transcription runs locally with Whisper. If you choose to add an ElevenLabs key, audio goes to ElevenLabs for tighter caption timing; without a key, nothing leaves your Mac.
+- The speaker cutout uses Apple's built-in person segmentation (macOS) on your own computer; the sound effects and the optional music bed are generated on your computer. Nothing is downloaded for them.
 - HyperFrames telemetry is switched off (`HYPERFRAMES_NO_TELEMETRY=1`, `DO_NOT_TRACK=1`).
 - Nothing is connected to your social accounts. The FavStash posting service isn't set up by this pack; if you connect it yourself, it still needs your approval for each post.
 
@@ -149,6 +158,8 @@ npm run validate    # skills, links, sound checksums, private-file exclusions
 npm run doctor -- --workspace <your workspace> --strict   # FavStash tools
 npm run doctor:reel # reel editor tools
 ```
+
+The reel editor's own tests (`tests/reel-*.test.mjs`) cover the sound library, the mix (loudness, true peak, music ducking), the studio look and the layered graphics; they use ffmpeg and skip what the machine can't run.
 
 The agent contract is [AGENTS.md](AGENTS.md); setup for agents is [INSTALL_FOR_AGENTS.md](INSTALL_FOR_AGENTS.md).
 

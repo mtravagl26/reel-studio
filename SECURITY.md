@@ -19,6 +19,8 @@ The local review page (`reel-editor/review/serve.mjs`) answers only on this
 computer unless started with `--lan`; then every link carries a one-off key. Stop it
 when the review is done.
 
+The speaker cutout compiles one small Swift file (`reel-editor/scripts/cutout_matte.swift`) with the local Swift compiler and runs it on the reel's own video; it reads only that video and writes only to the reel folder and to a build cache under `~/Library/Caches/reel-editor/`. The sound effects and the optional music bed are generated locally with the Python standard library; nothing is downloaded for them.
+
 Report vulnerabilities privately through
 [GitHub security advisories](https://github.com/mtravagl26/reel-studio/security/advisories/new),
 not in a public issue.

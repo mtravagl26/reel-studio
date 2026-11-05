@@ -11,7 +11,7 @@ use when: [skills/README.md](skills/README.md).
 | --- | --- | --- |
 | 1 · Research | [find-ideas](skills/1-research/find-ideas/SKILL.md) | Find proven references and choose the next idea |
 | 2 · Script | [write-script](skills/2-scripting/write-script/SKILL.md) | Write one or more hooks to test, one shared body and the editor brief |
-| 3 · Edit, talking head | [reel-editor](skills/3-editing/reel-editor/SKILL.md) | A raw talking-head clip to a finished reel in the creator's brand file, with a cover and a phone-size copy |
+| 3 · Edit, talking head | [reel-editor](skills/3-editing/reel-editor/SKILL.md) | A raw talking-head clip to a finished reel in the creator's brand file, with a studio look, optional graphics behind the speaker, a sound-effects library, a music bed that follows the voice, a cover and a phone-size copy |
 | 3 · Edit | [edit-video](skills/3-editing/edit-video/SKILL.md) | Cut, caption, sound, motion graphics, safe areas and review: the base for every edit |
 | 3 · Edit, style | [adaptive-glass](skills/3-editing-styles/adaptive-glass/SKILL.md), [paper-grid](skills/3-editing-styles/paper-grid/SKILL.md), [breakout-card](skills/3-editing-styles/breakout-card/SKILL.md), [product-motion-ads](skills/3-editing-styles/product-motion-ads/SKILL.md), [text-over-footage](skills/3-editing-styles/text-over-footage/SKILL.md) | Add exactly one finished look on top of `edit-video` |
 | 3 · Edit, effects | [motion-effects](skills/3-editing-styles/motion-effects/SKILL.md) | Add named motion effects (kinetic hook, gravity drop, orbit, vertigo, rewind and 28 more) to any edit |

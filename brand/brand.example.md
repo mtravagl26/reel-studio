@@ -28,7 +28,10 @@ Short phrases (2-4 words), sentence case, white, at mid-chest (move them below t
 Clean, warm, not flashy. Minimal by default: captions plus a hook title. Anything more only shows what's being said at that moment and lives in the space above the head. No b-roll, no stock footage. The hook title is the only text with an outline. No carousel.
 
 ## Sound
-No background music. No sound effects.
+No background music and no automatic sound effects by default. If you add a music bed (`"music"` in brand.json) it dips under the voice and comes up in the gaps; sound effects can be placed one by one (`sfx_events`) from the 40-effect library. Levels for voice, music and effects are in `brand.json` `"mix"`; final loudness is -14 LUFS with no clipping.
+
+## Studio look
+On by default and gentle: exposure and colour nudged toward natural, mild denoise and sharpen, a slight blur behind the speaker. No skin smoothing. Review the before/after frame; every part is adjustable in `brand.json` `"enhance"`.
 
 ## Pacing
 Natural: normal speed; drop clear "um"s and "uh"s and pauses over about 0.6 s. Talking-head pieces can run to about two minutes when the content earns it.
