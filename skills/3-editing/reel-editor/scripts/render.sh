@@ -7,7 +7,7 @@ REEL="$(cd "$1" && pwd)"; shift
 FINAL=0; ARGS=(); for a in "$@"; do [ "$a" = "--final" ] && FINAL=1 || ARGS+=("$a"); done
 WORKERS="${REEL_WORKERS:-2}"                     # each worker is a Chrome; 2 keeps a 16 GB Mac usable
 S="$(cd "$(dirname "$0")" && pwd)"
-# Modified by By Mel Ross: the final mix is mix_audio.py (three levels, music ducking, -14 LUFS, true-peak check); telemetry off unless you opt in, and REEL_NO_NICE=1 (render-nonice.sh) skips "nice",
+# Modified by By Mel Ross: the final mix is mix_audio.py (three levels, music ducking, -16 LUFS, true-peak check); telemetry off unless you opt in, and REEL_NO_NICE=1 (render-nonice.sh) skips "nice",
 # because HyperFrames fails with "uv_os_setpriority EACCES" under nice when started from a background runner.
 export HYPERFRAMES_NO_TELEMETRY="${HYPERFRAMES_NO_TELEMETRY:-1}" DO_NOT_TRACK="${DO_NOT_TRACK:-1}"
 NICE=(nice -n 15); [ -n "${REEL_NO_NICE:-}" ] && NICE=()
@@ -29,8 +29,8 @@ stamp "render:start"
 ${NICE[@]+"${NICE[@]}"} npx -y hyperframes@0.8.145 render "$REEL/proj" --workers "$WORKERS" -o "$REEL/final.mp4" --resolution "$RES" --quality delivery --quiet
 stamp "render:end"
 # Final mix (Modified by By Mel Ross): mix_audio.py puts the voice, the music bed (brand.json "music", it dips while they speak and
-# rises in the gaps) and the sound effects (sfx_events.json) at three levels, then brings the result to -14 LUFS with a true
-# peak under -1.5 dBTP and checks it (mix_report.json). The video is copied, not re-encoded.
+# rises in the gaps) and the sound effects (sfx_events.json) at three levels, then brings the result to -16 LUFS with a true
+# peak under -2 dBTP and checks it (mix_report.json). The video is copied, not re-encoded.
 python3 "$S/mix_audio.py" "$REEL" --video final.mp4 --out final_ln.mp4
 mv "$REEL/final_ln.mp4" "$REEL/final.mp4"
 python3 "$S/timings.py" "$REEL"

@@ -22,7 +22,10 @@ Two free, open-source skill sets in one folder, plus one creator's way of workin
   - **A natural studio look.** Out of the box: mild denoise and sharpen only. Your colours and your real background are left alone. A gentle colour grade and a background blur are there if you want them (set them to 1 in your brand file). No skin smoothing. You get a before/after frame to review.
   - **Graphics behind, in front, or both.** Big type or a shape can sit behind your head so you stand in front of it. If the cutout's edges aren't clean in a shot, that graphic is drawn as a normal overlay and you're told.
   - **40 sound effects** (whoosh, pop, snap, impact, rise, ding, typing, paper, glitch and more), every one generated for this project, so there's nothing to license. Each has its own volume.
-  - **A music bed that follows your voice.** It dips while you speak and comes back up in the gaps, with a simple voice / music / effects mix and a final loudness of -14 LUFS (what Instagram, TikTok and Shorts play at) with no clipping.
+  - **A music bed that follows your voice.** It dips while you speak and comes back up in the gaps, with a simple voice / music / effects mix and a final loudness of -16 LUFS with a true peak under -2 dBTP and no clipping (the same gentle level the voice clean-up uses; -14 is one setting away for a loud, music-led reel).
+  - **A gentle voice clean-up.** Noise removal at a soft setting (DeepFilterNet 20 dB), no gate, no presence boost, and a loudness of -16 LUFS. Quiet recordings sounded distorted with a heavier chain, so the default adds as little gain and as few boosts as it can.
+  - **A thumbnail studio** (from Claude Reel Editor): pick a cover frame, add a headline in your brand fonts and download 1080x1920, 1080x1440 and 1080x1080 PNGs. It runs on your Mac only. Say "open my thumbnail studio".
+  - **1080x1920 by default, 4K optional.** Instagram shows 1080x1920 at most, so that is what renders unless you choose 4K in the setup (slower, and only sharper if you filmed in 4K).
   - Telemetry is off, and nothing is ever posted for you.
 
 Not sure which skill does what? See [skills/README.md](skills/README.md). The short version: **talking-head reel = reel editor**. Effects, styles, scripts and ideas = the FavStash skills.

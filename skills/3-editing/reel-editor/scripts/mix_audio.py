@@ -11,8 +11,8 @@ Three levels, in dB, in brand.json (all optional):
           "music": -14,      music bed in the gaps, relative to the voice's loudness (LU)
           "duck": -10,       extra dip for the music while the voice is speaking
           "effects": 0,      all sound effects together (each effect also has its own level: "sfx_volume")
-          "lufs": -14,       final loudness (Instagram, TikTok and YouTube Shorts normalise to about -14 LUFS)
-          "true_peak": -1.5} highest peak allowed, in dBTP (no clipping)
+          "lufs": -16,       final loudness (-16 matches the voice chain in clean_audio.sh; use -14 for a loud, music-led reel)
+          "true_peak": -2}   highest peak allowed, in dBTP (no clipping; use -1.5 with -14)
 Finishing: soft limiter, two-pass loudness normalisation, then a check of the result (loudness, true peak, clipped
 samples) that is printed and saved to <reel>/mix_report.json.
 
@@ -26,7 +26,7 @@ from pathlib import Path
 SR = 48000
 HERE = Path(__file__).resolve().parent
 ENGINE = Path(os.environ.get("REEL_ENGINE") or HERE.parent / "engine")      # REEL_ENGINE: for tests
-DEFAULTS = {"voice": 0.0, "music": -14.0, "duck": -10.0, "effects": 0.0, "lufs": -14.0, "true_peak": -1.5,
+DEFAULTS = {"voice": 0.0, "music": -14.0, "duck": -10.0, "effects": 0.0, "lufs": -16.0, "true_peak": -2.0,
             "hold": 0.45, "attack": 0.12, "release": 0.6, "fade_in": 0.5, "fade_out": 1.2}
 FR = 0.01            # envelope step: 10 ms
 
@@ -250,7 +250,7 @@ def main():
         ln = (f"loudnorm=I={tgt}:TP={tp}:LRA=7:measured_I={st['input_i']}:measured_TP={st['input_tp']}:measured_LRA={st['input_lra']}:"
               f"measured_thresh={st['input_thresh']}:offset={st['target_offset']}:linear=true")
         sh(["ffmpeg", "-v", "error", "-y", "-i", video, "-i", mixed, "-map", "0:v", "-map", "1:a", "-c:v", "copy",
-            "-af", ln + ",alimiter=limit=0.84:level=disabled", "-ar", SR, "-c:a", "aac", "-b:a", "256k", "-shortest", "-movflags", "+faststart", out])
+            "-af", ln + f",alimiter=limit={10 ** (tp / 20):.3f}:level=disabled", "-ar", SR, "-c:a", "aac", "-b:a", "256k", "-shortest", "-movflags", "+faststart", out])
         res = measure(out)
         report.update({"lufs": res["lufs"], "true_peak_db": res["true_peak_db"], "clipped_samples": res["clipped_samples"],
                        "target_lufs": tgt, "max_true_peak_db": tp, "levels": {k: cfg[k] for k in ("voice", "music", "duck", "effects")}})

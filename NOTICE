@@ -87,3 +87,15 @@ Changes made by By Mel Ross in Reel Studio 0.2.1 and 0.2.2 (November 2026), in s
   render.sh and deliver.sh read the frame height robustly. SKILL.md and
   references/look-and-layers.md describe it; tests/reel-colour.test.mjs added; package.json and
   .claude-plugin/plugin.json version 0.2.2.
+
+Changes made by By Mel Ross in Reel Studio 0.3.0 (November 2026), in skills/3-editing/reel-editor unless a path says otherwise.
+- Upstream update: Claude Reel Editor commit c6939d9 (Nicola Pocock, 1 November 2026, "release fixes + optional 4K") was
+  applied file by file to the combined layout: the thumbnail studio (review/thumbnail.html, scripts/thumbnail_studio.py and its
+  tests, tests/test_thumbnail_studio.py and tests/test_thumbnail_ui.mjs, run under npm test by tests/reel-thumbnail.test.mjs),
+  the review page fixes, a 1080x1920 default with optional 4K, and fixes to SKILL.md, references/review.md,
+  references/setup-interview.md, references/motions.md, scripts/render.sh and the getgitgirl example brand. Its GUIDE.md and
+  BUILD-IT-YOURSELF.md are not included. The upstream license and credits are unchanged.
+- Gentler voice chain: scripts/clean_audio.sh uses DeepFilterNet at 20 dB, no gate, no presence or air boost, and loudness
+  -16 LUFS with a true peak under -2 dBTP; scripts/mix_audio.py, scripts/qa.py, brand/brand.example.json, SKILL.md,
+  references/sound-and-mix.md and README.md describe and use the same target (-14 LUFS / -1.5 dBTP stays available as a setting).
+- package.json and .claude-plugin/plugin.json version 0.3.0.

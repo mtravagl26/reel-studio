@@ -30,8 +30,9 @@ if dur > brand.get("max_seconds", 60): fails.append("length")
 ebu = subprocess.run(["ffmpeg", "-hide_banner", "-i", str(video), "-af", "ebur128=peak=true", "-f", "null", "-"],
                      capture_output=True, text=True).stderr
 lufs = float(re.findall(r"I:\s+(-?[\d.]+) LUFS", ebu)[-1])
-print(f"loudness  {lufs:.1f} LUFS  (want -15 to -12.5)")
-if not -15 <= lufs <= -12.5: fails.append("loudness")
+# Modified by By Mel Ross: voice-only reels come out at -16 LUFS (clean_audio.sh, mix_audio.py); -14 is still accepted for music-led mixes
+print(f"loudness  {lufs:.1f} LUFS  (want -17.5 to -12.5; -16 is the default, -14 for music-led reels)")
+if not -17.5 <= lufs <= -12.5: fails.append("loudness")
 # Modified by By Mel Ross: true peak and clipping, so the mix never distorts on a phone speaker
 tpk = re.findall(r"Peak:\s+(-?[\d.]+) dBFS", ebu)
 if tpk:

@@ -31,7 +31,7 @@
     "every": 6
   },
   "cover_title_y": 300,
-  "mix": { "voice": 0, "music": -14, "duck": -10, "effects": 0, "lufs": -14, "true_peak": -1.5 },
+  "mix": { "voice": 0, "music": -14, "duck": -10, "effects": 0, "lufs": -16, "true_peak": -2 },
   "sfx_volume": {},
   "enhance": { "on": true, "strength": 1, "color": 0, "exposure": 0, "denoise": 1, "sharpen": 1, "background": 0, "warmth": 0 },
   "fonts": {

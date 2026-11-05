@@ -14,11 +14,17 @@ The final audio is built from three separate parts, by `scripts/mix_audio.py` (r
 
 Music follows the voice. While they speak it dips by `"duck"` (default -10 dB, so about -24 dB under the voice) and when they pause for half a second or more it comes back up to the gap level. Short pauses between words don't make it pump (`"hold": 0.45` seconds). Dips start just before the voice comes in, rises take about 0.6 s. The music fades in over 0.5 s and out over the last 1.2 s, and loops if it is shorter than the reel.
 
-The whole mix then goes through a soft limiter and a two-pass loudness normalisation to **-14 LUFS** (what Instagram, TikTok and YouTube Shorts play at) with a **true peak under -1.5 dBTP**, so nothing clips. The result is measured again and printed, and saved to `mix_report.json`; `qa.py` fails a reel that is more than 1 LU off, peaks above -1.0 dBTP or clips.
+The whole mix then goes through a soft limiter and a two-pass loudness normalisation to **-16 LUFS** with a **true peak under -2 dBTP**, so nothing clips. -16 is the same level the voice chain (`clean_audio.sh`) already works at, so a voice-only reel is not pushed up again at the end. Instagram, TikTok and Shorts turn louder files down to about -14 LUFS, so -16 loses nothing there; a loud, music-led reel can ask for the old level with `"lufs": -14, "true_peak": -1.5`. The result is measured again and printed, and saved to `mix_report.json`; `qa.py` fails a reel that is more than 1 LU off, peaks above -1.0 dBTP or clips.
 
-Settings in `brand.json` (all optional): `{"mix": {"voice": 0, "music": -14, "duck": -10, "effects": 0, "lufs": -14, "true_peak": -1.5, "hold": 0.45, "attack": 0.12, "release": 0.6}}`. A reel can override them with `"mix"` in its `edit.json`. `"mix": {"legacy": true}` goes back to the old way (effects baked into the render, no ducking).
+Settings in `brand.json` (all optional): `{"mix": {"voice": 0, "music": -14, "duck": -10, "effects": 0, "lufs": -16, "true_peak": -2, "hold": 0.45, "attack": 0.12, "release": 0.6}}`. A reel can override them with `"mix"` in its `edit.json`. `"mix": {"legacy": true}` goes back to the old way (effects baked into the render, no ducking).
 
 No music file yet? `python3 scripts/make_music_bed.py ~/reels/assets/music-bed.wav` makes a calm, loopable bed (original synthesis, nothing to license), then set `"music"` to that path. Or use your own music: you need the rights to it.
+
+## The voice chain (clean_audio.sh)
+
+The voice is cleaned before the mix, gently on purpose: DeepFilterNet at 20 dB (`DENOISE_DB` changes it; ffmpeg's own denoiser if DeepFilterNet isn't installed; `--no-denoise` skips it), then `highpass 80 Hz`, a 2 dB dip at 220 Hz for boxiness, a de-esser, a roll-off above 11 kHz and a 2:1 compressor, then two-pass loudness to **-16 LUFS** with a true peak under **-2 dBTP**. There is no noise gate and no presence or air boost.
+
+Why: the recordings this was tuned on are quiet. The earlier chain (DeepFilterNet at 30 dB, a gate, a presence boost, an air shelf, -14 LUFS) pushed them up by a large gain through the gate and the boosts, and the result sounded distorted. The gentler chain adds less gain and fewer boosts, so the voice stays natural. For a loud, music-led reel, `LUFS=-14 TRUEPEAK=-1.5 bash scripts/clean_audio.sh ...` and `"lufs": -14, "true_peak": -1.5` in `brand.json` `"mix"` restore the old target. Judged by listening to test versions, not only by measurement: always check a new voice by ear.
 
 ## The sound-effects library
 

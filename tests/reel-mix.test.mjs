@@ -1,5 +1,5 @@
 // Added by By Mel Ross. The final mix: three levels, music that dips under the voice and rises in the gaps, effects placed
-// where asked, final loudness -14 LUFS, true peak under the limit, no clipping.
+// where asked, final loudness -16 LUFS, true peak under the limit, no clipping.
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
@@ -24,12 +24,12 @@ function makeReel(voiceAmp = 0.35, events = []) {
 }
 const mix = (c, extra = []) => py("mix_audio.py", [c.reel, "--stems-dir", path.join(c.dir, "stems"), ...extra], { REELS_HOME: c.home, REEL_ENGINE: c.engine });
 
-test("mix: final loudness -14 LUFS, true peak under the limit, no clipping", { skip: skipReason }, () => {
+test("mix: final loudness -16 LUFS, true peak under the limit, no clipping", { skip: skipReason }, () => {
   const c = makeReel(0.35, [{ name: "ding", t: 4.0, db: -8 }, { name: "pop-soft", t: 9.0, db: -9 }]);
   const r = mix(c);
   assert.equal(r.status, 0, r.stderr);
   const rep = JSON.parse(fs.readFileSync(path.join(c.reel, "mix_report.json"), "utf8"));
-  assert.ok(Math.abs(rep.lufs - -14) <= 1, `loudness ${rep.lufs}`);
+  assert.ok(Math.abs(rep.lufs - -16) <= 1, `loudness ${rep.lufs}`);
   assert.ok(rep.true_peak_db <= -1.0, `true peak ${rep.true_peak_db}`);
   assert.equal(rep.clipped_samples, 0);
   assert.equal(rep.pass, true);
@@ -44,7 +44,7 @@ test("mix: a very hot voice with music and effects still doesn't clip", { skip: 
   const rep = JSON.parse(fs.readFileSync(path.join(c.reel, "mix_report.json"), "utf8"));
   assert.ok(rep.true_peak_db <= -1.0, `true peak ${rep.true_peak_db}`);
   assert.equal(rep.clipped_samples, 0);
-  assert.ok(Math.abs(rep.lufs - -14) <= 1, `loudness ${rep.lufs}`);
+  assert.ok(Math.abs(rep.lufs - -16) <= 1, `loudness ${rep.lufs}`);
 });
 
 test("mix: the music dips while the voice speaks and rises in the gaps", { skip: skipReason }, () => {
@@ -79,7 +79,7 @@ test("mix without music or effects still normalises the voice", { skip: skipReas
   assert.equal(r.status, 0, r.stderr);
   const rep = JSON.parse(fs.readFileSync(path.join(c.reel, "mix_report.json"), "utf8"));
   assert.equal(rep.music, false);
-  assert.ok(Math.abs(rep.lufs - -14) <= 1);
+  assert.ok(Math.abs(rep.lufs - -16) <= 1);
 });
 
 test("qa.py passes the mixed reel and fails a reel whose peak is over the limit", { skip: skipReason }, () => {
