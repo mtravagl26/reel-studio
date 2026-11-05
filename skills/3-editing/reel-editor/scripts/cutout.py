@@ -11,7 +11,8 @@
   python3 cutout.py <reel> sheet                 cutout_check.jpg: frame | matte | speaker on magenta, to look at the edges
 
 The matte comes from Apple Vision person segmentation (built into macOS, runs on this computer, nothing downloaded or sent).
-Elsewhere, or if the Swift compiler is missing, there is no built-in matte: pass your own white-on-black matte video with
+Fixes for one set of footage go in edit.json "cutout": {"include_dark": [[x,y,w,h]] (a microphone in front of the speaker), "include", "exclude",
+"matte"}; see references/look-and-layers.md. Elsewhere, or if the Swift compiler is missing, there is no built-in matte: pass your own white-on-black matte video with
 --matte <file> (any segmentation tool), or layered graphics fall back to a plain overlay in front. Needs ffmpeg; swiftc on macOS.
 Edge checks (per shot): the speaker must fill a plausible share of the frame, the matte must not jump or flicker, and its
 edges must be clean rather than mushy. A shot that fails is drawn as a plain overlay and the build says so.
@@ -65,6 +66,19 @@ def clean_filter(boxes=None):
     return ",".join(f)
 
 
+def matte_graph(boxes, prefix=""):
+    """filter_complex for the matte. Input 0 is the raw matte; input 1 is the video, used only for "include_dark" boxes: dark pixels
+    inside the box (a microphone, a dark chair arm in front of the speaker) are added to the matte, the rest of the box is not."""
+    g = [f"[0:v]{prefix}{clean_filter(boxes)}[m0]"]; last = "m0"
+    for i, b in enumerate((boxes or {}).get("include_dark", [])):
+        x, y, w, h = b[:4]; thr = b[4] if len(b) > 4 else 100
+        # dark pixels, blurred so gaps (a mic's bright highlights) fill in, thresholded again, then pulled back in to the real edge
+        g.append(f"[1:v]scale={W}:{H},format=gray,crop={w}:{h}:{x}:{y},lut=y='if(lt(val,{thr}),255,0)',gblur=sigma=9,lut=y='if(gt(val,70),255,0)',"
+                 f"erosion,erosion,erosion,erosion,pad={W}:{H}:{x}:{y}:black,gblur=sigma=1.2[d{i}]")
+        g.append(f"[{last}][d{i}]blend=all_mode=lighten[m{i + 1}]"); last = f"m{i + 1}"
+    return ";".join(g), last
+
+
 def build_matte(reel, src, quality="accurate", own_matte=None, boxes=None, fps=30):
     """Make <reel>/cutout/matte.mkv for `src` (cached: reused while src is unchanged). Returns the matte path or None."""
     d = Path(reel) / "cutout"; d.mkdir(exist_ok=True)
@@ -72,14 +86,17 @@ def build_matte(reel, src, quality="accurate", own_matte=None, boxes=None, fps=3
     k = key_of(src) + f"-{quality}-{bool(own_matte)}-{json.dumps(boxes, sort_keys=True)}"
     if mpath.exists() and meta.exists() and json.load(open(meta)).get("key") == k:
         return mpath
+    video_in = ["-i", src] if (boxes or {}).get("include_dark") else []
     if own_matte:
-        run(["ffmpeg", "-v", "error", "-y", "-i", own_matte, "-vf", f"fps={fps},scale={W}:{H},{clean_filter(boxes)}", "-c:v", "ffv1", "-level", "3", mpath])
+        graph, out = matte_graph(boxes, f"fps={fps},scale={W}:{H},")
+        run(["ffmpeg", "-v", "error", "-y", "-i", own_matte, *video_in, "-filter_complex", graph, "-map", f"[{out}]", "-c:v", "ffv1", "-level", "3", mpath])
     else:
         tool = matte_tool()
         if not tool: return None
         p = subprocess.Popen([str(tool), str(src), str(W), str(H), quality], stdout=subprocess.PIPE)
-        run(["ffmpeg", "-v", "error", "-y", "-f", "rawvideo", "-pix_fmt", "gray", "-s", f"{W}x{H}", "-r", str(fps), "-i", "-",
-             "-vf", clean_filter(boxes), "-c:v", "ffv1", "-level", "3", mpath], stdin=p.stdout)
+        graph, out = matte_graph(boxes)
+        run(["ffmpeg", "-v", "error", "-y", "-f", "rawvideo", "-pix_fmt", "gray", "-s", f"{W}x{H}", "-r", str(fps), "-i", "-", *video_in,
+             "-filter_complex", graph, "-map", f"[{out}]", "-c:v", "ffv1", "-level", "3", mpath], stdin=p.stdout)
         p.wait()
         if p.returncode: return None
     meta.write_text(json.dumps({"key": k, "src": str(Path(src).name), "quality": quality}))

@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
-import { ff, haveVp9, py, skipReason, tmp } from "./reel-helpers.mjs";
+import { ff, haveVp9, py, run, scripts, skipReason, tmp } from "./reel-helpers.mjs";
 
 const skip = skipReason || (haveVp9 ? false : "ffmpeg has no libvpx-vp9");
 
@@ -102,4 +102,30 @@ test("cutout.py check: a steady matte passes, an empty one fails (command line)"
   const no = py("cutout.py", [bad.reel, "check", "0.5", "3"], bad.env);
   assert.equal(no.status, 1);
   assert.match(no.stdout, /^FAIL/);
+});
+
+test("include_dark adds only the dark object in front of the speaker (a microphone), not the box around it", { skip }, () => {
+  // grey scene with a dark "microphone" the oval matte misses; the include_dark box surrounds it
+  const dir = tmp("mic"), reel = path.join(dir, "reel");
+  fs.mkdirSync(reel);
+  ff(["-f", "lavfi", "-i", "color=c=0xc8c8c8:s=270x480:r=30:d=2", "-vf", "drawbox=x=200:y=380:w=50:h=70:color=black:t=fill", "-pix_fmt", "yuv420p", path.join(reel, "master.mp4")]);
+  ff(["-f", "lavfi", "-i", "color=c=black:s=270x480:r=30:d=2,geq=lum='if(lte(pow((X-W*0.3)/(W*0.2),2)+pow((Y-H*0.4)/(H*0.2),2),1),255,0)':cb=128:cr=128", "-pix_fmt", "gray", "-c:v", "ffv1", path.join(reel, "matte.mkv")]);
+  const coverage = (cut) => {
+    fs.writeFileSync(path.join(reel, "edit.json"), JSON.stringify({ cutout: { matte: "matte.mkv", ...cut } }));
+    fs.rmSync(path.join(reel, "cutout"), { recursive: true, force: true });
+    const code = `import sys, json; sys.path.insert(0, ${JSON.stringify(scripts)}); import cutout
+reel = sys.argv[1]; boxes = json.load(open(reel + "/edit.json"))["cutout"]
+m = cutout.build_matte(reel, reel + "/master.mp4", "accurate", reel + "/matte.mkv", boxes)
+print(cutout.frame_stats(m)[5]["cov"])`;
+    const r = run("python3", ["-c", code, reel]);
+    assert.equal(r.status, 0, r.stderr);
+    return Number(r.stdout.trim());
+  };
+  const plain = coverage({});
+  const withMic = coverage({ include_dark: [[760, 1480, 280, 360]] });
+  const wholeBox = coverage({ include: [[760, 1480, 280, 360]] });
+  const darkArea = (50 * 70) / (270 * 480);   // the dark object's share of the frame
+  assert.ok(withMic - plain > darkArea * 0.6, `the dark object should be added (${plain} -> ${withMic})`);
+  assert.ok(withMic - plain < darkArea * 1.6, "and not much more than the object itself");
+  assert.ok(wholeBox - plain > (withMic - plain) * 1.5, "a plain include box takes in far more (the whole box)");
 });

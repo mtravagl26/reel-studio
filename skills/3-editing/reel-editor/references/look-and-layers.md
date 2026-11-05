@@ -26,7 +26,13 @@ HDR (HLG) iPhone clips are only approximately converted to standard colour (ffmp
 
 `python3 scripts/cutout.py <reel> sheet` writes `cutout_check.jpg`: for three moments, the frame, the matte, and the speaker alone on magenta. Look at the edges before layering.
 
-Fixing a matte for one set of footage: `edit.json` → `"cutout": {"include": [[x, y, w, h]], "exclude": [[x, y, w, h]]}` (pixels on the 1080x1920 frame). A microphone in front of the speaker is usually missing from the matte; `include` a box around it. An unwanted blob (a chair arm) goes in `exclude`.
+Fixing a matte for one set of footage, in `edit.json`:
+
+```json
+"cutout": {"include_dark": [[600, 1120, 480, 340]], "exclude": [[x, y, w, h]], "include": [[x, y, w, h]], "matte": "my-matte.mp4"}
+```
+
+(pixels on the 1080x1920 frame). A microphone, or anything dark, that sits in front of the speaker is usually missing from the matte, so a graphic behind them would show through it: `include_dark` adds only the dark pixels inside the box (the microphone and its boom, not the wall or chair around them); an optional fifth number is the darkness limit (default 100, higher takes in lighter objects). `include` adds the whole box, `exclude` removes it (an unwanted blob such as a chair arm), and `matte` brings your own white-on-black matte video instead of Apple Vision. Check the result with `cutout.py <reel> sheet`.
 
 ## Layers: behind, in front, or both
 

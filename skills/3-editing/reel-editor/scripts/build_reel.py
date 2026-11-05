@@ -33,8 +33,9 @@ edit.json (written by auto_edit.py, then Claude marks accents and adds cards):
      background and the speaker's cutout, so they stand in front of it (big type, shapes); "front" is the normal overlay; "both" keeps
      the card behind and also shows a copy in front inside "front_part" ("bottom" | "top" | [x, y, w, h], default "bottom"), so it weaves
      around them. Uses cutout.py (Apple Vision, macOS). A shot whose cutout edges fail the check is drawn as a plain overlay and the build says so.
-     edit.json "cutout": {"include": [[x,y,w,h]], "exclude": [[x,y,w,h]], "matte": "my-matte.mp4"} fixes a matte for this footage (e.g. include
-     the microphone) or brings your own white-on-black matte video (any segmentation tool, same length as master.mp4).
+     edit.json "cutout": {"include_dark": [[x,y,w,h]], "include": [...], "exclude": [...], "matte": "my-matte.mp4"} fixes a matte for this footage
+     (include_dark adds only the dark pixels in a box, e.g. a microphone in front of the speaker) or brings your own white-on-black matte video
+     (any segmentation tool, same length as master.mp4). See references/look-and-layers.md.
   Image paths: relative to the reel folder, or to ~/reels/assets/, or absolute.
 """
 import html, json, os, re, shutil, subprocess, sys
