@@ -2,7 +2,8 @@
 """QA gate for a finished reel. Checks size, length, loudness, and (if expected.txt exists) that no words were lost.
 Usage: python3 qa.py <reel-folder> [video]     default video: final.mp4. Exit code 1 if anything fails."""
 import difflib, json, os, re, subprocess, sys
-# Modified by By Mel Ross: HyperFrames pinned to the version render.sh uses, telemetry off unless you opt in.
+# Modified by By Mel Ross: HyperFrames pinned to the version render.sh uses, telemetry off unless you opt in; also checks true peak,
+# clipping and the cover size (Reel Studio 0.2.0).
 os.environ.setdefault("HYPERFRAMES_NO_TELEMETRY", "1"); os.environ.setdefault("DO_NOT_TRACK", "1")
 from pathlib import Path
 
@@ -26,11 +27,30 @@ if [w, h] != list(want): fails.append("size")
 print(f"length    {dur:.1f}s  (max {brand.get('max_seconds', 60)}s)")
 if dur > brand.get("max_seconds", 60): fails.append("length")
 
-ebu = subprocess.run(["ffmpeg", "-hide_banner", "-i", str(video), "-af", "ebur128", "-f", "null", "-"],
+ebu = subprocess.run(["ffmpeg", "-hide_banner", "-i", str(video), "-af", "ebur128=peak=true", "-f", "null", "-"],
                      capture_output=True, text=True).stderr
 lufs = float(re.findall(r"I:\s+(-?[\d.]+) LUFS", ebu)[-1])
 print(f"loudness  {lufs:.1f} LUFS  (want -15 to -12.5)")
 if not -15 <= lufs <= -12.5: fails.append("loudness")
+# Modified by By Mel Ross: true peak and clipping, so the mix never distorts on a phone speaker
+tpk = re.findall(r"Peak:\s+(-?[\d.]+) dBFS", ebu)
+if tpk:
+    print(f"peak      {float(tpk[-1]):.1f} dBTP  (want -1.0 or lower)")
+    if float(tpk[-1]) > -1.0: fails.append("true peak")
+st = subprocess.run(["ffmpeg", "-hide_banner", "-i", str(video), "-vn", "-af", "astats=measure_perchannel=none", "-f", "null", "-"],
+                    capture_output=True, text=True).stderr
+pk = re.findall(r"Peak level dB:\s+(-?[\d.]+)", st)
+if pk and float(pk[-1]) >= -0.05:
+    print("clipping  samples reach full scale"); fails.append("clipping")
+# Every reel comes with a cover: 1080x1920 JPG. (Made after QA, so a missing one is a reminder, not a failure; deliver.sh insists.)
+cov = reel / "cover.jpg"
+if cov.exists():
+    cs = subprocess.run(["ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries", "stream=width,height", "-of", "csv=p=0", str(cov)],
+                        capture_output=True, text=True).stdout.strip()
+    print(f"cover     {cs}  (want 1080,1920)")
+    if cs != "1080,1920": fails.append("cover size")
+else:
+    print("cover     not made yet (cover.py, step 7: every reel gets one)")
 
 exp = reel / "expected.txt"
 if exp.exists():

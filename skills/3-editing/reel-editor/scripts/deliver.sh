@@ -21,6 +21,8 @@ else
   fi
 fi
 DIR="${DIR/#\~/$HOME}"
+[ "$(ffprobe -v error -select_streams v:0 -show_entries stream=width,height -of csv=p=0 "$REEL/cover.jpg" 2>/dev/null)" = "1080,1920" ] || {   # Modified by By Mel Ross: the cover must exist and be 1080x1920
+  echo "cover.jpg is missing or not 1080x1920: make it with cover.py (candidates, then --at <s> --title \"...\")" >&2; exit 1; }
 [ -s "$REEL/cover.jpg" ] || { echo "no cover.jpg yet: run cover.py <reel> candidates, pick a smiling frame, then cover.py <reel> --at <s> --title \"...\"" >&2; exit 1; }
 mkdir -p "$DIR"; OUT="$DIR/$NAME.mp4"; PHONE="$DIR/$NAME (phone).mp4"; COVER="$DIR/$NAME cover.jpg"
 
