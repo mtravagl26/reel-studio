@@ -1,0 +1,405 @@
+{
+  "about": "Sound-effects library for the reel editor. gain_db is each effect's default level offset; brand.json \"sfx_volume\" adds a per-effect change on top. Every file is generated, none is downloaded.",
+  "effects": [
+    {
+      "name": "whoosh",
+      "file": "whoosh.wav",
+      "category": "whoosh",
+      "description": "air whoosh (original reel-editor sound)",
+      "gain_db": 0,
+      "source": "scripts/setup_engine.sh (ffmpeg synthesis)",
+      "license": "Synthesised by setup_engine.sh (ffmpeg lavfi generators) from Claude Reel Editor by Nicola Pocock. MIT.",
+      "third_party": false
+    },
+    {
+      "name": "swish",
+      "file": "swish.wav",
+      "category": "whoosh",
+      "description": "short swish (original reel-editor sound)",
+      "gain_db": 0,
+      "source": "scripts/setup_engine.sh (ffmpeg synthesis)",
+      "license": "Synthesised by setup_engine.sh (ffmpeg lavfi generators) from Claude Reel Editor by Nicola Pocock. MIT.",
+      "third_party": false
+    },
+    {
+      "name": "pop",
+      "file": "pop.wav",
+      "category": "pop",
+      "description": "pop (original reel-editor sound)",
+      "gain_db": 0,
+      "source": "scripts/setup_engine.sh (ffmpeg synthesis)",
+      "license": "Synthesised by setup_engine.sh (ffmpeg lavfi generators) from Claude Reel Editor by Nicola Pocock. MIT.",
+      "third_party": false
+    },
+    {
+      "name": "snap",
+      "file": "snap.wav",
+      "category": "snap",
+      "description": "snap (original reel-editor sound)",
+      "gain_db": 0,
+      "source": "scripts/setup_engine.sh (ffmpeg synthesis)",
+      "license": "Synthesised by setup_engine.sh (ffmpeg lavfi generators) from Claude Reel Editor by Nicola Pocock. MIT.",
+      "third_party": false
+    },
+    {
+      "name": "chime",
+      "file": "chime.wav",
+      "category": "ding",
+      "description": "chime (original reel-editor sound)",
+      "gain_db": 0,
+      "source": "scripts/setup_engine.sh (ffmpeg synthesis)",
+      "license": "Synthesised by setup_engine.sh (ffmpeg lavfi generators) from Claude Reel Editor by Nicola Pocock. MIT.",
+      "third_party": false
+    },
+    {
+      "name": "typing",
+      "file": "typing.wav",
+      "category": "typing",
+      "description": "typing (original reel-editor sound)",
+      "gain_db": 0,
+      "source": "scripts/setup_engine.sh (ffmpeg synthesis)",
+      "license": "Synthesised by setup_engine.sh (ffmpeg lavfi generators) from Claude Reel Editor by Nicola Pocock. MIT.",
+      "third_party": false
+    },
+    {
+      "name": "whoosh-fast",
+      "file": "whoosh-fast.wav",
+      "category": "whoosh",
+      "description": "quick air whoosh for fast cuts and cards sliding in",
+      "gain_db": 0,
+      "source": "scripts/make_sfx.py (seed 11)",
+      "license": "Original synthesis by By Mel Ross, written for this project; no third-party samples. Apache-2.0 (the project license).",
+      "third_party": false
+    },
+    {
+      "name": "whoosh-slow",
+      "file": "whoosh-slow.wav",
+      "category": "whoosh",
+      "description": "long soft whoosh for big moves and scene changes",
+      "gain_db": 0,
+      "source": "scripts/make_sfx.py (seed 12)",
+      "license": "Original synthesis by By Mel Ross, written for this project; no third-party samples. Apache-2.0 (the project license).",
+      "third_party": false
+    },
+    {
+      "name": "whoosh-up",
+      "file": "whoosh-up.wav",
+      "category": "whoosh",
+      "description": "rising whoosh that ends on a beat, for reveals",
+      "gain_db": 1,
+      "source": "scripts/make_sfx.py (seed 13)",
+      "license": "Original synthesis by By Mel Ross, written for this project; no third-party samples. Apache-2.0 (the project license).",
+      "third_party": false
+    },
+    {
+      "name": "whoosh-down",
+      "file": "whoosh-down.wav",
+      "category": "whoosh",
+      "description": "falling whoosh, for something leaving or dropping",
+      "gain_db": 2,
+      "source": "scripts/make_sfx.py (seed 14)",
+      "license": "Original synthesis by By Mel Ross, written for this project; no third-party samples. Apache-2.0 (the project license).",
+      "third_party": false
+    },
+    {
+      "name": "swoosh-soft",
+      "file": "swoosh-soft.wav",
+      "category": "whoosh",
+      "description": "airy gentle swoosh, the quiet option",
+      "gain_db": 1,
+      "source": "scripts/make_sfx.py (seed 15)",
+      "license": "Original synthesis by By Mel Ross, written for this project; no third-party samples. Apache-2.0 (the project license).",
+      "third_party": false
+    },
+    {
+      "name": "pop-soft",
+      "file": "pop-soft.wav",
+      "category": "pop",
+      "description": "soft round pop for a tag or word appearing",
+      "gain_db": -4,
+      "source": "scripts/make_sfx.py (seed 21)",
+      "license": "Original synthesis by By Mel Ross, written for this project; no third-party samples. Apache-2.0 (the project license).",
+      "third_party": false
+    },
+    {
+      "name": "pop-bubble",
+      "file": "pop-bubble.wav",
+      "category": "pop",
+      "description": "bubbly rising pop",
+      "gain_db": -4,
+      "source": "scripts/make_sfx.py (seed 22)",
+      "license": "Original synthesis by By Mel Ross, written for this project; no third-party samples. Apache-2.0 (the project license).",
+      "third_party": false
+    },
+    {
+      "name": "click",
+      "file": "click.wav",
+      "category": "ui",
+      "description": "clean interface click",
+      "gain_db": 4,
+      "source": "scripts/make_sfx.py (seed 31)",
+      "license": "Original synthesis by By Mel Ross, written for this project; no third-party samples. Apache-2.0 (the project license).",
+      "third_party": false
+    },
+    {
+      "name": "tick",
+      "file": "tick.wav",
+      "category": "ui",
+      "description": "tiny tick for counters and list rows",
+      "gain_db": 1,
+      "source": "scripts/make_sfx.py (seed 32)",
+      "license": "Original synthesis by By Mel Ross, written for this project; no third-party samples. Apache-2.0 (the project license).",
+      "third_party": false
+    },
+    {
+      "name": "finger-snap",
+      "file": "finger-snap.wav",
+      "category": "snap",
+      "description": "finger-snap style accent",
+      "gain_db": 4,
+      "source": "scripts/make_sfx.py (seed 33)",
+      "license": "Original synthesis by By Mel Ross, written for this project; no third-party samples. Apache-2.0 (the project license).",
+      "third_party": false
+    },
+    {
+      "name": "impact-low",
+      "file": "impact-low.wav",
+      "category": "impact",
+      "description": "deep sub boom for a big statement",
+      "gain_db": -5,
+      "source": "scripts/make_sfx.py (seed 41)",
+      "license": "Original synthesis by By Mel Ross, written for this project; no third-party samples. Apache-2.0 (the project license).",
+      "third_party": false
+    },
+    {
+      "name": "impact-hit",
+      "file": "impact-hit.wav",
+      "category": "impact",
+      "description": "short punchy hit for a title landing",
+      "gain_db": -4,
+      "source": "scripts/make_sfx.py (seed 42)",
+      "license": "Original synthesis by By Mel Ross, written for this project; no third-party samples. Apache-2.0 (the project license).",
+      "third_party": false
+    },
+    {
+      "name": "impact-cinematic",
+      "file": "impact-cinematic.wav",
+      "category": "impact",
+      "description": "long cinematic boom with a tail",
+      "gain_db": -5,
+      "source": "scripts/make_sfx.py (seed 43)",
+      "license": "Original synthesis by By Mel Ross, written for this project; no third-party samples. Apache-2.0 (the project license).",
+      "third_party": false
+    },
+    {
+      "name": "thud",
+      "file": "thud.wav",
+      "category": "impact",
+      "description": "small soft thud",
+      "gain_db": -1,
+      "source": "scripts/make_sfx.py (seed 44)",
+      "license": "Original synthesis by By Mel Ross, written for this project; no third-party samples. Apache-2.0 (the project license).",
+      "third_party": false
+    },
+    {
+      "name": "rise",
+      "file": "rise.wav",
+      "category": "rise",
+      "description": "noise riser (1.8 s) that builds into a reveal; end it on the beat",
+      "gain_db": 4,
+      "source": "scripts/make_sfx.py (seed 51)",
+      "license": "Original synthesis by By Mel Ross, written for this project; no third-party samples. Apache-2.0 (the project license).",
+      "third_party": false
+    },
+    {
+      "name": "rise-tonal",
+      "file": "rise-tonal.wav",
+      "category": "rise",
+      "description": "musical rising sweep (1.5 s)",
+      "gain_db": -2,
+      "source": "scripts/make_sfx.py (seed 52)",
+      "license": "Original synthesis by By Mel Ross, written for this project; no third-party samples. Apache-2.0 (the project license).",
+      "third_party": false
+    },
+    {
+      "name": "reverse-swell",
+      "file": "reverse-swell.wav",
+      "category": "rise",
+      "description": "reversed swell into a hit",
+      "gain_db": 4,
+      "source": "scripts/make_sfx.py (seed 53)",
+      "license": "Original synthesis by By Mel Ross, written for this project; no third-party samples. Apache-2.0 (the project license).",
+      "third_party": false
+    },
+    {
+      "name": "ding",
+      "file": "ding.wav",
+      "category": "ding",
+      "description": "bright bell ding for a win or a tip",
+      "gain_db": 0,
+      "source": "scripts/make_sfx.py (seed 61)",
+      "license": "Original synthesis by By Mel Ross, written for this project; no third-party samples. Apache-2.0 (the project license).",
+      "third_party": false
+    },
+    {
+      "name": "ding-soft",
+      "file": "ding-soft.wav",
+      "category": "ding",
+      "description": "softer, lower ding",
+      "gain_db": -2,
+      "source": "scripts/make_sfx.py (seed 62)",
+      "license": "Original synthesis by By Mel Ross, written for this project; no third-party samples. Apache-2.0 (the project license).",
+      "third_party": false
+    },
+    {
+      "name": "ding-double",
+      "file": "ding-double.wav",
+      "category": "ding",
+      "description": "two-note ding",
+      "gain_db": 0,
+      "source": "scripts/make_sfx.py (seed 63)",
+      "license": "Original synthesis by By Mel Ross, written for this project; no third-party samples. Apache-2.0 (the project license).",
+      "third_party": false
+    },
+    {
+      "name": "notification",
+      "file": "notification.wav",
+      "category": "ding",
+      "description": "phone-style notification chime",
+      "gain_db": -1,
+      "source": "scripts/make_sfx.py (seed 64)",
+      "license": "Original synthesis by By Mel Ross, written for this project; no third-party samples. Apache-2.0 (the project license).",
+      "third_party": false
+    },
+    {
+      "name": "coin",
+      "file": "coin.wav",
+      "category": "ding",
+      "description": "two-note coin pickup, used by the call-to-action pill",
+      "gain_db": -2,
+      "source": "scripts/make_sfx.py (seed 65)",
+      "license": "Original synthesis by By Mel Ross, written for this project; no third-party samples. Apache-2.0 (the project license).",
+      "third_party": false
+    },
+    {
+      "name": "sparkle",
+      "file": "sparkle.wav",
+      "category": "ding",
+      "description": "glitter of high pings, used by the follow card",
+      "gain_db": -3,
+      "source": "scripts/make_sfx.py (seed 66)",
+      "license": "Original synthesis by By Mel Ross, written for this project; no third-party samples. Apache-2.0 (the project license).",
+      "third_party": false
+    },
+    {
+      "name": "success",
+      "file": "success.wav",
+      "category": "ding",
+      "description": "four-note rising success jingle",
+      "gain_db": -1,
+      "source": "scripts/make_sfx.py (seed 67)",
+      "license": "Original synthesis by By Mel Ross, written for this project; no third-party samples. Apache-2.0 (the project license).",
+      "third_party": false
+    },
+    {
+      "name": "error-buzz",
+      "file": "error-buzz.wav",
+      "category": "ding",
+      "description": "double low buzz for a wrong answer",
+      "gain_db": -12,
+      "source": "scripts/make_sfx.py (seed 68)",
+      "license": "Original synthesis by By Mel Ross, written for this project; no third-party samples. Apache-2.0 (the project license).",
+      "third_party": false
+    },
+    {
+      "name": "typing-keys",
+      "file": "typing-keys.wav",
+      "category": "typing",
+      "description": "12 keystrokes, relaxed pace",
+      "gain_db": 3,
+      "source": "scripts/make_sfx.py (seed 71)",
+      "license": "Original synthesis by By Mel Ross, written for this project; no third-party samples. Apache-2.0 (the project license).",
+      "third_party": false
+    },
+    {
+      "name": "typing-fast",
+      "file": "typing-fast.wav",
+      "category": "typing",
+      "description": "18 quick keystrokes",
+      "gain_db": 4,
+      "source": "scripts/make_sfx.py (seed 72)",
+      "license": "Original synthesis by By Mel Ross, written for this project; no third-party samples. Apache-2.0 (the project license).",
+      "third_party": false
+    },
+    {
+      "name": "paper-rustle",
+      "file": "paper-rustle.wav",
+      "category": "paper",
+      "description": "paper rustling",
+      "gain_db": 4,
+      "source": "scripts/make_sfx.py (seed 81)",
+      "license": "Original synthesis by By Mel Ross, written for this project; no third-party samples. Apache-2.0 (the project license).",
+      "third_party": false
+    },
+    {
+      "name": "paper-flip",
+      "file": "paper-flip.wav",
+      "category": "paper",
+      "description": "one quick page flip",
+      "gain_db": -2,
+      "source": "scripts/make_sfx.py (seed 82)",
+      "license": "Original synthesis by By Mel Ross, written for this project; no third-party samples. Apache-2.0 (the project license).",
+      "third_party": false
+    },
+    {
+      "name": "page-turn",
+      "file": "page-turn.wav",
+      "category": "paper",
+      "description": "page flip with a soft settle",
+      "gain_db": 0,
+      "source": "scripts/make_sfx.py (seed 83)",
+      "license": "Original synthesis by By Mel Ross, written for this project; no third-party samples. Apache-2.0 (the project license).",
+      "third_party": false
+    },
+    {
+      "name": "glitch",
+      "file": "glitch.wav",
+      "category": "glitch",
+      "description": "short digital stutter",
+      "gain_db": -11,
+      "source": "scripts/make_sfx.py (seed 91)",
+      "license": "Original synthesis by By Mel Ross, written for this project; no third-party samples. Apache-2.0 (the project license).",
+      "third_party": false
+    },
+    {
+      "name": "glitch-long",
+      "file": "glitch-long.wav",
+      "category": "glitch",
+      "description": "longer glitch burst",
+      "gain_db": -9,
+      "source": "scripts/make_sfx.py (seed 92)",
+      "license": "Original synthesis by By Mel Ross, written for this project; no third-party samples. Apache-2.0 (the project license).",
+      "third_party": false
+    },
+    {
+      "name": "digital-error",
+      "file": "digital-error.wav",
+      "category": "glitch",
+      "description": "bleepy digital error",
+      "gain_db": -12,
+      "source": "scripts/make_sfx.py (seed 93)",
+      "license": "Original synthesis by By Mel Ross, written for this project; no third-party samples. Apache-2.0 (the project license).",
+      "third_party": false
+    },
+    {
+      "name": "camera-shutter",
+      "file": "camera-shutter.wav",
+      "category": "ui",
+      "description": "camera shutter, for a photo or screenshot moment",
+      "gain_db": 3,
+      "source": "scripts/make_sfx.py (seed 94)",
+      "license": "Original synthesis by By Mel Ross, written for this project; no third-party samples. Apache-2.0 (the project license).",
+      "third_party": false
+    }
+  ]
+}

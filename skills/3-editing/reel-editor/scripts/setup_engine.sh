@@ -20,11 +20,13 @@ mk chime  "sine=f=1320:d=0.7"                   "aecho=0.6:0.5:60:0.35,afade=t=o
 mk swish  "anoisesrc=d=0.25:c=pink:a=0.5"       "highpass=f=900,lowpass=f=7000,afade=t=in:d=0.12:curve=exp,afade=t=out:st=0.12:d=0.13"
 mk typing "aevalsrc='0.7*random(0)*lt(mod(t\\,0.085)\\,0.006)':d=0.9" "highpass=f=1500,lowpass=f=8000,volume=1.8"
 # Bring every effect up to a -1 dB peak: synthesised noise comes out ~20 dB quieter than a voice and disappears in the mix.
-for f in "$E"/sfx/*.wav; do
+for f in "$E"/sfx/{whoosh,pop,snap,chime,swish,typing}.wav; do
   [ -e "$f.norm" ] && continue
   PK="$(ffmpeg -hide_banner -i "$f" -af volumedetect -f null - 2>&1 | sed -n 's/.*max_volume: \(-*[0-9.]*\) dB/\1/p')"
   ffmpeg -v error -y -i "$f" -af "volume=$(python3 -c "print(round(-1-($PK),2))")dB" "$f.tmp.wav" && mv "$f.tmp.wav" "$f" && touch "$f.norm"
 done
+# Modified by By Mel Ross: the bigger sound-effects library (34 more, original synthesis, see assets/sfx-manifest.json).
+python3 "$(dirname "$0")/make_sfx.py" --out "$E/sfx"
 # HyperFrames catalog motions (carousels, captions, charts, social cards): fetched from HyperFrames, not shipped in this repo.
 H="$E/hf"; mkdir -p "$H"
 [ -f "$H/hyperframes.json" ] || printf '%s' '{"$schema":"https://hyperframes.heygen.com/schema/hyperframes.json","registry":"https://raw.githubusercontent.com/heygen-com/hyperframes/main/registry","paths":{"blocks":"compositions","components":"compositions/components","assets":"assets"}}' > "$H/hyperframes.json"
