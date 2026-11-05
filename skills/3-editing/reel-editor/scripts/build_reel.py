@@ -25,6 +25,16 @@ edit.json (written by auto_edit.py, then Claude marks accents and adds cards):
      follow {words: [{text, accent}], framing: "wide"}   caption-camera-follow in brand colours/font: one sentence
                                                      written word by word across a camera that pulls back (hook moments)
   Any card: "glass": true gives the frosted liquid-glass look (card, tag).
+  sfx_events: [{name, t, db?}]   (Added by By Mel Ross) extra sound effects from the library (assets/sfx-manifest.json), e.g.
+                                 {"name": "rise", "t": 12.4, "db": -9}  (db = peak level in dBFS, default -10). These always play; automatic entrance sounds follow brand.json "sfx".
+  Any card: "sfx": false mutes its entrance sound; "sfx": {"name": "ding", "db": -10} swaps it for another library effect.
+  brand.json "sfx_volume": {"pop": -3, "whoosh": 2}   per-effect level change in dB, on top of each effect's default level.
+  Any card: "layer": "behind" | "front" | "both"   (Added by By Mel Ross) where it sits relative to the speaker. "behind" puts it between the
+     background and the speaker's cutout, so they stand in front of it (big type, shapes); "front" is the normal overlay; "both" keeps
+     the card behind and also shows a copy in front inside "front_part" ("bottom" | "top" | [x, y, w, h], default "bottom"), so it weaves
+     around them. Uses cutout.py (Apple Vision, macOS). A shot whose cutout edges fail the check is drawn as a plain overlay and the build says so.
+     edit.json "cutout": {"include": [[x,y,w,h]], "exclude": [[x,y,w,h]], "matte": "my-matte.mp4"} fixes a matte for this footage (e.g. include
+     the microphone) or brings your own white-on-black matte video (any segmentation tool, same length as master.mp4).
   Image paths: relative to the reel folder, or to ~/reels/assets/, or absolute.
 """
 import html, json, os, re, shutil, subprocess, sys
@@ -33,9 +43,18 @@ from pathlib import Path
 reel = Path(sys.argv[1]).expanduser()
 CAPCUT = "--capcut" in sys.argv
 HOME = Path(os.environ.get("REELS_HOME", "~/reels")).expanduser()
-ENGINE = Path(__file__).resolve().parent.parent / "engine"
+ENGINE = Path(os.environ.get("REEL_ENGINE") or Path(__file__).resolve().parent.parent / "engine")   # REEL_ENGINE: Added by By Mel Ross, for tests
 brand = json.load(open(HOME / "brand.json"))
 edit = json.load(open(reel / "edit.json"))
+
+# Added by By Mel Ross: sound-effects library + stem mix. Effects are listed in assets/sfx-manifest.json (default level per
+# effect, source, license). By default they are not baked into the HyperFrames render: build_reel.py writes sfx_events.json and
+# mix_audio.py mixes voice, music and effects as three separate levels. brand.json "mix": {"legacy": true} keeps the old way
+# (effects as <audio> tags inside the composition, no music ducking).
+_mf = Path(__file__).resolve().parent.parent / "assets" / "sfx-manifest.json"
+SFX_LEVEL = {e["name"]: e.get("gain_db", 0) for e in json.load(open(_mf))["effects"]} if _mf.exists() else {}
+SFX_VOL = brand.get("sfx_volume", {})                 # per-effect dB change, e.g. {"pop": -3}
+STEMS = not brand.get("mix", {}).get("legacy", False)
 
 C = brand["colors"]
 MAIN, POP, LIGHT = C["main"], C["pop"], C.get("light", "#FFFFFF")
@@ -65,7 +84,8 @@ if proj.exists(): shutil.rmtree(proj)
 shutil.copy(ENGINE / "gsap.min.js", proj / "vendor/gsap.min.js")
 try: os.link(reel / "master.mp4", proj / "master.mp4")
 except OSError: shutil.copy(reel / "master.mp4", proj / "master.mp4")
-for f in (ENGINE / "sfx").glob("*.wav"): shutil.copy(f, proj / "sfx" / f.name)
+if not STEMS:
+    for f in (ENGINE / "sfx").glob("*.wav"): shutil.copy(f, proj / "sfx" / f.name)
 (proj / "img").mkdir()
 HF = ENGINE / "hf"
 if any(k["type"] in ("motion", "follow") for k in edit.get("cards", [])):
@@ -105,28 +125,40 @@ def font(role, px):
     return f"font-family:{fam};font-weight:{wt};font-style:{st};font-size:{px}px"
 
 back, mid, front, audio, js = [], [], [], [], []
+behind = []                                   # cards behind the speaker's cutout (layer: behind / both)
+_marks = []                                   # list lengths at the start of each card, to find the pieces a card added
 n_sfx = 0
 CAPCUT_NAME = {"swish": "whoosh-short", "whoosh": "whoosh-short", "pop": "pop", "snap": "snap", "typing": "typing",
                "chime": "chime", "sparkle": "sparkle", "coin": "coin"}   # local file -> CapCut library sound (capcut_draft.py)
-def sfx(name, t, db=-12, level="subtle", dur=None):
+def sfx(name, t, db=-12, level="subtle", dur=None, manual=False):
     """Subtle, ASMR-clean accents: every effect sits 10-15 dB under the voice (db = level relative to full scale).
-    level = lowest brand sfx setting that still plays it. CapCut route: recorded for CapCut's real library sounds."""
+    level = lowest brand sfx setting that still plays it. CapCut route: recorded for CapCut's real library sounds.
+    Modified by By Mel Ross: the sound library, a level per effect (manifest default + brand.json "sfx_volume"), and the stem mix."""
     global n_sfx
     global CARD_SFX
-    if CARD_MUTE: return                                  # this graphic's sound was switched off in the review
-    if CARD_SFX and level == "subtle":                    # the sound approved in the review replaces the entrance sound
-        name, db = {"sparkle": "chime"}.get(CARD_SFX["name"], CARD_SFX["name"]) if not CAPCUT else CARD_SFX["name"], CARD_SFX.get("db", db)
+    if CARD_MUTE and not manual: return                   # this graphic's sound was switched off in the review
+    if CARD_SFX and level == "subtle" and not manual:     # the sound approved in the review replaces the entrance sound
+        name, db = CARD_SFX["name"], CARD_SFX.get("db", db)
         CARD_SFX = None
-    if brand.get("sfx", "subtle") == "none" or (level == "lots" and brand.get("sfx") != "lots") or t >= DUR: return
-    vol = round(min(1.0, 10 ** ((db + brand.get("sfx_gain_db", 8)) / 20)), 3)   # +8 dB: clearly audible under a voice with no music bed
+    if not manual and (brand.get("sfx", "subtle") == "none" or (level == "lots" and brand.get("sfx") != "lots")): return
+    if t >= DUR: return
+    # automatic sounds: +8 dB makes them clearly audible under a voice with no music bed; an effect you place yourself (sfx_events)
+    # uses "db" as its peak level in dBFS, so -9 means a peak 9 dB under full scale.
+    gain = db + (0 if manual else brand.get("sfx_gain_db", 8)) + SFX_LEVEL.get(name, 0) + SFX_VOL.get(name, 0)
+    gain = min(0.0, gain)                                  # the files are already at -1 dBFS; never push past full scale
+    vol = round(min(1.0, 10 ** (gain / 20)), 3)
     if CAPCUT:
         SFX_OUT.append({"name": CAPCUT_NAME.get(name, name), "t": round(max(t, 0), 2), "vol": vol, **({"dur": dur} if dur else {})}); return
-    p = proj / "sfx" / f"{name}.wav"
-    if not p.exists(): return
+    p = ENGINE / "sfx" / f"{name}.wav"
+    if not p.exists():
+        print(f"warning: sound effect {name!r} is not in engine/sfx (run scripts/setup_engine.sh) - skipped"); return
     n_sfx += 1
     d = min(dur or dur_of(p), dur_of(p), DUR - t)
+    if STEMS:
+        SFX_EVENTS.append({"name": name, "t": round(max(t, 0), 3), "db": round(gain, 2), **({"dur": round(d, 3)} if dur else {})}); return
     audio.append(f'<audio id="sx{n_sfx}" src="sfx/{name}.wav" data-start="{q(t)}" data-duration="{q(d)}" '
                  f'data-track-index="{20 + n_sfx}" data-volume="{vol}"></audio>')
+SFX_EVENTS = []
 SFX_OUT = []
 CARD_MUTE = False
 CARD_SFX = None
@@ -153,6 +185,7 @@ def phrase_end(t):
 
 quiet = []                                      # spans where a card carries its own words, so captions step aside
 for i, c in enumerate(edit.get("cards", [])):
+    _marks.append((len(back), len(mid), len(front), len(js)))
     CARD_MUTE = c.get("sfx") is False
     CARD_SFX = c.get("sfx") if isinstance(c.get("sfx"), dict) else None
     a, b, cid = c["start"], c.get("end") or phrase_end(c["start"]), f"k{i}"
@@ -285,7 +318,53 @@ for i, c in enumerate(edit.get("cards", [])):
     else:
         print(f"warning: unknown card type {kind!r} - skipped")
 
+_marks.append((len(back), len(mid), len(front), len(js)))
 CARD_MUTE = False
+CARD_SFX = None
+# ---- layers: cards that sit behind the speaker (Added by By Mel Ross) ------------------------------------------------
+LAYERED = False
+if any(c.get("layer") in ("behind", "both") for c in edit.get("cards", [])):
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    import cutout
+    _src = reel / "master_sharp.mp4" if (reel / "master_sharp.mp4").exists() else reel / "master.mp4"
+    _boxes = edit.get("cutout") if isinstance(edit.get("cutout"), dict) else None
+    _m = None
+    try:
+        _own = (_boxes or {}).get("matte")                      # a white-on-black matte video of your own, instead of Apple Vision
+        _m = cutout.build_matte(reel, _src, "balanced" if os.environ.get("REEL_PREVIEW") else "accurate", str(reel / _own) if _own else None, _boxes)
+    except Exception as ex:
+        print(f"warning: cutout failed ({ex})")
+    if not _m:
+        print("note: no speaker cutout on this machine (needs macOS with the Swift compiler): layered graphics are drawn as plain overlays in front")
+    for i, c in enumerate(edit.get("cards", [])):
+        lay = c.get("layer")
+        if lay not in ("behind", "both"): continue
+        if c["type"] in ("block", "page", "motion", "follow"):
+            print(f"note: card {i} ({c['type']}) fills the frame, so it can't sit behind the speaker: left in front"); continue
+        a_, b_ = c["start"], min(c.get("end") or phrase_end(c["start"]), DUR)
+        ok, why = cutout.check(reel, a_, b_) if _m else (False, "no cutout available")
+        if not ok:
+            print(f"note: card {i} at {a_:.1f}s ({c['type']}): not layered behind the speaker ({why}); drawn as a plain overlay in front"); continue
+        (_b0, _m0, _f0, _j0), (_b1, _m1, _f1, _j1) = _marks[i], _marks[i + 1]
+        pieces = [("back", k) for k in range(_b0, _b1)] + [("front", k) for k in range(_f0, _f1)]
+        for where, k in pieces:
+            lst = back if where == "back" else front
+            html_item, lst[k] = lst[k], ""
+            behind.append(html_item)
+            if lay == "both":                                   # a clipped copy in front: the card weaves around the speaker
+                fp = c.get("front_part", "bottom")
+                inset = ("inset(1100px 0 0 0)" if fp == "bottom" else "inset(0 0 820px 0)" if fp == "top"
+                         else f"inset({fp[1]}px {W - fp[0] - fp[2]}px {H - fp[1] - fp[3]}px {fp[0]}px)")
+                cp = re.sub(rf'id="k{i}(?!\d)', f'id="k{i}f', html_item)
+                front.append(f'<div class="lp" style="visibility:visible;opacity:1;clip-path:{inset}">{cp}</div>')
+        if lay == "both":
+            js.extend(re.sub(rf'#k{i}(?!\d)', f'#k{i}f', line) for line in js[_j0:_j1])
+        LAYERED = True
+    if LAYERED:
+        _p = cutout.build_person(reel, reel / "master.mp4", _m)
+        (proj / "cutout").mkdir(exist_ok=True); shutil.copy(_p, proj / "cutout" / "person.webm")
+for e in edit.get("sfx_events", []):                  # extra effects chosen from the library (Added by By Mel Ross)
+    sfx(e["name"], float(e["t"]), e.get("db", -10), manual=True)
 # ---- brand rule: every edit has a carousel (unless the person said no for this reel) --------------------------------
 if brand.get("require_carousel") and not edit.get("no_carousel_ok") and not any(
         k["type"] == "motion" and "carousel" in k.get("name", "") for k in edit.get("cards", [])):
@@ -323,8 +402,10 @@ html, body {{ margin: 0; background: #000; overflow: hidden; }}
 #stage {{ position: relative; width: {W}px; height: {H}px; overflow: hidden; }}
 #cam {{ position: absolute; inset: 0; transform-origin: 50% 38%; }}
 #cam > video {{ position: absolute; left: 0; top: 0; width: {W}px; height: {H}px; object-fit: cover; }}
-#back, #mid, #front {{ position: absolute; inset: 0; }}
-#back > :not(.clip), #mid > :not(.clip), #front > :not(.clip) {{ visibility: hidden; opacity: 0; }}   /* .clip = HyperFrames motions, timed by the runtime */
+#back, #mid, #front, #behind {{ position: absolute; inset: 0; }}
+#back > :not(.clip), #mid > :not(.clip), #front > :not(.clip), #behind > :not(.clip) {{ visibility: hidden; opacity: 0; }}
+.lp {{ position: absolute; inset: 0; }}
+.lp > :not(.clip) {{ visibility: hidden; opacity: 0; }}   /* .clip = HyperFrames motions, timed by the runtime */
 .title {{ position: absolute; left: 0; top: 170px; width: {W}px; padding: 0 90px; box-sizing: border-box; line-height: .88; letter-spacing: -.045em; text-shadow: 0 0 3px rgba(0,0,0,.18), 0 6px 34px rgba(0,0,0,.4); }}
 .tl {{ white-space: nowrap; }}
 .block {{ position: absolute; inset: 0; }}
@@ -361,6 +442,8 @@ html, body {{ margin: 0; background: #000; overflow: hidden; }}
 <body>
 <div id="stage" data-composition-id="main" data-start="0" data-duration="{DUR}" data-fps="{FPS}" data-width="{W}" data-height="{H}">
   <div id="cam"><video id="bg" class="clip" src="master.mp4" playsinline data-has-audio="true" data-start="0" data-duration="{DUR}" data-track-index="1"></video>
+    <div id="behind">{"".join(behind)}</div>
+    {'<video id="person" class="clip" src="cutout/person.webm" muted playsinline data-start="0" data-duration="' + str(DUR) + '" data-track-index="3"></video>' if LAYERED else ""}
     <div id="back">{"".join(back)}</div></div>
   <div id="mid">{"".join(mid)}</div>
   <div id="front">{"".join(front)}</div>
@@ -373,6 +456,9 @@ html, body {{ margin: 0; background: #000; overflow: hidden; }}
 </div></body></html>"""
 (proj / "index.html").write_text(doc)
 (proj / "package.json").write_text('{"name":"reel","private":true,"type":"module"}')
+if CAPCUT: (reel / "sfx_events.json").unlink(missing_ok=True)
+if not CAPCUT and STEMS:
+    json.dump(SFX_EVENTS, open(reel / "sfx_events.json", "w"), indent=1)      # mix_audio.py mixes these in (render.sh)
 if CAPCUT:
     json.dump(cap_json, open(reel / "captions.json", "w"), indent=1)
     json.dump(SFX_OUT, open(reel / "sfx.json", "w"), indent=1)

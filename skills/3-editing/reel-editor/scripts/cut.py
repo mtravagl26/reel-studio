@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
 """Apply the approved rough cut: keep spans from edl.json (in play order), speed up, optional colour grade, scale to the
 brand resolution. Writes master.mp4 in the reel folder.
-Usage: python3 cut.py <reel-folder>      (reads <reel-folder>/edl.json and ~/reels/brand.json)"""
+Usage: python3 cut.py <reel-folder>      (reads <reel-folder>/edl.json and ~/reels/brand.json)
+Modified by By Mel Ross: the studio look (enhance.py: gentle exposure/colour, mild denoise and sharpen, in the same encode as
+the cut; then a slight background blur behind the speaker via cutout.py). On by default; brand.json "enhance" adjusts or
+turns it off. Writes enhance.json and enhance_before_after.jpg for review."""
 import json, os, subprocess, sys
 from pathlib import Path
 
@@ -14,6 +17,10 @@ src, audio = reel / edl["source"], reel / edl.get("audio", "voice.wav")
 spans = edl["keep"]
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from pacing import pacing
+import enhance, cutout   # Added by By Mel Ross: studio look
+import shutil
+(reel / "master_sharp.mp4").unlink(missing_ok=True)     # a new cut makes the old background-softening and cutout obsolete
+shutil.rmtree(reel / "cutout", ignore_errors=True)
 speed = pacing(brand)["speed"]
 w, h = brand.get("resolution", [1080, 1920])
 if os.environ.get("REEL_PREVIEW"): w, h = 1080, 1920          # previews cut at 1080p: a quarter of the work
@@ -32,6 +39,12 @@ if grade:
         # shortcut: splits filters on commas, so a filter option containing a comma breaks; quote-aware split if one ever does
         grade = ",".join(f + (":" if "=" in f else "=") + f"enable='gte(t,{float(edl['grade_from']):.3f})'" for f in grade.split(","))
     post.insert(1, grade)
+try:
+    PRE, POST, EINFO = enhance.filters(src, spans, brand, edl)   # studio look: before the scale, and after it
+except Exception as e:                                           # a nicety: never lose the cut over it
+    PRE, POST, EINFO = [], [], {"on": False, "error": str(e)}; print(f"studio look skipped: {e}")
+post[(2 if grade else 1):(2 if grade else 1)] = PRE
+post += POST
 vcat = "".join(f"[v{k}]" for k in range(n)) + f"concat=n={n}:v=1:a=0," + ",".join(post) + "[vout]"
 acat = "".join(f"[a{k}]" for k in range(n)) + f"concat=n={n}:v=0:a=1,atempo={speed}[aout]"
 
@@ -52,4 +65,17 @@ subprocess.run([*NICE, "ffmpeg", "-y", "-v", "error", "-stats", "-i", str(src), 
                 FILTER_FLAG, str(script), "-map", "[vout]", "-map", "[aout]",
                 *((["-c:v", "h264_videotoolbox", "-b:v", "12M"] if sys.platform == "darwin" else ["-c:v", "libx264", "-preset", "veryfast", "-crf", "20"]) if os.environ.get("REEL_PREVIEW") else ["-c:v", "libx264", "-preset", "medium", "-crf", "16"]), "-pix_fmt", "yuv420p",
                 "-c:a", "aac", "-b:a", "256k", "-movflags", "+faststart", str(reel / "master.mp4")], check=True)
+ES = enhance.settings(brand, edl)
+EINFO["background"] = "off"
+if ES["on"] is not False and ES["background"] * ES["strength"] > 0:
+    try:
+        ok = cutout.soften(reel, ES["background"] * ES["strength"], "balanced" if os.environ.get("REEL_PREVIEW") else "accurate")
+        EINFO["background"] = "softened" if ok else "skipped (no cutout available: needs macOS with the Swift compiler)"
+    except Exception as e:                     # the look is a nicety: never lose the cut over it
+        EINFO["background"] = f"skipped ({e})"
+json.dump(EINFO, open(reel / "enhance.json", "w"), indent=1)
+print("studio look:", "off" if ES["on"] is False else f"on, background {EINFO['background']}", "-> enhance_before_after.jpg" if ES["on"] is not False else "")
+if ES["on"] is not False:
+    try: enhance.compare(reel)
+    except Exception as e: print(f"(before/after frame skipped: {e})")
 print(reel / "master.mp4")
