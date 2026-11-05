@@ -25,7 +25,7 @@ The workspace is `~/reels/` unless `REELS_HOME` is set.
 
 ## The edit, in order
 
-Each reel gets its own folder: `~/reels/<yyyy-mm-dd>-<short-name>/`. Copy the raw clip in (never edit the original), and write the folder the clip came from into `source_dir.txt` in the reel folder (one line, absolute path): with `"deliver_dir": "footage"` the finished files go back there.
+Each reel gets its own folder: `~/reels/<yyyy-mm-dd>-<short-name>/`. Copy the raw clip in (never edit the original; iPhone HDR clips are converted to standard colour automatically at the cut, see `references/look-and-layers.md`, and the build tells you if that was not possible), and write the folder the clip came from into `source_dir.txt` in the reel folder (one line, absolute path): with `"deliver_dir": "footage"` the finished files go back there.
 
 1. **Transcribe** - `python3 scripts/transcribe.py <clip> transcript.json`. Uses ElevenLabs Scribe when `ELEVENLABS_API_KEY` is in `~/.config/reels/.env` (tight word timing; captions land on the word), else local Whisper (free, timing can drift ~0.3 s).
 2. **Clean the voice** - `bash scripts/clean_audio.sh <clip> voice.wav` (add `--denoise` if there is background noise). Targets -14 LUFS, the level Instagram and TikTok expect.

@@ -67,8 +67,10 @@ def filters(src, spans, brand, edl=None):
             info["measured_brightness"] = round(y, 1)
         if abs(lift) < 0.004: lift = 0.0
     c = s["color"] * k
+    # Modified by By Mel Ross: cut.py converts HDR clips to SDR with macOS avconvert before this point, so `src` is normally SDR here.
+    # Only a clip that could not be converted still reads as HDR, and then the colour really is approximate.
     hdr = is_hdr(src)
-    if hdr: info["note"] = "HDR (HLG) phone footage: colour is only approximately converted; film in SDR/'Most Compatible' for exact colour"
+    if hdr: info["note"] = "HDR (HLG/PQ) footage that could not be converted properly (needs macOS avconvert): colour is only approximate, it comes out lighter, greyer and cooler than the real picture"
     contrast, sat = 1 + (0.045 if hdr else 0.03) * c, 1 + (0.08 if hdr else 0.04) * c
     if lift or c > 0: pre.append(f"eq=brightness={lift:.4f}:contrast={contrast:.3f}:saturation={sat:.3f}")
     w = s["warmth"] * k
@@ -89,6 +91,7 @@ def compare(reel, at=None):
     src = reel / edl["source"] if edl.get("source") else None
     if not src or not src.exists():
         sys.exit("needs the reel's edl.json and source clip (run it from a reel folder after the cut)")
+    import hdr2sdr; src = hdr2sdr.working_source(src, reel)[0]   # Added by By Mel Ross: the before/after uses the same SDR picture the cut used
     t = float(at) if at is not None else (spans[0][0] + min(2.0, (spans[0][1] - spans[0][0]) / 2) if spans else 1.0)
     pre, post, info = filters(src, spans, brand, edl)
     base = "scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920"

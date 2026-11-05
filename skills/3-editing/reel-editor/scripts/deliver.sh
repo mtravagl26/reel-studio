@@ -26,7 +26,7 @@ DIR="${DIR/#\~/$HOME}"
 [ -s "$REEL/cover.jpg" ] || { echo "no cover.jpg yet: run cover.py <reel> candidates, pick a smiling frame, then cover.py <reel> --at <s> --title \"...\"" >&2; exit 1; }
 mkdir -p "$DIR"; OUT="$DIR/$NAME.mp4"; PHONE="$DIR/$NAME (phone).mp4"; COVER="$DIR/$NAME cover.jpg"
 
-H="$(ffprobe -v error -select_streams v:0 -show_entries stream=height -of csv=p=0 "$SRC")"
+H="$(ffprobe -v error -select_streams v:0 -show_entries stream=height -of csv=p=0 "$SRC" | head -n1 | tr -d ",")"   # tr: some files carry side data (e.g. from the HDR conversion) that adds a trailing comma
 if [ "$H" -ge 3000 ]; then RATE=35M; MAX=45M; else RATE=16M; MAX=20M; fi   # 4K vs 1080p
 
 if [ "$(uname)" = "Darwin" ]; then
@@ -34,9 +34,10 @@ if [ "$(uname)" = "Darwin" ]; then
 else
   VENC=(-c:v libx264 -preset slow -b:v "$RATE" -maxrate "$MAX" -bufsize "$MAX")
 fi
-ffmpeg -hide_banner -loglevel error -y -i "$SRC" "${VENC[@]}" -pix_fmt yuv420p -tag:v avc1 \
+TAG709=(-colorspace bt709 -color_primaries bt709 -color_trc bt709 -color_range tv); SETP="setparams=colorspace=bt709:color_primaries=bt709:color_trc=bt709:range=tv"   # Added by By Mel Ross: every copy is labelled BT.709
+ffmpeg -hide_banner -loglevel error -y -i "$SRC" -vf "$SETP" "${VENC[@]}" -pix_fmt yuv420p "${TAG709[@]}" -tag:v avc1 \
   -c:a aac -b:a 256k -movflags +faststart "$OUT"
-ffmpeg -hide_banner -loglevel error -y -i "$SRC" -vf "scale='min(1080,iw)':-2" -c:v libx264 -preset medium -crf 26 \
-  -pix_fmt yuv420p -tag:v avc1 -c:a aac -b:a 128k -movflags +faststart "$PHONE"
+ffmpeg -hide_banner -loglevel error -y -i "$SRC" -vf "scale='min(1080,iw)':-2,$SETP" -c:v libx264 -preset medium -crf 26 \
+  -pix_fmt yuv420p "${TAG709[@]}" -tag:v avc1 -c:a aac -b:a 128k -movflags +faststart "$PHONE"
 cp "$REEL/cover.jpg" "$COVER"
 printf '%s\n' "$OUT" "$PHONE" "$COVER"

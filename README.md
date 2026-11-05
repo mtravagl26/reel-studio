@@ -18,6 +18,7 @@ Two free, open-source skill sets in one folder, plus one creator's way of workin
   - **Every reel comes with a cover**: a 1080x1920 JPG from a smiling moment at the start or end, with a short topic title where Instagram's grid will show it.
   - **A phone-size copy** next to the full-quality one, small enough to text or AirDrop.
   - Finished files go **back into the folder your footage came from** (for example the iCloud Drive folder you film into), so they're on your phone when you're ready to post.
+  - **Correct colour from iPhone HDR clips.** An iPhone often films in HDR, and a plain conversion makes the picture lighter, greyer and cooler than the real scene. On a Mac the editor converts HDR clips with Apple's own HDR to SDR converter before it cuts, and labels every video it makes as standard colour (BT.709). If it can't (not a Mac, or the conversion fails its check), it tells you the colour is only approximate.
   - **A natural studio look.** Out of the box: mild denoise and sharpen only. Your colours and your real background are left alone. A gentle colour grade and a background blur are there if you want them (set them to 1 in your brand file). No skin smoothing. You get a before/after frame to review.
   - **Graphics behind, in front, or both.** Big type or a shape can sit behind your head so you stand in front of it. If the cutout's edges aren't clean in a shot, that graphic is drawn as a normal overlay and you're told.
   - **40 sound effects** (whoosh, pop, snap, impact, rise, ding, typing, paper, glitch and more), every one generated for this project, so there's nothing to license. Each has its own volume.
@@ -140,12 +141,14 @@ Useful `brand.json` settings this version adds:
 | A check line has ❌ | Paste the whole message into Claude Code and say "fix this" |
 | A render fails with `uv_os_setpriority EACCES` | Ask Claude to use `render-nonice.sh` (same render, without the low-priority setting some background runs refuse) |
 | The cover says no Chrome found | Install Google Chrome |
+| The build says "colour is only approximate" | The clip is HDR and this computer couldn't convert it (the converter is macOS only). Film in iPhone Settings > Camera > Formats > Most Compatible, or cut on a Mac |
 | The edit looks off-brand | Tell Claude what's wrong. It adds it to your brand rules |
 
 ## Privacy
 
 - Your footage, transcripts and renders stay on your computer.
 - Transcription runs locally with Whisper. If you choose to add an ElevenLabs key, audio goes to ElevenLabs for tighter caption timing; without a key, nothing leaves your Mac.
+- HDR to standard colour uses `avconvert`, built into macOS, on your own computer.
 - The speaker cutout uses Apple's built-in person segmentation (macOS) on your own computer; the sound effects and the optional music bed are generated on your computer. Nothing is downloaded for them.
 - HyperFrames telemetry is switched off (`HYPERFRAMES_NO_TELEMETRY=1`, `DO_NOT_TRACK=1`).
 - Nothing is connected to your social accounts. The FavStash posting service isn't set up by this pack; if you connect it yourself, it still needs your approval for each post.

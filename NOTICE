@@ -73,3 +73,17 @@ skills/3-editing/reel-editor unless a path says otherwise.
 No third-party code, model or asset was added to this repository for these changes: the new
 scripts use only the Python standard library, ffmpeg and (on macOS) Apple's Vision framework,
 all installed separately (see THIRD_PARTY_NOTICES.md).
+
+Changes made by By Mel Ross in Reel Studio 0.2.1 and 0.2.2 (November 2026), in skills/3-editing/reel-editor.
+- 0.2.1: the studio look is natural by default: the colour grade (exposure, colour, warmth) and
+  the background blur are off unless asked for (scripts/enhance.py, SKILL.md, docs, brand
+  examples); denoise and sharpen stay on.
+- 0.2.2, colour: iPhone HDR clips (HLG / PQ / BT.2020) are converted to standard colour up front
+  with the HDR to SDR converter built into macOS (new scripts/hdr2sdr.py, called from cut.py;
+  uses avconvert, part of macOS, nothing added to this repository). If the conversion is not
+  possible the build says the colour is only approximate. The cut, the background-softened
+  master and the full-quality and phone copies are labelled BT.709 (cut.py, cutout.py,
+  deliver.sh); the background softening converts through RGB with exact rounding (cutout.py);
+  render.sh and deliver.sh read the frame height robustly. SKILL.md and
+  references/look-and-layers.md describe it; tests/reel-colour.test.mjs added; package.json and
+  .claude-plugin/plugin.json version 0.2.2.

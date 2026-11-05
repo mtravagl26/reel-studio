@@ -18,7 +18,15 @@ It does not smooth skin: natural, not plastic. **Out of the box only the mild de
 
 **Review it:** `python3 scripts/enhance.py <reel> compare [--at <seconds>]` writes `enhance_before_after.jpg` (before on the left, after on the right); cut.py also writes one automatically. Look at it before the review step and say what to change ("less sharp", "no background blur").
 
-HDR (HLG) iPhone clips are only approximately converted to standard colour (ffmpeg here has no HDR tone-mapper); for exact colour film in SDR / "Most Compatible". `enhance.json` in the reel folder records what was applied.
+## Colour: iPhone HDR clips and what the files are labelled
+
+iPhone video is often HDR (HLG, BT.2020, sometimes Dolby Vision). ffmpeg without a tone-mapper only relabels those pixels as standard colour, so the picture comes out lighter, greyer and cooler than the real scene. So `cut.py` converts an HDR clip up front with **`avconvert`, the HDR to SDR converter built into macOS** (`scripts/hdr2sdr.py`; nothing to install, nothing leaves the computer), keeps the whole length, the sound and the upright orientation, checks the result with ffprobe, and cuts from the converted file (`source_sdr.mp4` in the reel folder, made once and reused; `source_color.json` records what happened). Standard (SDR) clips are not touched.
+
+If the clip is HDR and the conversion is not possible (not a Mac, or `avconvert` failed its check), the clip is used as it is and the build says so: **"colour is only approximate"**, and `enhance.json` carries the same note. Tell the person plainly; the fix is to film in "Most Compatible" or run the cut on a Mac. `REEL_NO_AVCONVERT=1` forces that fallback (for comparing).
+
+Handy by itself: `python3 scripts/hdr2sdr.py <clip> --check` says whether a clip is HDR; `python3 scripts/hdr2sdr.py <clip> <out.mp4> [--start S --duration D]` converts a clip or just a span of it (useful before a stabilise/crop step that decodes frames itself).
+
+Every video this editor encodes is labelled BT.709 (`-colorspace bt709 -color_primaries bt709 -color_trc bt709 -color_range tv`): the cut, the background-softened master, the full-quality and phone copies. Unlabelled video is guessed differently by different players. If you ever pipe frames through RGB yourself (a Python step, or a `gbrp` filter chain), two ffmpeg defaults shift the colour, so say what you mean: encode with `-vf scale=in_range=full:out_range=tv:out_color_matrix=bt709` (the default matrix is the old BT.601), and convert with `scale=flags=accurate_rnd+full_chroma_int` (ffmpeg's default fast YUV to RGB conversion reads about 3 levels dark at HD size). `cutout.py` already does this. A JPG cover has no such label (it is plain sRGB). `enhance.json` in the reel folder records what was applied.
 
 ## The cutout
 

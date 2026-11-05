@@ -19,7 +19,7 @@ stamp() { echo "$(date +%s) $1" >> "$REEL/timings.log"; }
 # a preview cut leaves a 1080p master.mp4; re-cut it at the brand resolution so the final isn't an upscale
 if [ "$FINAL" = 1 ]; then
   WANT="$(python3 -c "import json;print(json.load(open('$BRAND')).get('resolution',[1080,1920])[1])")"
-  HAVE="$(ffprobe -v error -select_streams v:0 -show_entries stream=height -of csv=p=0 "$REEL/master.mp4")"
+  HAVE="$(ffprobe -v error -select_streams v:0 -show_entries stream=height -of csv=p=0 "$REEL/master.mp4" | head -n1 | tr -d ",")"
   if [ "$HAVE" -lt "$WANT" ]; then echo "master.mp4 is ${HAVE}p, re-cutting at ${WANT}p for the final"; env -u REEL_PREVIEW python3 "$S/cut.py" "$REEL"; fi
 fi
 

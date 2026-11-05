@@ -166,6 +166,10 @@ def build_person(reel, video, matte):
     s.write_text(stamp); return out
 
 
+# ffmpeg's default YUV<->RGB conversion reads about 2-3 levels dark; these flags make it exact (used wherever a frame goes through RGB)
+ACC = "scale=flags=accurate_rnd+full_chroma_int"
+
+
 def soften(reel, strength=1.0, quality="accurate", own_matte=None, boxes=None):
     """Blur the background (not the speaker) of master.mp4. Returns True if applied."""
     reel = Path(reel); master = reel / "master.mp4"; sharp = reel / "master_sharp.mp4"
@@ -177,9 +181,9 @@ def soften(reel, strength=1.0, quality="accurate", own_matte=None, boxes=None):
     sigma = max(0.5, 3.2 * strength * vs["width"] / 1080)
     tmp = reel / "master_soft.mp4"
     run(["ffmpeg", "-v", "error", "-y", "-i", master_in, "-i", m, "-filter_complex",
-         f"[0:v]format=gbrp,split[a][b];[b]gblur=sigma={sigma:.2f}[bl];[1:v]scale={vs['width']}:{vs['height']}:flags=bicubic,format=gbrp[m];"
-         "[bl][a][m]maskedmerge,format=yuv420p[o]",
-         "-map", "[o]", "-map", "0:a?", "-c:v", "libx264", "-preset", "medium", "-crf", "16", "-pix_fmt", "yuv420p", "-c:a", "copy",
+         f"[0:v]{ACC},format=gbrp,split[a][b];[b]gblur=sigma={sigma:.2f}[bl];[1:v]scale={vs['width']}:{vs['height']}:flags=bicubic,format=gbrp[m];"
+         f"[bl][a][m]maskedmerge,scale=flags=accurate_rnd+full_chroma_int:out_color_matrix=bt709:out_range=tv,format=yuv420p,setparams=colorspace=bt709:color_primaries=bt709:color_trc=bt709:range=tv[o]",
+         "-map", "[o]", "-map", "0:a?", "-c:v", "libx264", "-preset", "medium", "-crf", "16", "-pix_fmt", "yuv420p", "-colorspace", "bt709", "-color_primaries", "bt709", "-color_trc", "bt709", "-color_range", "tv", "-c:a", "copy",
          "-movflags", "+faststart", tmp])
     if not sharp.exists(): shutil.copy2(master, sharp)
     os.replace(tmp, master)

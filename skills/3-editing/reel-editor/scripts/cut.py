@@ -17,8 +17,12 @@ src, audio = reel / edl["source"], reel / edl.get("audio", "voice.wav")
 spans = edl["keep"]
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from pacing import pacing
-import enhance, cutout   # Added by By Mel Ross: studio look
+import enhance, cutout, hdr2sdr   # Added by By Mel Ross: studio look, HDR to SDR
 import shutil
+# Added by By Mel Ross: HDR phone clips (HLG / PQ / BT.2020) are converted to SDR up front with macOS avconvert; SDR clips are untouched.
+# If that is not possible the clip is used as it is and the output says the colour is only approximate.
+src, SRC_COLOR = hdr2sdr.working_source(src, reel)
+if SRC_COLOR.get("hdr") and not SRC_COLOR.get("converted"): print("WARNING:", SRC_COLOR["note"])
 (reel / "master_sharp.mp4").unlink(missing_ok=True)     # a new cut makes the old background-softening and cutout obsolete
 shutil.rmtree(reel / "cutout", ignore_errors=True)
 speed = pacing(brand)["speed"]
@@ -45,6 +49,7 @@ except Exception as e:                                           # a nicety: nev
     PRE, POST, EINFO = [], [], {"on": False, "error": str(e)}; print(f"studio look skipped: {e}")
 post[(2 if grade else 1):(2 if grade else 1)] = PRE
 post += POST
+post.append(hdr2sdr.TAG_FILTER)   # label the frames BT.709 so the file carries the full set of tags
 vcat = "".join(f"[v{k}]" for k in range(n)) + f"concat=n={n}:v=1:a=0," + ",".join(post) + "[vout]"
 acat = "".join(f"[a{k}]" for k in range(n)) + f"concat=n={n}:v=0:a=1,atempo={speed}[aout]"
 
@@ -63,9 +68,10 @@ FILTER_FLAG = "-filter_complex_script" if _v and int(_v.group(1)) < 7 else "-/fi
 NICE = [] if os.environ.get("REEL_NO_NICE") else ["nice", "-n", "15"]
 subprocess.run([*NICE, "ffmpeg", "-y", "-v", "error", "-stats", "-i", str(src), "-i", str(audio),
                 FILTER_FLAG, str(script), "-map", "[vout]", "-map", "[aout]",
-                *((["-c:v", "h264_videotoolbox", "-b:v", "12M"] if sys.platform == "darwin" else ["-c:v", "libx264", "-preset", "veryfast", "-crf", "20"]) if os.environ.get("REEL_PREVIEW") else ["-c:v", "libx264", "-preset", "medium", "-crf", "16"]), "-pix_fmt", "yuv420p",
+                *((["-c:v", "h264_videotoolbox", "-b:v", "12M"] if sys.platform == "darwin" else ["-c:v", "libx264", "-preset", "veryfast", "-crf", "20"]) if os.environ.get("REEL_PREVIEW") else ["-c:v", "libx264", "-preset", "medium", "-crf", "16"]), "-pix_fmt", "yuv420p", *hdr2sdr.TAG_BT709,
                 "-c:a", "aac", "-b:a", "256k", "-movflags", "+faststart", str(reel / "master.mp4")], check=True)
 ES = enhance.settings(brand, edl)
+EINFO["source_colour"] = SRC_COLOR.get("note")
 EINFO["background"] = "off"
 if ES["on"] is not False and ES["background"] * ES["strength"] > 0:
     try:
