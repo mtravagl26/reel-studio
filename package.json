@@ -1,6 +1,6 @@
 {
   "name": "reel-studio",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "private": true,
   "description": "AI reel editing for Claude Code: FavStash + Claude Reel Editor, with By Mel Ross's workflow.",
   "type": "module",

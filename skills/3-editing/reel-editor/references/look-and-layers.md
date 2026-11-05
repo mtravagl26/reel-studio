@@ -2,7 +2,7 @@
 
 Added by By Mel Ross (see the repo NOTICE). Everything runs on this computer; nothing is uploaded.
 
-## Studio look (on by default)
+## Studio look (natural by default)
 
 `scripts/cut.py` applies it while it cuts, so it costs no extra video generation:
 
@@ -14,7 +14,7 @@ Added by By Mel Ross (see the repo NOTICE). Everything runs on this computer; no
 | Sharpen | mild sharpening of brightness only | `"sharpen": 1` |
 | Background | a slight blur behind the speaker, speaker stays sharp (needs the cutout below) | `"background": 1` |
 
-It does not smooth skin: natural, not plastic. Every amount is a multiplier: 1 is the default, 0 is off, 2 is double; `"strength"` scales all of them; `"on": false` turns the whole look off. A reel can override with `"enhance"` in its `edl.json`.
+It does not smooth skin: natural, not plastic. **Out of the box only the mild denoise and sharpen are on. The colour grade (exposure, colour, warmth) and the background blur are OFF**; turn one on by setting it to 1 (for example `"background": 1`). Every amount is a multiplier: 1 is standard strength, 0 is off, 2 is double; `"strength"` scales all of them; `"on": false` turns the whole look off. A reel can override with `"enhance"` in its `edl.json`.
 
 **Review it:** `python3 scripts/enhance.py <reel> compare [--at <seconds>]` writes `enhance_before_after.jpg` (before on the left, after on the right); cut.py also writes one automatically. Look at it before the review step and say what to change ("less sharp", "no background blur").
 

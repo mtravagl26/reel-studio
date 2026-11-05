@@ -18,7 +18,7 @@ Two free, open-source skill sets in one folder, plus one creator's way of workin
   - **Every reel comes with a cover**: a 1080x1920 JPG from a smiling moment at the start or end, with a short topic title where Instagram's grid will show it.
   - **A phone-size copy** next to the full-quality one, small enough to text or AirDrop.
   - Finished files go **back into the folder your footage came from** (for example the iCloud Drive folder you film into), so they're on your phone when you're ready to post.
-  - **A studio look, on by default.** Gentle exposure and colour, mild denoise and sharpen, and a slight blur behind you. Natural, not plastic: no skin smoothing. You get a before/after frame to review, and every part is adjustable or can be switched off.
+  - **A natural studio look.** Out of the box: mild denoise and sharpen only. Your colours and your real background are left alone. A gentle colour grade and a background blur are there if you want them (set them to 1 in your brand file). No skin smoothing. You get a before/after frame to review.
   - **Graphics behind, in front, or both.** Big type or a shape can sit behind your head so you stand in front of it. If the cutout's edges aren't clean in a shot, that graphic is drawn as a normal overlay and you're told.
   - **40 sound effects** (whoosh, pop, snap, impact, rise, ding, typing, paper, glitch and more), every one generated for this project, so there's nothing to license. Each has its own volume.
   - **A music bed that follows your voice.** It dips while you speak and comes back up in the gaps, with a simple voice / music / effects mix and a final loudness of -14 LUFS (what Instagram, TikTok and Shorts play at) with no clipping.

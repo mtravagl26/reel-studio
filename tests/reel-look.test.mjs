@@ -18,8 +18,18 @@ print(json.dumps([pre, post, info]))`;
 }
 const lift = (info) => info.lift;
 
-test("studio look is on by default and gentle", { skip: skipReason }, () => {
+const GRADE = { enhance: { color: 1, exposure: 1, warmth: 1 } };   // the colour grade is opt-in
+
+test("by default there is no colour grade and no background blur", { skip: skipReason }, () => {
   const [pre, post, info] = filtersFor("0x707070");
+  assert.equal(info.on, true);
+  const all = [...pre, ...post].join(",");
+  assert.doesNotMatch(all, /eq=|colorbalance|saturation|curves|gblur|boxblur|avgblur/, "natural colour, nothing blurred");
+  assert.match(all, /hqdn3d/); assert.match(all, /unsharp/);
+});
+
+test("studio look, when the colour grade is turned on, is gentle", { skip: skipReason }, () => {
+  const [pre, post, info] = filtersFor("0x707070", GRADE);
   assert.equal(info.on, true);
   const all = [...pre, ...post].join(",");
   assert.match(all, /hqdn3d/); assert.match(all, /eq=/); assert.match(all, /unsharp/);
@@ -34,7 +44,7 @@ test("studio look is on by default and gentle", { skip: skipReason }, () => {
 });
 
 test("exposure nudges toward the middle, by a bounded step", { skip: skipReason }, () => {
-  const dark = lift(filtersFor("0x303030")[2]), bright = lift(filtersFor("0xd8d8d8")[2]);
+  const dark = lift(filtersFor("0x303030", GRADE)[2]), bright = lift(filtersFor("0xd8d8d8", GRADE)[2]);
   assert.ok(dark > 0 && dark <= 0.05, `dark clip lifted by ${dark}`);
   assert.ok(bright < 0 && bright >= -0.04, `bright clip lowered by ${bright}`);
 });
@@ -73,14 +83,14 @@ function makeCut(brand) {
   return { reel, home };
 }
 
-test("cut.py applies the look by default and writes a before/after frame", { skip: skipReason }, () => {
+test("cut.py applies the (natural) look by default and writes a before/after frame", { skip: skipReason }, () => {
   const c = makeCut({});
   const r = py("cut.py", [c.reel], { REELS_HOME: c.home, REEL_NO_NICE: "1", REEL_NO_CUTOUT: "1" });
   assert.equal(r.status, 0, r.stdout + r.stderr);
   assert.match(fs.readFileSync(path.join(c.reel, "cut_filter.txt"), "utf8"), /hqdn3d/);
   const info = JSON.parse(fs.readFileSync(path.join(c.reel, "enhance.json"), "utf8"));
   assert.equal(info.on, true);
-  assert.match(info.background, /skipped/, "no cutout here, so the background blur is skipped and says so");
+  assert.match(String(info.background), /off|skipped/, "background blur is off by default");
   const jpg = path.join(c.reel, "enhance_before_after.jpg");
   assert.ok(fs.existsSync(jpg), "before/after frame");
   const size = run("ffprobe", ["-v", "error", "-show_entries", "stream=width,height", "-of", "csv=p=0", jpg]).stdout.trim();

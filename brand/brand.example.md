@@ -31,7 +31,7 @@ Clean, warm, not flashy. Minimal by default: captions plus a hook title. Anythin
 No background music and no automatic sound effects by default. If you add a music bed (`"music"` in brand.json) it dips under the voice and comes up in the gaps; sound effects can be placed one by one (`sfx_events`) from the 40-effect library. Levels for voice, music and effects are in `brand.json` `"mix"`; final loudness is -14 LUFS with no clipping.
 
 ## Studio look
-On by default and gentle: exposure and colour nudged toward natural, mild denoise and sharpen, a slight blur behind the speaker. No skin smoothing. Review the before/after frame; every part is adjustable in `brand.json` `"enhance"`.
+Natural by default: only mild denoise and sharpen. No colour grade and no background blur unless you turn them on (set `color`, `exposure`, `warmth` or `background` to 1). No skin smoothing. Review the before/after frame; every part is adjustable in `brand.json` `"enhance"`.
 
 ## Pacing
 Natural: normal speed; drop clear "um"s and "uh"s and pauses over about 0.6 s. Talking-head pieces can run to about two minutes when the content earns it.

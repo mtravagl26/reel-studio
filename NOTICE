@@ -56,7 +56,7 @@ skills/3-editing/reel-editor unless a path says otherwise.
   person matte from Apple Vision on macOS, cleaned with ffmpeg, a transparent-video speaker
   layer, per-shot edge checks with a fallback to plain overlays); build_reel.py gains the card
   option "layer" (behind / front / both).
-- Studio look: new scripts/enhance.py (exposure, colour, denoise, sharpen, before/after frame)
+- Studio look: new scripts/enhance.py (denoise and sharpen on by default; exposure, colour, warmth and background blur available but off by default; before/after frame)
   called from cut.py, which also softens the background through cutout.py.
 - Sound: new scripts/make_sfx.py (34 synthesised effects) and assets/sfx-manifest.json (source
   and license of all 40 effects, default level per effect); build_reel.py gains per-effect

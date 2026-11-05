@@ -33,7 +33,7 @@
   "cover_title_y": 300,
   "mix": { "voice": 0, "music": -14, "duck": -10, "effects": 0, "lufs": -14, "true_peak": -1.5 },
   "sfx_volume": {},
-  "enhance": { "on": true, "strength": 1, "color": 1, "exposure": 1, "denoise": 1, "sharpen": 1, "background": 1, "warmth": 1 },
+  "enhance": { "on": true, "strength": 1, "color": 0, "exposure": 0, "denoise": 1, "sharpen": 1, "background": 0, "warmth": 0 },
   "fonts": {
     "head": { "family": "Lora", "file": "~/reels/fonts/Lora.ttf", "weight": 600 },
     "body": { "family": "Inter", "file": "~/reels/fonts/Inter.ttf", "weight": 600 },

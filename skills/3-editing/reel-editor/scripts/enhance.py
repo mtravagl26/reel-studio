@@ -10,7 +10,7 @@ What it does (all in ffmpeg, all local):
 It does NOT smooth skin: no plastic look.
 
 brand.json "enhance" (all optional; each amount is a multiplier, 1 = the default, 0 = off, 2 = twice as much):
-  {"on": true, "strength": 1.0, "color": 1.0, "exposure": 1.0, "denoise": 1.0, "sharpen": 1.0, "background": 1.0, "warmth": 1.0}
+  {"on": true, "strength": 1.0, "color": 0.0, "exposure": 0.0, "denoise": 1.0, "sharpen": 1.0, "background": 0.0, "warmth": 0.0}   (defaults shown: colour, exposure, warmth and background blur are OFF; set any to 1 to turn it on)
 A reel can override these in edl.json under "enhance". "on": false turns the whole thing off.
 
   python3 enhance.py <reel> compare [--at <seconds-into-the-cut>]   writes <reel>/enhance_before_after.jpg (before | after) to review
@@ -20,7 +20,7 @@ import json, os, re, subprocess, sys
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
-DEFAULTS = {"on": True, "strength": 1.0, "color": 1.0, "exposure": 1.0, "denoise": 1.0, "sharpen": 1.0, "background": 1.0, "warmth": 1.0}
+DEFAULTS = {"on": True, "strength": 1.0, "color": 0.0, "exposure": 0.0, "denoise": 1.0, "sharpen": 1.0, "background": 0.0, "warmth": 0.0}   # natural by default: no colour grade, no background blur; ask for them with 1
 TARGET_Y = 120            # comfortable mean brightness of the 16-235 video range for a face-to-camera clip
 
 
