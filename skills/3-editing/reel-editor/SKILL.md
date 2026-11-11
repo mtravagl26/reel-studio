@@ -1,6 +1,6 @@
 ---
 name: reel-editor
-description: "Use when someone drops a raw talking-head video (phone clip, selfie video, webcam recording) and wants it edited into a short-form reel, TikTok or YouTube Short in their own brand style - 'edit this', 'make this a reel', 'cut this down', 'add captions and graphics', 'send it to CapCut'. Delivers the full-quality MP4, a phone-size copy and a Reel cover. Also use the first time someone installs this skill or says 'set up my brand', and when they want a cover or thumbnail for a reel ('open my thumbnail studio', 'make a cover')."
+description: "Use when someone drops a raw talking-head video (phone clip, selfie video, webcam recording) and wants it edited into a short-form reel, TikTok or YouTube Short in their own brand style - 'edit this', 'make this a reel', 'cut this down', 'add captions and graphics', 'send it to CapCut'. Delivers the full-quality MP4, a phone-size copy and a Reel cover. Also use when they hand over one long recording and want short reels from it ('find my best clips', 'cut this into reels'), the first time someone installs this skill or says 'set up my brand', and when they want a cover or thumbnail for a reel ('open my thumbnail studio', 'make a cover')."
 ---
 
 # Reel editor
@@ -22,6 +22,10 @@ The workspace is `~/reels/` unless `REELS_HOME` is set.
 ## Check the tools (once per machine)
 
 `bash scripts/doctor.sh` - checks ffmpeg, Node, the HyperFrames skills and (if the brand file says CapCut) the CapCut connector. Fix anything it flags before editing. Install steps are in the repo README.
+
+## Starting from a long recording
+
+If the footage is one long recording (a talk, an interview, a long ramble) and they want short reels from it, find the clips first: `references/find-clips.md`. It ranks 30-60 s moments from the transcript, you read them and propose 3-5, **they choose**, and `scripts/find_clips.py extract` sets up one reel folder per chosen clip with the span to keep. Then carry on with the edit below from step 2 (the transcript is already in the folder).
 
 ## The edit, in order
 
