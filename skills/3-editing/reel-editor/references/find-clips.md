@@ -25,13 +25,13 @@ The pre-score is from the words and the timing only, 0-5 on each of:
 | Score | What it looks at |
 |---|---|
 | hook | the first sentence: a question, a number or step, "you", a strong word, short and direct |
-| standalone | would a stranger follow it: no start on "and / but / so", no opening pronoun, no "as I said earlier", no ending on a fragment, no other voice cutting in |
+| standalone | would a stranger follow it: no start on "and / but / so", no opening pronoun, no "as I said earlier", no ending on a fragment, no other voice cutting in, no names the recording already introduced before the clip |
 | value | numbers, steps, a payoff sentence near the end, varied wording |
 | energy | pace against the rest of the recording, fewer fillers and long pauses |
 | platform fit | 30-60 s, best near 45 s |
 
 **It does not understand the topic.** A high pre-score means "worth reading", not "good". Flags (starts mid-thought, refers
-back, filler-heavy, long pause, another voice cuts in, opens on a question) are things to check by reading.
+back, names introduced earlier, filler-heavy, long pause, another voice cuts in, opens on a question) are things to check by reading.
 
 ## 3. Read and choose (your call, then theirs)
 

@@ -117,6 +117,19 @@ def score_window(words, a, b, sents, si, sj, med_wpm):
     if len(last_toks) <= 3: coh -= 1.0; flags.append("ends on a short fragment")
     if last_toks and last_toks[-1] in {"and", "but", "so", "because", "or"}: coh -= 1.5; flags.append("ends mid-thought")
 
+    # names the viewer has not met: a capitalised word mid-sentence that the recording already used before this window
+    starts = {sents[k][0] for k in range(len(sents))}
+    seen_before = {norm(w["text"]) for w in words[:a]}
+    names = []
+    for k in range(a, b + 1):
+        raw = words[k]["text"].strip()
+        bare = re.sub(r"[^A-Za-z']", "", raw)
+        if k in starts or not raw[:1].isupper() or bare == "I" or bare.startswith("I'") or (bare.isupper() and len(bare) <= 3): continue
+        n = norm(raw)
+        if n in seen_before and n not in names: names.append(n)
+    if names:
+        coh -= 1.0 if len(names) == 1 else 1.5
+        flags.append("names introduced earlier: " + ", ".join(n.capitalize() for n in names[:4]))
     if first.rstrip().endswith("?") and sj > si and len(fw) >= 6:
         flags.append("opens on a question: if this is an interview, that is the other person's voice")
 
