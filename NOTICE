@@ -105,3 +105,8 @@ Added by By Mel Ross after 0.3.0 (November 2026), in skills/3-editing/reel-edito
   (hook, standalone, value, energy, platform fit) and set up one reel folder per chosen clip, with tests in
   tests/reel-clips.test.mjs. Written from scratch; the general idea of transcript-first clip ranking is common to many clipping
   tools and no code or text from another project was copied.
+- Reel editor page: review/editor-server.mjs, review/editor-core.mjs, review/editor.html and references/editor-page.md (a local, phone-friendly
+  page: caption word fixes, keep/drop cut pieces with exact retiming, pills/stickers/sounds on and off, GIF/graphic/photo popups, text in
+  front of or behind the speaker, a Re-render button that runs the existing cut/render/QA steps, timestamped backups and Undo), a "popup"
+  card type, "off" on cards and sound events and brand.json "text_default" in scripts/build_reel.py, and tests/reel-editor-page.test.mjs.
+  Written from scratch in plain Node and vanilla JavaScript; no new dependencies.

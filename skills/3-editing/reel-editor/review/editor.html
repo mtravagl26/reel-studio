@@ -1,0 +1,386 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Reel editor</title>
+<!-- Added by By Mel Ross. The reel editor page, served by editor-server.mjs. Vanilla JS, no libraries, nothing leaves this computer. -->
+<style>
+:root { --bg:#f5f2ec; --ink:#0d2b2d; --sage:#B9C8A5; --sage-d:#8da273; --card:#fff; --line:#e1dccf; --warn:#b4571f; --bad:#a32727; }
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html { background: var(--bg); }
+body { margin: 0 auto; max-width: 600px; padding: 0 12px 90px; font: 16px/1.4 -apple-system, "Helvetica Neue", Arial, sans-serif; color: var(--ink); }
+h1 { font-size: 18px; margin: 0; }
+header { position: sticky; top: 0; z-index: 20; background: var(--bg); padding: 10px 0 8px; display: flex; gap: 8px; align-items: center; border-bottom: 1px solid var(--line); }
+header .t { flex: 1; min-width: 0; } header .t small { display: block; color: #5b6b69; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+button, select, input[type=text], input[type=number] { font: inherit; }
+button { min-height: 44px; padding: 0 14px; border-radius: 12px; border: 1.5px solid var(--ink); background: #fff; color: var(--ink); font-weight: 600; }
+button.pri { background: var(--ink); color: #fff; } button.sage { background: var(--sage); border-color: var(--sage-d); }
+button.sm { min-height: 36px; padding: 0 10px; font-size: 14px; } button:disabled { opacity: .4; }
+button.danger { border-color: var(--bad); color: var(--bad); }
+input[type=text], input[type=number], select { width: 100%; min-height: 44px; border: 1.5px solid var(--line); border-radius: 10px; padding: 0 10px; background: #fff; color: var(--ink); font-size: 16px; }
+label.f { display: block; font-size: 13px; color: #5b6b69; margin: 10px 0 4px; }
+.chip { display: inline-block; font-size: 12px; padding: 2px 9px; border-radius: 99px; background: #e9efe1; color: #3a4a2a; font-weight: 600; }
+.chip.warn { background: #fbe7d6; color: var(--warn); } .chip.run { background: #dfeaf3; color: #1d4a6b; } .chip.bad { background: #f8dcdc; color: var(--bad); }
+.banner { margin: 8px 0; padding: 10px 12px; border-radius: 12px; background: #fbe7d6; color: #6b3410; font-size: 14px; }
+.banner.ok { background: #e9efe1; color: #2c3b1f; } .banner.bad { background: #f8dcdc; color: var(--bad); } .banner.info { background: #dfeaf3; color: #1d4a6b; }
+.banner ul { margin: 4px 0 0 18px; padding: 0; }
+.vwrap { position: relative; margin: 10px auto 0; width: min(100%, 360px); aspect-ratio: 9 / 16; background: #000; border-radius: 14px; overflow: hidden; }
+.vwrap video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
+#ov { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+#ov.place { pointer-events: auto; cursor: crosshair; outline: 3px solid var(--sage); outline-offset: -3px; }
+#ov .box { position: absolute; border: 2px dashed #fff; background: rgba(185,200,165,.25); display: flex; align-items: center; justify-content: center; overflow: hidden; }
+#ov .box img { width: 100%; height: 100%; object-fit: contain; display: block; }
+#ov .pill { position: absolute; left: 0; right: 0; text-align: center; }
+#ov .pill span { display: inline-block; background: rgba(28,22,34,.55); border: 1.5px dashed #fff; color: #fff; border-radius: 99px; padding: 3px 12px; font-weight: 700; white-space: nowrap; }
+.row { display: flex; gap: 8px; align-items: center; } .row > * { min-width: 0; }
+.grow { flex: 1; }
+.vbar { display: flex; gap: 8px; align-items: center; margin: 8px auto 0; width: min(100%, 360px); font-variant-numeric: tabular-nums; }
+.vbar select { min-height: 36px; font-size: 14px; }
+#tl { position: relative; height: 70px; margin: 10px auto 0; width: min(100%, 360px); background: #fff; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; touch-action: manipulation; }
+#tl .mk { position: absolute; height: 12px; border-radius: 4px; opacity: .9; } #tl .ph { position: absolute; top: 0; bottom: 0; width: 2px; background: #c0392b; }
+#tl .lane { position: absolute; left: 0; right: 0; height: 1px; background: var(--line); }
+details { background: var(--card); border: 1px solid var(--line); border-radius: 14px; margin: 12px 0; }
+summary { list-style: none; cursor: pointer; padding: 14px 14px; font-weight: 700; font-size: 17px; display: flex; justify-content: space-between; align-items: center; }
+summary::-webkit-details-marker { display: none; } summary small { font-weight: 500; color: #5b6b69; font-size: 13px; }
+.sec { padding: 0 12px 14px; }
+.help { font-size: 13px; color: #5b6b69; margin: 0 0 8px; }
+.cap { padding: 7px 0; border-top: 1px solid var(--line); } .cap:first-child { border-top: 0; }
+.cap .tm { font-size: 12px; color: #6b7a78; background: none; border: 0; min-height: 28px; padding: 0 6px 0 0; font-weight: 500; font-variant-numeric: tabular-nums; }
+.w { display: inline-block; margin: 2px 3px 2px 0; padding: 7px 11px; border-radius: 10px; border: 1.5px solid var(--line); background: #fff; font-weight: 600; min-height: 40px; }
+.w.acc { background: var(--sage); border-color: var(--sage-d); } .w.now { outline: 3px solid #e7a23b; } .w.sel { border-color: var(--ink); }
+.edit { background: #f7f5ee; border-radius: 12px; padding: 10px; margin: 6px 0 4px; }
+.item { border-top: 1px solid var(--line); padding: 10px 0; } .item:first-of-type { border-top: 0; }
+.item .hd { display: flex; align-items: center; gap: 10px; } .item .hd .tt { flex: 1; min-width: 0; font-weight: 600; } .item .hd .tt small { display: block; font-weight: 400; color: #5b6b69; }
+.item.off .tt { opacity: .45; text-decoration: line-through; }
+.sw { position: relative; width: 52px; height: 32px; flex: none; } .sw input { position: absolute; inset: 0; opacity: 0; width: 100%; height: 100%; margin: 0; z-index: 2; }
+.sw i { position: absolute; inset: 0; background: #cfcabd; border-radius: 99px; transition: .15s; } .sw i::after { content: ""; position: absolute; width: 26px; height: 26px; border-radius: 50%; background: #fff; top: 3px; left: 3px; transition: .15s; box-shadow: 0 1px 3px #0004; }
+.sw input:checked + i { background: var(--sage-d); } .sw input:checked + i::after { left: 23px; }
+.seg { display: flex; border: 1.5px solid var(--ink); border-radius: 12px; overflow: hidden; } .seg button { flex: 1; border: 0; border-radius: 0; min-height: 42px; background: #fff; font-size: 14px; }
+.seg button.on { background: var(--ink); color: #fff; }
+.grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; } .grid3 button { min-height: 40px; font-size: 13px; padding: 0 4px; } .grid3 button.on { background: var(--sage); border-color: var(--sage-d); }
+.two { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; } .tin { display: flex; gap: 6px; } .tin button { flex: none; }
+.piece { display: flex; gap: 10px; align-items: center; padding: 9px 0; border-top: 1px solid var(--line); } .piece.dropped .tt { opacity: .5; }
+.piece .tt { flex: 1; min-width: 0; font-size: 14px; } .piece .tt b { display: block; font-variant-numeric: tabular-nums; }
+.gap { font-size: 12px; color: #7a6a4a; padding: 0 0 0 6px; }
+.small { font-size: 13px; color: #5b6b69; } .warnt { color: var(--warn); font-size: 13px; margin: 6px 0 0; }
+.steps { margin: 6px 0 0; padding: 0; list-style: none; font-size: 14px; } .steps li { padding: 2px 0; }
+#toast { position: fixed; left: 12px; right: 12px; bottom: 14px; max-width: 576px; margin: 0 auto; padding: 12px 14px; border-radius: 12px; background: var(--ink); color: #fff; z-index: 50; display: none; font-size: 15px; }
+#toast.bad { background: var(--bad); }
+.fab { position: fixed; right: 14px; bottom: 14px; z-index: 30; box-shadow: 0 4px 14px #0004; }
+</style></head>
+<body>
+<header>
+  <div class="t"><h1 id="name">Reel editor</h1><small id="sub"></small></div>
+  <button id="undo" class="sm" disabled>Undo</button>
+  <button id="render" class="pri">Re-render</button>
+</header>
+<div id="status"></div>
+<div id="notes"></div>
+
+<div class="vwrap"><video id="v" playsinline controls preload="metadata"></video><div id="ov"></div></div>
+<div class="vbar"><span id="clock">0:00.0</span><span class="grow"></span><button id="nowBtn" class="sm" title="Use this time">Mark time</button><select id="ver" style="width:auto"></select></div>
+<div id="tl"></div>
+<div id="stale"></div>
+
+<details open id="s-cap"><summary>Captions <small id="capn"></small></summary><div class="sec"><p class="help">Tap a word to fix it. The highlighted words are the sage ones in the video.</p><div id="caps"></div></div></details>
+<details open id="s-cut"><summary>Cuts <small id="cutn"></small></summary><div class="sec"><p class="help">Switch a piece off to drop it from the video. Captions, pills and sounds after it move up to match. Turn it back on to bring it back.</p><div id="pieces"></div></div></details>
+<details open id="s-txt"><summary>Pills &amp; text <small id="txtn"></small></summary><div class="sec"><div id="cards"></div><button id="addPill" class="sage" style="width:100%;margin-top:8px">+ Add a pill at the video time</button></div></details>
+<details open id="s-pop"><summary>Popups: GIFs, graphics, photos <small id="popn"></small></summary><div class="sec"><div id="popups"></div>
+  <p class="help" style="margin-top:10px">Pictures stay on this Mac (copied into the reel folder). GIFs animate in the video.</p>
+  <label class="sage" style="display:block"><input id="file" type="file" accept="image/gif,image/png,image/jpeg,image/webp,image/heic,image/heif,.heic,.heif,.gif,.png,.jpg,.jpeg,.webp" style="display:none" />
+  <span style="display:flex;align-items:center;justify-content:center;min-height:44px;border-radius:12px;border:1.5px solid var(--sage-d);background:var(--sage);font-weight:600">+ Add a picture, graphic or GIF</span></label>
+  <div id="reuse"></div></div></details>
+<details id="s-sfx"><summary>Sound effects <small id="sfxn"></small></summary><div class="sec"><div id="sfx"></div><button id="addSfx" class="sage" style="width:100%;margin-top:8px">+ Add a sound at the video time</button></div></details>
+<details id="s-set"><summary>Settings</summary><div class="sec" id="settings"></div></details>
+<details id="s-ver"><summary>Renders <small id="vern"></small></summary><div class="sec" id="versions"></div></details>
+<div id="toast"></div>
+
+<script type="module">
+import { popupBox, isTextType } from "/core.mjs";
+const $ = (s) => document.querySelector(s), esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+let S = null, openCard = new Set(), capSel = null, placing = null, watch = null, selCard = null, openSfx = new Set(), pollT = null;
+const cid = (i) => S.edit.cards[i]?.id ?? `i${i}`, sid = (i) => S.edit.sfx_events[i]?.id ?? `i${i}`, cidx = (id) => S.edit.cards.findIndex((c, i) => cid(i) === id);
+const v = $("#v");
+const fmt = (t) => { t = Math.max(0, +t || 0); const m = Math.floor(t / 60); return `${m}:${(t - m * 60).toFixed(1).padStart(4, "0")}`; };
+function toast(msg, bad) { const t = $("#toast"); t.textContent = msg; t.className = bad ? "bad" : ""; t.style.display = "block"; clearTimeout(toast.h); toast.h = setTimeout(() => (t.style.display = "none"), bad ? 7000 : 2200); }
+async function post(url, body, raw) {
+  const r = await fetch(url, { method: "POST", headers: raw ? {} : { "Content-Type": "application/json" }, body: raw ?? JSON.stringify(body || {}) });
+  const j = await r.json().catch(() => ({ ok: false, error: "the editor did not answer" }));
+  if (!j.ok) throw new Error(j.error || "failed");
+  if (j.state) { S = j.state; render(); }
+  return j;
+}
+async function op(o, key, msg) { try { const j = await post("/api/op", { op: o, key }); if (msg) toast(msg); return j; } catch (e) { toast(e.message, true); render(); } }
+async function load() { S = await (await fetch("/api/state")).json(); render(); }
+const running = () => S && (S.job.state === "running" || S.job.state === "queued");
+const now = () => +v.currentTime.toFixed(1);
+const dur = () => S.total;
+
+// ------------------------------------------------------------------ render
+function render() {
+  $("#name").textContent = S.reel; $("#sub").textContent = `${fmt(S.total)} long · ${S.edit.cards.length} cards`;
+  $("#undo").disabled = !S.canUndo || running(); $("#undo").title = S.undoLabel ? `Undo: ${S.undoLabel}` : "";
+  $("#render").disabled = running(); $("#render").textContent = running() ? "Rendering…" : "Re-render";
+  renderStatus(); renderVideo(); renderTimeline(); renderCaps(); renderPieces(); renderCards(); renderPopups(); renderSfx(); renderSettings(); renderVersions(); drawOverlay();
+  $("#notes").innerHTML = S.notes?.length ? `<div class="banner info">${S.notes.map(esc).join("<br>")}</div>` : "";
+}
+function renderStatus() {
+  const j = S.job; let h = "";
+  const chips = { running: `<span class="chip run">Rendering: ${esc(j.step || "")}</span>`, queued: `<span class="chip run">Queued</span>` };
+  if (j.state === "running" || j.state === "queued") {
+    h = `<div class="banner info"><b>${chips[j.state]}</b> This takes a few minutes${S.cutsStale ? " (it cuts the video again first)" : ""}. Edits are paused until it finishes.<ul class="steps">${(j.steps || []).map((s) => `<li>${s.ok ? "✓" : "✗"} ${esc(s.name)} (${s.secs}s)</li>`).join("")}</ul></div>`;
+  } else if (j.state === "failed") {
+    h = `<div class="banner bad"><b>The render failed.</b> ${esc(j.error || "")}<br><span class="small">Your edits are saved. The log is in editor/render.log in the reel folder.</span></div>`;
+  } else if (j.state === "done" && j.result && S.video === j.result.phone && !S.dirty && !S.cutsStale) {
+    const r = j.result, q = r.qa;
+    h = `<div class="banner ok"><b>New video ready (v${r.v}).</b> ${q ? (q.pass ? "Checks passed." : "<b>A check failed:</b> " + esc(q.lines.filter((l) => /FAIL|want/.test(l)).join("; "))) : ""}`
+      + (r.notes?.length ? `<ul>${r.notes.map((n) => `<li>${esc(n)}</li>`).join("")}</ul>` : "")
+      + (r.recut && r.sync?.n ? `<div class="small">Caption timing vs a fresh transcript of this video: median off by ${r.sync.median.toFixed(2)} s, 90% within ${r.sync.p90.toFixed(2)} s, worst ${r.sync.max.toFixed(2)} s (${r.sync.n} words).</div>` : "") + `</div>`;
+  } else if (S.dirty || S.cutsStale) {
+    h = `<div class="banner">Your changes are saved, but the video below is the old render. <b>Tap Re-render</b> to see them.</div>`;
+  } else {
+    h = `<div class="banner ok">The video below matches your edits.</div>`;
+  }
+  $("#status").innerHTML = h;
+}
+function renderVideo() {
+  const r = S.renders.find((x) => x.v === (watch ?? S.renders[S.renders.length - 1]?.v)) || S.renders[S.renders.length - 1];
+  if (watch == null && S.job.state === "done" && S.job.result && S.renders.length) watch = null;
+  const src = r ? "/files/" + r.phone : null;
+  if (src && v.getAttribute("data-src") !== src) { const t = v.currentTime || 0, was = !v.paused; v.setAttribute("data-src", src); v.src = src; v.onloadedmetadata = () => { try { v.currentTime = Math.min(t, v.duration || t); } catch {} if (was) v.play(); }; }
+  if (!src && S.prepping) $("#stale").innerHTML = `<div class="banner info">Preparing a phone copy of the current video…</div>`;
+  else if (!src) $("#stale").innerHTML = `<div class="banner">No video yet: tap Re-render.</div>`;
+  else $("#stale").innerHTML = S.cutsStale ? `<div class="banner">The video above still has the old cuts. Times below are for the new cut: re-render to see it.</div>` : "";
+  $("#ver").innerHTML = S.renders.slice().reverse().map((x) => `<option value="${x.v}" ${x === r ? "selected" : ""}>${x.baseline ? "before editing" : "render " + x.v}${x === S.renders[S.renders.length - 1] ? " (latest)" : ""}</option>`).join("");
+  $("#ver").style.display = S.renders.length > 1 ? "" : "none";
+}
+function renderTimeline() {
+  const T = Math.max(S.total, 1), pc = (t) => (t / T) * 100;
+  let h = `<div class="lane" style="top:22px"></div><div class="lane" style="top:44px"></div>`;
+  for (const p of S.pieces.filter((p) => p.kept)) h += `<div class="mk" style="top:4px;left:${pc(p.start)}%;width:${pc(p.dur)}%;background:${S.pieces.filter((q) => q.kept).indexOf(p) % 2 ? "#cfd9c1" : "#e9efe1"};border:1px solid #b6c5a3"></div>`;
+  for (const c of S.edit.cards) h += `<div class="mk" style="top:26px;left:${pc(c.start)}%;width:${Math.max(pc((c.end ?? c.start + 2) - c.start), 1.2)}%;background:${c.off ? "#ddd" : c.type === "popup" ? "#e7a23b" : "#0d2b2d"}" title="${esc(c.text || c.src || c.type)}"></div>`;
+  for (const s of S.edit.sfx_events) h += `<div class="mk" style="top:48px;left:${pc(s.t)}%;width:1.2%;background:${s.off ? "#ddd" : "#7a4fa3"}"></div>`;
+  h += `<div class="ph" id="ph" style="left:${pc(v.currentTime || 0)}%"></div>`;
+  $("#tl").innerHTML = h;
+}
+$("#tl").addEventListener("click", (e) => { const r = $("#tl").getBoundingClientRect(); v.currentTime = ((e.clientX - r.left) / r.width) * (v.duration || S.total); });
+v.addEventListener("timeupdate", () => {
+  const t = v.currentTime; $("#clock").textContent = fmt(t);
+  const ph = $("#ph"); if (ph) ph.style.left = (t / Math.max(S.total, 1)) * 100 + "%";
+  document.querySelectorAll(".w.now").forEach((n) => n.classList.remove("now"));
+  if (S && !S.cutsStale) { let best = null; for (const [ci, c] of S.edit.captions.entries()) for (const [wi, w] of c.words.entries()) if (w.t <= t) best = [ci, wi];
+    if (best) { const n = document.querySelector(`.w[data-ci="${best[0]}"][data-wi="${best[1]}"]`); if (n) n.classList.add("now"); } }
+});
+$("#ver").addEventListener("change", (e) => { watch = +e.target.value; renderVideo(); });
+$("#nowBtn").addEventListener("click", () => toast(`Video time ${fmt(v.currentTime)}`));
+
+// ---- captions
+function renderCaps() {
+  const caps = S.edit.captions;
+  $("#capn").textContent = `${caps.length} lines`;
+  $("#caps").innerHTML = caps.map((c, ci) => `<div class="cap"><button class="tm" data-a="seek" data-t="${c.start}">${fmt(c.start)}</button>`
+    + c.words.map((w, wi) => `<button class="w${w.accent ? " acc" : ""}${capSel && capSel[0] === ci && capSel[1] === wi ? " sel" : ""}" data-a="word" data-ci="${ci}" data-wi="${wi}">${esc(w.text)}</button>`).join("")
+    + (capSel && capSel[0] === ci ? wordEditor(c.words[capSel[1]]) : "") + `</div>`).join("");
+}
+function wordEditor(w) {
+  return `<div class="edit"><label class="f">Fix this word</label><input type="text" id="wtext" value="${esc(w.text)}" autocapitalize="off" autocomplete="off" />
+    <label class="row" style="margin-top:10px"><span class="sw"><input type="checkbox" id="wacc" ${w.accent ? "checked" : ""}><i></i></span><span>Highlight it (sage)</span></label>
+    <label class="row" style="margin-top:8px"><span class="sw"><input type="checkbox" id="walways"><i></i></span><span>Always fix this word, in every reel <small class="small">(adds it to the word list)</small></span></label>
+    <div class="row" style="margin-top:10px"><button class="pri grow" data-a="word-save">Save word</button><button class="grow" data-a="word-cancel">Cancel</button></div></div>`;
+}
+
+// ---- cuts
+function renderPieces() {
+  const ps = S.pieces; $("#cutn").textContent = `${ps.filter((p) => p.kept).length} of ${ps.length} kept`;
+  let h = "";
+  ps.forEach((p, k) => {
+    if (k > 0 && p.gapBefore > 0.02) h += `<div class="gap">↳ already cut out earlier: ${p.gapBefore.toFixed(1)} s${p.gapLabel ? " (" + esc(p.gapLabel) + ")" : ""}</div>`;
+    h += `<div class="piece${p.kept ? "" : " dropped"}"><label class="sw"><input type="checkbox" data-a="piece" data-id="${p.id}" ${p.kept ? "checked" : ""} ${running() ? "disabled" : ""}><i></i></label>
+      <div class="tt"><b>${p.kept ? `${fmt(p.start)} – ${fmt(p.end)}` : "Dropped"} · ${p.dur.toFixed(1)} s</b>${esc(p.text || "(no words)")}</div>${p.kept ? `<button class="sm" data-a="seek" data-t="${p.start}">▶</button>` : ""}</div>`;
+  });
+  $("#pieces").innerHTML = h;
+}
+
+// ---- cards (pills / text / stickers)
+const TYPE_NAME = { tag: "Pill", title: "Title", cta: "Call to action", card: "List card", sticker: "Sticker", image: "Photos", shot: "Screenshot", block: "Colour block", page: "Page", motion: "Motion", follow: "Word-by-word", popup: "Popup" };
+const effLayer = (c) => c.layer || S.textDefault.layer || "front";
+function cardIndexes(pred) { return S.edit.cards.map((c, i) => [c, i]).filter(([c]) => pred(c)); }
+function renderCards() {
+  const list = cardIndexes((c) => c.type !== "popup");
+  $("#txtn").textContent = `${list.length} items`;
+  $("#cards").innerHTML = list.length ? list.map(([c, i]) => cardHtml(c, i)).join("") : `<p class="help">No pills or text in this video yet.</p>`;
+}
+function times(c, i) {
+  return `<div class="two"><div><label class="f">Starts (s)</label><div class="tin"><input type="number" step="0.1" min="0" data-a="set" data-i="${i}" data-f="start" value="${c.start}"><button class="sm" data-a="stamp" data-i="${i}" data-f="start" title="Use video time">⏱</button></div></div>
+    <div><label class="f">Ends (s)</label><div class="tin"><input type="number" step="0.1" min="0" data-a="set" data-i="${i}" data-f="end" value="${c.end ?? ""}"><button class="sm" data-a="stamp" data-i="${i}" data-f="end" title="Use video time">⏱</button></div></div></div>`;
+}
+function cardHtml(c, i) {
+  const open = openCard.has(cid(i)), name = TYPE_NAME[c.type] || c.type, lab = c.text || c.title || (Array.isArray(c.src) ? c.src[0] : c.src) || "";
+  let h = `<div class="item${c.off ? " off" : ""}"><div class="hd"><label class="sw"><input type="checkbox" data-a="toggle" data-i="${i}" ${c.off ? "" : "checked"} ${running() ? "disabled" : ""}><i></i></label>
+    <div class="tt" data-a="open" data-i="${i}" style="cursor:pointer">${esc(lab || name)}<small>${name} · ${fmt(c.start)}${c.end != null ? " – " + fmt(c.end) : ""}${isTextType(c.type) ? " · " + (effLayer(c) === "front" ? "in front of me" : effLayer(c) === "behind" ? "behind me" : "weaves around me") : ""}</small></div>
+    <button class="sm" data-a="open" data-i="${i}">${open ? "Close" : "Edit"}</button></div>`;
+  if (open) {
+    h += `<div class="edit">`;
+    if (c.type === "tag" || c.type === "title" || c.type === "cta") {
+      h += `<label class="f">Text</label><input type="text" data-a="set" data-i="${i}" data-f="text" value="${esc(c.text)}" />`;
+      if (c.type === "tag" && (c.text || "").length > 24) h += `<p class="warnt">Long pill text can run off the edge of the screen.</p>`;
+    }
+    h += times(c, i);
+    if (isTextType(c.type)) {
+      const L = effLayer(c);
+      h += `<label class="f">Layer</label><div class="seg"><button class="${L === "front" ? "on" : ""}" data-a="layer" data-i="${i}" data-v="front">In front of me</button><button class="${L === "behind" ? "on" : ""}" data-a="layer" data-i="${i}" data-v="behind">Behind me</button></div>`
+        + (L === "behind" ? `<p class="warnt">Behind me only shows where the text overlaps you or the background, so it needs headroom (if your face fills the frame, it will be hidden). If the cutout isn't clean for this stretch, it is drawn in front instead and the render report says so.</p>` : "")
+        + (c.layer == null ? `<p class="small">Using your default (${S.textDefault.layer === "front" ? "in front" : S.textDefault.layer}).</p>` : "");
+    }
+    if (c.type === "tag" || c.type === "title" || c.type === "cta") {
+      const y = c.y ?? (c.type === "tag" ? 130 : 360);
+      h += `<label class="f">Height on screen</label><div class="grid3">${[[130, "Above my head"], [300, "Higher"], [800, "Middle"], [1050, "Lower"], [1150, "Above captions"]].map(([yy, n]) => `<button class="${Math.abs(y - yy) < 20 ? "on" : ""}" data-a="set" data-i="${i}" data-f="y" data-v="${yy}">${n}</button>`).join("")}<button class="${placing && placing.id === cid(i) ? "on" : ""}" data-a="place" data-i="${i}">Tap on video</button></div>`;
+    }
+    if (c.type === "sticker") h += `<p class="help">Stickers: change time or switch off here. Position and size are in the edit.</p>`;
+    h += `<div class="row" style="margin-top:12px"><button class="sm" data-a="seek" data-t="${c.start}">▶ Go to start</button><span class="grow"></span><button class="sm danger" data-a="del" data-i="${i}">Delete</button></div></div>`;
+  }
+  return h + `</div>`;
+}
+
+// ---- popups
+function renderPopups() {
+  const list = cardIndexes((c) => c.type === "popup");
+  $("#popn").textContent = `${list.length} items`;
+  $("#popups").innerHTML = list.length ? list.map(([c, i]) => popupHtml(c, i)).join("") : `<p class="help">No popups yet.</p>`;
+  const spare = S.popups.filter((p) => !S.edit.cards.some((c) => c.src === p.src));
+  $("#reuse").innerHTML = S.popups.length ? `<label class="f">Or use a picture you uploaded before</label><select id="reusePick"><option value="">Choose…</option>${S.popups.map((p) => `<option value="${esc(p.src)}">${esc(p.src.replace("popups/", ""))}${p.animated ? " (GIF)" : ""}</option>`).join("")}</select>` : "";
+}
+function popupHtml(c, i) {
+  const open = openCard.has(cid(i)), m = S.media[c.src] || { w: 1, h: 1 };
+  let h = `<div class="item${c.off ? " off" : ""}"><div class="hd"><label class="sw"><input type="checkbox" data-a="toggle" data-i="${i}" ${c.off ? "" : "checked"} ${running() ? "disabled" : ""}><i></i></label>
+    <img src="/files/${esc(c.src)}" style="width:44px;height:44px;object-fit:cover;border-radius:8px;background:#eee" alt="" />
+    <div class="tt" data-a="open" data-i="${i}" style="cursor:pointer">${esc(c.src.replace(/^popups\/[^-]*-/, ""))}<small>${m.animated ? "GIF · " : ""}${fmt(c.start)} – ${fmt(c.end)} · ${esc(c.pos || "top-right")}</small></div>
+    <button class="sm" data-a="open" data-i="${i}">${open ? "Close" : "Edit"}</button></div>`;
+  if (open) {
+    const P = [["top-left", "Top left"], ["top-center", "Top, above head"], ["top-right", "Top right"], ["middle-left", "Left"], ["center", "Center"], ["middle-right", "Right"]];
+    h += `<div class="edit">${times(c, i)}<label class="f">Where</label><div class="grid3">${P.map(([k, n]) => `<button class="${(c.pos || "top-right") === k ? "on" : ""}" data-a="set" data-i="${i}" data-f="pos" data-v="${k}">${n}</button>`).join("")}
+      <button class="${(c.pos === "custom") ? "on" : ""}" data-a="place" data-i="${i}">Tap on video</button></div>
+      <p class="small">The top corners keep it clear of your face.</p>
+      <label class="f">Size: ${c.size || 360}px wide</label><input type="range" min="120" max="800" step="10" value="${c.size || 360}" data-a="range" data-i="${i}" data-f="size" style="width:100%">
+      <label class="f">Tilt: ${c.rotate || 0}°</label><input type="range" min="-30" max="30" step="1" value="${c.rotate || 0}" data-a="range" data-i="${i}" data-f="rotate" style="width:100%">
+      <label class="row" style="margin-top:10px"><span class="sw"><input type="checkbox" data-a="frame" data-i="${i}" ${(c.frame ?? /\.jpe?g$/i.test(c.src)) ? "checked" : ""}><i></i></span><span>White photo border</span></label>
+      <div class="row" style="margin-top:12px"><button class="sm" data-a="seek" data-t="${c.start}">▶ Go to start</button><span class="grow"></span><button class="sm danger" data-a="del" data-i="${i}">Delete</button></div></div>`;
+  }
+  return h + `</div>`;
+}
+
+// ---- sounds
+function renderSfx() {
+  const list = S.edit.sfx_events; $("#sfxn").textContent = `${list.length} sounds`;
+  $("#sfx").innerHTML = list.length ? list.map((e, i) => `<div class="item${e.off ? " off" : ""}"><div class="hd"><label class="sw"><input type="checkbox" data-a="sfx-toggle" data-i="${i}" ${e.off ? "" : "checked"} ${running() ? "disabled" : ""}><i></i></label>
+    <div class="tt">${esc(e.name)}<small>at ${fmt(e.t)} · ${e.db ?? -10} dB</small></div><button class="sm" data-a="sfx-open" data-i="${i}">${openSfx.has(sid(i)) ? "Close" : "Edit"}</button></div>
+    ${openSfx.has(sid(i)) ? `<div class="edit"><label class="f">Sound</label><select data-a="sfx-set" data-i="${i}" data-f="name">${S.sfxNames.map((n) => `<option ${n.name === e.name ? "selected" : ""} value="${n.name}">${n.name}${n.category ? " (" + n.category + ")" : ""}</option>`).join("")}</select>
+      <div class="two"><div><label class="f">Time (s)</label><div class="tin"><input type="number" step="0.1" data-a="sfx-set" data-i="${i}" data-f="t" value="${e.t}"><button class="sm" data-a="sfx-stamp" data-i="${i}">⏱</button></div></div>
+      <div><label class="f">Level (dB, 0 = loudest)</label><input type="number" step="1" max="0" min="-40" data-a="sfx-set" data-i="${i}" data-f="db" value="${e.db ?? -10}"></div></div>
+      <div class="row" style="margin-top:12px"><span class="grow"></span><button class="sm danger" data-a="sfx-del" data-i="${i}">Delete</button></div></div>` : ""}</div>`).join("") : `<p class="help">No extra sound effects in this video.</p>`;
+}
+
+// ---- settings, versions
+function renderSettings() {
+  const L = S.textDefault.layer || "front";
+  $("#settings").innerHTML = `<label class="f">Where text goes by default (every reel)</label><div class="seg"><button class="${L === "front" ? "on" : ""}" data-a="default" data-v="front">In front of me</button><button class="${L === "behind" ? "on" : ""}" data-a="default" data-v="behind">Behind me</button></div>
+    <p class="help" style="margin-top:8px">Text sits in the top area above your head. This only sets the layer new text starts on; you can change any single piece of text. ${S.hasTextDefault ? "" : "(Not saved in the brand file yet: the built-in default is in front.)"}</p>`;
+}
+function renderVersions() {
+  $("#vern").textContent = `${S.renders.length}`;
+  $("#versions").innerHTML = S.renders.length ? S.renders.slice().reverse().map((r) => `<div class="item"><div class="hd"><div class="tt">${r.baseline ? "Before editing" : "Render " + r.v}<small>${esc(new Date(r.at).toLocaleString())} · ${r.len ? fmt(r.len) : ""} · ${esc(r.what || "")}${r.qa ? " · checks " + (r.qa.pass ? "passed" : "FAILED") : ""}</small></div><button class="sm" data-a="watch" data-v="${r.v}">Watch</button></div>${(r.notes || []).map((n) => `<div class="warnt">${esc(n)}</div>`).join("")}</div>`).join("") : `<p class="help">No renders yet.</p>`;
+}
+
+// ---- overlay: where the selected popup / pill will land (preview only; the real thing is drawn by the render)
+function drawOverlay() {
+  const ov = $("#ov"); ov.classList.toggle("place", !!placing);
+  const c = selCard != null ? S.edit.cards[cidx(selCard)] : null;
+  if (!c || c.off) { ov.innerHTML = ""; return; }
+  const k = ov.clientWidth / 1080 || 0.33;
+  if (c.type === "popup") {
+    const m = S.media[c.src] || { w: 1, h: 1 }, b = popupBox(c, m.w, m.h);
+    ov.innerHTML = `<div class="box" style="left:${b.left * k}px;top:${b.top * k}px;width:${b.w * k}px;height:${b.h * k}px;transform:rotate(${c.rotate || 0}deg)"><img src="/files/${esc(c.src)}" alt=""></div>`;
+  } else if (c.type === "tag" || c.type === "title" || c.type === "cta") {
+    ov.innerHTML = `<div class="pill" style="top:${(c.y ?? 130) * k}px"><span style="font-size:${Math.max(8, 36 * k)}px">${esc(c.text)}</span></div>`;
+  } else ov.innerHTML = "";
+}
+$("#ov").addEventListener("click", async (e) => {
+  if (!placing) return;
+  const r = $("#ov").getBoundingClientRect(), k = 1080 / r.width, x = Math.round((e.clientX - r.left) * k), y = Math.round((e.clientY - r.top) * k), i = cidx(placing.id), c = S.edit.cards[i];
+  placing = null;
+  await op({ op: "card_set", i, set: c.type === "popup" ? { pos: "custom", x, y } : { y } }, `c${cid(i)}:place`, "Placed");
+});
+window.addEventListener("resize", drawOverlay);
+
+// ------------------------------------------------------------------ actions
+const stampField = (i, f) => { const t = now(); return op({ op: "card_set", i, set: { [f]: t } }, `c${cid(i)}:${f}`, `${f === "start" ? "Starts" : "Ends"} at ${fmt(t)}`); };
+document.addEventListener("click", async (e) => {
+  const el = e.target.closest("[data-a]"); if (!el) return;
+  const a = el.dataset.a, i = el.dataset.i != null ? +el.dataset.i : null;
+  if (a === "seek") { v.currentTime = +el.dataset.t; v.scrollIntoView?.({ behavior: "smooth", block: "nearest" }); }
+  else if (a === "word") { const ci = +el.dataset.ci, wi = +el.dataset.wi; capSel = capSel && capSel[0] === ci && capSel[1] === wi ? null : [ci, wi]; renderCaps(); v.currentTime = S.edit.captions[ci].words[wi].t; if (capSel) $("#wtext")?.focus(); }
+  else if (a === "word-cancel") { capSel = null; renderCaps(); }
+  else if (a === "word-save") {
+    const [ci, wi] = capSel, text = $("#wtext").value.trim();
+    capSel = null; await op({ op: "caption_word", ci, wi, text, accent: $("#wacc").checked, always: $("#walways").checked }, null, "Word saved"); }
+  else if (a === "open") { const id = cid(i); openCard.has(id) ? openCard.delete(id) : openCard.add(id); selCard = openCard.has(id) ? id : null; if (openCard.has(id)) v.currentTime = S.edit.cards[i].start; placing = null; renderCards(); renderPopups(); drawOverlay(); }
+  else if (a === "stamp") { if (S.cutsStale) return toast("Re-render first: the video above has the old cuts.", true); stampField(i, el.dataset.f); }
+  else if (a === "layer") { op({ op: "card_set", i, set: { layer: el.dataset.v } }, null, el.dataset.v === "behind" ? "Behind me: re-render to see it" : "In front of me"); }
+  else if (a === "set" && el.dataset.v != null) { op({ op: "card_set", i, set: { [el.dataset.f]: el.dataset.v } }, null); }
+  else if (a === "place") { placing = placing && placing.id === cid(i) ? null : { id: cid(i) }; selCard = cid(i); drawOverlay(); if (placing) toast("Tap the video where you want it", false); render(); }
+  else if (a === "del") { if (confirm("Delete this? (Undo can bring it back.)")) { openCard.delete(cid(i)); selCard = null; op({ op: "card_del", i }, null, "Deleted"); } }
+  else if (a === "sfx-open") { const id = sid(i); openSfx.has(id) ? openSfx.delete(id) : openSfx.add(id); renderSfx(); }
+  else if (a === "sfx-stamp") { if (S.cutsStale) return toast("Re-render first: the video above has the old cuts.", true); op({ op: "sfx_set", i, set: { t: now() } }, `s${sid(i)}:t`, `At ${fmt(now())}`); }
+  else if (a === "sfx-del") { if (confirm("Delete this sound?")) op({ op: "sfx_del", i }, null, "Deleted"); }
+  else if (a === "default") { try { await post("/api/text-default", { layer: el.dataset.v, position: "above" }); toast("Default saved"); } catch (er) { toast(er.message, true); } }
+  else if (a === "watch") { watch = +el.dataset.v; renderVideo(); v.scrollIntoView?.({ behavior: "smooth", block: "center" }); }
+});
+document.addEventListener("change", async (e) => {
+  const el = e.target.closest("[data-a]"); if (!el) return;
+  const a = el.dataset.a, i = el.dataset.i != null ? +el.dataset.i : null;
+  if (a === "piece") {
+    const kept = el.checked;
+    try { const j = await post("/api/op", { op: { op: "piece", id: el.dataset.id, kept } }); toast(kept ? "Piece back in" : "Piece dropped: re-render to see it"); if (j.report?.length) { $("#notes").innerHTML = `<div class="banner info"><b>Heads up</b><ul>${j.report.map((r) => `<li>${esc(r)}</li>`).join("")}</ul></div>`; } }
+    catch (er) { toast(er.message, true); render(); }
+  } else if (a === "toggle") op({ op: "card_set", i, set: { off: !el.checked } }, null, el.checked ? "On" : "Off");
+  else if (a === "sfx-toggle") op({ op: "sfx_set", i, set: { off: !el.checked } }, null, el.checked ? "On" : "Off");
+  else if (a === "frame") op({ op: "card_set", i, set: { frame: el.checked } }, null);
+  else if (a === "set") op({ op: "card_set", i, set: { [el.dataset.f]: el.value } }, `c${cid(i)}:${el.dataset.f}`);
+  else if (a === "range") op({ op: "card_set", i, set: { [el.dataset.f]: el.value } }, `c${cid(i)}:${el.dataset.f}`);
+  else if (a === "sfx-set") op({ op: "sfx_set", i, set: { [el.dataset.f]: el.value } }, `s${sid(i)}:${el.dataset.f}`);
+});
+document.addEventListener("input", (e) => { const el = e.target; if (el.dataset?.a === "range") { const l = el.previousElementSibling; if (l) l.textContent = l.textContent.replace(/:.*$/, `: ${el.value}${el.dataset.f === "size" ? "px wide" : "°"}`); } });
+document.addEventListener("keydown", (e) => { if (e.key === "Enter" && e.target.id === "wtext") document.querySelector('[data-a="word-save"]')?.click(); });
+
+$("#undo").addEventListener("click", async () => { try { const j = await post("/api/undo"); toast(`Undid: ${j.undid}`); } catch (e) { toast(e.message, true); } });
+$("#render").addEventListener("click", async () => {
+  if (!confirm("Re-render the video now? It takes a few minutes and pauses editing until it's done. Your earlier renders are kept.")) return;
+  try { await post("/api/render"); startPoll(); await load(); } catch (e) { toast(e.message, true); }
+});
+$("#addPill").addEventListener("click", () => {
+  const t = Math.min(now(), Math.max(S.total - 0.5, 0)); op({ op: "card_add", card: { type: "tag", text: "new pill", start: t, end: Math.min(t + 2.5, S.total) } }, null, "Pill added").then((j) => { if (j?.info?.index != null) { const id = cid(j.info.index); openCard.add(id); selCard = id; render(); } });
+});
+$("#addSfx").addEventListener("click", () => { const t = now(); op({ op: "sfx_add", event: { name: "pop-soft", t, db: -16 } }, null, "Sound added").then((j) => { if (j?.info?.index != null) { openSfx.add(sid(j.info.index)); renderSfx(); } }); });
+async function addPopup(src) {
+  const t = Math.min(now(), Math.max(S.total - 0.5, 0));
+  const j = await op({ op: "card_add", card: { type: "popup", src, start: t, end: Math.min(t + 3, S.total), pos: "top-right", size: 360 } }, null, "Popup added: pick where and how long, then re-render");
+  if (j?.info?.index != null) { const id = cid(j.info.index); openCard.add(id); selCard = id; render(); $("#s-pop").open = true; }
+}
+$("#file").addEventListener("change", async (e) => {
+  const f = e.target.files[0]; if (!f) return; e.target.value = "";
+  if (f.size > 55e6) return toast("That file is over 55 MB", true);
+  toast(`Uploading ${f.name}…`);
+  try { const j = await post("/api/upload?name=" + encodeURIComponent(f.name), null, f); await addPopup(j.upload.src); }
+  catch (er) { toast(er.message, true); }
+});
+document.addEventListener("change", (e) => { if (e.target.id === "reusePick" && e.target.value) { addPopup(e.target.value); e.target.value = ""; } });
+
+// ------------------------------------------------------------------ job polling
+function startPoll() { clearInterval(pollT); pollT = setInterval(async () => {
+  try { const j = await (await fetch("/api/job")).json(); const was = S.job.state; S.job = j.job;
+    if (j.job.state === "done" || j.job.state === "failed") { clearInterval(pollT); pollT = null; watch = null; await load(); toast(j.job.state === "done" ? "New video ready" : "Render failed", j.job.state !== "done"); }
+    else { renderStatus(); $("#render").textContent = "Rendering…"; }
+  } catch {} }, 2000); }
+await load();
+if (running()) startPoll();
+</script>
+</body></html>

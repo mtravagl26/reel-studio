@@ -24,7 +24,14 @@ edit.json (written by auto_edit.py, then Claude marks accents and adds cards):
                                                      images: {"images": ["a.png", ...]} and the slots are filled for you.
      follow {words: [{text, accent}], framing: "wide"}   caption-camera-follow in brand colours/font: one sentence
                                                      written word by word across a camera that pulls back (hook moments)
+     popup  {src: "popups/hello.gif", pos: "top-right", size: 360, rotate: 0, frame?: true}   (Added by By Mel Ross, reel editor page) a picture, graphic
+                                                     or animated GIF that pops up. pos: top-left | top-center | top-right | middle-left | middle-right |
+                                                     center | custom (then "x", "y" = centre in px). size = width in px. GIFs are converted to a looped
+                                                     transparent video so they animate in the render. "frame": true = white photo border (default for jpg).
   Any card: "glass": true gives the frosted liquid-glass look (card, tag).
+  Any card or sfx_event: "off": true leaves it out of the render (the editor page's on/off switch).
+  Text cards (title, tag, card, cta) with no "layer" take brand.json "text_default": {"layer": "front" | "behind" | "both", "position": "above"}
+     ("above" = the top area above the head, y 130, for a tag with no "y").
   sfx_events: [{name, t, db?}]   (Added by By Mel Ross) extra sound effects from the library (assets/sfx-manifest.json), e.g.
                                  {"name": "rise", "t": 12.4, "db": -9}  (db = peak level in dBFS, default -10). These always play; automatic entrance sounds follow brand.json "sfx".
   Any card: "sfx": false mutes its entrance sound; "sfx": {"name": "ding", "db": -10} swaps it for another library effect.
@@ -47,6 +54,16 @@ HOME = Path(os.environ.get("REELS_HOME", "~/reels")).expanduser()
 ENGINE = Path(os.environ.get("REEL_ENGINE") or Path(__file__).resolve().parent.parent / "engine")   # REEL_ENGINE: Added by By Mel Ross, for tests
 brand = json.load(open(HOME / "brand.json"))
 edit = json.load(open(reel / "edit.json"))
+# Added by By Mel Ross (editor page): "off" switches a card or effect off without deleting it; brand.json "text_default" gives text cards their layer
+edit["cards"] = [c for c in edit.get("cards", []) if not c.get("off")]
+edit["sfx_events"] = [e for e in edit.get("sfx_events", []) if not e.get("off")]
+TEXT_DEFAULT = brand.get("text_default") or {}
+TEXT_TYPES = ("title", "tag", "card", "cta")
+for _c in edit["cards"]:
+    if _c.get("type") in TEXT_TYPES and not _c.get("layer") and TEXT_DEFAULT.get("layer") in ("behind", "both"):
+        _c["layer"] = TEXT_DEFAULT["layer"]
+    if _c.get("type") == "tag" and "y" not in _c and TEXT_DEFAULT.get("position") == "above":
+        _c["y"] = 130
 
 # Added by By Mel Ross: sound-effects library + stem mix. Effects are listed in assets/sfx-manifest.json (default level per
 # effect, source, license). By default they are not baked into the HyperFrames render: build_reel.py writes sfx_events.json and
@@ -104,6 +121,48 @@ def img(src):
             subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", str(cand), "-vf", "scale='min(1280,iw)':-2", str(dst)], check=True)
             return f"img/{dst.name}"
     print(f"warning: image not found: {src}"); return ""
+
+def popup_asset(src, secs):
+    """Added by By Mel Ross (editor page). Copy a popup picture into the project: returns (kind, project path, width, height).
+    Pictures become PNG like img(). An animated GIF becomes a looped transparent video (VP9 with alpha, 30 fps, long enough for
+    `secs`) because the render draws the page frame by frame and a plain <img> GIF would sit on its first frame."""
+    for cand in (reel / src, HOME / "assets" / src, Path(src).expanduser()):
+        if cand.exists(): break
+    else:
+        print(f"warning: popup file not found: {src}"); return None
+    n = len(list((proj / "img").iterdir()))
+    _chk = subprocess.run(["ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries", "stream=width,height", "-of", "csv=p=0", str(cand)], capture_output=True, text=True)
+    try: _cw, _ch = [int(x) for x in _chk.stdout.strip().split(",")[:2]]
+    except ValueError: _cw = _ch = 0
+    if _chk.returncode != 0 or _cw <= 0 or _ch <= 0:   # a damaged file (ffprobe reports 0x0); looping one would make ffmpeg spin forever, so look first
+        print(f"warning: popup {src} is not a picture this machine can read: skipped"); return None
+    if cand.suffix.lower() == ".gif":
+        dst = proj / "img" / f"{n}_{cand.stem}.webm"
+        # looping: the loop filter repeats the first N decoded frames (N = the GIF's frame count, at most 900), which cycles at the GIF's own
+        # speed. ffmpeg's -stream_loop is not used: on a GIF whose container has no duration it never advances time and runs forever.
+        try:
+            nf = subprocess.run(["ffprobe", "-v", "error", "-count_frames", "-select_streams", "v:0", "-show_entries", "stream=nb_read_frames", "-of", "csv=p=0", str(cand)],
+                                capture_output=True, text=True, timeout=60).stdout.strip().split(",")[0]
+            nf = min(max(int(nf), 1), 900)
+            r = subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", str(cand), "-t", f"{secs + 0.5:.2f}",
+                                "-vf", f"scale='min(720,iw)':-2:flags=lanczos,format=yuva420p,loop=loop=-1:size={nf}:start=0,fps=30", "-c:v", "libvpx-vp9", "-pix_fmt", "yuva420p",
+                                "-b:v", "0", "-crf", "30", "-auto-alt-ref", "0", "-an", str(dst)], capture_output=True, text=True, timeout=120)
+        except (subprocess.TimeoutExpired, ValueError):   # a damaged GIF: give up rather than hang the render
+            r = subprocess.CompletedProcess([], 1, "", "timed out or unreadable")
+        if r.returncode != 0:
+            print(f"warning: GIF {src} could not be converted ({r.stderr.strip()[:200]}): drawn as a still picture")
+        else:
+            wh = subprocess.run(["ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries", "stream=width,height", "-of", "csv=p=0", str(dst)],
+                                capture_output=True, text=True).stdout.strip().split(",")
+            return "video", f"img/{dst.name}", int(wh[0]), int(wh[1])
+    try:
+        path = img(src)
+        if not path: return None
+        wh = subprocess.run(["ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries", "stream=width,height", "-of", "csv=p=0", str(proj / path)],
+                            capture_output=True, text=True, check=True).stdout.strip().split(",")
+        return "img", path, int(wh[0]), int(wh[1])
+    except (subprocess.CalledProcessError, ValueError, IndexError):
+        print(f"warning: popup {src} is not a picture this machine can read: skipped"); return None
 
 # fonts: brand.json "fonts": {"head": {...}, "body": {...}, "accent": {...}}, each {family, file?, weight?, style?}
 FALLBACK = "'Helvetica Neue', Helvetica, Arial, sans-serif"   # single quotes: these go inside style="..." attributes
@@ -184,6 +243,8 @@ PHRASE_ENDS = [w["end"] for k, w in enumerate(_tw) if re.search(r"[.,!?;:]$", w[
 def phrase_end(t):
     return next((e + 0.15 for e in PHRASE_ENDS if e > t + 1.0), min(t + 2.5, DUR))
 
+POPUP_POS = {"top-left": ("top", "left"), "top-center": ("top", "center"), "top-right": ("top", "right"), "middle-left": ("middle", "left"),
+             "middle-right": ("middle", "right"), "center": ("center", "center")}
 quiet = []                                      # spans where a card carries its own words, so captions step aside
 for i, c in enumerate(edit.get("cards", [])):
     _marks.append((len(back), len(mid), len(front), len(js)))
@@ -260,6 +321,26 @@ for i, c in enumerate(edit.get("cards", [])):
         front.append(f'<div id="{cid}" class="stk" style="left:{c.get("x", 760) - sz // 2}px;top:{c.get("y", 420) - sz // 2}px;width:{sz}px"><img src="{img(c["src"])}" /></div>')
         show(f"#{cid}", a, b, 0.15)
         js.append(f'tl.fromTo("#{cid}",{{scale:0,rotation:-25}},{{scale:1,rotation:{c.get("rotate", 6)},duration:0.5,ease:"back.out(3)"}},{q(a)});')
+        sfx("pop", a, -13)
+    elif kind == "popup":
+        # Added by By Mel Ross (editor page): a picture, graphic or animated GIF that pops up in a corner (default top right, clear of the face)
+        asset = popup_asset(c["src"], max(b - a, 0.5))
+        if not asset: continue
+        mkind, ppath, iw, ih = asset
+        pw = int(c.get("size", 360)); ph = max(int(round(pw * ih / max(iw, 1))), 1)
+        framed = c.get("frame", Path(str(c["src"])).suffix.lower() in (".jpg", ".jpeg", ".heic", ".heif"))
+        pos = c.get("pos", "top-right"); top0 = 150; mx = 60
+        if pos == "custom" or ("x" in c and "y" in c and pos not in POPUP_POS):
+            left, top = int(c.get("x", W / 2) - pw / 2), int(c.get("y", 400) - ph / 2)
+        else:
+            left = {"left": mx, "center": (W - pw) // 2, "right": W - mx - pw}[POPUP_POS.get(pos, ("top", "right"))[1]]
+            top = {"top": top0, "middle": (H - ph) // 2 - 260, "center": (H - ph) // 2}[POPUP_POS.get(pos, ("top", "right"))[0]]
+        rot = c.get("rotate", 0)
+        media = (f'<video id="{cid}v" src="{ppath}" muted playsinline data-start="{q(a)}" data-duration="{q(b - a)}" data-track-index="{60 + i}"></video>'
+                 if mkind == "video" else f'<img src="{ppath}" />')
+        front.append(f'<div id="{cid}" class="pop{" framed" if framed else ""}" style="left:{left}px;top:{top}px;width:{pw}px;height:{ph}px">{media}</div>')
+        show(f"#{cid}", a, b, 0.15)
+        js.append(f'tl.fromTo("#{cid}",{{scale:0,rotation:{rot - 20}}},{{scale:1,rotation:{rot},duration:0.5,ease:"back.out(2.4)"}},{q(a)});')
         sfx("pop", a, -13)
     elif kind == "page":
         bg = c.get("bg", LIGHT)
@@ -431,6 +512,10 @@ html, body {{ margin: 0; background: #000; overflow: hidden; }}
 .ph {{ position: absolute; top: 0; width: 420px; height: 520px; object-fit: cover; border: 12px solid #fff; border-radius: 18px; box-shadow: 0 26px 60px rgba(0,0,0,.28); }}
 .stk {{ position: absolute; }}
 .stk img {{ width: 100%; display: block; filter: drop-shadow(0 14px 22px rgba(0,0,0,.25)); }}
+.pop {{ position: absolute; }}
+.pop img, .pop video {{ width: 100%; height: 100%; object-fit: contain; display: block; filter: drop-shadow(0 12px 20px rgba(0,0,0,.28)); }}
+.pop.framed {{ box-sizing: border-box; border: 12px solid #fff; border-radius: 18px; background: #fff; box-shadow: 0 26px 60px rgba(0,0,0,.28); }}
+.pop.framed img, .pop.framed video {{ object-fit: cover; filter: none; border-radius: 6px; }}
 .page {{ position: absolute; inset: 0; }}
 .pt {{ position: absolute; left: 0; right: 0; top: 150px; text-align: center; line-height: .9; letter-spacing: -.04em; padding: 0 60px; }}
 .pf {{ position: absolute; left: 190px; top: 560px; width: 700px; height: 1240px; overflow: hidden; border: 12px solid #fff; border-radius: 34px; box-shadow: 0 30px 70px rgba(0,0,0,.28); }}

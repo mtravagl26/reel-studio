@@ -1,0 +1,343 @@
+// Added by By Mel Ross. Pure logic for the reel editor page (no files, no network): edit operations and exact retiming when a cut piece
+// is dropped or brought back. editor-server.mjs does the file work, editor.html is the page, tests/reel-editor-page.test.mjs checks this.
+//
+// Times in edit.json are reel seconds (the time on the finished video). A reel is the kept pieces of edl.json in order, joined with
+// a frame-exact cut (audio crossfade included in the piece lengths), so a piece that starts at reel time s and lasts d = (b - a) / speed
+// moves everything after it by exactly d. Dropping a piece removes what lives inside it and pulls the rest earlier by d; bringing it back
+// pushes the rest later by d and puts the removed material back (kept relative to the piece start in state.pieces[].removed).
+
+const EPS = 1e-6;
+export const r4 = (x) => Math.round(x * 1e4) / 1e4;
+const clone = (o) => JSON.parse(JSON.stringify(o));
+
+/** state.json for a reel that has not been edited here yet: every piece of edl.keep kept. */
+export function initState(edl, speed = 1) {
+  return {
+    version: 1,
+    speed: speed || 1,
+    xfade: Number(edl.xfade || 0),
+    pieces: (edl.keep || []).map(([a, b], k) => ({ id: `p${k + 1}`, a, b, kept: true })),
+  };
+}
+
+export const keptSpans = (state) => state.pieces.filter((p) => p.kept).map((p) => [p.a, p.b]);
+export const pieceLen = (state, p) => (p.b - p.a) / state.speed;
+
+/** Reel-time start/end of every piece (a dropped piece gets the place it would have, for restoring). */
+export function layout(state) {
+  let t = 0;
+  return state.pieces.map((p) => {
+    const start = t, d = pieceLen(state, p);
+    if (p.kept) t += d;
+    return { id: p.id, a: p.a, b: p.b, kept: p.kept, start: r4(start), end: r4(start + d), dur: r4(d) };
+  });
+}
+export const reelLength = (state) => r4(state.pieces.filter((p) => p.kept).reduce((n, p) => n + pieceLen(state, p), 0));
+
+/** Same hash input for edl.json and state, so "cuts changed since the last cut" is one comparison. */
+export function cutKey(state) {
+  return JSON.stringify([keptSpans(state), state.speed, state.xfade]);
+}
+
+/** Bare numbers in `punch` alternate zoom in / out by position, so removing one would flip every later one: make them explicit first. */
+export function explicitPunch(punch, zoomScale = 1.04) {
+  return (punch || []).map((p, k) => (Array.isArray(p) ? p : [p, k % 2 ? 1.0 : zoomScale]));
+}
+
+/** Cards and sound events get a short id so the page can keep them open when the list re-sorts. build_reel.py ignores the field. Returns true if anything was added. */
+export const genId = () => Math.random().toString(36).slice(2, 8);
+export function ensureIds(edit) {
+  let changed = false;
+  for (const list of [edit.cards, edit.sfx_events]) for (const x of list || []) if (!x.id) { x.id = genId(); changed = true; }
+  return changed;
+}
+
+const normWord = (t) => String(t).toLowerCase().replace(/[^a-z0-9' ]/g, "");
+
+// ---------------------------------------------------------------------------------------------------------------------------------------
+// drop / restore one piece
+// ---------------------------------------------------------------------------------------------------------------------------------------
+/**
+ * Drop piece `id`. Returns {edit, transcript, state, report}. `transcript` is master_transcript.json's word list ([{text,start,end}]).
+ * report lists what happened to things that did not move cleanly (split captions, clipped cards), so the page can say so.
+ */
+export function dropPiece(edit0, transcript0, state0, id, { zoomScale = 1.04 } = {}) {
+  const edit = clone(edit0), transcript = clone(transcript0 || []), state = clone(state0);
+  const lay = layout(state), L = lay.find((p) => p.id === id);
+  if (!L) throw new Error(`no piece ${id}`);
+  if (!L.kept) throw new Error(`piece ${id} is already dropped`);
+  if (state.pieces.filter((p) => p.kept).length < 2) throw new Error("a reel needs at least one piece: keep another one first");
+  const s = L.start, e = L.end, d = e - s;
+  const inR = (t) => t >= s - EPS && t < e - EPS;
+  const mapT = (t) => (t >= e - EPS ? t - d : t > s ? s : t);   // a time inside the piece collapses onto the join
+  const removed = { captions: [], cards: [], sfx_events: [], punch: [], transcript: [], clipped: [] };   // clipped: things that stay but ended inside this piece
+  const report = [];
+  const capSig = (c) => `cap|${c.start}|${c.words?.[0]?.text}`, cardSig = (c) => c.id || `card|${c.type}|${c.text || c.title || c.src || ""}|${c.start}`;
+
+  const caps = [];
+  for (const c of edit.captions || []) {
+    const ws = c.words || [];
+    const inside = ws.filter((w) => inR(w.t)), keep = ws.filter((w) => !inR(w.t));
+    if (!inside.length) {   // nothing of it was in the piece
+      if (c.end > s + EPS && c.end < e - EPS) removed.clipped.push({ k: capSig(c), end: r4(c.end - s) });
+      caps.push({ ...c, start: r4(mapT(c.start)), end: r4(mapT(c.end)), words: ws.map((w) => ({ ...w, t: r4(mapT(w.t)) })) });
+      continue;
+    }
+    const nextKept = keep.find((w) => w.t >= e - EPS);
+    removed.captions.push({
+      ...c,
+      start: r4(inside[0].t - s),
+      end: r4((keep.length ? Math.min(c.end, nextKept ? nextKept.t : e, e) : c.end) - s),
+      words: inside.map((w) => ({ ...w, t: r4(w.t - s) })),
+    });
+    if (!keep.length) continue;   // whole caption was inside
+    const firstOrigKept = ws[0] === keep[0], lastOrigKept = ws[ws.length - 1] === keep[keep.length - 1];
+    caps.push({
+      ...c,
+      start: r4(mapT(firstOrigKept ? c.start : keep[0].t)),
+      end: r4(mapT(lastOrigKept ? c.end : Math.min(c.end, s))),
+      words: keep.map((w) => ({ ...w, t: r4(mapT(w.t)) })),
+    });
+    report.push(`a caption (“${ws.map((w) => w.text).join(" ")}”) crossed this piece and was split`);
+  }
+  edit.captions = caps;
+
+  const cards = [];
+  for (const c of edit.cards || []) {
+    if (c.start >= s - EPS && c.start < e - EPS) {   // starts inside: goes with the piece
+      removed.cards.push({ ...c, start: r4(c.start - s), ...(c.end != null ? { end: r4(c.end - s) } : {}),   // end kept as it was: it comes back whole
+        ...(c.row_times ? { row_times: c.row_times.map((t) => r4(t - s)) } : {}) });
+      continue;
+    }
+    const n = { ...c, start: r4(mapT(c.start)) };
+    if (c.end != null) {
+      n.end = r4(mapT(c.end));
+      if (c.end > s + EPS && c.end < e - EPS) removed.clipped.push({ k: cardSig(c), end: r4(c.end - s) });
+      if (c.end > s + EPS && c.end < e - EPS) report.push(`a ${c.type} card (“${c.text || c.title || c.src || ""}”) ended inside this piece and now ends at the cut`);
+    }
+    if (c.row_times) n.row_times = c.row_times.map((t) => r4(mapT(t)));
+    cards.push(n);
+  }
+  edit.cards = cards;
+
+  const sfx = [];
+  for (const ev of edit.sfx_events || []) {
+    if (inR(ev.t)) removed.sfx_events.push({ ...ev, t: r4(ev.t - s) });
+    else sfx.push({ ...ev, t: r4(mapT(ev.t)) });
+  }
+  if (edit.sfx_events) edit.sfx_events = sfx;
+
+  const punch = [];
+  for (const [t, z] of explicitPunch(edit.punch, zoomScale)) {
+    if (inR(t)) removed.punch.push([r4(t - s), z]);
+    else punch.push([r4(mapT(t)), z]);
+  }
+  if (edit.punch) edit.punch = punch;
+
+  const tr = [];
+  for (const w of transcript) {
+    if (inR(w.start)) removed.transcript.push({ ...w, start: r4(w.start - s), end: r4(Math.min(w.end, e) - s) });
+    else tr.push({ ...w, start: r4(mapT(w.start)), end: r4(mapT(w.end)) });
+  }
+
+  const piece = state.pieces.find((p) => p.id === id);
+  piece.kept = false;
+  piece.removed = removed;
+  return { edit, transcript: tr, state, report };
+}
+
+/** Bring piece `id` back where it was in the order, with the material that was removed with it. */
+export function restorePiece(edit0, transcript0, state0, id) {
+  const edit = clone(edit0), transcript = clone(transcript0 || []), state = clone(state0);
+  const P = state.pieces.find((p) => p.id === id);
+  if (!P) throw new Error(`no piece ${id}`);
+  if (P.kept) throw new Error(`piece ${id} is already kept`);
+  const L = layout(state).find((p) => p.id === id);
+  const s = L.start, d = (P.b - P.a) / state.speed;
+  const up = (t) => (t >= s - EPS ? t + d : t);          // a start or a word at or after the insert point
+  const upEnd = (t) => (t > s + EPS ? t + d : t);        // an end exactly at the insert point stays (it ended at the join)
+  const rm = P.removed || { captions: [], cards: [], sfx_events: [], punch: [], transcript: [] };
+  const capSig = (c) => `cap|${c.start}|${c.words?.[0]?.text}`, cardSig = (c) => c.id || `card|${c.type}|${c.text || c.title || c.src || ""}|${c.start}`;
+  const clip = new Map((rm.clipped || []).map((x) => [x.k, x.end]));   // ends that were cut short at the join come back to where they were
+
+  edit.captions = (edit.captions || []).map((c) => ({ ...c, start: r4(up(c.start)), end: r4(upEnd(c.end)), words: c.words.map((w) => ({ ...w, t: r4(up(w.t)) })) }));
+  for (const c of edit.captions) if (clip.has(capSig(c))) c.end = r4(s + clip.get(capSig(c)));
+  for (const c of rm.captions) edit.captions.push({ ...c, start: r4(c.start + s), end: r4(c.end + s), words: c.words.map((w) => ({ ...w, t: r4(w.t + s) })) });
+  edit.captions.sort((x, y) => x.start - y.start);
+
+  edit.cards = (edit.cards || []).map((c) => ({ ...c, start: r4(up(c.start)), ...(c.end != null ? { end: r4(upEnd(c.end)) } : {}),
+    ...(c.row_times ? { row_times: c.row_times.map((t) => r4(up(t))) } : {}) }));
+  for (const c of edit.cards) if (clip.has(cardSig(c))) c.end = r4(s + clip.get(cardSig(c)));
+  for (const c of rm.cards) edit.cards.push({ ...c, start: r4(c.start + s), ...(c.end != null ? { end: r4(c.end + s) } : {}),
+    ...(c.row_times ? { row_times: c.row_times.map((t) => r4(t + s)) } : {}) });
+  edit.cards.sort((x, y) => x.start - y.start);
+
+  if (edit.sfx_events || rm.sfx_events.length) {
+    edit.sfx_events = [...(edit.sfx_events || []).map((ev) => ({ ...ev, t: r4(up(ev.t)) })), ...rm.sfx_events.map((ev) => ({ ...ev, t: r4(ev.t + s) }))].sort((x, y) => x.t - y.t);
+  }
+  if (edit.punch || rm.punch.length) {
+    edit.punch = [...explicitPunch(edit.punch).map(([t, z]) => [r4(up(t)), z]), ...rm.punch.map(([t, z]) => [r4(t + s), z])].sort((x, y) => x[0] - y[0]);
+  }
+  const tr = [...transcript.map((w) => ({ ...w, start: r4(up(w.start)), end: r4(upEnd(w.end)) })), ...rm.transcript.map((w) => ({ ...w, start: r4(w.start + s), end: r4(w.end + s) }))]
+    .sort((x, y) => x.start - y.start);
+  P.kept = true;
+  delete P.removed;
+  return { edit, transcript: tr, state };
+}
+
+/** expected.txt for qa.py after a cut change: the words Whisper heard in the remaining pieces (a clipped word at a join will then show up as missing). */
+export const expectedText = (transcript) => transcript.map((w) => w.text).join(" ").replace(/\s+/g, " ").trim() + "\n";
+
+// ---------------------------------------------------------------------------------------------------------------------------------------
+// ordinary edits: validated, whitelisted
+// ---------------------------------------------------------------------------------------------------------------------------------------
+const TEXT_TYPES = new Set(["tag", "title", "card", "cta"]);
+const LAYERS = new Set(["front", "behind", "both"]);
+const POS = new Set(["top-left", "top-center", "top-right", "middle-left", "middle-right", "center", "custom"]);
+const COMMON = ["start", "end", "off"];
+const FIELDS = {
+  tag: [...COMMON, "text", "y", "layer", "glass", "color"],
+  title: [...COMMON, "text", "y", "size", "layer"],
+  cta: [...COMMON, "text", "y", "layer"],
+  card: [...COMMON, "title", "rows", "layer", "glass"],
+  popup: [...COMMON, "pos", "x", "y", "size", "rotate", "frame", "layer"],
+  sticker: [...COMMON, "x", "y", "size", "rotate", "layer"],
+  image: [...COMMON, "layer"], shot: [...COMMON, "label", "y", "layer"],
+};
+export const isTextType = (t) => TEXT_TYPES.has(t);
+
+function num(v, name, lo, hi) {
+  const n = Number(v);
+  if (v === "" || v == null || !Number.isFinite(n) || n < lo || n > hi) throw new Error(`${name} must be a number from ${lo} to ${hi}`);
+  return n;
+}
+function cleanText(v, name, max = 60) {
+  const s = String(v ?? "").replace(/[\r\n\t]+/g, " ").trim();
+  if (!s) throw new Error(`${name} can't be empty`);
+  if (s.length > max) throw new Error(`${name} is too long (max ${max} characters)`);
+  return s;
+}
+
+/** Validate and normalise changes to one card. `dur` = reel length in seconds. */
+export function cleanCardFields(type, set, dur) {
+  const allowed = new Set(FIELDS[type] || COMMON), out = {};
+  for (const [k, v] of Object.entries(set || {})) {
+    if (!allowed.has(k)) throw new Error(`${k} can't be changed on a ${type} card`);
+    if (k === "start" || k === "end") out[k] = r4(num(v, k, 0, dur));
+    else if (k === "off" || k === "glass" || k === "frame") out[k] = !!v;
+    else if (k === "text" || k === "title" || k === "label") out[k] = cleanText(v, k);
+    else if (k === "layer") { if (!LAYERS.has(v)) throw new Error("layer must be front, behind or both"); out[k] = v; }
+    else if (k === "pos") { if (!POS.has(v)) throw new Error("unknown position"); out[k] = v; }
+    else if (k === "x") out[k] = Math.round(num(v, k, -200, 1280));
+    else if (k === "y") out[k] = Math.round(num(v, k, 0, 1920));
+    else if (k === "size") out[k] = Math.round(num(v, k, type === "popup" ? 80 : 40, type === "popup" ? 1000 : 900));
+    else if (k === "rotate") out[k] = num(v, k, -45, 45);
+    else if (k === "rows") out[k] = (Array.isArray(v) ? v : []).map((x) => cleanText(x, "row", 40)).slice(0, 6);
+    else if (k === "color") { if (!/^#[0-9a-fA-F]{6}$/.test(v)) throw new Error("colour must look like #B9C8A5"); out[k] = v; }
+  }
+  if (out.start != null && out.end != null && out.end < out.start + 0.3) throw new Error("a card must stay on screen for at least 0.3 s");
+  return out;
+}
+
+/**
+ * Apply one operation. Returns {edit, info}. Never mutates its input.
+ * ops: caption_word{ci,wi,text,accent?} | card_set{i,set} | card_add{card} | card_del{i} | sfx_set{i,set} | sfx_add{event} | sfx_del{i}
+ */
+export function applyOp(edit0, op, { dur }) {
+  const edit = clone(edit0), info = {};
+  const need = (arr, i, what) => { if (!Number.isInteger(i) || i < 0 || i >= (arr || []).length) throw new Error(`no ${what} ${i}`); };
+  switch (op.op) {
+    case "caption_word": {
+      need(edit.captions, op.ci, "caption"); const c = edit.captions[op.ci]; need(c.words, op.wi, "word");
+      const w = c.words[op.wi];
+      const text = op.text == null ? w.text : cleanText(op.text, "word", 40);
+      if (/\s/.test(text)) throw new Error("one word at a time (no spaces); tap the next word for the next fix");
+      info.before = w.text; info.after = text;
+      w.text = text;
+      if (op.accent != null) w.accent = !!op.accent;
+      break;
+    }
+    case "card_set": {
+      need(edit.cards, op.i, "card"); const c = edit.cards[op.i];
+      const fields = cleanCardFields(c.type, op.set, dur);
+      const start = fields.start ?? c.start, end = fields.end ?? c.end;
+      if (end != null && end < start + 0.3 && ("start" in fields || "end" in fields)) throw new Error("a card must stay on screen for at least 0.3 s");
+      Object.assign(c, fields);
+      if ("layer" in fields && fields.layer === "front" && !isTextType(c.type)) delete c.layer;
+      break;
+    }
+    case "card_add": {
+      const type = op.card?.type;
+      if (!["tag", "popup"].includes(type)) throw new Error("this page adds pills (tag) and popups");
+      const { type: _t, src, ...rest } = op.card;
+      const fields = cleanCardFields(type, rest, dur);
+      if (fields.start == null) throw new Error("start time needed");
+      if (fields.end == null) fields.end = r4(Math.min(fields.start + (type === "popup" ? 3 : 2.5), dur));
+      const card = { id: genId(), type, ...fields };
+      if (type === "tag") { card.text = card.text || "new pill"; card.y = card.y ?? 130; card.glass = card.glass ?? true; card.sfx = false; }
+      if (type === "popup") {
+        if (!/^popups\/[\w.\- ]+$/.test(String(src || ""))) throw new Error("popups come from the upload button");
+        card.src = src; card.pos = card.pos || "top-right"; card.size = card.size || 360;
+      }
+      edit.cards = [...(edit.cards || []), card].sort((x, y) => x.start - y.start);
+      info.index = edit.cards.indexOf(card);
+      break;
+    }
+    case "card_del": need(edit.cards, op.i, "card"); edit.cards.splice(op.i, 1); break;
+    case "sfx_set": {
+      need(edit.sfx_events, op.i, "sound"); const ev = edit.sfx_events[op.i];
+      for (const [k, v] of Object.entries(op.set || {})) {
+        if (k === "t") ev.t = r4(num(v, "time", 0, dur));
+        else if (k === "db") ev.db = num(v, "level", -40, 0);
+        else if (k === "off") { if (v) ev.off = true; else delete ev.off; }
+        else if (k === "name") { if (!/^[a-z0-9-]+$/.test(String(v))) throw new Error("unknown sound"); ev.name = v; }
+        else throw new Error(`${k} can't be changed on a sound`);
+      }
+      break;
+    }
+    case "sfx_add": {
+      const ev = { id: genId(), name: String(op.event?.name || "pop-soft"), t: r4(num(op.event?.t, "time", 0, dur)), db: Number.isFinite(+op.event?.db) ? +op.event.db : -16 };
+      if (!/^[a-z0-9-]+$/.test(ev.name)) throw new Error("unknown sound");
+      edit.sfx_events = [...(edit.sfx_events || []), ev].sort((x, y) => x.t - y.t);
+      info.index = edit.sfx_events.indexOf(ev);
+      break;
+    }
+    case "sfx_del": need(edit.sfx_events, op.i, "sound"); edit.sfx_events.splice(op.i, 1); break;
+    default: throw new Error(`unknown change: ${op.op}`);
+  }
+  return { edit, info };
+}
+
+/** Where a popup lands on the 1080x1920 frame: the same arithmetic as build_reel.py (left/top of the box, in px). */
+export function popupBox(card, iw, ih) {
+  const W = 1080, H = 1920, pw = Number(card.size || 360), ph = Math.max(Math.round((pw * ih) / Math.max(iw, 1)), 1);
+  const named = { "top-left": ["top", "left"], "top-center": ["top", "center"], "top-right": ["top", "right"], "middle-left": ["middle", "left"], "middle-right": ["middle", "right"], center: ["center", "center"] };
+  const pos = card.pos || "top-right";
+  if (pos === "custom" || (card.x != null && card.y != null && !named[pos])) return { left: Math.trunc((card.x ?? W / 2) - pw / 2), top: Math.trunc((card.y ?? 400) - ph / 2), w: pw, h: ph };
+  const [v, h] = named[pos] || named["top-right"];
+  return {
+    left: { left: 60, center: Math.floor((W - pw) / 2), right: W - 60 - pw }[h],
+    top: { top: 150, middle: Math.floor((H - ph) / 2) - 260, center: Math.floor((H - ph) / 2) }[v],
+    w: pw, h: ph,
+  };
+}
+
+/** Word-level check of retimed captions against a fresh transcript of the new video: { n, median, p90, max } of |caption word time - heard time|. */
+export function syncCheck(captions, heard) {
+  const A = [], B = [];
+  for (const c of captions || []) for (const w of c.words) { const t = normWord(w.text).replace(/ /g, ""); if (t) A.push({ t, at: w.t }); }
+  for (const w of heard || []) { const t = normWord(w.text).replace(/ /g, ""); if (t) B.push({ t, at: w.start ?? w.t }); }
+  const n = A.length, m = B.length;
+  if (!n || !m || n * m > 4e6) return { n: 0 };
+  const dp = Array.from({ length: n + 1 }, () => new Uint16Array(m + 1));
+  for (let i = n - 1; i >= 0; i--) for (let j = m - 1; j >= 0; j--) dp[i][j] = A[i].t === B[j].t ? dp[i + 1][j + 1] + 1 : Math.max(dp[i + 1][j], dp[i][j + 1]);
+  const diffs = []; let i = 0, j = 0;
+  while (i < n && j < m) {
+    if (A[i].t === B[j].t) { diffs.push(Math.abs(A[i].at - B[j].at)); i++; j++; }
+    else if (dp[i + 1][j] >= dp[i][j + 1]) i++; else j++;
+  }
+  if (!diffs.length) return { n: 0 };
+  diffs.sort((x, y) => x - y);
+  const q = (p) => diffs[Math.min(diffs.length - 1, Math.floor(p * diffs.length))];
+  return { n: diffs.length, of: n, median: r4(q(0.5)), p90: r4(q(0.9)), max: r4(diffs[diffs.length - 1]) };
+}

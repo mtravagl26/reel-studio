@@ -60,6 +60,12 @@ Tell them what changed, and what to check by ear (cuts, names, brand words spell
 
 The review page's **Cover** tab links to the thumbnail studio, a local page for picking the cover frame, adding a headline in their brand fonts and downloading 1080x1920, 1080x1440 and 1080x1080 PNGs. Start it with `python3 scripts/thumbnail_studio.py <reel>` in the background, check it answers, then send the link. When they say "open my thumbnail studio", start it the same way (safe if it's already running). Details: "Thumbnail studio" in `references/review.md`. No review page? Start it with `--open` and send the link in chat.
 
+## Editing a finished reel by tapping (the editor page)
+
+When the person wants to change a reel that is already built (fix a caption word, drop a piece of the cut, switch pills or sounds on and off, drop in a GIF, graphic or photo as a popup, put text in front of or behind themselves), start the editor page instead of rewriting `edit.json` by hand: `node <skill>/review/editor-server.mjs <reel folder> --lan --port 4792` (with `REELS_HOME` set, as for the other scripts), check it answers, send them the `same Wi-Fi` link it prints, stop it when they are done. They tap; every change is saved to `edit.json`, `edl.json` or `brand.json` (with a timestamped backup and an Undo); **Re-render** runs the usual cut/render/QA as a background job and keeps the earlier renders (`renders/vNNN*.mp4`). It never delivers: delivery to the footage folder stays a separate step. Details, limits and how dropping a cut piece retimes everything: `references/editor-page.md`.
+
+Text defaults to the area above the speaker's head, in front of them (`brand.json` `"text_default": {"layer": "front", "position": "above"}`); any single piece of text can be set to **behind me** (it needs headroom, and falls back to in front, with a note, when the cutout fails).
+
 ## Their brand rules win
 
 If the brand file and your taste disagree, the brand file wins. If they correct something during an edit ("no, never outline captions"), add it to `brand.md` under "Rules" straight away so the next edit gets it right.
