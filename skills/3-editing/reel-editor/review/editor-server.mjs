@@ -1,0 +1,403 @@
+#!/usr/bin/env node
+// Added by By Mel Ross. The reel editor page: a phone-friendly page where you edit a reel by tapping (caption words, keep/drop cuts, pills,
+// stickers, sound effects, GIF/graphic/photo popups, front/behind layer for text) and a Re-render button rebuilds it.
+// Everything is written to the files the pipeline already reads (edit.json, edl.json, brand.json), nothing leaves this computer.
+// Usage: node editor-server.mjs <reel-folder> [--port 4792] [--lan]
+//   default: http://127.0.0.1:4792/ on this computer only
+//   --lan:   also reachable from a phone/laptop on the same Wi-Fi; prints a URL with a one-off key (?k=...), same as review/serve.mjs
+// Environment: REELS_HOME (default: the folder holding this reel, it must have brand.json). Child steps run with telemetry off.
+// Plain Node, no dependencies. The cut/render steps are the skill's own scripts (cut.py, render.sh, qa.py).
+import http from "node:http";
+import fs from "node:fs";
+import path from "node:path";
+import os from "node:os";
+import crypto from "node:crypto";
+import { spawn, spawnSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
+import * as core from "./editor-core.mjs";
+
+const args = process.argv.slice(2);
+const REEL = path.resolve(args.find((a, i) => !a.startsWith("--") && !(i > 0 && args[i - 1] === "--port")) || ".");
+const PORT = Number(args[args.indexOf("--port") + 1]) || 4792;
+const LAN = args.includes("--lan");
+const KEY = LAN ? crypto.randomBytes(9).toString("base64url") : null;
+const HERE = path.dirname(fileURLToPath(import.meta.url));
+const SKILL = path.resolve(HERE, "..");
+const SCRIPTS = path.join(SKILL, "scripts");
+const HOME = path.resolve(process.env.REELS_HOME || path.dirname(REEL));
+if (!fs.existsSync(REEL)) { console.error(`no reel folder: ${REEL}`); process.exit(1); }
+if (!fs.existsSync(path.join(HOME, "brand.json"))) { console.error(`no brand.json in ${HOME}: set REELS_HOME to the reels workspace`); process.exit(1); }
+for (const f of ["edit.json", "edl.json"]) if (!fs.existsSync(path.join(REEL, f))) { console.error(`${path.basename(REEL)} has no ${f}: this page edits a reel that was already built`); process.exit(1); }
+
+const P = {
+  edit: path.join(REEL, "edit.json"), edl: path.join(REEL, "edl.json"), tr: path.join(REEL, "master_transcript.json"),
+  expected: path.join(REEL, "expected.txt"), master: path.join(REEL, "master.mp4"), final: path.join(REEL, "final.mp4"),
+  brand: path.join(HOME, "brand.json"),
+  dir: path.join(REEL, "editor"), state: path.join(REEL, "editor", "state.json"), meta: path.join(REEL, "editor", "render-meta.json"),
+  job: path.join(REEL, "editor", "job.json"), log: path.join(REEL, "editor", "render.log"), hist: path.join(REEL, "editor", "history"),
+  renders: path.join(REEL, "renders"), popups: path.join(REEL, "popups"),
+};
+fs.mkdirSync(P.dir, { recursive: true }); fs.mkdirSync(P.renders, { recursive: true }); fs.mkdirSync(P.popups, { recursive: true });
+
+const TYPES = { ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".mjs": "text/javascript; charset=utf-8", ".json": "application/json; charset=utf-8",
+  ".mp4": "video/mp4", ".webm": "video/webm", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png", ".gif": "image/gif", ".webp": "image/webp",
+  ".otf": "font/otf", ".ttf": "font/ttf", ".woff2": "font/woff2" };
+
+// ---- small file helpers ---------------------------------------------------------------------------------------------------------------
+const readJSON = (f, dflt) => { try { return JSON.parse(fs.readFileSync(f, "utf8")); } catch { return dflt; } };
+const writeJSON = (f, o) => { fs.mkdirSync(path.dirname(f), { recursive: true }); fs.writeFileSync(f + ".tmp", JSON.stringify(o, null, 1) + "\n"); fs.renameSync(f + ".tmp", f); };
+const writeText = (f, s) => { fs.writeFileSync(f + ".tmp", s); fs.renameSync(f + ".tmp", f); };
+const sha = (...parts) => crypto.createHash("sha1").update(parts.join("\u0000")).digest("hex");
+const exists = (f) => fs.existsSync(f);
+const stamp = () => new Date().toISOString().replace(/[:.]/g, "-").replace("T", "_").slice(0, 23);
+const run = (cmd, a, opts = {}) => spawnSync(cmd, a, { encoding: "utf8", ...opts });
+const PRESET_SPEED = { natural: 1.0, tight: 1.1, fast: 1.15 };   // scripts/pacing.py
+
+function childEnv() {
+  const e = { ...process.env, REELS_HOME: HOME, HYPERFRAMES_NO_TELEMETRY: "1", DO_NOT_TRACK: "1", REEL_PREVIEW: "1", REEL_NO_NICE: "1" };
+  const venv = [path.resolve(SKILL, "../../../.favstash-studio/pyenv/bin"), path.join(os.homedir(), "Movies/Video Studio/.favstash-studio/pyenv/bin")].find(exists);
+  if (venv) e.PATH = `${venv}:${e.PATH}`;
+  return e;
+}
+
+// ---- state ----------------------------------------------------------------------------------------------------------------------------
+const brandJSON = () => readJSON(P.brand, {});
+const speedOf = (brand, edl) => Number(brand.speed) || PRESET_SPEED[brand.pacing || "natural"] || 1.0;
+const durOf = (f) => { const r = run("ffprobe", ["-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", f]); const n = parseFloat(r.stdout); return Number.isFinite(n) ? n : null; };
+let masterDur = { mtime: 0, dur: null };
+function masterDuration() {
+  try { const m = fs.statSync(P.master).mtimeMs; if (m !== masterDur.mtime) masterDur = { mtime: m, dur: durOf(P.master) }; } catch { masterDur = { mtime: 0, dur: null }; }
+  return masterDur.dur;
+}
+
+let notes = [];   // things the page should say once (state rebuilt, etc.)
+function loadState() {
+  const edl = readJSON(P.edl, {}), brand = brandJSON();
+  const speed = speedOf(brand, edl), want = JSON.stringify([edl.keep, speed, Number(edl.xfade || 0)]);
+  let st = readJSON(P.state, null);
+  if (st && core.cutKey(st) !== want) {
+    notes.push("The cuts in edl.json were changed outside this page, so the drop/keep history started over.");
+    st = null;
+  }
+  if (!st) { st = core.initState(edl, speed); writeJSON(P.state, st); }
+  return st;
+}
+const cutKeyNow = (st) => sha(core.cutKey(st));
+const editHash = () => sha(fs.readFileSync(P.edit, "utf8"), fs.readFileSync(P.edl, "utf8"), JSON.stringify(brandJSON().text_default || null));
+
+/** What the current video on disk was made from. First time here: trust final.mp4 when its length matches the cuts. */
+function loadMeta(st) {
+  let m = readJSON(P.meta, null);
+  if (m) return m;
+  const total = core.reelLength(st), md = masterDuration();
+  const cutsMatch = md != null && Math.abs(md - total) < 0.25;
+  m = { cut_key: cutsMatch ? cutKeyNow(st) : null, edit_hash: exists(P.final) ? editHash() : null, version: 0, at: new Date().toISOString(), assumed: true };
+  writeJSON(P.meta, m);
+  if (!cutsMatch) notes.push("master.mp4 does not match the cuts in edl.json: the next render will cut the video again.");
+  return m;
+}
+
+// ---- history (every save keeps what it replaced) --------------------------------------------------------------------------------------
+const SNAP_FILES = () => [["edit.json", P.edit], ["edl.json", P.edl], ["master_transcript.json", P.tr], ["expected.txt", P.expected], ["state.json", P.state]];
+let lastSnap = null;
+function snapshot(label, key, withBrand) {
+  if (key && lastSnap && lastSnap.key === key && Date.now() - lastSnap.at < 30000 && (!withBrand || lastSnap.withBrand)) { lastSnap.at = Date.now(); return; }
+  const dir = path.join(P.hist, `${stamp()}-${label.replace(/[^\w-]+/g, "-").slice(0, 40)}`);
+  fs.mkdirSync(dir, { recursive: true });
+  const files = SNAP_FILES(); if (withBrand) files.push(["brand.json", P.brand]);
+  const meta = { label, at: new Date().toISOString(), had: {}, brand: !!withBrand };
+  for (const [n, f] of files) { meta.had[n] = exists(f); if (exists(f)) fs.copyFileSync(f, path.join(dir, n)); }
+  writeJSON(path.join(dir, "meta.json"), meta);
+  lastSnap = { key, at: Date.now(), withBrand: !!withBrand };
+}
+const history = () => (exists(P.hist) ? fs.readdirSync(P.hist).filter((n) => exists(path.join(P.hist, n, "meta.json"))).sort() : []);
+function undo() {
+  const names = history(); if (!names.length) throw new Error("nothing to undo");
+  const dir = path.join(P.hist, names[names.length - 1]), meta = readJSON(path.join(dir, "meta.json"), {});
+  const files = { "edit.json": P.edit, "edl.json": P.edl, "master_transcript.json": P.tr, "expected.txt": P.expected, "state.json": P.state, "brand.json": P.brand };
+  for (const [n, f] of Object.entries(files)) {
+    if (n === "brand.json" && !meta.brand) continue;
+    if (meta.had?.[n]) fs.copyFileSync(path.join(dir, n), f); else if (n in (meta.had || {})) fs.rmSync(f, { force: true });
+  }
+  fs.mkdirSync(path.join(P.hist, "undone"), { recursive: true });
+  fs.renameSync(dir, path.join(P.hist, "undone", path.basename(dir)));
+  lastSnap = null;
+  return meta.label;
+}
+
+// ---- popup media ----------------------------------------------------------------------------------------------------------------------
+const mediaInfo = new Map();
+function probeMedia(rel) {
+  const f = path.join(REEL, rel);
+  let st; try { st = fs.statSync(f); } catch { return null; }
+  const c = mediaInfo.get(rel); if (c && c.m === st.mtimeMs) return c.info;
+  const r = run("ffprobe", ["-v", "error", "-select_streams", "v:0", "-show_entries", "stream=width,height,nb_frames,codec_name", "-of", "json", f]);
+  let info = null;
+  try { const s = JSON.parse(r.stdout).streams[0]; if (s.width > 0 && s.height > 0) info = { w: s.width, h: s.height, animated: /\.gif$/i.test(rel) && Number(s.nb_frames || 0) > 1 }; } catch { /* not an image */ }
+  mediaInfo.set(rel, { m: st.mtimeMs, info });
+  return info;
+}
+function saveUpload(buf, rawName) {
+  const ext = path.extname(rawName).toLowerCase();
+  const base = path.basename(rawName, path.extname(rawName)).replace(/[^\w\- ]+/g, "").trim().replace(/\s+/g, "-").slice(0, 40) || "popup";
+  const id = `${Date.now().toString(36)}-${base}`;
+  if (![".gif", ".png", ".jpg", ".jpeg", ".webp", ".heic", ".heif"].includes(ext)) throw new Error("use a gif, png, jpg, webp or heic picture");
+  let out = `${id}${ext === ".jpeg" ? ".jpg" : ext}`;
+  fs.writeFileSync(path.join(P.popups, out), buf);
+  if (ext === ".heic" || ext === ".heif") {   // iPhone photo: macOS sips makes a JPG; the original stays in popups/originals
+    const jpg = `${id}.jpg`;
+    const r = run("sips", ["-s", "format", "jpeg", "-s", "formatOptions", "92", path.join(P.popups, out), "--out", path.join(P.popups, jpg)]);
+    if (r.status !== 0 || !exists(path.join(P.popups, jpg))) { fs.rmSync(path.join(P.popups, out), { force: true }); throw new Error("this Mac could not convert the HEIC photo (sips failed); send it as a JPG"); }
+    fs.mkdirSync(path.join(P.popups, "originals"), { recursive: true });
+    fs.renameSync(path.join(P.popups, out), path.join(P.popups, "originals", out));
+    out = jpg;
+  }
+  const info = probeMedia(`popups/${out}`);
+  if (!info) { fs.rmSync(path.join(P.popups, out), { force: true }); throw new Error("that file is not a picture this Mac can read"); }
+  return { src: `popups/${out}`, ...info };
+}
+
+// ---- the page's view of the reel ------------------------------------------------------------------------------------------------------
+function sfxNames() {
+  const mf = readJSON(path.join(SKILL, "assets", "sfx-manifest.json"), { effects: [] });
+  return mf.effects.map((e) => ({ name: e.name, category: e.category, description: e.description }));
+}
+function textOf(words) { return words.map((w) => w.text).join(" "); }
+function listRenders() {
+  return fs.readdirSync(P.renders).filter((n) => /^v\d+\.json$/.test(n)).sort().map((n) => readJSON(path.join(P.renders, n), null)).filter(Boolean);
+}
+function view() {
+  const st = loadState(), meta = loadMeta(st), edit = readJSON(P.edit, {}), brand = brandJSON();
+  const lay = core.layout(st), tr = readJSON(P.tr, []);
+  const joins = readJSON(path.join(REEL, "joins.json"), { joins: [] }).joins || [];
+  const total = core.reelLength(st);
+  const pieces = lay.map((L, k) => {
+    const p = st.pieces[k], caps = (edit.captions || []).filter((c) => c.words.some((w) => w.t >= L.start - 1e-6 && w.t < L.end - 1e-6));
+    const words = L.kept ? caps.flatMap((c) => c.words).filter((w) => w.t >= L.start - 1e-6 && w.t < L.end - 1e-6) : (p.removed?.captions || []).flatMap((c) => c.words);
+    const gapBefore = k > 0 ? +(L.a - lay[k - 1].b).toFixed(2) : null;
+    const j = joins.find((x) => Math.abs(x.in - L.a) < 0.05);
+    return { ...L, text: textOf(words).slice(0, 160), gapBefore, gapLabel: j?.label || null };
+  });
+  const media = {};
+  for (const c of edit.cards || []) if (c.type === "popup" || c.src) { const s = Array.isArray(c.src) ? c.src[0] : c.src; if (s) { const i = probeMedia(s); if (i) media[s] = i; } }
+  const files = exists(P.popups) ? fs.readdirSync(P.popups).filter((n) => /\.(gif|png|jpe?g|webp)$/i.test(n)).map((n) => ({ src: `popups/${n}`, ...(probeMedia(`popups/${n}`) || {}) })) : [];
+  for (const f of files) if (f.w) media[f.src] = { w: f.w, h: f.h, animated: f.animated };
+  const renders = listRenders();
+  const job = readJSON(P.job, { state: "idle" });
+  const cutsStale = meta.cut_key !== cutKeyNow(st);
+  const out = {
+    reel: path.basename(REEL), speed: st.speed, total, masterDur: masterDuration(), edit: { captions: edit.captions || [], cards: edit.cards || [], sfx_events: edit.sfx_events || [], punch: edit.punch || [] },
+    pieces, media, popups: files, sfxNames: sfxNames(), notes, renders, job,
+    textDefault: brand.text_default || { layer: "front", position: "above" }, hasTextDefault: !!brand.text_default,
+    cutsStale, dirty: meta.edit_hash !== editHash(), canUndo: history().length > 0, undoLabel: history().slice(-1)[0]?.replace(/^[\d_-]+?-(?=[A-Za-z])/, "") || null,
+    video: renders.length ? renders[renders.length - 1].phone : null, prepping,
+  };
+  notes = [];
+  return out;
+}
+
+// ---- operations -----------------------------------------------------------------------------------------------------------------------
+function requireIdle() { if (job.state === "running" || job.state === "queued") throw new Error("A render is running: wait until it finishes (or the edit would change under it)."); }
+
+function addVocab(from, to) {
+  const brand = brandJSON(); brand.vocabulary = brand.vocabulary || {};
+  const key = from.toLowerCase().replace(/[^\w' ]/g, "").trim(), val = to.replace(/^[^\w$%&+#@]+|[^\w$%&+#@]+$/g, "");
+  if (!key || !val) return;
+  brand.vocabulary.corrections = { ...(brand.vocabulary.corrections || {}), [key]: val };
+  const terms = brand.vocabulary.terms || [];
+  if (!terms.some((t) => t.toLowerCase() === val.toLowerCase())) { terms.push(val); brand.vocabulary.terms = terms; }
+  writeJSON(P.brand, brand);
+}
+
+function doOp(body) {
+  requireIdle();
+  const op = body.op || {}, edit = readJSON(P.edit, {}), st = loadState();
+  const dur = core.reelLength(st);
+  if (op.op === "piece") {
+    const tr = readJSON(P.tr, []), zoom = Number(brandJSON().zoom?.scale) || 1.04;
+    snapshot(`${op.kept ? "keep" : "drop"}-${op.id}`, null);
+    const res = op.kept ? core.restorePiece(edit, tr, st, op.id) : core.dropPiece(edit, tr, st, op.id, { zoomScale: zoom });
+    writeJSON(P.edit, res.edit); writeJSON(P.state, res.state);
+    if (exists(P.tr)) writeJSON(P.tr, res.transcript);
+    const edl = readJSON(P.edl, {}); edl.keep = core.keptSpans(res.state); writeJSON(P.edl, edl);
+    if (exists(P.tr)) writeText(P.expected, core.expectedText(res.transcript));
+    return { report: res.report || [] };
+  }
+  const withBrand = op.op === "caption_word" && op.always;
+  snapshot(op.op, body.key || null, withBrand);
+  const { edit: next, info } = core.applyOp(edit, op, { dur });
+  writeJSON(P.edit, next);
+  if (withBrand && info.before && info.after && info.before !== info.after) addVocab(info.before, info.after);
+  return { info };
+}
+
+function setTextDefault(body) {
+  requireIdle();
+  const layer = body.layer, position = body.position || "above";
+  if (!["front", "behind", "both"].includes(layer)) throw new Error("layer must be front, behind or both");
+  if (position !== "above") throw new Error("position can only be 'above' for now");
+  snapshot("text-default", null, true);
+  const brand = brandJSON(); brand.text_default = { layer, position }; writeJSON(P.brand, brand);
+}
+
+// ---- render job -----------------------------------------------------------------------------------------------------------------------
+let job = readJSON(P.job, { state: "idle" });
+if (job.state === "running" || job.state === "queued") { job = { ...job, state: "failed", error: "The page was restarted while this render was running; start it again.", finishedAt: new Date().toISOString() }; writeJSON(P.job, job); }
+let child = null, prepping = false;
+const setJob = (patch) => { job = { ...job, ...patch }; writeJSON(P.job, job); };
+
+function step(name, cmd, a, env) {
+  return new Promise((resolve) => {
+    const t0 = Date.now(), out = [];
+    fs.appendFileSync(P.log, `\n===== ${name} (${new Date().toLocaleTimeString()}) =====\n$ ${cmd} ${a.join(" ")}\n`);
+    child = spawn(cmd, a, { cwd: REEL, env });
+    const eat = (d) => { const s = d.toString(); fs.appendFileSync(P.log, s.replace(/\r/g, "\n")); out.push(s); if (out.length > 400) out.splice(0, 200); };
+    child.stdout.on("data", eat); child.stderr.on("data", eat);
+    child.on("error", (e) => resolve({ code: 1, out: String(e), secs: 0 }));
+    child.on("close", (code) => { child = null; resolve({ code, out: out.join(""), secs: Math.round((Date.now() - t0) / 1000) }); });
+  });
+}
+const tailReason = (txt) => {   // the last readable lines of a failed step: no progress noise, no traceback carets or source lines
+  const lines = txt.split(/\r?\n/).map((l) => l.trim()).filter((l) => l && !/^\[initSession|^frame=|^\[HyperFrames\]|^[\^~\s]+$|^File "|^Traceback|^subprocess\./.test(l));
+  const errs = lines.filter((l) => /error|failed|no such file|not found|exception|invalid/i.test(l));
+  return (errs.length ? errs : lines).slice(-4).join(" | ").slice(0, 500);
+};
+
+async function runRender() {
+  const st = loadState(), meta = loadMeta(st), env = childEnv(), steps = [];
+  const needCut = meta.cut_key !== cutKeyNow(st) || !exists(P.master);
+  fs.writeFileSync(P.log, `render started ${new Date().toISOString()}\n`);
+  const version = Math.max(0, ...listRenders().map((r) => r.v), meta.version || 0) + 1;
+  setJob({ state: "running", step: needCut ? "cut" : "render", version, startedAt: new Date().toISOString(), finishedAt: null, error: null, steps: [], notes: [], qa: null, sync: null });
+  const fail = (name, r) => { setJob({ state: "failed", step: name, finishedAt: new Date().toISOString(), error: `${name} failed: ${tailReason(r.out)}`, steps }); };
+  try {
+    const editBefore = fs.readFileSync(P.edit, "utf8");
+    if (needCut) {
+      const r = await step("cut", "python3", [path.join(SCRIPTS, "cut.py"), REEL], env); steps.push({ name: "cut", secs: r.secs, ok: r.code === 0 }); setJob({ steps });
+      if (r.code !== 0) return fail("cut", r);
+    }
+    setJob({ step: "render" });
+    const r = await step("render", "bash", [path.join(SCRIPTS, "render.sh"), REEL], env); steps.push({ name: "render", secs: r.secs, ok: r.code === 0 }); setJob({ steps });
+    if (r.code !== 0) return fail("render", r);
+    const buildNotes = r.out.split(/\r?\n/).filter((l) => /^(note|warning):/.test(l.trim())).map((l) => l.trim());
+    const mixLine = (r.out.match(/^mix: .*$/m) || [""])[0];
+    setJob({ step: "checks", notes: buildNotes, mix: mixLine });
+    const q = await step("qa", "python3", [path.join(SCRIPTS, "qa.py"), REEL], env);
+    steps.push({ name: "qa", secs: q.secs, ok: q.code === 0 }); setJob({ steps });
+    const qaPass = /^PASS/m.test(q.out);
+    let sync = null;
+    try { sync = core.syncCheck(readJSON(P.edit, {}).captions, readJSON(path.join(REEL, "qa_transcript", "transcript.json"), [])); } catch { /* optional */ }
+    setJob({ step: "copies", qa: { pass: qaPass, lines: q.out.split(/\r?\n/).filter((l) => /^(size|length|loudness|peak|cover|words|PASS|FAIL)/.test(l)) }, sync });
+    const v = String(version).padStart(3, "0"), full = path.join(P.renders, `v${v}.mp4`), phone = path.join(P.renders, `v${v}-phone.mp4`);
+    const cp = run("cp", ["-c", P.final, full]); if (cp.status !== 0) fs.copyFileSync(P.final, full);   // APFS clone: no extra disk, and the next render can't touch it
+    const tag = ["-colorspace", "bt709", "-color_primaries", "bt709", "-color_trc", "bt709", "-color_range", "tv"];
+    const f = await step("phone copy", "ffmpeg", ["-hide_banner", "-loglevel", "error", "-y", "-i", full, "-vf", "scale='min(1080,iw)':-2,setparams=colorspace=bt709:color_primaries=bt709:color_trc=bt709:range=tv",
+      "-c:v", "libx264", "-preset", "medium", "-crf", "26", "-pix_fmt", "yuv420p", ...tag, "-tag:v", "avc1", "-c:a", "aac", "-b:a", "128k", "-movflags", "+faststart", phone], env);
+    if (f.code !== 0) return fail("phone copy", f);
+    const rec = { v: version, at: new Date().toISOString(), full: `renders/v${v}.mp4`, phone: `renders/v${v}-phone.mp4`, len: durOf(full), notes: buildNotes, qa: job.qa, mix: mixLine,
+      sync, recut: needCut, what: `${(readJSON(P.edit, {}).cards || []).filter((c) => !c.off).length} cards, ${core.keptSpans(st).length} pieces` };
+    writeJSON(path.join(P.renders, `v${v}.json`), rec);
+    fs.writeFileSync(path.join(P.renders, `v${v}-edit.json`), editBefore); fs.copyFileSync(P.edl, path.join(P.renders, `v${v}-edl.json`));
+    writeJSON(P.meta, { cut_key: cutKeyNow(st), edit_hash: editHash(), version, at: rec.at });
+    setJob({ state: "done", step: "done", finishedAt: new Date().toISOString(), result: rec, steps });
+  } catch (e) {
+    setJob({ state: "failed", error: String(e.message || e), finishedAt: new Date().toISOString() });
+  }
+}
+function startRender() {
+  if (job.state === "running" || job.state === "queued") throw new Error("A render is already running.");
+  lastSnap = null;
+  setJob({ state: "queued", step: "queued", steps: [], error: null });
+  runRender();
+}
+
+// the video the page shows before any render: a phone copy of the existing final.mp4, made once
+function prepareBaseline() {
+  if (listRenders().length || !exists(P.final)) return;
+  prepping = true;
+  const phone = path.join(P.renders, "v000-phone.mp4"), tag = ["-colorspace", "bt709", "-color_primaries", "bt709", "-color_trc", "bt709", "-color_range", "tv"];
+  const c = spawn("ffmpeg", ["-hide_banner", "-loglevel", "error", "-y", "-i", P.final, "-vf", "scale='min(1080,iw)':-2", "-c:v", "libx264", "-preset", "veryfast", "-crf", "26", "-pix_fmt", "yuv420p", ...tag,
+    "-c:a", "aac", "-b:a", "128k", "-movflags", "+faststart", phone], { env: childEnv() });
+  c.on("close", (code) => {
+    prepping = false;
+    if (code === 0) writeJSON(path.join(P.renders, "v000.json"), { v: 0, at: new Date().toISOString(), phone: "renders/v000-phone.mp4", full: "final.mp4", baseline: true, what: "the video as it was when this page first opened" });
+  });
+}
+
+// ---- http -----------------------------------------------------------------------------------------------------------------------------
+function sendFile(req, res, file) {
+  let st; try { st = fs.statSync(file); if (!st.isFile()) throw 0; } catch { res.writeHead(404).end(); return; }
+  const type = TYPES[path.extname(file).toLowerCase()] || "application/octet-stream";
+  const m = /bytes=(\d*)-(\d*)/.exec(req.headers.range || "");   // video seeking (Safari insists on ranges)
+  if (m) {
+    const start = m[1] ? Number(m[1]) : Math.max(0, st.size - Number(m[2]));
+    const end = m[1] && m[2] ? Math.min(Number(m[2]), st.size - 1) : st.size - 1;
+    if (start > end) { res.writeHead(416, { "Content-Range": `bytes */${st.size}` }).end(); return; }
+    res.writeHead(206, { "Content-Type": type, "Accept-Ranges": "bytes", "Content-Length": end - start + 1, "Content-Range": `bytes ${start}-${end}/${st.size}`, "Cache-Control": "no-store" });
+    fs.createReadStream(file, { start, end }).pipe(res);
+  } else {
+    res.writeHead(200, { "Content-Type": type, "Accept-Ranges": "bytes", "Content-Length": st.size, "Cache-Control": "no-store" });
+    fs.createReadStream(file).pipe(res);
+  }
+}
+const json = (res, code, o) => { const s = JSON.stringify(o); res.writeHead(code, { "Content-Type": TYPES[".json"], "Cache-Control": "no-store" }).end(s); };
+const readBody = (req, limit) => new Promise((resolve, reject) => {
+  const parts = []; let n = 0;
+  req.on("data", (c) => { n += c.length; if (n > limit) { reject(new Error("file too big")); req.destroy(); } else parts.push(c); });
+  req.on("end", () => resolve(Buffer.concat(parts))); req.on("error", reject);
+});
+
+const server = http.createServer(async (req, res) => {
+  try {
+    const url = new URL(req.url, "http://x"), p = decodeURIComponent(url.pathname);
+    if (KEY) {   // the key arrives once in the link, then rides in a cookie so videos, images and the API work too
+      if (url.searchParams.get("k") === KEY) res.setHeader("Set-Cookie", `rk=${KEY}; HttpOnly; SameSite=Strict; Path=/`);
+      else if (!(req.headers.cookie || "").split(/;\s*/).includes(`rk=${KEY}`)) { res.writeHead(403).end("missing or wrong key"); return; }
+    }
+    if (p === "/" || p === "/index.html") return sendFile(req, res, path.join(HERE, "editor.html"));
+    if (p === "/core.mjs") return sendFile(req, res, path.join(HERE, "editor-core.mjs"));
+    if (p === "/api/state" && req.method === "GET") return json(res, 200, view());
+    if (p === "/api/job" && req.method === "GET") return json(res, 200, { job, canUndo: history().length > 0 });
+    if (req.method === "POST" && p.startsWith("/api/")) {
+      try {
+        if (p === "/api/op") { const b = JSON.parse((await readBody(req, 2e6)).toString() || "{}"); return json(res, 200, { ok: true, ...doOp(b), state: view() }); }
+        if (p === "/api/undo") { requireIdle(); const what = undo(); return json(res, 200, { ok: true, undid: what, state: view() }); }
+        if (p === "/api/render") { startRender(); return json(res, 200, { ok: true, job }); }
+        if (p === "/api/text-default") { const b = JSON.parse((await readBody(req, 1e5)).toString() || "{}"); setTextDefault(b); return json(res, 200, { ok: true, state: view() }); }
+        if (p === "/api/upload") {
+          const buf = await readBody(req, 60e6);
+          if (!buf.length) throw new Error("empty file");
+          const up = saveUpload(buf, url.searchParams.get("name") || "popup.png");
+          return json(res, 200, { ok: true, upload: up, state: view() });
+        }
+      } catch (e) { return json(res, 400, { ok: false, error: String(e.message || e) }); }
+      res.writeHead(404).end(); return;
+    }
+    if (p.startsWith("/files/")) {
+      const file = path.resolve(REEL, "." + p.slice(6));
+      const rel = path.relative(REEL, file);
+      if (rel.startsWith("..") || path.isAbsolute(rel) || /^(editor\/history|\.)/.test(rel)) { res.writeHead(403).end(); return; }
+      return sendFile(req, res, file);
+    }
+    res.writeHead(404).end();
+  } catch (e) { res.writeHead(500).end(String(e.message || e)); }
+});
+
+const quit = () => { if (child) child.kill("SIGTERM"); process.exit(0); };
+process.on("SIGINT", quit); process.on("SIGTERM", quit);
+
+{   // give every card and sound an id (kept in edit.json, ignored by the build); the first time, keep the file as it was
+  const e = readJSON(P.edit, {});
+  if (core.ensureIds(e)) {
+    const keep = path.join(P.dir, "edit.json.before-editor");
+    if (!exists(keep)) fs.copyFileSync(P.edit, keep);
+    writeJSON(P.edit, e);
+  }
+}
+loadMeta(loadState());
+prepareBaseline();
+server.listen(PORT, LAN ? "0.0.0.0" : "127.0.0.1", () => {
+  console.log(`Reel editor for ${path.basename(REEL)}: http://127.0.0.1:${PORT}/${KEY ? "?k=" + KEY : ""}`);
+  if (LAN) for (const a of Object.values(os.networkInterfaces()).flat())
+    if (a.family === "IPv4" && !a.internal) console.log(`same Wi-Fi: http://${a.address}:${PORT}/?k=${KEY}`);
+});
