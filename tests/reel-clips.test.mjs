@@ -26,8 +26,8 @@ const specs = [];
 for (let i = 0; i < 60; i++) specs.push(filler(i));
 specs[10] = "And that is why the second thing matters so much to everyone.";
 specs[11] = "As I said earlier this only works if you keep it simple.";
-specs[2] = "Today I want to tell you what Rosie taught me about running your week.";
-specs[20] = "Thank you Rosie for sharing this with every single one of us today.";
+specs[2] = "Today I want to tell you what Maya taught me about running your week.";
+specs[20] = "Thank you Maya for sharing this with every single one of us today.";
 specs[30] = "Absolutely.";
 specs[40] = "Why do most owners never finish their weekly planning at all?";
 const { words, sentences } = transcript(specs);
@@ -87,7 +87,7 @@ test("names the recording already used before the window are flagged; AI and I a
   const t20 = words[sentences[20].first].start, t3 = words[sentences[3].first].start;
   const hit = data.candidates.find((c) => c.start >= t3 && c.start < t20 && c.end > t20 + 3);
   assert.ok(hit, "no window after the first mention that contains the second");
-  assert.ok(hit.flags.some((f) => /names introduced earlier: Rosie/.test(f)), hit.flags.join("; "));
+  assert.ok(hit.flags.some((f) => /names introduced earlier: Maya/.test(f)), hit.flags.join("; "));
   assert.ok(!data.candidates.some((c) => c.flags.some((f) => /: I\b|\bAi\b/.test(f))));
 });
 
