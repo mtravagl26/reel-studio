@@ -36,6 +36,9 @@ Natural by default: only mild denoise and sharpen. No colour grade and no backgr
 ## Pacing
 Natural: normal speed; drop clear "um"s and "uh"s and pauses over about 0.6 s. Talking-head pieces can run to about two minutes when the content earns it.
 
+## Word list
+Names and brand words that Whisper tends to mishear go in `brand.json` `"vocabulary"`: `terms` (correct spellings), `prompt` (spelling hints for Whisper) and `corrections` (mishearing -> correct word, lowercase keys). The example uses a made-up company, "Acme"; replace it with your own names. Add a word the moment you correct one.
+
 ## Zooms
 Subtle and gradual: a slow push to about 1.04x over 2.5 s, eased in and out, then easing back out at the next point, about every 6 s. Never a hard punch.
 

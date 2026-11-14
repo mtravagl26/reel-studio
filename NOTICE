@@ -111,3 +111,18 @@ Added by By Mel Ross in 0.4.0 (November 2026), in skills/3-editing/reel-editor.
   card type, "off" on cards and sound events and brand.json "text_default" in scripts/build_reel.py, and tests/reel-editor-page.test.mjs.
   Written from scratch in plain Node and vanilla JavaScript; no new dependencies.
 - package.json and .claude-plugin/plugin.json version 0.4.0.
+
+Added by By Mel Ross in 0.5.0 (November 2026), in skills/3-editing/reel-editor unless a path says otherwise.
+- Style Menu: references/style-menu.md and assets/style-menu.json (19 looks called by ID: hooks H1-H5, captions C1-C5, layouts L1-L9, each
+  with its status and the setting or card that produces it); new card types "polaroids", "xlist", "stat" and "tiles", a "caption" and a soft
+  exit on "popup" cards, and an "overline" and "align" on "title" cards in scripts/build_reel.py (the generic looks are named after common
+  patterns in short-form reels; no footage, text, code or images from any reel were copied); scripts/storyboard.py (stills of two to four
+  looks side by side, written from scratch; the reel folder is never written to) and tests/reel-style-menu.test.mjs. Written in plain
+  Python and HTML/CSS/GSAP like the rest of build_reel.py; no new dependencies.
+- Handwriting font: assets/fonts/Caveat-700-latin.woff2, the Latin subset of Caveat Bold as served by Google Fonts, with its SIL Open Font
+  License 1.1 text in assets/fonts/OFL-Caveat.txt (Copyright 2014 The Caveat Project Authors, https://github.com/googlefonts/caveat).
+- Word list: brand.json "vocabulary" (terms, a Whisper prompt and corrections of mishearings), applied to captions by scripts/auto_edit.py;
+  an example with a made-up company in brand/brand.example.json and brand/brand.example.md; SKILL.md describes it.
+- Audio crossfade: edl.json "xfade" in scripts/cut.py joins the audio of kept pieces with a short crossfade (the picture cuts at the same
+  instant); SKILL.md gains a "Cuts" section with the cut-point rules.
+- package.json and .claude-plugin/plugin.json version 0.5.0.

@@ -32,10 +32,17 @@ grade = brand.get("grade")
 FADE = 0.012  # tiny audio fades at every join so cuts never click
 
 vp, ap = [], []
+# Added by By Mel Ross (0.5.0): edl.json "xfade" (seconds, e.g. 0.035) turns the dip-fade at each join into a true audio crossfade: each piece carries
+# xfade extra seconds of the quiet that follows its cut and acrossfade overlaps them, so reel time stays frame-exact with the picture.
+XF = float(edl.get("xfade", 0) or 0)
 for k, (a, b) in enumerate(spans):
     vp.append(f"[0:v]trim=start={a}:end={b},setpts=PTS-STARTPTS[v{k}]")
-    ap.append(f"[1:a]atrim=start={a}:end={b},asetpts=PTS-STARTPTS,"
-              f"afade=t=in:d={FADE},afade=t=out:st={max(b - a - FADE, 0):.3f}:d={FADE}[a{k}]")
+    if XF:
+        bb = b + XF if k < len(spans) - 1 else b
+        ap.append(f"[1:a]atrim=start={a}:end={bb:.4f},asetpts=PTS-STARTPTS[a{k}]")
+    else:
+        ap.append(f"[1:a]atrim=start={a}:end={b},asetpts=PTS-STARTPTS,"
+                  f"afade=t=in:d={FADE},afade=t=out:st={max(b - a - FADE, 0):.3f}:d={FADE}[a{k}]")
 n = len(spans)
 post = [f"setpts=PTS/{speed}", f"scale={w}:{h}:force_original_aspect_ratio=increase", f"crop={w}:{h}", "fps=30"]
 if grade:
@@ -51,7 +58,14 @@ post[(2 if grade else 1):(2 if grade else 1)] = PRE
 post += POST
 post.append(hdr2sdr.TAG_FILTER)   # label the frames BT.709 so the file carries the full set of tags
 vcat = "".join(f"[v{k}]" for k in range(n)) + f"concat=n={n}:v=1:a=0," + ",".join(post) + "[vout]"
-acat = "".join(f"[a{k}]" for k in range(n)) + f"concat=n={n}:v=0:a=1,atempo={speed}[aout]"
+if XF and n > 1:
+    chain, prev = [], "a0"
+    for k in range(1, n):
+        out = f"x{k}" if k < n - 1 else "xall"
+        chain.append(f"[{prev}][a{k}]acrossfade=d={XF}:c1=tri:c2=tri[{out}]"); prev = out
+    acat = ";".join(chain) + f";[xall]atempo={speed}[aout]"
+else:
+    acat = "".join(f"[a{k}]" for k in range(n)) + f"concat=n={n}:v=0:a=1,atempo={speed}[aout]"
 
 script = reel / "cut_filter.txt"
 script.write_text(";".join(vp + ap) + ";" + vcat + ";" + acat)

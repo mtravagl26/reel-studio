@@ -8,6 +8,8 @@ edit.json (written by auto_edit.py, then Claude marks accents and adds cards):
   punch:    [seconds | [seconds, scale]]    quick zoom-ins on the camera (alternate in/out; [t, 1.25] forces a level)
   cards:    [{type, start, end, ...}]       types:
      title  {text: "line one / line two"}            big headline in the space above the head (hook)
+                                                     optional: overline: "small line above" (overline_font: hand | accent | head, overline_size, overline_color), align: left | center | right
+                                                     (Style Menu H3 handwritten overline + caps headline, L7 step label); color: "#fff" for a white headline.
      block  {top: "don't", bottom: "worry"}          full brand-colour screen with the clip framed in it (reveal)
      card   {title: "my stack", rows: ["a","b"]}     white UI card, rows appear one by one (lists, steps, tools)
      tag    {text: "open source", y: 300}            small pill label that pops on (name drops)
@@ -28,6 +30,15 @@ edit.json (written by auto_edit.py, then Claude marks accents and adds cards):
                                                      or animated GIF that pops up. pos: top-left | top-center | top-right | middle-left | middle-right |
                                                      center | custom (then "x", "y" = centre in px). size = width in px. GIFs are converted to a looped
                                                      transparent video so they animate in the render. "frame": true = white photo border (default for jpg).
+     polaroids {src: ["a.jpg","b.jpg","c.jpg"], label: "Amazon storefront", side: "left", y: 120, size: 260}   (Style Menu L2, Added by By Mel Ross) 1-4 tilted
+                                                     white photo cards that fan in, with a handwritten label on a torn paper strip. side: left | right | center (or x).
+     popup also takes caption: "how is this real?!" (Style Menu L9): a handwritten label on a torn strip under the photo; add "exit": true for a soft shrink-out.
+     xlist  {items: ["no coach", "no paid ads"], mark: "check" | "x", y: 1050, font: "hand" | "body"}   (Style Menu L6) a paper card; each row gets a hand-drawn sage check (default) or red X,
+                                                     drawn on one by one. row_times: [seconds...] to land each row on its spoken word; "color" overrides the mark colour.
+                                                     The hand font draws a capital I like a 1, so set "font": "body" for text with "AI".
+     stat   {label: "Employees", value: "12,000", delta: "+12%", spark: [3,4,6,5,9], y: 1080}   (Style Menu L8) a white dashboard card that pops over the lower half.
+     tiles  {label: "Acme products", tiles: [{label: "Billing", icon: "dollar"}, ...], y: 1050}   (Style Menu L4) a torn paper label above a grid of soft icon tiles.
+                                                     icon = built-in name (dollar target map chart people check star chat doc mic heart spark mail), a picture path, or a short glyph.
   Any card: "glass": true gives the frosted liquid-glass look (card, tag).
   Any card or sfx_event: "off": true leaves it out of the render (the editor page's on/off switch).
   Text cards (title, tag, card, cta) with no "layer" take brand.json "text_default": {"layer": "front" | "behind" | "both", "position": "above"}
@@ -168,7 +179,8 @@ def popup_asset(src, secs):
 FALLBACK = "'Helvetica Neue', Helvetica, Arial, sans-serif"   # single quotes: these go inside style="..." attributes
 font_css, FAM = [], {}
 for role, default in (("head", {"family": "Helvetica Neue", "weight": 700}), ("body", {"family": "Helvetica Neue", "weight": 500}),
-                      ("accent", {"family": "Georgia", "weight": 400, "style": "italic"})):
+                      ("accent", {"family": "Georgia", "weight": 400, "style": "italic"}),
+                      ("hand", {"family": "Caveat", "weight": 700, "file": str(Path(__file__).resolve().parent.parent / "assets/fonts/Caveat-700-latin.woff2")})):
     f = {**default, **brand.get("fonts", {}).get(role, {})}
     if f.get("file"):
         src = Path(f["file"]).expanduser()
@@ -183,6 +195,41 @@ for role, default in (("head", {"family": "Helvetica Neue", "weight": 700}), ("b
 def font(role, px):
     fam, wt, st = FAM[role]
     return f"font-family:{fam};font-weight:{wt};font-style:{st};font-size:{px}px"
+
+# ---- Style Menu helpers (Added by By Mel Ross, 0.5.0): torn paper strips, hand-drawn marks, line icons -------------------
+import random
+def torn_clip(w, h, seed, amp=5, step=18):
+    """clip-path polygon: straight sides, a ragged torn top and bottom edge (deterministic for a seed)."""
+    rnd = random.Random(seed); xs = list(range(0, w, step)) + [w]
+    pts = [(x, round(rnd.uniform(0, amp), 1)) for x in xs] + [(x, round(h - rnd.uniform(0, amp), 1)) for x in reversed(xs)]
+    return "polygon(" + ",".join(f"{x}px {y}px" for x, y in pts) + ")"
+def tape(text, px, bg, fg, seed=1, rot=-2, maxw=860):
+    """A handwritten label on a torn paper strip. Returns (html, w, h); position it with a wrapper."""
+    px = int(min(px, max(28, (maxw - 70) / (max(len(text), 1) * 0.46))))
+    w, h = int(len(text) * px * 0.46) + 70, int(px * 1.18) + 22
+    return (f'<div class="tp" style="width:{w}px;height:{h}px;transform:rotate({rot}deg)"><div class="tpi" style="clip-path:{torn_clip(w, h, seed)};'
+            f'background:{bg};{font("hand", px)};color:{fg};line-height:{h}px">{esc(text)}</div></div>'), w, h
+def mix_hex(a, b, t):
+    """Blend two #hex colours: t=0 is a, t=1 is b."""
+    A, B = [tuple(int(x.lstrip("#")[k:k + 2], 16) for k in (0, 2, 4)) for x in (a, b)]
+    return "#" + "".join(f"{round(p + (q_ - p) * t):02x}" for p, q_ in zip(A, B))
+SAGE_DEEP = mix_hex(POP, MAIN, 0.42)          # a readable sage for marks drawn on cream paper (POP itself is too light there)
+ICONS = {
+    "dollar": '<path d="M12 3v18M16.5 7.5C15.5 6.2 13.9 5.5 12 5.5c-2.4 0-4 1.2-4 3s1.6 2.6 4 3 4 1.2 4 3-1.6 3-4 3c-2 0-3.7-.8-4.7-2.2"/>',
+    "target": '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.2"/>',
+    "map": '<path d="M12 21s7-6.2 7-11.5A7 7 0 0 0 5 9.5C5 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/>',
+    "chart": '<path d="M4 20V4M4 20h16M8 16v-5M12 16V8M16 16v-8"/>',
+    "people": '<circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.6 2.7-6 6-6s6 2.4 6 6"/><circle cx="17" cy="9" r="2.5"/><path d="M16 14.2c3 .2 5 2.2 5 5.2"/>',
+    "check": '<path d="M4 12.5l5 5L20 6.5"/>',
+    "star": '<path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z"/>',
+    "chat": '<path d="M4 5h16v11H9l-5 4z"/>',
+    "doc": '<path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4M9 12h6M9 16h6"/>',
+    "mic": '<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/>',
+    "heart": '<path d="M12 20s-8-4.8-8-10.5A4.5 4.5 0 0 1 12 7a4.5 4.5 0 0 1 8 2.5C20 15.2 12 20 12 20z"/>',
+    "spark": '<path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"/>',
+    "mail": '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/>',
+}
+RED_X = "#D64545"
 
 back, mid, front, audio, js = [], [], [], [], []
 behind = []                                   # cards behind the speaker's cutout (layer: behind / both)
@@ -261,7 +308,8 @@ for i, c in enumerate(edit.get("cards", [])):
         olw = brand.get("title_outline_px")                            # fixed outline width (e.g. 2 for a faint hairline); default scales with size
         st = lambda px: f";-webkit-text-stroke:{olw or max(6, px // 16)}px {ol};paint-order:stroke fill" if ol else ""
         back.append(f'<div id="{cid}" class="title" style="{font("head", sizes[0])};top:{c.get("y", brand.get("title_y", 360))}px;color:{c.get("color", MAIN)};letter-spacing:{brand.get("title_tracking", -0.045)}em">'
-                    + "".join(f'<div class="tl" style="font-size:{px}px;text-align:{("left", "right")[j % 2] if len(lines) > 1 else "center"}{st(px)}">{esc(x)}</div>' for j, (x, px) in enumerate(zip(lines, sizes))) + "</div>")
+                    + (f'<div class="tl" style="{font(c.get("overline_font", "hand"), c.get("overline_size", 78))};color:{c.get("overline_color", LIGHT)};letter-spacing:0;text-align:{c.get("align", "left")};padding-bottom:6px">{esc(c["overline"])}</div>' if c.get("overline") else "")   # Style Menu H3/L7: a small handwritten (or italic serif) line above the headline
+                    + "".join(f'<div class="tl" style="font-size:{px}px;text-align:{c.get("align") or (("left", "right")[j % 2] if len(lines) > 1 else "center")}{st(px)}">{esc(x)}</div>' for j, (x, px) in enumerate(zip(lines, sizes))) + "</div>")
         show(f"#{cid}", a, b)
         js.append(f'tl.fromTo("#{cid} .tl",{{clipPath:"inset(-40% 100% -40% 0%)",x:-30}},{{clipPath:"inset(-40% 0% -40% 0%)",x:0,duration:0.34,ease:"power3.out",stagger:0.25}},{q(a)});')
         sfx("snap", a + 0.03, -11)
@@ -329,7 +377,7 @@ for i, c in enumerate(edit.get("cards", [])):
         mkind, ppath, iw, ih = asset
         pw = int(c.get("size", 360)); ph = max(int(round(pw * ih / max(iw, 1))), 1)
         framed = c.get("frame", Path(str(c["src"])).suffix.lower() in (".jpg", ".jpeg", ".heic", ".heif"))
-        pos = c.get("pos", "top-right"); top0 = 150; mx = 60
+        pos = c.get("pos", "top-right"); top0 = 110 if c.get("caption") else 150; mx = 60
         if pos == "custom" or ("x" in c and "y" in c and pos not in POPUP_POS):
             left, top = int(c.get("x", W / 2) - pw / 2), int(c.get("y", 400) - ph / 2)
         else:
@@ -338,10 +386,114 @@ for i, c in enumerate(edit.get("cards", [])):
         rot = c.get("rotate", 0)
         media = (f'<video id="{cid}v" src="{ppath}" muted playsinline data-start="{q(a)}" data-duration="{q(b - a)}" data-track-index="{60 + i}"></video>'
                  if mkind == "video" else f'<img src="{ppath}" />')
-        front.append(f'<div id="{cid}" class="pop{" framed" if framed else ""}" style="left:{left}px;top:{top}px;width:{pw}px;height:{ph}px">{media}</div>')
+        cap_html = ""
+        if c.get("caption"):                                          # Style Menu L9: a handwritten label on a torn strip across the photo's lower edge
+            cap_html, tw_, th_ = tape(c["caption"], c.get("caption_size", 56), c.get("caption_bg", POP), c.get("caption_color", MAIN), seed=i + 3, rot=c.get("caption_rotate", -3), maxw=max(pw + 80, 320))
+            cap_html = f'<div style="position:absolute;left:{(pw - tw_) // 2}px;top:{ph - 22}px;width:{tw_}px;height:{th_}px">{cap_html}</div>'
+        front.append(f'<div id="{cid}" class="pop{" framed" if framed else ""}" style="left:{left}px;top:{top}px;width:{pw}px;height:{ph}px">{media}{cap_html}</div>')
         show(f"#{cid}", a, b, 0.15)
         js.append(f'tl.fromTo("#{cid}",{{scale:0,rotation:{rot - 20}}},{{scale:1,rotation:{rot},duration:0.5,ease:"back.out(2.4)"}},{q(a)});')
+        if c.get("exit") or c.get("caption"):
+            js.append(f'tl.to("#{cid}",{{scale:0.86,rotation:{rot + 4},duration:0.2,ease:"power2.in"}},{q(max(b - 0.2, a + 0.6))});')
+        if cap_html: js.append(f'tl.fromTo("#{cid} .tp",{{opacity:0,y:14}},{{opacity:1,y:0,duration:0.3,ease:"power2.out"}},{q(a + 0.35)});')
         sfx("pop", a, -13)
+    elif kind == "polaroids":
+        # Style Menu L2: 1-4 tilted white photo cards fan in with a handwritten label on a torn strip. Sized for face-filling footage:
+        # a small stack in a top corner (side left/right) so it stays off the eyes; "size" and "y" move it.
+        srcs = (c["src"] if isinstance(c["src"], list) else [c["src"]])[:4]; n = len(srcs)
+        sz = int(c.get("size", 240)); pad = 12; chin = 46
+        spread = int(sz * 0.36); cw = sz + (n - 1) * spread
+        side = c.get("side", "left")
+        cx = c["x"] if "x" in c else {"left": 50 + cw // 2 + 18, "right": W - 50 - cw // 2 - 18}.get(side, W // 2)
+        top = int(c.get("y", 100))
+        rots = c.get("rotate") or {1: [-4], 2: [-7, 6], 3: [-8, 2, 8], 4: [-9, -2, 4, 9]}[n]
+        dys = [0, 12, -4, 14]
+        parts = []
+        for j, sj in enumerate(srcs):
+            left = int(cx - sz / 2 + (j - (n - 1) / 2) * spread)
+            parts.append(f'<div id="{cid}p{j}" class="pl" style="left:{left}px;top:{top + dys[j]}px;width:{sz - 2 * pad}px;padding:{pad}px {pad}px {chin}px">'
+                         f'<img src="{img(sj)}" style="width:{sz - 2 * pad}px;height:{sz - 2 * pad}px" /></div>')
+        if top + sz + 34 + (60 if c.get("label") else 0) > 470: print(f"note: card {i} (polaroids) reaches y {top + sz + 34 + (60 if c.get('label') else 0)}: the speaker's eyes are usually near y 500-560, check the frames")
+        lab = ""
+        if c.get("label"):
+            lab_html, lw_, lh_ = tape(c["label"], c.get("label_size", 66), c.get("label_bg", POP), c.get("label_color", MAIN), seed=i + 7, rot=c.get("label_rotate", -3), maxw=min(W - 100, cw + 160))
+            lab = f'<div id="{cid}l" style="position:absolute;left:{int(cx - lw_ / 2)}px;top:{top + sz - 2 + max(dys[:n])}px;width:{lw_}px;height:{lh_}px">{lab_html}</div>'
+        front.append(f'<div id="{cid}" class="pls">' + "".join(parts) + lab + "</div>")
+        show(f"#{cid}", a, b)
+        for j in range(n):
+            js.append(f'tl.fromTo("#{cid}p{j}",{{y:-260,opacity:0,scale:0.65,rotation:{rots[j] - 14}}},{{y:0,opacity:1,scale:1,rotation:{rots[j]},duration:0.5,ease:"back.out(1.7)"}},{q(a + 0.16 * j)});')
+        if lab: js.append(f'tl.fromTo("#{cid}l",{{opacity:0,y:16}},{{opacity:1,y:0,duration:0.3,ease:"power2.out"}},{q(a + 0.16 * n + 0.2)});')
+        sfx("swish", a, -13)
+    elif kind == "xlist":
+        # Style Menu L6: a paper card, a hand-drawn mark drawn on beside each short phrase, one by one. Default mark is a sage check; "mark": "x" gives red X marks.
+        items = [x if isinstance(x, dict) else {"text": x} for x in c["items"]]
+        mark = c.get("mark", "check"); y0 = int(c.get("y", 1050)); rh = 116
+        if c.get("quiet", True): quiet.append((a, b))
+        rt = c.get("row_times") or [a + 0.5 + 0.9 * j for j in range(len(items))]
+        rows = []
+        for j, it in enumerate(items):
+            mk = it.get("mark", mark)
+            col = it.get("color") or c.get("color") or (RED_X if mk == "x" else SAGE_DEEP)
+            paths = ('<path d="M12 14C22 24 38 40 52 54" /><path d="M52 12C42 24 26 40 12 52" />' if mk == "x"
+                     else '<path d="M8 34C15 40 22 48 27 55C34 38 44 22 58 9" />')
+            px = int(min(c.get("size", 80), 690 / (max(len(it["text"]), 1) * 0.46)))
+            rows.append(f'<div class="xr" id="{cid}r{j}" style="height:{rh}px"><svg class="xm" viewBox="0 0 64 64" width="74" height="74" fill="none" stroke="{col}" stroke-width="8" stroke-linecap="round" stroke-linejoin="round">'
+                        + paths.replace("<path ", '<path pathLength="1" style="stroke-dasharray:1" ') + f'</svg><span class="xt" style="{font(c.get("font", "hand"), px)};color:{MAIN}">{esc(it["text"])}</span></div>')
+        front.append(f'<div id="{cid}" class="xl" style="left:90px;top:{y0}px;width:900px;padding:24px 44px">' + "".join(rows) + "</div>")
+        show(f"#{cid}", a, b)
+        js.append(f'tl.fromTo("#{cid}",{{y:90,scale:0.92,rotation:-3}},{{y:0,scale:1,rotation:-1.2,duration:0.5,ease:"back.out(1.6)"}},{q(a)});')
+        for j, t in enumerate(rt):
+            js.append(f'tl.fromTo("#{cid}r{j} .xt",{{clipPath:"inset(-20% 100% -20% 0%)",x:-24}},{{clipPath:"inset(-20% 0% -20% 0%)",x:0,duration:0.32,ease:"power3.out"}},{q(t)});'
+                      f'tl.fromTo("#{cid}r{j} path",{{strokeDashoffset:1}},{{strokeDashoffset:0,duration:0.3,ease:"power2.out",stagger:0.14}},{q(t + 0.12)});')
+            sfx("pop", t, -16, "lots")
+        sfx("swish", a - 0.05, -13)
+    elif kind == "stat":
+        # Style Menu L8: a white dashboard card with the real number pops in over the lower half while the speaker talks.
+        sw = int(c.get("w", 720)); y0 = int(c.get("y", 1080))
+        if c.get("quiet", True): quiet.append((a, b))
+        vpx = int(min(c.get("size", 170), (sw - 80) / (max(len(str(c["value"])), 1) * 0.6)))
+        delta = f'<span class="sd" style="background:{POP};color:{MAIN};{font("body", 34)}">{esc(c["delta"])}</span>' if c.get("delta") else ""
+        spark = ""
+        if c.get("spark"):
+            vs = [float(v) for v in c["spark"]]; lo, hi = min(vs), max(vs); span_ = (hi - lo) or 1
+            pts = " ".join(f"{round(8 + k * (284 / max(len(vs) - 1, 1)), 1)},{round(76 - (v - lo) / span_ * 64, 1)}" for k, v in enumerate(vs))
+            spark = (f'<svg class="ss" viewBox="0 0 300 90" width="300" height="90" fill="none" stroke="{SAGE_DEEP}" stroke-width="7" stroke-linecap="round" stroke-linejoin="round">'
+                     f'<polyline pathLength="1" style="stroke-dasharray:1" points="{pts}"/></svg>')
+        front.append(f'<div id="{cid}" class="stat" style="left:{(W - sw) // 2}px;top:{y0}px;width:{sw}px"><div class="sl" style="{font("body", 36)};color:{MAIN}">{esc(c.get("label", ""))}</div>'
+                     f'<div class="sr"><span class="sv" style="{font("head", vpx)};color:{MAIN}">{esc(str(c["value"]))}</span>{delta}</div>{spark}</div>')
+        show(f"#{cid}", a, b)
+        js.append(f'tl.fromTo("#{cid}",{{scale:0.55,y:70,rotation:-3}},{{scale:1,y:0,rotation:-1.5,duration:0.55,ease:"back.out(2)"}},{q(a)});')
+        if spark: js.append(f'tl.fromTo("#{cid} polyline",{{strokeDashoffset:1}},{{strokeDashoffset:0,duration:0.7,ease:"power2.out"}},{q(a + 0.35)});')
+        sfx("pop", a, -13)
+    elif kind == "tiles":
+        # Style Menu L4: a torn paper label above a grid of soft icon tiles; each tile pops on in turn.
+        tl_ = [x if isinstance(x, dict) else {"label": x} for x in c["tiles"]]; n = len(tl_)
+        cols = n if n <= 4 else 3 if n <= 6 else 4
+        gap = 26; ts = int(min(230, (900 - gap * (cols - 1)) / cols)); th = int(ts * 1.08)
+        y0 = int(c.get("y", 1050))
+        if c.get("quiet", True): quiet.append((a, b))
+        rt = c.get("tile_times") or [a + 0.45 + 0.28 * j for j in range(n)]
+        lab_html, lw_, lh_ = tape(c.get("label", ""), c.get("label_size", 76), c.get("label_bg", LIGHT), c.get("label_color", MAIN), seed=i + 5, rot=-2, maxw=W - 140) if c.get("label") else ("", 0, 0)
+        gy = y0 + (lh_ + 26 if lab_html else 0)
+        cells = []
+        for j, t_ in enumerate(tl_):
+            r_, k_ = divmod(j, cols); in_row = min(cols, n - r_ * cols)
+            left = int((W - (in_row * ts + (in_row - 1) * gap)) / 2 + k_ * (ts + gap)); top = gy + r_ * (th + gap)
+            ic = t_.get("icon", "")
+            if ic in ICONS: glyph = f'<svg viewBox="0 0 24 24" width="{int(ts * 0.36)}" height="{int(ts * 0.36)}" fill="none" stroke="{MAIN}" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">{ICONS[ic]}</svg>'
+            elif ic and Path(str(ic)).suffix.lower() in (".png", ".jpg", ".jpeg", ".webp") and img(ic): glyph = f'<img src="{img(ic)}" style="width:{int(ts * 0.4)}px;height:{int(ts * 0.4)}px;object-fit:contain" />'
+            else: glyph = f'<span style="{font("head", int(ts * 0.3))};color:{MAIN}">{esc(ic or t_.get("label", "?")[:1].upper())}</span>'
+            lpx = int(min(30, ts * 0.9 / max(len(t_.get("label", "")) * 0.52, 1) * 1.6)) if len(t_.get("label", "")) > 10 else 30
+            cells.append(f'<div id="{cid}t{j}" class="tile" style="left:{left}px;top:{top}px;width:{ts}px;height:{th}px"><div class="ti" style="background:{mix_hex(POP, "#ffffff", 0.55)}">{glyph}</div>'
+                         f'<div class="tt" style="{font("body", max(lpx, 22))};color:{MAIN}">{esc(t_.get("label", ""))}</div></div>')
+        labdiv = (f'<div id="{cid}l" style="position:absolute;left:{(W - lw_) // 2}px;top:{y0}px;width:{lw_}px;height:{lh_}px">{lab_html}</div>' if lab_html else "")
+        front.append(f'<div id="{cid}" class="tg">{labdiv}' + "".join(cells) + "</div>")
+        show(f"#{cid}", a, b)
+        if lab_html: js.append(f'tl.fromTo("#{cid}l",{{clipPath:"inset(0% 100% 0% 0%)",y:-24}},{{clipPath:"inset(0% 0% 0% 0%)",y:0,duration:0.4,ease:"power3.out"}},{q(a)});')
+        for j, t in enumerate(rt):
+            js.append(f'tl.fromTo("#{cid}t{j}",{{scale:0.5,y:44,opacity:0}},{{scale:1,y:0,opacity:1,duration:0.42,ease:"back.out(2.2)"}},{q(t)});')
+            sfx("pop", t, -16, "lots")
+        sfx("swish", a - 0.05, -13)
     elif kind == "page":
         bg = c.get("bg", LIGHT)
         rgb = tuple(int(LIGHT.lstrip("#")[k:k + 2], 16) for k in (0, 2, 4))
@@ -516,6 +668,25 @@ html, body {{ margin: 0; background: #000; overflow: hidden; }}
 .pop img, .pop video {{ width: 100%; height: 100%; object-fit: contain; display: block; filter: drop-shadow(0 12px 20px rgba(0,0,0,.28)); }}
 .pop.framed {{ box-sizing: border-box; border: 12px solid #fff; border-radius: 18px; background: #fff; box-shadow: 0 26px 60px rgba(0,0,0,.28); }}
 .pop.framed img, .pop.framed video {{ object-fit: cover; filter: none; border-radius: 6px; }}
+.tp {{ position: absolute; left: 0; top: 0; filter: drop-shadow(0 8px 14px rgba(0,0,0,.28)); }}
+.tpi {{ width: 100%; height: 100%; text-align: center; white-space: nowrap; box-sizing: border-box; }}
+.pls, .tg {{ position: absolute; inset: 0; }}
+.pl {{ position: absolute; box-sizing: content-box; background: #fff; border-radius: 6px; box-shadow: 0 22px 46px rgba(0,0,0,.3); }}
+.pl img {{ display: block; object-fit: cover; border-radius: 2px; }}
+.xl {{ position: absolute; box-sizing: content-box; background: {LIGHT}; border-radius: 34px; box-shadow: 0 30px 70px rgba(0,0,0,.25); }}
+.xr {{ display: flex; align-items: center; gap: 28px; border-bottom: 3px solid rgba(13,43,45,.07); }}
+.xr:last-child {{ border-bottom: 0; }}
+.xm {{ flex: none; overflow: visible; }}
+.xt {{ white-space: nowrap; line-height: 1; padding: 0 16px 0 4px; }}
+.stat {{ position: absolute; box-sizing: border-box; background: #fff; border-radius: 38px; padding: 30px 40px 28px; box-shadow: 0 30px 70px rgba(0,0,0,.25); }}
+.sl {{ opacity: .72; letter-spacing: -.01em; }}
+.sr {{ display: flex; align-items: center; gap: 24px; margin-top: 6px; }}
+.sv {{ letter-spacing: -.03em; line-height: 1.05; }}
+.sd {{ padding: 8px 22px; border-radius: 40px; }}
+.ss {{ display: block; margin-top: 6px; overflow: visible; }}
+.tile {{ position: absolute; box-sizing: border-box; background: linear-gradient(150deg, #fff, #f1f4ec); border-radius: 46px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; padding: 12px; text-align: center; box-shadow: 0 18px 44px rgba(0,0,0,.24); }}
+.ti {{ width: 44%; aspect-ratio: 1; border-radius: 30%; display: flex; align-items: center; justify-content: center; box-sizing: border-box; }}
+.tt {{ line-height: 1.08; letter-spacing: -.01em; }}
 .page {{ position: absolute; inset: 0; }}
 .pt {{ position: absolute; left: 0; right: 0; top: 150px; text-align: center; line-height: .9; letter-spacing: -.04em; padding: 0 60px; }}
 .pf {{ position: absolute; left: 190px; top: 560px; width: 700px; height: 1240px; overflow: hidden; border: 12px solid #fff; border-radius: 34px; box-shadow: 0 30px 70px rgba(0,0,0,.28); }}

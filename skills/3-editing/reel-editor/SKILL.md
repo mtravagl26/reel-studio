@@ -7,7 +7,7 @@ description: "Use when someone drops a raw talking-head video (phone clip, selfi
 
 Turns a raw talking-head clip into a finished, on-brand vertical reel. Every brand choice (colours, fonts, caption style, sounds, CTA) comes from the person's **brand file**, never from defaults baked into this skill. You do the editing; they only make the calls that are theirs.
 
-> Based on [claude-reel-editor](https://github.com/nicolapocock/claude-reel-editor) by Nicola Pocock (MIT, see `LICENSE`). Modified by By Mel Ross: gentle eased zooms by default, a Reel cover and a phone-size copy with every delivery, delivery back to the footage folder, a local review page when Artifacts aren't available, a render option without `nice`, telemetry off, a studio-look step, graphics that can sit behind the speaker, a 40-effect sound library, and a three-level mix with music that dips under the voice.
+> Based on [claude-reel-editor](https://github.com/nicolapocock/claude-reel-editor) by Nicola Pocock (MIT, see `LICENSE`). Modified by By Mel Ross: gentle eased zooms by default, a Reel cover and a phone-size copy with every delivery, delivery back to the footage folder, a local review page when Artifacts aren't available, a render option without `nice`, telemetry off, a studio-look step, graphics that can sit behind the speaker, a 40-effect sound library, and a three-level mix with music that dips under the voice. 0.5.0: a Style Menu (looks called by ID), a storyboard of stills before building, a permanent word list for names, and a true audio crossfade at cuts.
 
 **Local only.** Everything runs on this computer. Never upload, publish or schedule a reel, and never post on their behalf; delivery means files in a folder. The scripts set `HYPERFRAMES_NO_TELEMETRY=1` and `DO_NOT_TRACK=1` unless the person has turned telemetry on themselves.
 
@@ -65,6 +65,22 @@ The review page's **Cover** tab links to the thumbnail studio, a local page for 
 When the person wants to change a reel that is already built (fix a caption word, drop a piece of the cut, switch pills or sounds on and off, drop in a GIF, graphic or photo as a popup, put text in front of or behind themselves), start the editor page instead of rewriting `edit.json` by hand: `node <skill>/review/editor-server.mjs <reel folder> --lan --port 4792` (with `REELS_HOME` set, as for the other scripts), check it answers, send them the `same Wi-Fi` link it prints, stop it when they are done. They tap; every change is saved to `edit.json`, `edl.json` or `brand.json` (with a timestamped backup and an Undo); **Re-render** runs the usual cut/render/QA as a background job and keeps the earlier renders (`renders/vNNN*.mp4`). It never delivers: delivery to the footage folder stays a separate step. Details, limits and how dropping a cut piece retimes everything: `references/editor-page.md`.
 
 Text defaults to the area above the speaker's head, in front of them (`brand.json` `"text_default": {"layer": "front", "position": "above"}`); any single piece of text can be set to **behind me** (it needs headroom, and falls back to in front, with a note, when the cutout fails).
+
+## Word list (permanent vocabulary)
+
+`~/reels/brand.json` can carry a `"vocabulary"` block: `terms` (correct spellings of names and brand words), `prompt` (fed to Whisper as spelling hints) and `corrections` (what Whisper mishears -> the correct word, lowercase keys, one or more words, e.g. `"akme": "Acme"`, `"acme corp": "Acme Corp"`). `scripts/auto_edit.py` applies `corrections` to every caption it drafts; pass `vocabulary.prompt` as `--prompt` to `whisper-cli` when you transcribe yourself. Add a name the moment the person corrects one, and check every caption for mishears of names and brand terms before rendering. The example is in `brand/brand.example.json`.
+
+## Cuts
+
+Cut only at the end of a sentence or in the quietest part of a natural pause, on a frame boundary (1/30 s), with at least 60 ms of quiet after the out-point and 80 ms before the next word. `edl.json` may carry `"xfade": 0.035`: `scripts/cut.py` then crossfades the audio at each join (each piece carries 35 ms of the quiet after its cut, and the picture cuts at the same instant, so reel time stays frame-exact). Without `"xfade"` the older short dip-fade at each join is used. Never keep a piece shorter than about 1 s. A short list of every join (source in/out, reel time, the words on both sides of it, decoded from the cut master) helps the person check the cuts.
+
+## Call a look by ID (Style Menu)
+
+The person can pick looks by ID: H1-H5 hooks, C1-C5 captions, L1-L9 layouts ("H3, C2, L8"). Read `references/style-menu.md`: it says, per ID, which `edit.json` / `brand.json` setting or card type produces it (`assets/style-menu.json` has the same table for scripts) and which are only *partial* or *not built*. Built: H3, C1, C2, C3, L2 (`polaroids`), L4 (`tiles`), L6 (`xlist`), L7, L8 (`stat`), L9 (`popup` + `caption`); partial: H2, C5; not built: H1, H4, C4, L1, L3, L5; H5 is a cut choice. Say plainly when an ID is not built; never fake it. The eye rules apply to all of them: graphics go in the top corners or the lower third, never on the eyes, and captions step aside under lower-third cards.
+
+## Storyboard first (before building new looks)
+
+When the person wants to compare looks, or you are about to use a look they have not seen on this footage, show **stills, not videos**: `python3 scripts/storyboard.py <reel-folder> --out <NEW folder> --option "A=H3,C2,L8" --option "B=C1,L4,L6" [--option "C=..."] [--at 8,26,42,60] [--content content.json] [--photos a.jpg,b.jpg]`. It makes a throw-away copy of the reel per option (the real master, captions and brand; the reel folder is never written to, and `--out` must be a new folder), takes stills at 3-4 moments with `hyperframes snapshot` and tiles them into one `storyboard.jpg` labelled "Option A: H3 + C2 + L8". About 25 s for 4 options, no video render. Write `--content` from what the person actually says at those moments, otherwise the cards carry stand-in words (see `references/style-menu.md`). Look at the image before you send it, and send it with the question "which one?". The script clears `GEMINI_API_KEY` for the snapshot so no frame goes to an outside service.
 
 ## Their brand rules win
 
