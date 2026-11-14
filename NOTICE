@@ -100,7 +100,7 @@ Changes made by By Mel Ross in Reel Studio 0.3.0 (November 2026), in skills/3-ed
   references/sound-and-mix.md and README.md describe and use the same target (-14 LUFS / -1.5 dBTP stays available as a setting).
 - package.json and .claude-plugin/plugin.json version 0.3.0.
 
-Added by By Mel Ross after 0.3.0 (November 2026), in skills/3-editing/reel-editor.
+Added by By Mel Ross in 0.4.0 (November 2026), in skills/3-editing/reel-editor.
 - Clip finder: scripts/find_clips.py and references/find-clips.md rank 30-60 s moments of one long recording from its transcript
   (hook, standalone, value, energy, platform fit) and set up one reel folder per chosen clip, with tests in
   tests/reel-clips.test.mjs. Written from scratch; the general idea of transcript-first clip ranking is common to many clipping
@@ -110,3 +110,4 @@ Added by By Mel Ross after 0.3.0 (November 2026), in skills/3-editing/reel-edito
   front of or behind the speaker, a Re-render button that runs the existing cut/render/QA steps, timestamped backups and Undo), a "popup"
   card type, "off" on cards and sound events and brand.json "text_default" in scripts/build_reel.py, and tests/reel-editor-page.test.mjs.
   Written from scratch in plain Node and vanilla JavaScript; no new dependencies.
+- package.json and .claude-plugin/plugin.json version 0.4.0.
