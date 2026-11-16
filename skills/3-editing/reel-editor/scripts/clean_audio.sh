@@ -10,10 +10,10 @@ ffmpeg -v error -y -i "$IN" -vn -ac 1 -ar 48000 "$TMP/raw.wav"
 SRC="$TMP/raw.wav"
 
 if [[ "$DENOISE" == "--denoise" ]]; then
-  if command -v deepFilter >/dev/null 2>&1; then
-    deepFilter -a "${DENOISE_DB:-20}" "$SRC" -o "$TMP/dfn" >/dev/null 2>&1   # 20 dB: gentler than the old 30, keeps the voice natural (quiet recordings were distorting)
+  if command -v deepFilter >/dev/null 2>&1 && deepFilter -a "${DENOISE_DB:-20}" "$SRC" -o "$TMP/dfn" >"$TMP/dfn.log" 2>&1 && ls "$TMP"/dfn/*.wav >/dev/null 2>&1; then   # 20 dB: gentler than the old 30, keeps the voice natural (quiet recordings were distorting)
     SRC="$(ls "$TMP"/dfn/*.wav | head -1)"
   else
+    [ -s "$TMP/dfn.log" ] && echo "note: DeepFilterNet is installed but failed (last line: $(tail -1 "$TMP/dfn.log")); using ffmpeg's built-in denoiser instead" >&2
     echo "note: DeepFilterNet not installed, using ffmpeg's built-in denoiser (weaker on birds/traffic)" >&2
     ffmpeg -v error -y -i "$SRC" -af "afftdn=nf=-25" "$TMP/dn.wav"
     SRC="$TMP/dn.wav"
