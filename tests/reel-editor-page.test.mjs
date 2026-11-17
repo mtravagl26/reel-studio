@@ -187,6 +187,25 @@ test("brand.json text_default: tags without a height go above the head; text can
   assert.doesNotMatch(r.stdout, /card 1 /, "a card that says front stays front");
 });
 
+// Added by By Mel Ross (0.5.2): the repo root is an ES module package, so review/core.js (a CommonJS/browser script) needs its own
+// package.json to stay loadable with require(); without it review_sync.py export/import crashed in a full clone or plugin install.
+test("review/core.js loads with require() from inside the repo", async () => {
+  const { createRequire } = await import("node:module");
+  const C = createRequire(import.meta.url)(path.join(review, "core.js"));
+  for (const f of ["plan", "captions", "graphics", "hash"]) assert.equal(typeof C[f], "function", `core.js exports ${f}`);
+});
+
+test("the three pages share one step bar and one palette, and load nothing from the internet", () => {
+  for (const f of ["reel-review.html", "thumbnail.html", "editor.html"]) {
+    const html = fs.readFileSync(path.join(review, f), "utf8");
+    assert.match(html, /class="steps"/, `${f}: step bar`);
+    for (const k of ["review", "cover", "touchups"]) assert.ok(html.includes(`data-step="${k}"`), `${f}: step ${k}`);
+    assert.ok(/#f5f2ec/i.test(html) && /#0d2b2d/i.test(html), `${f}: cream and teal`);
+    assert.ok(!/ED84B0|FFF8FB/i.test(html), `${f}: no leftover pink`);
+    assert.ok(!/https?:\/\/(?!127\.0\.0\.1|localhost)[a-z0-9.-]+\.(com|net|org)/i.test(html), `${f}: no outside address`);
+  }
+});
+
 // ---------------------------------------------------------------------------------------------------------------- server
 async function withServer(fn) {
   const dir = tmp("editorsrv"), home = path.join(dir, "reels"), reel = path.join(home, "r1");

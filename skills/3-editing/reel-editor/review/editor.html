@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-<title>Reel editor</title>
+<title>Reel Studio: touch-ups</title>
 <!-- Added by By Mel Ross. The reel editor page, served by editor-server.mjs. Vanilla JS, no libraries, nothing leaves this computer. -->
 <style>
 :root { --bg:#f5f2ec; --ink:#0d2b2d; --sage:#B9C8A5; --sage-d:#8da273; --card:#fff; --line:#e1dccf; --warn:#b4571f; --bad:#a32727; }
@@ -66,13 +66,28 @@ summary::-webkit-details-marker { display: none; } summary small { font-weight: 
 #toast { position: fixed; left: 12px; right: 12px; bottom: 14px; max-width: 576px; margin: 0 auto; padding: 12px 14px; border-radius: 12px; background: var(--ink); color: #fff; z-index: 50; display: none; font-size: 15px; }
 #toast.bad { background: var(--bad); }
 .fab { position: fixed; right: 14px; bottom: 14px; z-index: 30; box-shadow: 0 4px 14px #0004; }
+
+/* Reel Studio shared look (Added by By Mel Ross): the same step bar and palette on the review, cover and touch-ups pages */
+.steps{display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:10px 0 0;font:600 13px/1 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+.steps .brand{font-weight:800;margin-right:6px;color:#0d2b2d}
+.steps .step{display:inline-flex;align-items:center;min-height:36px;padding:0 12px;border-radius:999px;border:1.5px solid #e1dccf;background:#fff;color:#0d2b2d;text-decoration:none}
+.steps .step[aria-current="step"]{background:#0d2b2d;border-color:#0d2b2d;color:#f5f2ec}
+.steps .step.off{opacity:.55}
+.lede { margin: 8px 0 0; font-size: 14px; color: #5b6b69; }
 </style></head>
 <body>
+<nav class="steps" aria-label="Reel Studio steps">
+  <span class="brand">Reel Studio</span>
+  <a class="step off" data-step="review" title="Ask Claude to open the review page">1 Review</a>
+  <a class="step off" data-step="cover" title="Ask Claude to open my thumbnail studio">2 Cover</a>
+  <a class="step off" data-step="touchups" title="Ask Claude to open the editor page">3 Touch-ups</a>
+</nav>
 <header>
-  <div class="t"><h1 id="name">Reel editor</h1><small id="sub"></small></div>
+  <div class="t"><h1>Touch-ups</h1><small id="sub"></small></div>
   <button id="undo" class="sm" disabled>Undo</button>
   <button id="render" class="pri">Re-render</button>
 </header>
+<p class="lede">For a reel that is already built. Fix a word, drop a piece, add text, pictures or sounds, then tap <b>Re-render</b>. To redo the cut from the start, go back to <b>1 Review</b>.</p>
 <div id="status"></div>
 <div id="notes"></div>
 
@@ -95,6 +110,18 @@ summary::-webkit-details-marker { display: none; } summary small { font-weight: 
 <div id="toast"></div>
 
 <script type="module">
+// Reel Studio step bar (Added by By Mel Ross): links to the other pages when their address is known. The cover page only answers
+// on this computer, so its link is left off when this page is open on a phone.
+function setSteps(here, links) {
+  const local = /^(127\.0\.0\.1|localhost|\[::1\])$/.test(location.hostname);
+  document.querySelectorAll(".steps .step").forEach((el) => {
+    const k = el.dataset.step, u = links && links[k];
+    if (k === here) { el.setAttribute("aria-current", "step"); el.classList.remove("off"); el.removeAttribute("title"); el.removeAttribute("href"); return; }
+    const ok = typeof u === "string" && /^https?:\/\/[\w.\-\[\]:]+(:\d+)?\//.test(u) && (k !== "cover" || local);
+    if (ok) { el.href = u; el.classList.remove("off"); el.removeAttribute("title"); }
+    else if (k === "cover" && u && !local) el.title = "The cover page opens on your Mac, not on your phone";
+  });
+}
 import { popupBox, isTextType } from "/core.mjs";
 const $ = (s) => document.querySelector(s), esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 let S = null, openCard = new Set(), capSel = null, placing = null, watch = null, selCard = null, openSfx = new Set(), pollT = null;
@@ -117,7 +144,7 @@ const dur = () => S.total;
 
 // ------------------------------------------------------------------ render
 function render() {
-  $("#name").textContent = S.reel; $("#sub").textContent = `${fmt(S.total)} long · ${S.edit.cards.length} cards`;
+  $("#sub").textContent = `${S.reel} · ${fmt(S.total)} long · ${S.edit.cards.length} cards`; setSteps("touchups", S.links);
   $("#undo").disabled = !S.canUndo || running(); $("#undo").title = S.undoLabel ? `Undo: ${S.undoLabel}` : "";
   $("#render").disabled = running(); $("#render").textContent = running() ? "Rendering…" : "Re-render";
   renderStatus(); renderVideo(); renderTimeline(); renderCaps(); renderPieces(); renderCards(); renderPopups(); renderSfx(); renderSettings(); renderVersions(); drawOverlay();

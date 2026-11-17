@@ -2,7 +2,7 @@
 // Added by By Mel Ross. The reel editor page: a phone-friendly page where you edit a reel by tapping (caption words, keep/drop cuts, pills,
 // stickers, sound effects, GIF/graphic/photo popups, front/behind layer for text) and a Re-render button rebuilds it.
 // Everything is written to the files the pipeline already reads (edit.json, edl.json, brand.json), nothing leaves this computer.
-// Usage: node editor-server.mjs <reel-folder> [--port 4792] [--lan]
+// Usage: node editor-server.mjs <reel-folder> [--port 4792] [--lan] [--review-url <url>] [--cover-url <url>]
 //   default: http://127.0.0.1:4792/ on this computer only
 //   --lan:   also reachable from a phone/laptop on the same Wi-Fi; prints a URL with a one-off key (?k=...), same as review/serve.mjs
 // Environment: REELS_HOME (default: the folder holding this reel, it must have brand.json). Child steps run with telemetry off.
@@ -17,9 +17,12 @@ import { fileURLToPath } from "node:url";
 import * as core from "./editor-core.mjs";
 
 const args = process.argv.slice(2);
-const REEL = path.resolve(args.find((a, i) => !a.startsWith("--") && !(i > 0 && args[i - 1] === "--port")) || ".");
+const REEL = path.resolve(args.find((a, i) => !a.startsWith("--") && !(i > 0 && ["--port", "--review-url", "--cover-url"].includes(args[i - 1]))) || ".");
 const PORT = Number(args[args.indexOf("--port") + 1]) || 4792;
 const LAN = args.includes("--lan");
+// Added by By Mel Ross: addresses of the other two Reel Studio pages, shown as links in the step bar (both optional).
+const flag = (n) => { const i = args.indexOf(n); return i >= 0 && /^https?:\/\//.test(args[i + 1] || "") ? args[i + 1] : null; };
+const LINKS = { review: flag("--review-url"), cover: flag("--cover-url") };
 const KEY = LAN ? crypto.randomBytes(9).toString("base64url") : null;
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const SKILL = path.resolve(HERE, "..");
@@ -190,7 +193,7 @@ function view() {
     pieces, media, popups: files, sfxNames: sfxNames(), notes, renders, job,
     textDefault: brand.text_default || { layer: "front", position: "above" }, hasTextDefault: !!brand.text_default,
     cutsStale, dirty: meta.edit_hash !== editHash(), canUndo: history().length > 0, undoLabel: history().slice(-1)[0]?.replace(/^[\d_-]+?-(?=[A-Za-z])/, "") || null,
-    video: renders.length ? renders[renders.length - 1].phone : null, prepping,
+    video: renders.length ? renders[renders.length - 1].phone : null, prepping, links: LINKS,
   };
   notes = [];
   return out;
