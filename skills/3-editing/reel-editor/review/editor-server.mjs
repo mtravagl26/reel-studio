@@ -13,6 +13,7 @@ import path from "node:path";
 import os from "node:os";
 import crypto from "node:crypto";
 import { spawn, spawnSync } from "node:child_process";
+import { SHIM, DOCS, WRITABLE } from "./review-shim.mjs";
 import { fileURLToPath } from "node:url";
 import * as core from "./editor-core.mjs";
 
@@ -22,7 +23,7 @@ const PORT = Number(args[args.indexOf("--port") + 1]) || 4792;
 const LAN = args.includes("--lan");
 // Added by By Mel Ross: addresses of the other two Reel Studio pages, shown as links in the step bar (both optional).
 const flag = (n) => { const i = args.indexOf(n); return i >= 0 && /^https?:\/\//.test(args[i + 1] || "") ? args[i + 1] : null; };
-const LINKS = { review: flag("--review-url"), cover: flag("--cover-url") };
+const LINKS = { review: flag("--review-url") || "/review", touchups: "/touchups", cover: flag("--cover-url") };
 const KEY = LAN ? crypto.randomBytes(9).toString("base64url") : null;
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const SKILL = path.resolve(HERE, "..");
@@ -30,7 +31,6 @@ const SCRIPTS = path.join(SKILL, "scripts");
 const HOME = path.resolve(process.env.REELS_HOME || path.dirname(REEL));
 if (!fs.existsSync(REEL)) { console.error(`no reel folder: ${REEL}`); process.exit(1); }
 if (!fs.existsSync(path.join(HOME, "brand.json"))) { console.error(`no brand.json in ${HOME}: set REELS_HOME to the reels workspace`); process.exit(1); }
-for (const f of ["edit.json", "edl.json"]) if (!fs.existsSync(path.join(REEL, f))) { console.error(`${path.basename(REEL)} has no ${f}: this page edits a reel that was already built`); process.exit(1); }
 
 const P = {
   edit: path.join(REEL, "edit.json"), edl: path.join(REEL, "edl.json"), tr: path.join(REEL, "master_transcript.json"),
@@ -40,7 +40,11 @@ const P = {
   job: path.join(REEL, "editor", "job.json"), log: path.join(REEL, "editor", "render.log"), hist: path.join(REEL, "editor", "history"),
   renders: path.join(REEL, "renders"), popups: path.join(REEL, "popups"),
 };
-fs.mkdirSync(P.dir, { recursive: true }); fs.mkdirSync(P.renders, { recursive: true }); fs.mkdirSync(P.popups, { recursive: true });
+// Reel Studio on one link (Added by By Mel Ross, 0.6.0): this server also serves the review page, so it can start before the reel is
+// built. Touch-ups need edit.json + edl.json; until they exist the touch-ups page says so and points back to the review step.
+const REVIEW_DB = path.join(REEL, "review_db");
+const built = () => fs.existsSync(P.edit) && fs.existsSync(P.edl);
+const hasReview = () => fs.existsSync(path.join(REVIEW_DB, "reel", "current.json"));
 
 const TYPES = { ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".mjs": "text/javascript; charset=utf-8", ".json": "application/json; charset=utf-8",
   ".mp4": "video/mp4", ".webm": "video/webm", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png", ".gif": "image/gif", ".webp": "image/webp",
@@ -193,7 +197,7 @@ function view() {
     pieces, media, popups: files, sfxNames: sfxNames(), notes, renders, job,
     textDefault: brand.text_default || { layer: "front", position: "above" }, hasTextDefault: !!brand.text_default,
     cutsStale, dirty: meta.edit_hash !== editHash(), canUndo: history().length > 0, undoLabel: history().slice(-1)[0]?.replace(/^[\d_-]+?-(?=[A-Za-z])/, "") || null,
-    video: renders.length ? renders[renders.length - 1].phone : null, prepping, links: LINKS,
+    video: renders.length ? renders[renders.length - 1].phone : null, prepping, links: LINKS, built: true,
   };
   notes = [];
   return out;
@@ -357,9 +361,35 @@ const server = http.createServer(async (req, res) => {
       if (url.searchParams.get("k") === KEY) res.setHeader("Set-Cookie", `rk=${KEY}; HttpOnly; SameSite=Strict; Path=/`);
       else if (!(req.headers.cookie || "").split(/;\s*/).includes(`rk=${KEY}`)) { res.writeHead(403).end("missing or wrong key"); return; }
     }
-    if (p === "/" || p === "/index.html") return sendFile(req, res, path.join(HERE, "editor.html"));
+    initBuilt();   // the reel may have been built since this server started
+    if (p === "/" || p === "/index.html") {   // one link: the touch-ups page once the reel is built, the review page before that
+      if (built()) return sendFile(req, res, path.join(HERE, "editor.html"));
+      res.writeHead(302, { Location: "/review" }).end(); return;
+    }
+    if (p === "/touchups") return sendFile(req, res, path.join(HERE, "editor.html"));
+    if (p === "/review") {
+      const links = `<script>window.REEL_STUDIO_LINKS=${JSON.stringify({ touchups: LINKS.touchups, cover: LINKS.cover }).replace(/</g, "\\u003c")}</script>`;
+      const html = fs.readFileSync(path.join(HERE, "reel-review.html"), "utf8")
+        .replace('<script src="core.js"></script>', links + '<script src="shim.js"></script><script src="core.js"></script>');
+      res.writeHead(200, { "Content-Type": TYPES[".html"], "Cache-Control": "no-store" }).end(html); return;
+    }
+    if (p === "/shim.js") { res.writeHead(200, { "Content-Type": TYPES[".js"] }).end(SHIM); return; }
+    if (p === "/core.js") return sendFile(req, res, path.join(HERE, "core.js"));
     if (p === "/core.mjs") return sendFile(req, res, path.join(HERE, "editor-core.mjs"));
-    if (p === "/api/state" && req.method === "GET") return json(res, 200, view());
+    if (p === "/api/stage" && req.method === "GET") return json(res, 200, { reel: path.basename(REEL), built: built(), review: hasReview() });
+    if (p.startsWith("/db/")) {   // the review page's decisions, same files and rules as serve.mjs
+      const doc = p.slice(4);
+      if (!DOCS.has(doc)) { res.writeHead(404).end(); return; }
+      const file = path.join(REVIEW_DB, doc + ".json");
+      if (req.method === "GET") { if (!exists(file)) { res.writeHead(204).end(); return; } return sendFile(req, res, file); }
+      if (req.method !== "PUT" || !WRITABLE.has(doc)) { res.writeHead(403).end(); return; }
+      const body = (await readBody(req, 5e6)).toString();
+      try { JSON.parse(body); } catch { res.writeHead(400).end(); return; }
+      fs.mkdirSync(path.dirname(file), { recursive: true }); writeText(file, body);
+      res.writeHead(204).end(); return;
+    }
+    if (p === "/api/state" && req.method === "GET") return json(res, 200, built() ? view() : { built: false, reel: path.basename(REEL), review: hasReview(), links: LINKS });
+    if (p.startsWith("/api/") && !built()) return json(res, 409, { ok: false, error: "This reel is not built yet. Finish the review step first." });
     if (p === "/api/job" && req.method === "GET") return json(res, 200, { job, canUndo: history().length > 0 });
     if (req.method === "POST" && p.startsWith("/api/")) {
       try {
@@ -379,7 +409,7 @@ const server = http.createServer(async (req, res) => {
     if (p.startsWith("/files/")) {
       const file = path.resolve(REEL, "." + p.slice(6));
       const rel = path.relative(REEL, file);
-      if (rel.startsWith("..") || path.isAbsolute(rel) || /^(editor\/history|\.)/.test(rel)) { res.writeHead(403).end(); return; }
+      if (rel.startsWith("..") || path.isAbsolute(rel) || /^(editor\/history|review_db|\.)/.test(rel)) { res.writeHead(403).end(); return; }
       return sendFile(req, res, file);
     }
     res.writeHead(404).end();
@@ -389,18 +419,24 @@ const server = http.createServer(async (req, res) => {
 const quit = () => { if (child) child.kill("SIGTERM"); process.exit(0); };
 process.on("SIGINT", quit); process.on("SIGTERM", quit);
 
-{   // give every card and sound an id (kept in edit.json, ignored by the build); the first time, keep the file as it was
+let inited = false;
+function initBuilt() {
+  if (inited || !built()) return;
+  inited = true;
+  fs.mkdirSync(P.dir, { recursive: true }); fs.mkdirSync(P.renders, { recursive: true }); fs.mkdirSync(P.popups, { recursive: true });
+  // give every card and sound an id (kept in edit.json, ignored by the build); the first time, keep the file as it was
   const e = readJSON(P.edit, {});
   if (core.ensureIds(e)) {
     const keep = path.join(P.dir, "edit.json.before-editor");
     if (!exists(keep)) fs.copyFileSync(P.edit, keep);
     writeJSON(P.edit, e);
   }
+  loadMeta(loadState());
+  prepareBaseline();
 }
-loadMeta(loadState());
-prepareBaseline();
+initBuilt();
 server.listen(PORT, LAN ? "0.0.0.0" : "127.0.0.1", () => {
-  console.log(`Reel editor for ${path.basename(REEL)}: http://127.0.0.1:${PORT}/${KEY ? "?k=" + KEY : ""}`);
+  console.log(`Reel Studio for ${path.basename(REEL)}: http://127.0.0.1:${PORT}/${KEY ? "?k=" + KEY : ""}`);
   if (LAN) for (const a of Object.values(os.networkInterfaces()).flat())
     if (a.family === "IPv4" && !a.internal) console.log(`same Wi-Fi: http://${a.address}:${PORT}/?k=${KEY}`);
 });

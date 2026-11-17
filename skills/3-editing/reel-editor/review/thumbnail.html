@@ -94,7 +94,7 @@ input[type=color]{width:44px;height:34px;border:2px solid var(--line);border-rad
       <legend>Frame</legend>
       <label for="source">Footage</label>
       <select id="source"></select>
-      <p class="lede" style="margin-top:12px">Six sampled frames, evenly spaced through the video. Nothing is ranked or picked by AI. You choose the expression.</p>
+      <p class="lede" style="margin-top:12px">These are 6 frames spread evenly through the video. Pick the one you like, or use the slider for an exact frame.</p>
       <div id="samples"></div>
       <label for="seek">Exact frame <span class="tc" id="time">0:00.00</span></label>
       <input type="range" id="seek" min="0" max="1" step="0.0333" value="0">
@@ -122,7 +122,7 @@ input[type=color]{width:44px;height:34px;border:2px solid var(--line);border-rad
     </fieldset>
     <fieldset>
       <legend>Crop guides</legend>
-      <p class="lede">Instagram's grid shows your cover cropped. Turn these on to keep your face and words inside. They never show in your downloads.</p>
+      <p class="lede">Instagram crops your cover on your profile grid. Turn these on to check your face and words stay inside. They don't appear in your downloads.</p>
       <label class="check"><input type="checkbox" id="gtall"> 3:4 crop (profile grid)</label>
       <label class="check"><input type="checkbox" id="gsquare"> Square crop</label>
     </fieldset>
@@ -135,7 +135,7 @@ input[type=color]{width:44px;height:34px;border:2px solid var(--line);border-rad
         <button class="export" type="button" data-h="1080">Square 1080×1080</button>
       </div>
     </fieldset>
-    <p class="sub">Your choices save with this reel as you go, so it opens how you left it. Closed this tab? Ask Claude to "open my thumbnail studio".</p>
+    <p class="sub">Your choices save as you go. Closed this tab? Ask Claude to "open my thumbnail studio".</p>
   </main>
 </div>
 <video id="video" muted playsinline preload="auto" hidden></video>
@@ -152,7 +152,7 @@ function setSteps(here, links) {
   document.querySelectorAll(".steps .step").forEach((el) => {
     const k = el.dataset.step, u = links && links[k];
     if (k === here) { el.setAttribute("aria-current", "step"); el.classList.remove("off"); el.removeAttribute("title"); el.removeAttribute("href"); return; }
-    const ok = typeof u === "string" && /^https?:\/\/[\w.\-\[\]:]+(:\d+)?\//.test(u) && (k !== "cover" || local);
+    const ok = typeof u === "string" && (/^https?:\/\/[\w.\-\[\]:]+(:\d+)?\//.test(u) || /^\/[\w\-\/]*$/.test(u)) && (k !== "cover" || local);
     if (ok) { el.href = u; el.classList.remove("off"); el.removeAttribute("title"); }
     else if (k === "cover" && u && !local) el.title = "The cover page opens on your Mac, not on your phone";
   });

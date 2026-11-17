@@ -10,7 +10,9 @@ export HYPERFRAMES_NO_TELEMETRY=1 DO_NOT_TRACK=1
 node <skill>/review/editor-server.mjs <reel folder> --lan --port 4792
 ```
 
-The three pages (review, cover, touch-ups) share one step bar. To make its links work from this page, add `--review-url <review page link>` and `--cover-url <thumbnail studio link>` when you start it; without them those steps show greyed out. The cover link is only shown on this computer, because the thumbnail studio does not answer over Wi-Fi.
+The three pages (review, cover, touch-ups) share one step bar. Review and Touch-ups link to each other on their own. Add `--cover-url <thumbnail studio link>` for the Cover step (greyed out without it), and `--review-url <link>` only when the review page lives on claude.ai instead of this server. The cover link is only shown on this computer, because the thumbnail studio does not answer over Wi-Fi.
+
+`review/studio-server.mjs` is the same server under the name the other docs use: one link for the whole reel. Before the reel is built (no `edit.json` / `edl.json`) the link opens the review page (`/review`, same data files as `references/review-local.md`) and the touch-ups page says the reel is not built yet; once it is built the link opens touch-ups (`/touchups`), and the review page shows a note that rebuilding from it replaces touch-ups (`review_sync.py import` writes `edit.json` from scratch).
 
 It prints `http://127.0.0.1:4792/?k=<key>` (this computer) and `same Wi-Fi: http://<ip>:4792/?k=<key>` (a phone on the same Wi-Fi). The key changes every run; a link without it gets 403. Without `--lan` it only answers on this computer. Run it as a long-lived background process (an agent: `exec` with `background: true`, no `&`/`nohup`), check it answers, send the link, stop it when they are done. `REELS_HOME` defaults to the folder that holds the reel folder (it must contain `brand.json`).
 

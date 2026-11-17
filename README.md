@@ -95,7 +95,7 @@ Claude may ask permission to install things. Check each request is about this se
 2. Get the video onto your Mac (AirDrop, or film into a synced folder like iCloud Drive).
 3. In Claude Code, type **edit this into a reel** and drag the video into the message box.
 4. **First time only:** Claude asks about your brand, one question at a time: colours, fonts, caption style, sounds, pacing, zooms and your usual call to action. A reel you wish you'd made is the most useful thing to share. About 5 minutes.
-5. **Review the cut.** Claude sends you a review page. Tap words to cut them, bring back any "um" it removed, check the captions and graphics, then tell Claude **build preview**. No review page? Claude does the same review with you in chat.
+5. **Review the cut.** Claude sends you one link. It opens on step 1, Review: tap words to cut them, bring back any "um" it removed, check the captions and graphics, then tell Claude **build preview**. The same link later opens step 3, Touch-ups, for small fixes to the finished reel. No link? Claude does the same review with you in chat.
 6. Watch the preview. Tell Claude what to change, with the time it happens ("at 0:12 the caption covers my face").
 7. Say **final**. Claude renders the full-quality reel, picks a few smiling stills for the cover, makes the cover with a short title, and puts three files back in your footage folder:
    - `Your reel.mp4`: full quality, the one to post

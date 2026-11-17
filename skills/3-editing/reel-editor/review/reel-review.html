@@ -126,6 +126,9 @@ code{font:500 13px var(--f-mono);background:var(--accent-soft);border-radius:6px
 .steps .step{display:inline-flex;align-items:center;min-height:36px;padding:0 12px;border-radius:999px;border:1.5px solid #e1dccf;background:#fff;color:#0d2b2d;text-decoration:none}
 .steps .step[aria-current="step"]{background:#0d2b2d;border-color:#0d2b2d;color:#f5f2ec}
 .steps .step.off{opacity:.55}
+.builtnote{max-width:1200px;margin:12px auto 0;padding:10px 16px;border-radius:12px;background:#fbe7d6;color:#6b3410;font-size:14px}
+.builtnote a{color:inherit;font-weight:700}
+@media (min-width:1232px){.builtnote{padding-inline:14px}}
 </style>
 
 <nav class="steps" aria-label="Reel Studio steps">
@@ -134,6 +137,7 @@ code{font:500 13px var(--f-mono);background:var(--accent-soft);border-radius:6px
   <a class="step off" data-step="cover" title="Ask Claude to open my thumbnail studio">2 Cover</a>
   <a class="step off" data-step="touchups" title="Ask Claude to open the editor page">3 Touch-ups</a>
 </nav>
+<p class="builtnote" id="builtnote" hidden>This reel is already built. To change it, use <a href="/touchups">3 Touch-ups</a>. If you redo the cut here and build again, your touch-ups are replaced.</p>
 <div class="wrap">
   <aside class="side">
     <h1>Review the cut</h1>
@@ -149,7 +153,7 @@ code{font:500 13px var(--f-mono);background:var(--accent-soft);border-radius:6px
       <button class="b quiet" id="fwd5" type="button" aria-label="Forward 5 seconds">+5s</button>
     </div>
     <div class="scrub"><input type="range" id="scrub" min="0" max="60" step="0.1" value="0" aria-label="Position in the rough cut"><span class="tc" id="pos">0:00.0</span></div>
-    <p class="mode" id="mode">The rough cut plays the raw clip with your current decisions applied, live, on the <b>cut</b> timeline. Jumps aren't smoothed, and graphics show as approximate boxes.</p>
+    <p class="mode" id="mode">This plays your clip with the cuts you've chosen so far. Cuts look jumpy here and graphics show as plain boxes. The finished video is smoother.</p>
     <div class="savebar">
       <span class="pill" id="save" aria-live="polite">Not loaded</span>
       <button class="b quiet" id="retry" type="button" hidden>Retry save</button>
@@ -167,38 +171,38 @@ code{font:500 13px var(--f-mono);background:var(--accent-soft);border-radius:6px
     </div>
 
     <section data-p="cuts">
-      <p class="lede">Struck words are cut. Tap a word to cut or keep it; drag across a phrase for the lot. Tap a <b>src</b> time to hear that line from the raw clip.</p>
-      <p class="lede">Removed automatically, and yours to undo: fillers like "um" (dotted, grey) and pauses over 0.25 s between kept words (⏸ chips, shortened to about 0.1 s). Tap either to keep it. A pause after a question, or a long beat after a sentence, stays by default. Repeated phrases are never removed unless you cut them.</p>
+      <p class="lede">Crossed-out words are cut. Tap a word to cut it or bring it back. Drag across a phrase to do several at once. Tap a <b>src</b> time to hear that line in your original clip.</p>
+      <p class="lede">Two things are cut for you: fillers like "um" (grey, dotted) and pauses longer than 0.25 s (the ⏸ chips). Tap either one to keep it. A pause after a question stays. A repeated phrase stays unless you cut it.</p>
       <div class="tally" id="ctally"></div>
       <div id="tx"><div class="empty">The transcript appears here once the reel loads.</div></div>
     </section>
 
     <section data-p="graphics" hidden>
-      <p class="lede">Every graphic I plan to add, on the <b>cut</b> timeline. The thumbnail is an approximate layout on a frame from that moment, not the final animation. Keep it, ask for a change (your note stays with that graphic), or drop it.</p>
+      <p class="lede">These are the graphics planned for this reel. Each picture shows roughly where the graphic will sit. It's a sketch, so the finished one moves and looks better. Keep it, drop it, or ask for a change and say what you want.</p>
       <div class="tally" id="gtally"></div>
       <div class="cards" id="cards"><div class="empty">Graphics appear here once the reel loads.</div></div>
     </section>
 
     <section data-p="captions" hidden>
-      <p class="lede">Captions follow your cuts: a caption whose words you cut disappears, and times move with the edit. Tap a word to make it an accent. <b>edit</b> fixes wording, ±0.1 nudges the start, <b>merge</b> joins it with the next. The player shows a static style preview in your fonts; the final captions also animate in.</p>
+      <p class="lede">Captions follow your cuts. Tap a word to highlight it. <b>edit</b> fixes the wording, ±0.1 moves the start, and <b>merge</b> joins a line to the next one. The player shows your caption style without the animation.</p>
       <div class="tally" id="captally"></div>
       <div class="caps" id="caps"><div class="empty">Captions appear here once the reel loads.</div></div>
     </section>
 
     <section data-p="sound" hidden>
       <h2>Voice clean-up</h2>
-      <p class="lede">The same 10 seconds, before and after: light noise removal, de-essing, EQ and compression, levelled to Instagram's loudness.</p>
+      <p class="lede">The same 10 seconds, before and after the clean-up. Background noise comes down and the volume is set for Instagram.</p>
       <div class="pair" id="audio"></div>
       <h2>Colour</h2>
-      <p class="lede">One representative frame, before and after the grade: slightly warm, gently lifted shadows, softened bright windows, restrained saturation.</p>
+      <p class="lede">One frame, before and after the colour change: a little warmer, brighter shadows, softer windows.</p>
       <div class="pair" id="colour"></div>
       <h2>Sound effects</h2>
-      <p class="lede">Each sound sits on a graphic's entrance, at the cut time shown. Play to hear it; switch off any you don't want. These are the local preview sounds. On the CapCut route, CapCut's library versions replace them.</p>
+      <p class="lede">Each sound plays when its graphic appears. Tap Play to hear it and switch off any you don't want. If you finish the reel in CapCut, CapCut's own sounds replace these.</p>
       <div id="cues"></div>
     </section>
 
     <section data-p="preview" hidden>
-      <p class="lede">Build preview renders a draft from your current decisions (about 3 minutes). Watch it, then add notes at exact moments before the final export.</p>
+      <p class="lede">Build preview makes a draft from your choices. It takes about 3 minutes. Watch it, pause where something is off, and add a note.</p>
       <div class="state" id="bstate">No preview built yet.</div>
       <div class="ctl"><button class="b primary" id="build" type="button">Build preview</button></div>
       <h2>Notes on the draft</h2>
@@ -207,17 +211,17 @@ code{font:500 13px var(--f-mono);background:var(--accent-soft);border-radius:6px
     </section>
 
     <section data-p="cover" hidden>
-      <p class="lede">Make this reel's cover: pick the frame, add a headline in your brand fonts, and download PNGs for the reel, the 3:4 profile grid and a square. The thumbnail studio runs on your computer, so your full-quality footage never leaves it.</p>
+      <p class="lede">Pick a frame, add a headline in your brand fonts, and download the cover in 3 sizes: full reel, 3:4 for your profile grid, and square. This runs on your computer, so your footage stays there.</p>
       <div id="coverbox"></div>
     </section>
 
     <div class="notes" id="notesbox">
       <label for="notes">Anything else about this reel's <span id="notetab">cuts</span>?</label>
-      <textarea id="notes" placeholder="Applies to this reel only."></textarea>
+      <textarea id="notes" placeholder="Only for this reel."></textarea>
       <div class="ctl"><span id="resetbox"><button class="b quiet" id="reset" type="button">Reset this section</button></span></div>
       <details>
         <summary>Change my brand defaults (every future reel)</summary>
-        <p class="lede">Only fill this in for a permanent change, like "captions always one size smaller". Notes above stay with this reel.</p>
+        <p class="lede">Use this only for a change you want on every reel from now on, like "captions one size smaller". The notes above stay with this reel.</p>
         <textarea id="brand" placeholder="Leave empty unless you want every future reel to change."></textarea>
       </details>
     </div>
@@ -233,7 +237,7 @@ function setSteps(here, links) {
   document.querySelectorAll(".steps .step").forEach((el) => {
     const k = el.dataset.step, u = links && links[k];
     if (k === here) { el.setAttribute("aria-current", "step"); el.classList.remove("off"); el.removeAttribute("title"); el.removeAttribute("href"); return; }
-    const ok = typeof u === "string" && /^https?:\/\/[\w.\-\[\]:]+(:\d+)?\//.test(u) && (k !== "cover" || local);
+    const ok = typeof u === "string" && (/^https?:\/\/[\w.\-\[\]:]+(:\d+)?\//.test(u) || /^\/[\w\-\/]*$/.test(u)) && (k !== "cover" || local);
     if (ok) { el.href = u; el.classList.remove("off"); el.removeAttribute("title"); }
     else if (k === "cover" && u && !local) el.title = "The cover page opens on your Mac, not on your phone";
   });
@@ -645,7 +649,8 @@ function renderAll() {
     db.doc("builds/latest").onSnapshot(s => { B = s.exists ? s.data() : null; if (R) renderPreview(); if (tab === "preview") showTab("preview"); }, () => {});
     recompute();
     $("#reelname").textContent = `${R.title} · raw ${fmt(R.srcDur)} → reel ${fmt(P.cutDur)}`; setPos(0);
-    setSteps("review", { cover: R.thumbnailUrl, touchups: R.editorUrl });
+    setSteps("review", { cover: R.thumbnailUrl, touchups: R.editorUrl, ...(window.REEL_STUDIO_LINKS || {}) });
+    if (window.REEL_STUDIO_LINKS) fetch("/api/stage").then(r => r.json()).then(st => { $("#builtnote").hidden = !st.built; }).catch(() => {});
     $("#brand").value = S.brandRequest || "";
     renderAll(); showTab(["cuts", "graphics", "captions", "sound", "preview", "cover"].includes(location.hash.slice(1)) ? location.hash.slice(1) : "cuts");
     pill(rv.exists ? "Saved decisions loaded" : "Ready");

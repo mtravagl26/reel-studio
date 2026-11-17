@@ -12,6 +12,7 @@ import path from "node:path";
 import os from "node:os";
 import crypto from "node:crypto";
 import { fileURLToPath } from "node:url";
+import { SHIM, DOCS, WRITABLE } from "./review-shim.mjs";
 
 const args = process.argv.slice(2);
 const REEL = path.resolve(args.find(a => !a.startsWith("--") && !/^\d+$/.test(a)) || ".");
@@ -21,27 +22,10 @@ const KEY = LAN ? crypto.randomBytes(9).toString("base64url") : null;
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const REVIEW = HERE;   // reel-review.html and core.js sit beside this file
 const DB = path.join(REEL, "review_db");
-const DOCS = new Set(["reel/current", "review/current", "builds/latest"]);
-const WRITABLE = new Set(["review/current"]);   // the page only records decisions; Claude writes reel + builds as files
 const TYPES = { ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".json": "application/json; charset=utf-8", ".mp4": "video/mp4",
   ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png", ".otf": "font/otf", ".ttf": "font/ttf", ".woff2": "font/woff2" };
 if (!fs.existsSync(REEL)) { console.error(`no reel folder: ${REEL}`); process.exit(1); }
 
-const SHIM = `(() => {
-  const err = code => Object.assign(new Error(code), { code });
-  const get = async p => { const r = await fetch("/db/" + p, { cache: "no-store" });
-    if (r.status === 204) return { exists: false, data: () => undefined, raw: "" };
-    if (!r.ok) throw err("http-" + r.status); const raw = await r.text(); return { exists: true, data: () => JSON.parse(raw), raw }; };
-  const doc = p => ({
-    get: () => get(p),
-    set: async body => { const r = await fetch("/db/" + p, { method: "PUT", body: JSON.stringify(body) }); if (!r.ok) throw err("http-" + r.status); },
-    onSnapshot(cb, onErr) { let last = null, stop = false;
-      const tick = async () => { try { const s = await get(p); if (s.raw !== last) { last = s.raw; cb(s); } } catch (e) { onErr && onErr(e); }
-        if (!stop) setTimeout(tick, 2000); };
-      tick(); return () => { stop = true; }; },
-  });
-  window.claude = { use: async cap => cap === "db" ? { doc } : null };
-})();`;
 
 function sendFile(req, res, file) {
   let st; try { st = fs.statSync(file); if (!st.isFile()) throw 0; } catch { res.writeHead(404).end(); return; }
