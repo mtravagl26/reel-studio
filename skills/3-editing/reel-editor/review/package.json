@@ -1,0 +1,5 @@
+{
+  "type": "commonjs",
+  "private": true,
+  "description": "Added by By Mel Ross. core.js is a CommonJS/browser script; this keeps `require()` working when the repo root is an ES module package."
+}

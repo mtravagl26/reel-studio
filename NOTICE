@@ -126,3 +126,8 @@ Added by By Mel Ross in 0.5.0 (November 2026), in skills/3-editing/reel-editor u
 - Audio crossfade: edl.json "xfade" in scripts/cut.py joins the audio of kept pieces with a short crossfade (the picture cuts at the same
   instant); SKILL.md gains a "Cuts" section with the cut-point rules.
 - package.json and .claude-plugin/plugin.json version 0.5.0.
+- 0.5.2 (unreleased): the review page, the thumbnail studio and the editor page share one
+  palette (cream, deep teal, sage) and one step bar (1 Review, 2 Cover, 3 Touch-ups); the
+  review page no longer loads fonts from Google Fonts; review/package.json keeps
+  review/core.js loadable with require() inside this ES-module repo (review_sync.py crashed
+  without it); editor-server.mjs takes --review-url and --cover-url.
