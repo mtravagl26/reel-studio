@@ -56,6 +56,21 @@ Any card in `edit.json` can say where it sits:
 
 Works for title, tag, card, shot, image, sticker and cta cards; full-frame ones (block, page, motion, follow) stay in front, and the build says so. Behind-the-speaker cards zoom with the camera so they stay anchored to the scene.
 
+## Photos that circle the head (orbit)
+
+Added by By Mel Ross (0.7.0).
+
+```json
+{"type": "orbit", "start": 6.0, "end": 12.0, "src": ["shots/a.jpg", "shots/b.jpg", "shots/c.jpg"]}
+```
+
+1 to 6 photos, graphics or GIFs travel round an oval ring. On the far side of the ring they pass behind the speaker's head; on the near side they pass in front and grow a little. Each photo is drawn twice, under and over the speaker's cutout, and the two copies swap at the far left and right of the ring, where the photo is beside the head.
+
+- **Where the ring goes** comes from the cutout (`cutout.head_box`): `"level": "crown"` (default) rings the top of the head and keeps the near side above the eyes; `"level": "chest"` rings below the chin. The build prints the ring it chose (`orbit card 0: ring centre (540, 426), 250 x 50 px`). Override with `"center": [x, y]`, `"rx"`, `"ry"`. The head is a guess from the silhouette, not face detection: look at a frame before delivering.
+- `"size"` (photo width in px; default 40% of the head's width, between 120 and 200), `"period"` (seconds per lap, default 4), `"dir": -1` (other way round), `"depth"` (how much bigger the near side is, default 0.16), `"frame": false` (no white border).
+- It needs the cutout, so macOS (or a matte of your own). Without one, or where the cutout fails its edge check, the photos show on the near side of the ring only and fade at the sides, and the build says so. Tell them.
+- Keep it short (4 to 8 s) and use it once in a reel. Captions carry on underneath; with `"level": "chest"` check the ring does not sit on them.
+
 **Edge check, shot by shot.** Before a card is layered, `cutout.py check` looks at the matte for that stretch: the speaker must fill a plausible share of the frame, the matte must not jump or flicker, and its edges must be clean rather than mushy. If a shot fails, that card is drawn as a plain overlay in front, and the build prints which shot and why (`note: card 1 at 13.0s (tag): not layered behind the speaker (...)`). Tell them when that happens.
 
 Render time: the speaker layer is a transparent WebM (`cutout/person.webm`, VP9 with alpha) that HyperFrames draws above the behind graphics; a 20 s reel renders in about a minute.

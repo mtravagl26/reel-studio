@@ -39,6 +39,12 @@ edit.json (written by auto_edit.py, then Claude marks accents and adds cards):
      stat   {label: "Employees", value: "12,000", delta: "+12%", spark: [3,4,6,5,9], y: 1080}   (Style Menu L8) a white dashboard card that pops over the lower half.
      tiles  {label: "Acme products", tiles: [{label: "Billing", icon: "dollar"}, ...], y: 1050}   (Style Menu L4) a torn paper label above a grid of soft icon tiles.
                                                      icon = built-in name (dollar target map chart people check star chat doc mic heart spark mail), a picture path, or a short glyph.
+     orbit  {src: ["a.jpg","b.jpg","c.jpg"], size: 170, level: "crown" | "chest", period: 4}   (Added by By Mel Ross, 0.7.0) 1-6 photos, graphics or GIFs that
+                                                     circle the speaker's head: behind it on the far side of the ring, in front on the near side. Needs the speaker
+                                                     cutout (macOS); without it, or where the cutout fails its check, the photos show on the near side only and the
+                                                     build says so. The ring is placed from the cutout: "crown" (default) rings the top of the head and stays above the
+                                                     eyes, "chest" rings below the chin. Override with center: [x, y], rx, ry. period = seconds per lap, dir: -1 reverses,
+                                                     frame: false drops the white border. See references/look-and-layers.md.
   Any card: "glass": true gives the frosted liquid-glass look (card, tag).
   Any card or sfx_event: "off": true leaves it out of the render (the editor page's on/off switch).
   Text cards (title, tag, card, cta) with no "layer" take brand.json "text_default": {"layer": "front" | "behind" | "both", "position": "above"}
@@ -293,6 +299,7 @@ def phrase_end(t):
 POPUP_POS = {"top-left": ("top", "left"), "top-center": ("top", "center"), "top-right": ("top", "right"), "middle-left": ("middle", "left"),
              "middle-right": ("middle", "right"), "center": ("center", "center")}
 quiet = []                                      # spans where a card carries its own words, so captions step aside
+ORBITS = []                                     # orbit cards (i, card, start, end), drawn once the speaker's cutout is known
 for i, c in enumerate(edit.get("cards", [])):
     _marks.append((len(back), len(mid), len(front), len(js)))
     CARD_MUTE = c.get("sfx") is False
@@ -397,6 +404,9 @@ for i, c in enumerate(edit.get("cards", [])):
             js.append(f'tl.to("#{cid}",{{scale:0.86,rotation:{rot + 4},duration:0.2,ease:"power2.in"}},{q(max(b - 0.2, a + 0.6))});')
         if cap_html: js.append(f'tl.fromTo("#{cid} .tp",{{opacity:0,y:14}},{{opacity:1,y:0,duration:0.3,ease:"power2.out"}},{q(a + 0.35)});')
         sfx("pop", a, -13)
+    elif kind == "orbit":
+        ORBITS.append((i, c, a, b))                                   # built with the layers below: the ring is placed from the speaker's cutout
+        sfx("whoosh", a, -15)
     elif kind == "polaroids":
         # Style Menu L2: 1-4 tilted white photo cards fan in with a handwritten label on a torn strip. Sized for face-filling footage:
         # a small stack in a top corner (side left/right) so it stays off the eyes; "size" and "y" move it.
@@ -557,7 +567,7 @@ CARD_MUTE = False
 CARD_SFX = None
 # ---- layers: cards that sit behind the speaker (Added by By Mel Ross) ------------------------------------------------
 LAYERED = False
-if any(c.get("layer") in ("behind", "both") for c in edit.get("cards", [])):
+if ORBITS or any(c.get("layer") in ("behind", "both") for c in edit.get("cards", [])):
     sys.path.insert(0, str(Path(__file__).resolve().parent))
     import cutout
     _src = reel / "master_sharp.mp4" if (reel / "master_sharp.mp4").exists() else reel / "master.mp4"
@@ -594,6 +604,66 @@ if any(c.get("layer") in ("behind", "both") for c in edit.get("cards", [])):
         if lay == "both":
             js.extend(re.sub(rf'#k{i}(?!\d)', f'#k{i}f', line) for line in js[_j0:_j1])
         LAYERED = True
+    import math
+    for i, c, a_, b_ in ORBITS:
+        # Added by By Mel Ross: photos on a ring around the head. Each photo is drawn twice, once under the speaker's cutout and once
+        # above it, on the same path; only one copy shows at a time, and they swap at the far left and right of the ring, where the
+        # photo is beside the head. The path is plain tweens with a cosine/sine ease, so it renders the same frame by frame.
+        ok, why = cutout.check(reel, a_, b_) if _m else (False, "no cutout available")
+        head = cutout.head_box(reel, a_, b_, W, H) if ok else None
+        if ok and not head: ok, why = False, "the head was not found in the cutout"
+        srcs = c.get("src") if isinstance(c.get("src"), list) else [c.get("src")]
+        assets = [x for x in (popup_asset(s_, max(b_ - a_, 0.5)) for s_ in srcs[:6] if s_) if x]
+        if not assets: print(f"warning: orbit card {i} has no pictures this machine can read: skipped"); continue
+        hd = head or {"cx": W // 2, "top": 330, "w": 420, "h": 546}
+        size = int(c.get("size") or min(max(hd["w"] * 0.4, 120), 200)); depth = float(c.get("depth", 0.16))
+        level = c.get("level", "crown")
+        ry0 = int(c.get("ry", 50 if level == "crown" else 70))
+        tall = max(size * ih_ / max(iw_, 1) for _, _, iw_, ih_ in assets)
+        cx, cy = hd["cx"], hd["top"] + int(hd["h"] * (1.28 if level == "chest" else 0.12))
+        if level != "chest":                                           # keep the near side of the ring above the eyes (about 42% down the head)
+            cy = min(cy, int(hd["top"] + hd["h"] * 0.42 - ry0 - tall * (1 + depth) / 2))
+        if c.get("center"): cx, cy = c["center"]
+        rx = int(c.get("rx") or min(hd["w"] * (0.78 if level == "chest" else 0.5) + size * 0.5 + 40, max(min(cx, W - cx) - size * 0.6, size)))
+        ry = ry0
+        period = max(float(c.get("period", 4)), 0.5); turn = (1 if c.get("dir", 1) >= 0 else -1) * 2 * math.pi * (b_ - a_) / period
+        cid = f"k{i}"
+        under, over = [], []
+        for k, (mkind, ppath, iw, ih) in enumerate(assets):
+            pw = size; ph = max(int(round(pw * ih / max(iw, 1))), 1)
+            framed = c.get("frame", True)
+            th0 = -math.pi / 2 + 2 * math.pi * k / len(assets)             # the first photo starts at the back of the ring, behind the head
+            near = lambda p_: math.sin(th0 + turn * p_) > 0                # near side of the ring = lower half of the oval = in front
+            n0, n1 = math.ceil((min(th0, th0 + turn)) / math.pi - 1e-9), math.floor((max(th0, th0 + turn)) / math.pi + 1e-9)
+            swaps = sorted(p_ for p_ in ((n * math.pi - th0) / turn for n in range(n0, n1 + 1)) if 1e-6 < p_ < 1 - 1e-6)
+            start_near = near(1e-4)
+            for copy, lst in (("b", under), ("f", over)):
+                if copy == "b" and not ok: continue
+                shown = start_near if copy == "f" else not start_near
+                media = (f'<video id="{cid}{copy}{k}v" src="{ppath}" muted playsinline data-start="{q(a_)}" data-duration="{q(b_ - a_)}" data-track-index="{200 + i * 16 + k * 2 + (copy == "f")}"></video>'
+                         if mkind == "video" else f'<img src="{ppath}" />')
+                lst.append(f'<div id="{cid}{copy}{k}" class="pop{" framed" if framed else ""}" style="left:{int(cx - pw / 2)}px;top:{int(cy - ph / 2)}px;width:{pw}px;height:{ph}px;'
+                           f'{"" if shown else ("visibility:hidden" if ok else "opacity:0")}">{media}</div>')
+            sel = f"#{cid}f{k}" + (f",#{cid}b{k}" if ok else "")
+            dur_ = q(b_ - a_)
+            js.append(f'tl.fromTo("{sel}",{{x:0}},{{x:{rx},duration:{dur_},ease:function(p){{return Math.cos({th0:.5f}+{turn:.5f}*p)}}}},{q(a_)});')
+            js.append(f'tl.fromTo("{sel}",{{y:0}},{{y:{ry},duration:{dur_},ease:function(p){{return Math.sin({th0:.5f}+{turn:.5f}*p)}}}},{q(a_)});')
+            js.append(f'tl.fromTo("{sel}",{{scale:1}},{{scale:{1 + depth},duration:{dur_},ease:function(p){{return Math.sin({th0:.5f}+{turn:.5f}*p)}}}},{q(a_)});')
+            for p_ in swaps:
+                t_, to_near = a_ + p_ * (b_ - a_), near(p_ + 1e-4)
+                if ok:
+                    js.append(f'tl.set("#{cid}f{k}",{{visibility:"{"inherit" if to_near else "hidden"}"}},{q(t_)});tl.set("#{cid}b{k}",{{visibility:"{"hidden" if to_near else "inherit"}"}},{q(t_)});')
+                else:                                                       # no cutout: the far side of the ring is not drawn, so fade at the sides
+                    js.append(f'tl.to("#{cid}f{k}",{{opacity:{1 if to_near else 0},duration:0.16}},{q(max(t_ - 0.08, a_))});')
+        if ok:
+            behind.append(f'<div id="{cid}b" class="orb">{"".join(under)}</div>'); show(f"#{cid}b", a_, b_, 0.25)
+            LAYERED = True
+        else:
+            print(f"note: card {i} at {a_:.1f}s (orbit): not layered around the speaker ({why}); the photos show on the near side of the ring only")
+        back.append(f'<div id="{cid}" class="orb">{"".join(over)}</div>'); show(f"#{cid}", a_, b_, 0.25)
+        ring = f'#{cid}' + (f',#{cid}b' if ok else '')
+        js.append(f'tl.fromTo("{ring}",{{scale:0.7}},{{scale:1,duration:0.45,ease:"back.out(1.6)"}},{q(a_)});')
+        print(f"orbit card {i}: ring centre ({int(cx)}, {int(cy)}), {rx} x {ry} px, {len(assets)} photo(s)" + ("" if head else " (default position: no cutout to place it from)"))
     if LAYERED:
         _p = cutout.build_person(reel, reel / "master.mp4", _m)
         (proj / "cutout").mkdir(exist_ok=True); shutil.copy(_p, proj / "cutout" / "person.webm")
@@ -665,6 +735,7 @@ html, body {{ margin: 0; background: #000; overflow: hidden; }}
 .stk {{ position: absolute; }}
 .stk img {{ width: 100%; display: block; filter: drop-shadow(0 14px 22px rgba(0,0,0,.25)); }}
 .pop {{ position: absolute; }}
+.orb {{ position: absolute; inset: 0; transform-origin: 50% 30%; }}
 .pop img, .pop video {{ width: 100%; height: 100%; object-fit: contain; display: block; filter: drop-shadow(0 12px 20px rgba(0,0,0,.28)); }}
 .pop.framed {{ box-sizing: border-box; border: 12px solid #fff; border-radius: 18px; background: #fff; box-shadow: 0 26px 60px rgba(0,0,0,.28); }}
 .pop.framed img, .pop.framed video {{ object-fit: cover; filter: none; border-radius: 6px; }}
