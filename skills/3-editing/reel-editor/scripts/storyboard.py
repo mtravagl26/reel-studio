@@ -5,7 +5,8 @@ Usage:
   python3 storyboard.py <reel-folder> --out <new-folder> --option "A=H3,C2,L8" --option "B=C3,L4" [--option "C=..."]
          [--at 1.5,31,50] [--content content.json] [--photos a.jpg,b.jpg,c.jpg] [--title "text"]
 
-Each option is a set of Style Menu IDs (assets/style-menu.json). For every option the script builds a throw-away copy of the reel
+Each option is a set of Style Menu IDs (assets/style-menu.json), a theme (--option "A=theme:editorial" --option "B=theme:bold",
+see references/themes.md), or both ("A=theme:bold,L8"). For every option the script builds a throw-away copy of the reel
 (the reel's own master.mp4, captions and brand, plus that option's captions look and cards), takes a still at each chosen moment
 with `hyperframes snapshot`, and tiles them into ONE image, storyboard.jpg: a row per option, labelled "Option A" with the IDs used.
 
@@ -42,11 +43,13 @@ if out.exists() and any(out.iterdir()):
 if not 1 <= len(a.option) <= 4:
     sys.exit('give 2-3 options, e.g. --option "A=H3,C2,L8" --option "B=C3,L4"')
 
-options = []
+options, THEMES = [], {}
 for spec in a.option:
     m = re.match(r"^\s*([A-Za-z0-9]+)\s*=\s*(.+)$", spec)
     if not m: sys.exit(f"bad option {spec!r}: use NAME=ID,ID,...")
     ids = [x.strip().upper() for x in m.group(2).split(",") if x.strip()]
+    for x in [i for i in ids if i.startswith("THEME:")]:               # Added by By Mel Ross (themes): "A=theme:bold" or "A=theme:bold,L8"
+        THEMES[m.group(1).upper()] = x.split(":", 1)[1].lower(); ids.remove(x)
     for i in ids:
         if i not in MENU: sys.exit(f"unknown Style Menu ID {i!r} in option {m.group(1)}")
     options.append((m.group(1).upper(), ids))
@@ -103,7 +106,11 @@ out.mkdir(parents=True)
 notes, rows = [], []
 for name, ids in options:
     work = out / "work" / name; (work / "home").mkdir(parents=True)
-    brand = copy.deepcopy(brand0); caps = copy.deepcopy(caps0); cards = []; used, skipped = [], []
+    brand = copy.deepcopy(brand0); caps = copy.deepcopy(caps0)
+    if name in THEMES:
+        sys.path.insert(0, str(SKILL / "scripts")); import theme as _theme
+        brand = _theme.load_brand(HOME, name=THEMES[name]); brand.pop("theme", None)
+        if not brand.get("_theme"): notes.append(f"Option {name}: theme {THEMES[name]!r} not found, shown with your brand as it is"); cards = []; used, skipped = [], []
     slot_hook = 0; slot_lay = 1 if len(moments) > 1 else 0; accent = False; word_mode = False
     styled = [i for i in ids if MENU[i].get("recipe") and (MENU[i]["recipe"].get("brand"))]
     if len(styled) > 1: notes.append(f"Option {name}: {', '.join(styled)} all set the caption look; the last one wins")
@@ -164,7 +171,7 @@ CW = 300; CH = 533; GAP = 10; LAB = 62
 cols = len(moments)
 cells = []
 for r_i, row in enumerate(rows):
-    ids_txt = " + ".join(row["used"]) if row["used"] else "plain"
+    ids_txt = " + ".join(([f'{THEMES[row["name"]].capitalize()} theme'] if row["name"] in THEMES else []) + row["used"]) or "plain"
     names = ", ".join(MENU[i]["name"] for i in row["used"]) + (f' | skipped: {", ".join(row["skipped"])}' if row["skipped"] else "")
     lab = f'Option {row["name"]}: {ids_txt}<small>{html.escape(names)}</small>'
     cells.append(f'<div class="lab" style="grid-column:1/{cols + 1}">{lab}</div>')

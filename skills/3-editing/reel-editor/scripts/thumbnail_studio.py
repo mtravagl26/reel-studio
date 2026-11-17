@@ -62,8 +62,10 @@ def make_handler(home, port):
     hosts = {f"127.0.0.1:{port}", f"localhost:{port}"}
 
     def brand():
-        try: return json.loads((home / "brand.json").read_text())
-        except (OSError, ValueError): return {}
+        try:                                                      # Added by By Mel Ross (themes): the cover uses the theme's fonts too
+            sys.path.insert(0, str(Path(__file__).resolve().parent)); import theme as _theme
+            return _theme.load_brand(home, quiet=True)
+        except (OSError, ValueError, ImportError): return {}
 
     def font_file(role):
         f = (brand().get("fonts") or {}).get(role) or {}
