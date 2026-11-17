@@ -135,3 +135,5 @@ Added by By Mel Ross in 0.5.0 (November 2026), in skills/3-editing/reel-editor u
   name) serves the review page before the reel is built and the touch-ups page after it;
   review/review-shim.mjs holds the storage stand-in both servers use; the pages say which
   step is live; the on-page help text is rewritten in plainer words.
+- 0.7.0: the orbit card (photos that circle the speaker's head, behind and in front) in
+  build_reel.py, and cutout.head_box, which finds the head in the cutout to place the ring.

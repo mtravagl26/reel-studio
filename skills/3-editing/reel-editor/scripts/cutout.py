@@ -152,6 +152,30 @@ def check(reel, a, b, fps=30):
     return True, "ok"
 
 
+def head_box(reel, a, b, w=1080, h=1920):
+    """Added by By Mel Ross (orbit card). Where the speaker's head is during a..b seconds, from the matte: {"cx", "top", "w", "h"} in
+    frame pixels, or None. The head is taken as the top of the silhouette: its width is the widest row in the first tenth of the frame
+    below the top of the matte, and its height is 1.3 times that. A guess from a silhouette, not face detection: check it on a still."""
+    matte = Path(reel) / "cutout" / "matte.mkv"
+    if not matte.exists(): return None
+    sw, sh = 108, 192
+    found = []
+    for k in range(5):
+        t = a + (b - a) * (k + 0.5) / 5
+        raw = subprocess.run(["ffmpeg", "-v", "error", "-ss", f"{t:.3f}", "-i", str(matte), "-frames:v", "1", "-vf", f"scale={sw}:{sh}:flags=area,format=gray",
+                              "-f", "rawvideo", "-"], capture_output=True).stdout
+        if len(raw) < sw * sh: continue
+        rows = [[x for x in range(sw) if raw[y * sw + x] >= 128] for y in range(sh)]
+        top = next((y for y, r in enumerate(rows) if len(r) >= 3), None)
+        if top is None: continue
+        band = [r for r in rows[top:top + sh // 10] if r]
+        wide = max(band, key=len)
+        found.append((top, (min(wide) + max(wide) + 1) / 2, max(wide) - min(wide) + 1))
+    if not found: return None
+    found.sort(); top, cx, hw = found[len(found) // 2]                       # the middle sample: one odd frame does not move the ring
+    return {"cx": round(cx * w / sw), "top": round(top * h / sh), "w": round(hw * w / sw), "h": round(hw * w / sw * 1.3)}
+
+
 # ---- outputs -------------------------------------------------------------------------------------------------------
 def build_person(reel, video, matte):
     out = Path(reel) / "cutout" / "person.webm"

@@ -129,3 +129,58 @@ print(cutout.frame_stats(m)[5]["cov"])`;
   assert.ok(withMic - plain < darkArea * 1.6, "and not much more than the object itself");
   assert.ok(wholeBox - plain > (withMic - plain) * 1.5, "a plain include box takes in far more (the whole box)");
 });
+
+// Added by By Mel Ross (0.7.0): the orbit card, photos that circle the head behind and in front of the speaker.
+function withPhotos(c, names = ["a", "b", "c"]) {
+  for (const n of names) ff(["-f", "lavfi", "-i", "color=c=red:s=80x100:d=1", "-frames:v", "1", path.join(c.reel, `${n}.png`)]);
+  return names.map((n) => `${n}.png`);
+}
+
+test("orbit: each photo is drawn under and over the speaker, and the two copies swap at the sides of the ring", { skip }, () => {
+  const c = makeReel([]);
+  const src = withPhotos(c);
+  fs.writeFileSync(path.join(c.reel, "edit.json"), JSON.stringify({ captions: [], punch: [], cards: [{ type: "orbit", start: 0.5, end: 3.5, src, period: 3 }], cutout: { matte: "matte.mkv" } }));
+  const r = build(c);
+  assert.equal(r.status, 0, r.stdout + r.stderr);
+  assert.match(r.stdout, /orbit card 0: ring centre \(\d+, \d+\), \d+ x \d+ px, 3 photo\(s\)/);
+  const h = html(c);
+  assert.match(h, /<video id="person"/, "the speaker cutout is in the page");
+  const under = behindOf(h);
+  for (const k of [0, 1, 2]) {
+    assert.ok(under.includes(`id="k0b${k}"`), `photo ${k} has a copy behind the speaker`);
+    assert.ok(h.includes(`id="k0f${k}"`) && !under.includes(`id="k0f${k}"`), `photo ${k} has a copy in front`);
+  }
+  assert.ok(h.indexOf('id="person"') < h.indexOf('id="k0f0"'), "the front copies sit above the cutout");
+  // one lap in 3 s: every photo crosses the sides of the ring twice, and each crossing flips both copies
+  for (const k of [0, 1, 2]) assert.equal((h.match(new RegExp(`tl\\.set\\("#k0f${k}",\\{visibility:`, "g")) || []).length, 2, `photo ${k}: 2 swaps`);
+  // the first photo starts at the back of the ring: hidden in front, showing behind
+  assert.match(h, /id="k0f0"[^>]*visibility:hidden/);
+  assert.doesNotMatch(under.match(/<div id="k0b0"[^>]*>/)[0], /visibility:hidden/);
+  // the oval matte's head is centred, so the ring is too
+  const cx = Number(/ring centre \((\d+),/.exec(r.stdout)[1]);
+  assert.ok(Math.abs(cx - 540) <= 20, `ring centred on the head (cx ${cx})`);
+});
+
+test("orbit without a cutout: photos show on the near side only, and the build says so", { skip }, () => {
+  const c = makeReel([], { matte: null });
+  const src = withPhotos(c, ["a"]);
+  fs.writeFileSync(path.join(c.reel, "edit.json"), JSON.stringify({ captions: [], punch: [], cards: [{ type: "orbit", start: 0.5, end: 3.5, src }] }));
+  const r = build({ ...c, env: { ...c.env, REEL_MATTE_TOOL: "/nonexistent" } });
+  assert.equal(r.status, 0, r.stdout + r.stderr);
+  const h = html(c);
+  if (/<video id="person"/.test(h)) return;   // this machine can make its own cutout (macOS): the layered path is covered above
+  assert.match(r.stdout, /orbit\): not layered around the speaker/);
+  assert.ok(h.includes('id="k0f0"') && !h.includes('id="k0b0"'), "only the front copy is drawn");
+  assert.match(h, /tl\.to\("#k0f0",\{opacity:/, "it fades at the sides instead of swapping layers");
+});
+
+test("head_box finds the head at the top of the cutout", { skip }, () => {
+  const c = makeReel([{ type: "title", start: 0.5, end: 3, text: "x", layer: "behind" }]);
+  assert.equal(build(c).status, 0);
+  const r = run("python3", ["-c", `import sys, json; sys.path.insert(0, ${JSON.stringify(scripts)}); import cutout; print(json.dumps(cutout.head_box(${JSON.stringify(c.reel)}, 0.5, 3)))`]);
+  assert.equal(r.status, 0, r.stderr);
+  const b = JSON.parse(r.stdout);
+  assert.ok(Math.abs(b.cx - 540) <= 20, `centred (cx ${b.cx})`);
+  assert.ok(Math.abs(b.top - 1920 * 0.22) <= 40, `top of the oval (top ${b.top})`);   // oval centre 0.55 H, radius 0.33 H
+  assert.ok(b.w > 100 && b.w < 700 && b.h > b.w, `a plausible head (w ${b.w}, h ${b.h})`);
+});
