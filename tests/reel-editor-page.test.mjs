@@ -281,3 +281,41 @@ test("server: uploads a picture into popups/, refuses other files, serves reel f
     assert.equal((await get("/api/job").then((r) => r.json())).job.state, "idle");
   });
 });
+
+// Added by By Mel Ross (0.6.0): one link for the review page and the touch-ups page.
+test("studio server: an unbuilt reel opens on the review page, saves decisions, and says touch-ups are not ready", { skip: skipReason }, async () => {
+  const dir = tmp("studio"), home = path.join(dir, "reels"), reel = path.join(home, "r1");
+  fs.mkdirSync(path.join(reel, "review_db", "reel"), { recursive: true });
+  fs.writeFileSync(path.join(home, "brand.json"), JSON.stringify({ colors: {} }));
+  fs.writeFileSync(path.join(reel, "review_db", "reel", "current.json"), JSON.stringify({ title: "t", words: [] }));
+  const port = 4900 + Math.floor(Math.random() * 500);
+  const p = spawn("node", [path.join(review, "studio-server.mjs"), reel, "--port", String(port)], { env: { ...process.env, REELS_HOME: home }, stdio: ["ignore", "pipe", "pipe"] });
+  let out = ""; p.stdout.on("data", (d) => (out += d)); p.stderr.on("data", (d) => (out += d));
+  for (let i = 0; i < 60 && !/Reel Studio for/.test(out); i++) await new Promise((r) => setTimeout(r, 100));
+  const base = `http://127.0.0.1:${port}`;
+  try {
+    const home0 = await fetch(base + "/", { redirect: "manual" });
+    assert.equal(home0.status, 302); assert.equal(home0.headers.get("location"), "/review");
+    const page = await (await fetch(base + "/review")).text();
+    assert.ok(page.includes("shim.js") && page.includes("REEL_STUDIO_LINKS") && page.includes('"/touchups"'), "review page gets the storage shim and the step links");
+    assert.deepEqual(await (await fetch(base + "/api/stage")).json(), { reel: "r1", built: false, review: true });
+    const st = await (await fetch(base + "/api/state")).json();
+    assert.equal(st.built, false); assert.equal(st.links.review, "/review");
+    assert.equal((await fetch(base + "/api/render", { method: "POST" })).status, 409, "nothing to render yet");
+    assert.equal((await fetch(base + "/db/review/current")).status, 204, "no decisions yet");
+    assert.equal((await fetch(base + "/db/review/current", { method: "PUT", body: JSON.stringify({ cut: [1, 2] }) })).status, 204);
+    assert.deepEqual(JSON.parse(fs.readFileSync(path.join(reel, "review_db", "review", "current.json"), "utf8")), { cut: [1, 2] });
+    assert.equal((await fetch(base + "/db/reel/current", { method: "PUT", body: "{}" })).status, 403, "the page cannot rewrite the reel data");
+    assert.equal((await fetch(base + "/files/review_db/reel/current.json")).status, 403, "review data is only served through /db");
+    assert.ok(!fs.existsSync(path.join(reel, "editor")), "an unbuilt reel gets no editor folder");
+    // the reel gets built while the server is running: the same link now opens touch-ups
+    fs.writeFileSync(path.join(reel, "edit.json"), JSON.stringify(mkEdit()));
+    fs.writeFileSync(path.join(reel, "edl.json"), JSON.stringify(EDL));
+    fs.writeFileSync(path.join(reel, "master_transcript.json"), JSON.stringify(TR));
+    const built = await fetch(base + "/", { redirect: "manual" });
+    assert.equal(built.status, 200); assert.match(await built.text(), /Touch-ups/);
+    const st2 = await (await fetch(base + "/api/state")).json();
+    assert.equal(st2.built, true); assert.equal(st2.pieces.length, 3);
+    assert.equal((await (await fetch(base + "/api/stage")).json()).built, true);
+  } finally { p.kill(); }
+});

@@ -73,6 +73,8 @@ summary::-webkit-details-marker { display: none; } summary small { font-weight: 
 .steps .step{display:inline-flex;align-items:center;min-height:36px;padding:0 12px;border-radius:999px;border:1.5px solid #e1dccf;background:#fff;color:#0d2b2d;text-decoration:none}
 .steps .step[aria-current="step"]{background:#0d2b2d;border-color:#0d2b2d;color:#f5f2ec}
 .steps .step.off{opacity:.55}
+body.unbuilt > :not(nav):not(header):not(#unbuilt), body.unbuilt header button { display: none !important; }
+.banner a { color: inherit; }
 .lede { margin: 8px 0 0; font-size: 14px; color: #5b6b69; }
 </style></head>
 <body>
@@ -88,6 +90,7 @@ summary::-webkit-details-marker { display: none; } summary small { font-weight: 
   <button id="render" class="pri">Re-render</button>
 </header>
 <p class="lede">For a reel that is already built. Fix a word, drop a piece, add text, pictures or sounds, then tap <b>Re-render</b>. To redo the cut from the start, go back to <b>1 Review</b>.</p>
+<div id="unbuilt" class="banner info" hidden>This reel is not built yet. Finish <a href="/review"><b>1 Review</b></a>, then tell Claude <b>build preview</b>. This page fills in when the video is ready.</div>
 <div id="status"></div>
 <div id="notes"></div>
 
@@ -97,16 +100,16 @@ summary::-webkit-details-marker { display: none; } summary small { font-weight: 
 <div id="stale"></div>
 
 <details open id="s-cap"><summary>Captions <small id="capn"></small></summary><div class="sec"><p class="help">Tap a word to fix it. The highlighted words are the sage ones in the video.</p><div id="caps"></div></div></details>
-<details open id="s-cut"><summary>Cuts <small id="cutn"></small></summary><div class="sec"><p class="help">Switch a piece off to drop it from the video. Captions, pills and sounds after it move up to match. Turn it back on to bring it back.</p><div id="pieces"></div></div></details>
-<details open id="s-txt"><summary>Pills &amp; text <small id="txtn"></small></summary><div class="sec"><div id="cards"></div><button id="addPill" class="sage" style="width:100%;margin-top:8px">+ Add a pill at the video time</button></div></details>
+<details open id="s-cut"><summary>Cuts <small id="cutn"></small></summary><div class="sec"><p class="help">Switch a piece off to drop it from the video. Captions, text and sounds after it move up to match. Turn it back on to bring it back.</p><div id="pieces"></div></div></details>
+<details open id="s-txt"><summary>Text on screen <small id="txtn"></small></summary><div class="sec"><div id="cards"></div><button id="addPill" class="sage" style="width:100%;margin-top:8px">+ Add text at this point in the video</button></div></details>
 <details open id="s-pop"><summary>Popups: GIFs, graphics, photos <small id="popn"></small></summary><div class="sec"><div id="popups"></div>
   <p class="help" style="margin-top:10px">Pictures stay on this Mac (copied into the reel folder). GIFs animate in the video.</p>
   <label class="sage" style="display:block"><input id="file" type="file" accept="image/gif,image/png,image/jpeg,image/webp,image/heic,image/heif,.heic,.heif,.gif,.png,.jpg,.jpeg,.webp" style="display:none" />
   <span style="display:flex;align-items:center;justify-content:center;min-height:44px;border-radius:12px;border:1.5px solid var(--sage-d);background:var(--sage);font-weight:600">+ Add a picture, graphic or GIF</span></label>
   <div id="reuse"></div></div></details>
-<details id="s-sfx"><summary>Sound effects <small id="sfxn"></small></summary><div class="sec"><div id="sfx"></div><button id="addSfx" class="sage" style="width:100%;margin-top:8px">+ Add a sound at the video time</button></div></details>
+<details id="s-sfx"><summary>Sound effects <small id="sfxn"></small></summary><div class="sec"><div id="sfx"></div><button id="addSfx" class="sage" style="width:100%;margin-top:8px">+ Add a sound at this point in the video</button></div></details>
 <details id="s-set"><summary>Settings</summary><div class="sec" id="settings"></div></details>
-<details id="s-ver"><summary>Renders <small id="vern"></small></summary><div class="sec" id="versions"></div></details>
+<details id="s-ver"><summary>Versions <small id="vern"></small></summary><div class="sec" id="versions"></div></details>
 <div id="toast"></div>
 
 <script type="module">
@@ -117,7 +120,7 @@ function setSteps(here, links) {
   document.querySelectorAll(".steps .step").forEach((el) => {
     const k = el.dataset.step, u = links && links[k];
     if (k === here) { el.setAttribute("aria-current", "step"); el.classList.remove("off"); el.removeAttribute("title"); el.removeAttribute("href"); return; }
-    const ok = typeof u === "string" && /^https?:\/\/[\w.\-\[\]:]+(:\d+)?\//.test(u) && (k !== "cover" || local);
+    const ok = typeof u === "string" && (/^https?:\/\/[\w.\-\[\]:]+(:\d+)?\//.test(u) || /^\/[\w\-\/]*$/.test(u)) && (k !== "cover" || local);
     if (ok) { el.href = u; el.classList.remove("off"); el.removeAttribute("title"); }
     else if (k === "cover" && u && !local) el.title = "The cover page opens on your Mac, not on your phone";
   });
@@ -137,8 +140,16 @@ async function post(url, body, raw) {
   return j;
 }
 async function op(o, key, msg) { try { const j = await post("/api/op", { op: o, key }); if (msg) toast(msg); return j; } catch (e) { toast(e.message, true); render(); } }
-async function load() { S = await (await fetch("/api/state")).json(); render(); }
-const running = () => S && (S.job.state === "running" || S.job.state === "queued");
+async function load() {
+  S = await (await fetch("/api/state")).json();
+  if (S.built === false) {   // the reel has not been built yet: nothing to touch up
+    document.body.classList.add("unbuilt"); $("#sub").textContent = S.reel; setSteps("touchups", S.links);
+    $("#unbuilt").hidden = false; setTimeout(load, 4000); return;
+  }
+  if (document.body.classList.contains("unbuilt")) { document.body.classList.remove("unbuilt"); $("#unbuilt").hidden = true; }
+  render();
+}
+const running = () => S && S.job && (S.job.state === "running" || S.job.state === "queued");
 const now = () => +v.currentTime.toFixed(1);
 const dur = () => S.total;
 
@@ -163,7 +174,7 @@ function renderStatus() {
       + (r.notes?.length ? `<ul>${r.notes.map((n) => `<li>${esc(n)}</li>`).join("")}</ul>` : "")
       + (r.recut && r.sync?.n ? `<div class="small">Caption timing vs a fresh transcript of this video: median off by ${r.sync.median.toFixed(2)} s, 90% within ${r.sync.p90.toFixed(2)} s, worst ${r.sync.max.toFixed(2)} s (${r.sync.n} words).</div>` : "") + `</div>`;
   } else if (S.dirty || S.cutsStale) {
-    h = `<div class="banner">Your changes are saved, but the video below is the old render. <b>Tap Re-render</b> to see them.</div>`;
+    h = `<div class="banner">Saved. The video below is still the old version. <b>Tap Re-render</b> to see your changes.</div>`;
   } else {
     h = `<div class="banner ok">The video below matches your edits.</div>`;
   }
@@ -176,7 +187,7 @@ function renderVideo() {
   if (src && v.getAttribute("data-src") !== src) { const t = v.currentTime || 0, was = !v.paused; v.setAttribute("data-src", src); v.src = src; v.onloadedmetadata = () => { try { v.currentTime = Math.min(t, v.duration || t); } catch {} if (was) v.play(); }; }
   if (!src && S.prepping) $("#stale").innerHTML = `<div class="banner info">Preparing a phone copy of the current video…</div>`;
   else if (!src) $("#stale").innerHTML = `<div class="banner">No video yet: tap Re-render.</div>`;
-  else $("#stale").innerHTML = S.cutsStale ? `<div class="banner">The video above still has the old cuts. Times below are for the new cut: re-render to see it.</div>` : "";
+  else $("#stale").innerHTML = S.cutsStale ? `<div class="banner">The video above still has the old cuts. The times below match the new cut. Re-render to see it.</div>` : "";
   $("#ver").innerHTML = S.renders.slice().reverse().map((x) => `<option value="${x.v}" ${x === r ? "selected" : ""}>${x.baseline ? "before editing" : "render " + x.v}${x === S.renders[S.renders.length - 1] ? " (latest)" : ""}</option>`).join("");
   $("#ver").style.display = S.renders.length > 1 ? "" : "none";
 }
@@ -234,11 +245,11 @@ function cardIndexes(pred) { return S.edit.cards.map((c, i) => [c, i]).filter(([
 function renderCards() {
   const list = cardIndexes((c) => c.type !== "popup");
   $("#txtn").textContent = `${list.length} items`;
-  $("#cards").innerHTML = list.length ? list.map(([c, i]) => cardHtml(c, i)).join("") : `<p class="help">No pills or text in this video yet.</p>`;
+  $("#cards").innerHTML = list.length ? list.map(([c, i]) => cardHtml(c, i)).join("") : `<p class="help">No text in this video yet.</p>`;
 }
 function times(c, i) {
-  return `<div class="two"><div><label class="f">Starts (s)</label><div class="tin"><input type="number" step="0.1" min="0" data-a="set" data-i="${i}" data-f="start" value="${c.start}"><button class="sm" data-a="stamp" data-i="${i}" data-f="start" title="Use video time">⏱</button></div></div>
-    <div><label class="f">Ends (s)</label><div class="tin"><input type="number" step="0.1" min="0" data-a="set" data-i="${i}" data-f="end" value="${c.end ?? ""}"><button class="sm" data-a="stamp" data-i="${i}" data-f="end" title="Use video time">⏱</button></div></div></div>`;
+  return `<div class="two"><div><label class="f">Starts at (seconds)</label><div class="tin"><input type="number" step="0.1" min="0" data-a="set" data-i="${i}" data-f="start" value="${c.start}"><button class="sm" data-a="stamp" data-i="${i}" data-f="start" title="Use video time">⏱</button></div></div>
+    <div><label class="f">Ends at (seconds)</label><div class="tin"><input type="number" step="0.1" min="0" data-a="set" data-i="${i}" data-f="end" value="${c.end ?? ""}"><button class="sm" data-a="stamp" data-i="${i}" data-f="end" title="Use video time">⏱</button></div></div></div>`;
 }
 function cardHtml(c, i) {
   const open = openCard.has(cid(i)), name = TYPE_NAME[c.type] || c.type, lab = c.text || c.title || (Array.isArray(c.src) ? c.src[0] : c.src) || "";
@@ -249,13 +260,13 @@ function cardHtml(c, i) {
     h += `<div class="edit">`;
     if (c.type === "tag" || c.type === "title" || c.type === "cta") {
       h += `<label class="f">Text</label><input type="text" data-a="set" data-i="${i}" data-f="text" value="${esc(c.text)}" />`;
-      if (c.type === "tag" && (c.text || "").length > 24) h += `<p class="warnt">Long pill text can run off the edge of the screen.</p>`;
+      if (c.type === "tag" && (c.text || "").length > 24) h += `<p class="warnt">Long text can run off the edge of the screen.</p>`;
     }
     h += times(c, i);
     if (isTextType(c.type)) {
       const L = effLayer(c);
       h += `<label class="f">Layer</label><div class="seg"><button class="${L === "front" ? "on" : ""}" data-a="layer" data-i="${i}" data-v="front">In front of me</button><button class="${L === "behind" ? "on" : ""}" data-a="layer" data-i="${i}" data-v="behind">Behind me</button></div>`
-        + (L === "behind" ? `<p class="warnt">Behind me only shows where the text overlaps you or the background, so it needs headroom (if your face fills the frame, it will be hidden). If the cutout isn't clean for this stretch, it is drawn in front instead and the render report says so.</p>` : "")
+        + (L === "behind" ? `<p class="warnt">Text behind you needs space above your head. If your face fills the frame, the text is hidden. If the outline around you isn't clean in this part, the text goes in front and the page tells you after the render.</p>` : "")
         + (c.layer == null ? `<p class="small">Using your default (${S.textDefault.layer === "front" ? "in front" : S.textDefault.layer}).</p>` : "");
     }
     if (c.type === "tag" || c.type === "title" || c.type === "cta") {
@@ -302,7 +313,7 @@ function renderSfx() {
     <div class="tt">${esc(e.name)}<small>at ${fmt(e.t)} · ${e.db ?? -10} dB</small></div><button class="sm" data-a="sfx-open" data-i="${i}">${openSfx.has(sid(i)) ? "Close" : "Edit"}</button></div>
     ${openSfx.has(sid(i)) ? `<div class="edit"><label class="f">Sound</label><select data-a="sfx-set" data-i="${i}" data-f="name">${S.sfxNames.map((n) => `<option ${n.name === e.name ? "selected" : ""} value="${n.name}">${n.name}${n.category ? " (" + n.category + ")" : ""}</option>`).join("")}</select>
       <div class="two"><div><label class="f">Time (s)</label><div class="tin"><input type="number" step="0.1" data-a="sfx-set" data-i="${i}" data-f="t" value="${e.t}"><button class="sm" data-a="sfx-stamp" data-i="${i}">⏱</button></div></div>
-      <div><label class="f">Level (dB, 0 = loudest)</label><input type="number" step="1" max="0" min="-40" data-a="sfx-set" data-i="${i}" data-f="db" value="${e.db ?? -10}"></div></div>
+      <div><label class="f">Volume (0 is loudest, -20 is quiet)</label><input type="number" step="1" max="0" min="-40" data-a="sfx-set" data-i="${i}" data-f="db" value="${e.db ?? -10}"></div></div>
       <div class="row" style="margin-top:12px"><span class="grow"></span><button class="sm danger" data-a="sfx-del" data-i="${i}">Delete</button></div></div>` : ""}</div>`).join("") : `<p class="help">No extra sound effects in this video.</p>`;
 }
 
