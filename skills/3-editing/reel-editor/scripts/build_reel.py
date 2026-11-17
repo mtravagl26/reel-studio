@@ -69,11 +69,15 @@ reel = Path(sys.argv[1]).expanduser()
 CAPCUT = "--capcut" in sys.argv
 HOME = Path(os.environ.get("REELS_HOME", "~/reels")).expanduser()
 ENGINE = Path(os.environ.get("REEL_ENGINE") or Path(__file__).resolve().parent.parent / "engine")   # REEL_ENGINE: Added by By Mel Ross, for tests
-brand = json.load(open(HOME / "brand.json"))
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import theme as _theme                           # Added by By Mel Ross (themes): the look is laid over brand.json, see theme.py
+brand = _theme.load_brand(HOME, reel, sys.argv[sys.argv.index("--theme") + 1] if "--theme" in sys.argv[:-1] else None)
+if brand.get("_theme"): print(f'theme: {brand["_theme"]["name"]}')
 edit = json.load(open(reel / "edit.json"))
 # Added by By Mel Ross (editor page): "off" switches a card or effect off without deleting it; brand.json "text_default" gives text cards their layer
 edit["cards"] = [c for c in edit.get("cards", []) if not c.get("off")]
 edit["sfx_events"] = [e for e in edit.get("sfx_events", []) if not e.get("off")]
+_theme.apply_card_defaults(brand, edit["cards"])
 TEXT_DEFAULT = brand.get("text_default") or {}
 TEXT_TYPES = ("title", "tag", "card", "cta")
 for _c in edit["cards"]:
@@ -315,7 +319,7 @@ for i, c in enumerate(edit.get("cards", [])):
         olw = brand.get("title_outline_px")                            # fixed outline width (e.g. 2 for a faint hairline); default scales with size
         st = lambda px: f";-webkit-text-stroke:{olw or max(6, px // 16)}px {ol};paint-order:stroke fill" if ol else ""
         back.append(f'<div id="{cid}" class="title" style="{font("head", sizes[0])};top:{c.get("y", brand.get("title_y", 360))}px;color:{c.get("color", MAIN)};letter-spacing:{brand.get("title_tracking", -0.045)}em">'
-                    + (f'<div class="tl" style="{font(c.get("overline_font", "hand"), c.get("overline_size", 78))};color:{c.get("overline_color", LIGHT)};letter-spacing:0;text-align:{c.get("align", "left")};padding-bottom:6px">{esc(c["overline"])}</div>' if c.get("overline") else "")   # Style Menu H3/L7: a small handwritten (or italic serif) line above the headline
+                    + (f'<div class="tl ol" style="{font(c.get("overline_font", "hand"), c.get("overline_size", 78))};color:{c.get("overline_color", LIGHT)};letter-spacing:0;text-align:{c.get("align", "left")};padding-bottom:6px">{esc(c["overline"])}</div>' if c.get("overline") else "")   # Style Menu H3/L7: a small handwritten (or italic serif) line above the headline
                     + "".join(f'<div class="tl" style="font-size:{px}px;text-align:{c.get("align") or (("left", "right")[j % 2] if len(lines) > 1 else "center")}{st(px)}">{esc(x)}</div>' for j, (x, px) in enumerate(zip(lines, sizes))) + "</div>")
         show(f"#{cid}", a, b)
         js.append(f'tl.fromTo("#{cid} .tl",{{clipPath:"inset(-40% 100% -40% 0%)",x:-30}},{{clipPath:"inset(-40% 0% -40% 0%)",x:0,duration:0.34,ease:"power3.out",stagger:0.25}},{q(a)});')
@@ -766,6 +770,7 @@ html, body {{ margin: 0; background: #000; overflow: hidden; }}
 .card.glass .cr {{ color: #fff !important; border-bottom-color: rgba(255,255,255,.25); }}
 .cap {{ position: absolute; left: 60px; right: 60px; text-align: center; line-height: 1.02; letter-spacing: -.02em; text-shadow: 0 2px 14px rgba(0,0,0,.3); }}
 .cap .acc {{ text-shadow: {brand.get("caption_accent_shadow", "0 0 2px rgba(0,0,0,.25), 0 3px 22px rgba(0,0,0,.5)")}; }}   /* accent colour stays readable over white screens, no outline; brand.json "caption_accent_shadow" overrides (Modified by By Mel Ross) */
+{_theme.css_for(brand, {r: FAM[r][0] for r in FAM})}
 </style></head>
 <body>
 <div id="stage" data-composition-id="main" data-start="0" data-duration="{DUR}" data-fps="{FPS}" data-width="{W}" data-height="{H}">

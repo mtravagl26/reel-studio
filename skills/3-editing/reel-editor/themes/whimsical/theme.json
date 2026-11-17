@@ -1,0 +1,87 @@
+{
+  "name": "Whimsical",
+  "summary": "Playful and light: round letters, a script word, little stars, things that tilt and bounce.",
+  "brand": {
+    "fonts": {
+      "head": {
+        "family": "Fredoka",
+        "file": "Fredoka.ttf",
+        "weight": 700
+      },
+      "body": {
+        "family": "Fredoka",
+        "file": "Fredoka.ttf",
+        "weight": 600
+      },
+      "accent": {
+        "family": "Pacifico",
+        "file": "Pacifico-Regular.ttf",
+        "weight": 400,
+        "style": "normal"
+      }
+    },
+    "colors": {
+      "caption": "#FFFFFF",
+      "caption_accent": "@pop"
+    },
+    "captions": {
+      "mode": "phrase",
+      "case": "sentence",
+      "size": 74,
+      "y": 1250,
+      "tracking": 0
+    },
+    "title_outline": null,
+    "title_tracking": -0.01,
+    "zoom": {
+      "scale": 1.05,
+      "seconds": 1.0,
+      "ease": "back.out(1.4)",
+      "every": 5
+    }
+  },
+  "cards": {
+    "title": {
+      "color": "@light",
+      "align": "center",
+      "overline_font": "accent",
+      "overline_size": 70,
+      "overline_color": "@pop"
+    },
+    "tag": {
+      "color": "@pop"
+    }
+  },
+  "css": [
+    ".title { line-height: 1; text-shadow: 0 4px 26px rgba(0,0,0,.45); }",
+    ".title::before, .title::after, .title .tl:last-child::after { content: \"\"; position: absolute; background: @light; clip-path: polygon(50% 0,61% 35%,98% 35%,68% 57%,79% 91%,50% 70%,21% 91%,32% 57%,2% 35%,39% 35%); filter: drop-shadow(0 4px 10px rgba(0,0,0,.25)); }",
+    ".title::before { width: 96px; height: 96px; left: 70px; top: -70px; transform: rotate(-14deg); }",
+    ".title::after { width: 64px; height: 64px; right: 96px; top: -34px; transform: rotate(12deg); background: @pop; }",
+    ".title .tl { position: relative; }",
+    ".title .tl:last-child::after { width: 52px; height: 52px; right: 60px; bottom: -58px; transform: rotate(-8deg); }",
+    ".cap .acc { font-size: 1.25em !important; }",
+    ".tag, .cta { color: @main; border: 6px solid #fff; transform: rotate(-3deg); padding: 14px 40px; }",
+    ".pop.framed { border-radius: 30px; transform: rotate(3deg); }",
+    ".card, .stat, .xl, .shot { border-radius: 56px; }",
+    ".tile { border-radius: 60px; }"
+  ],
+  "menu": [
+    "H5",
+    "L9",
+    "L2"
+  ],
+  "menu_draft_v1": {
+    "hooks": [
+      "H13",
+      "H10"
+    ],
+    "captions": [
+      "C14",
+      "C8"
+    ],
+    "layouts": [
+      "L19",
+      "L12"
+    ]
+  }
+}

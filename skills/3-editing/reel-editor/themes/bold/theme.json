@@ -1,0 +1,90 @@
+{
+  "name": "Bold",
+  "summary": "Loud and clear: heavy caps titles, captions in white label boxes, numbers in your accent colour.",
+  "brand": {
+    "fonts": {
+      "head": {
+        "family": "Anton",
+        "file": "Anton-Regular.ttf",
+        "weight": 400
+      },
+      "body": {
+        "family": "Inter",
+        "file": "Inter.ttf",
+        "weight": 800
+      },
+      "accent": {
+        "family": "Inter",
+        "file": "Inter.ttf",
+        "weight": 800,
+        "style": "normal"
+      }
+    },
+    "colors": {
+      "caption": "@main",
+      "caption_accent": "@main"
+    },
+    "captions": {
+      "mode": "phrase",
+      "case": "sentence",
+      "size": 62,
+      "y": 1250,
+      "tracking": 0
+    },
+    "caption_accent_shadow": "none",
+    "title_outline": null,
+    "title_tracking": 0.005,
+    "zoom": {
+      "scale": 1.06,
+      "seconds": 1.2,
+      "ease": "power2.out",
+      "every": 5
+    }
+  },
+  "cards": {
+    "title": {
+      "color": "#FFFFFF",
+      "align": "left",
+      "overline_font": "body",
+      "overline_size": 38
+    },
+    "tag": {
+      "color": "@main"
+    }
+  },
+  "css": [
+    ".title { text-transform: uppercase; line-height: 1.02; text-shadow: 0 4px 30px rgba(0,0,0,.55); }",
+    ".title .tl + .tl + .tl, .title .tl:last-child:not(:first-child) { color: @pop; }",
+    ".cap { text-shadow: none; text-transform: uppercase; line-height: 1.5; }",
+    ".cap span { background: #fff; padding: .1em .3em; border-radius: .16em; margin: 0 .04em; -webkit-box-decoration-break: clone; box-decoration-break: clone; }",
+    ".cap .acc { background: @pop; }",
+    ".tag, .cta { border-radius: 10px; text-transform: uppercase; letter-spacing: .01em; }",
+    ".card, .stat, .xl, .shot { border-radius: 14px; }",
+    ".tile { border-radius: 18px; }",
+    ".sv { font-family: @head !important; }"
+  ],
+  "menu": [
+    "H2",
+    "C3",
+    "L8",
+    "L4",
+    "L6"
+  ],
+  "menu_draft_v1": {
+    "hooks": [
+      "H9",
+      "H17",
+      "H6"
+    ],
+    "captions": [
+      "C6",
+      "C15",
+      "C16"
+    ],
+    "layouts": [
+      "L16",
+      "L21",
+      "L23"
+    ]
+  }
+}

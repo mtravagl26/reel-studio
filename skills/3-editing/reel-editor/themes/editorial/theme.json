@@ -1,0 +1,84 @@
+{
+  "name": "Editorial",
+  "summary": "Quiet and calm: cream serif headlines, small white captions, one word in italic. Nothing bounces.",
+  "brand": {
+    "fonts": {
+      "head": {
+        "family": "Lora",
+        "file": "Lora.ttf",
+        "weight": 600
+      },
+      "body": {
+        "family": "Inter",
+        "file": "Inter.ttf",
+        "weight": 500
+      },
+      "accent": {
+        "family": "Lora",
+        "file": "Lora-Italic.ttf",
+        "weight": 500,
+        "style": "italic"
+      }
+    },
+    "colors": {
+      "caption": "#FFFFFF",
+      "caption_accent": "@pop"
+    },
+    "captions": {
+      "mode": "phrase",
+      "case": "sentence",
+      "size": 66,
+      "y": 1250,
+      "tracking": -0.01
+    },
+    "title_outline": null,
+    "title_tracking": -0.015,
+    "zoom": {
+      "scale": 1.04,
+      "seconds": 2.5,
+      "ease": "sine.inOut",
+      "every": 6
+    },
+    "sfx": "none"
+  },
+  "cards": {
+    "title": {
+      "color": "@light",
+      "align": "center",
+      "overline_font": "body",
+      "overline_size": 40
+    },
+    "tag": {
+      "color": "@main"
+    }
+  },
+  "css": [
+    ".title { line-height: 1.04; text-shadow: 0 2px 30px rgba(0,0,0,.5); }",
+    ".tag, .cta { border-radius: 12px; padding: 14px 30px; letter-spacing: .08em; text-transform: uppercase; font-family: @body !important; font-size: 34px !important; font-weight: 600 !important; }",
+    ".card, .stat, .xl, .shot { border-radius: 18px; }",
+    ".tile { border-radius: 22px; }"
+  ],
+  "menu": [
+    "C2",
+    "L8",
+    "L7"
+  ],
+  "menu_draft_v1": {
+    "hooks": [
+      "H7",
+      "H11",
+      "H12",
+      "H15"
+    ],
+    "captions": [
+      "C7",
+      "C12",
+      "C13"
+    ],
+    "layouts": [
+      "L15",
+      "L16",
+      "L22"
+    ]
+  }
+}

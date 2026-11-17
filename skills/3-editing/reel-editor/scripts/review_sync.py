@@ -31,7 +31,8 @@ captions:C.captions(R,D,P),graphics:C.graphics(R,D,P),hash:C.hash(D)}}));"""
 
 def export(reel, proposal, out):
     out.mkdir(parents=True, exist_ok=True)
-    brand = json.load(open(HOME / "brand.json"))
+    sys.path.insert(0, str(Path(__file__).resolve().parent)); import theme as _theme   # Added by By Mel Ross (themes)
+    brand = _theme.load_brand(HOME, reel, quiet=True)
     src = [w for w in json.load(open(reel / "transcript.json")) if w["text"].strip()]
     words = [{"text": w["text"], "s": round(w["start"], 3), "e": round(w["end"], 3)} for w in src]
     # Whisper's word times run back to back, hiding pauses. Measure real silences in the cleaned voice (threshold just

@@ -7,7 +7,8 @@ from pathlib import Path
 
 reel = Path(sys.argv[1]).expanduser()
 home = Path(os.environ.get("REELS_HOME", "~/reels")).expanduser()
-brand = json.load(open(home / "brand.json"))
+sys.path.insert(0, str(Path(__file__).resolve().parent)); import theme as _theme   # Added by By Mel Ross (themes): the look is laid over brand.json
+brand = _theme.load_brand(home, reel, quiet=True)
 mode = brand.get("captions", {}).get("mode", "phrase")          # "word" = one word at a time, "phrase" = 2-4 words
 words = [w for w in json.load(open(reel / "master_transcript.json")) if w["text"].strip()]
 

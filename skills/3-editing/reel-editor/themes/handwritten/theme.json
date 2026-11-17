@@ -1,0 +1,83 @@
+{
+  "name": "Handwritten",
+  "summary": "Personal and scrappy: handwritten notes over heavy caps, paper labels, photos like prints on a desk.",
+  "brand": {
+    "fonts": {
+      "head": {
+        "family": "Anton",
+        "file": "Anton-Regular.ttf",
+        "weight": 400
+      },
+      "body": {
+        "family": "Lora",
+        "file": "Lora.ttf",
+        "weight": 500
+      },
+      "accent": {
+        "family": "Caveat",
+        "file": "Caveat-700-latin.woff2",
+        "weight": 700,
+        "style": "normal"
+      }
+    },
+    "colors": {
+      "caption": "#FFFFFF",
+      "caption_accent": "@pop"
+    },
+    "captions": {
+      "mode": "phrase",
+      "case": "sentence",
+      "size": 62,
+      "y": 1250,
+      "tracking": 0
+    },
+    "title_outline": null,
+    "title_tracking": 0,
+    "zoom": {
+      "scale": 1.04,
+      "seconds": 2.5,
+      "ease": "sine.inOut",
+      "every": 6
+    }
+  },
+  "cards": {
+    "title": {
+      "color": "@light",
+      "align": "left",
+      "overline_font": "hand",
+      "overline_size": 84,
+      "overline_color": "@pop"
+    },
+    "tag": {
+      "color": "@light"
+    }
+  },
+  "css": [
+    ".title { text-transform: uppercase; line-height: 1; transform: rotate(-2deg); transform-origin: 20% 50%; text-shadow: 0 4px 26px rgba(0,0,0,.5); }",
+    ".title .tl:first-child { text-transform: none; }",
+    ".cap .acc { font-size: 1.5em !important; line-height: .8; }",
+    ".tag, .cta { border-radius: 3px; color: @main; font-family: @hand !important; font-size: 66px !important; padding: 8px 34px 12px; transform: rotate(-2deg); box-shadow: 0 10px 22px rgba(0,0,0,.28); clip-path: polygon(0 6%,3% 0,9% 5%,16% 1%,24% 6%,33% 0,42% 5%,52% 1%,61% 6%,70% 0,79% 5%,88% 1%,96% 6%,100% 2%,100% 95%,96% 100%,89% 95%,80% 100%,71% 94%,62% 100%,52% 95%,43% 100%,34% 94%,25% 100%,16% 95%,8% 100%,3% 94%,0 98%); }",
+    ".pop.framed { border-width: 14px 14px 46px; border-radius: 4px; }",
+    ".card, .stat, .xl { border-radius: 8px; }"
+  ],
+  "menu": [
+    "H3",
+    "C1",
+    "L2",
+    "L6",
+    "L9"
+  ],
+  "menu_draft_v1": {
+    "hooks": [
+      "H14",
+      "H19"
+    ],
+    "captions": [
+      "C9",
+      "C11"
+    ],
+    "layouts": [
+      "L12"
+    ]
+  }
+}

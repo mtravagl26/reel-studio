@@ -2,7 +2,7 @@
 
 > Modified by By Mel Ross (see NOTICE): adds the reel editor's pieces and the brand fonts; the FavStash preview images are not included here.
 
-This repository provides instructions and media helpers. Apart from the Montserrat, Lora, Inter and Caveat fonts, it does not vendor the projects below; setup or the creator installs them.
+This repository provides instructions and media helpers. Apart from the Montserrat, Lora, Inter, Caveat, Anton, Fredoka and Pacifico fonts, it does not vendor the projects below; setup or the creator installs them.
 
 | Project | Role | License note |
 | --- | --- | --- |
@@ -16,6 +16,9 @@ This repository provides instructions and media helpers. Apart from the Montserr
 | [Lora](https://github.com/cyrealtype/Lora-Cyrillic) | Example brand head font **bundled** in `brand/fonts/` | SIL Open Font License 1.1, Reserved Font Name "Lora"; `brand/fonts/OFL-Lora.txt` |
 | [Inter](https://github.com/rsms/inter) | Example brand body font **bundled** in `brand/fonts/` | SIL Open Font License 1.1; `brand/fonts/OFL-Inter.txt` |
 | [Caveat](https://github.com/googlefonts/caveat) | Handwriting font for the Style Menu cards (`polaroids`, `xlist`, `tiles`, `popup` captions, title overlines) **bundled** in `skills/3-editing/reel-editor/assets/fonts/` (Latin subset of the Bold weight, WOFF2, as served by Google Fonts) | SIL Open Font License 1.1, Copyright 2014 The Caveat Project Authors; no Reserved Font Name; `skills/3-editing/reel-editor/assets/fonts/OFL-Caveat.txt` |
+| [Anton](https://github.com/googlefonts/AntonFont) | Head font of the Bold and Handwritten themes **bundled** in `skills/3-editing/reel-editor/themes/_fonts/` (from google/fonts) | SIL Open Font License 1.1; `skills/3-editing/reel-editor/themes/_fonts/OFL-Anton.txt` |
+| [Fredoka](https://github.com/hafontia/Fredoka-One) | Head and body font of the Whimsical theme **bundled** in `skills/3-editing/reel-editor/themes/_fonts/` (variable font, from google/fonts) | SIL Open Font License 1.1; `skills/3-editing/reel-editor/themes/_fonts/OFL-Fredoka.txt` |
+| [Pacifico](https://github.com/googlefonts/Pacifico) | Accent font of the Whimsical theme **bundled** in `skills/3-editing/reel-editor/themes/_fonts/` (from google/fonts) | SIL Open Font License 1.1; `skills/3-editing/reel-editor/themes/_fonts/OFL-Pacifico.txt` |
 | [ElevenLabs Scribe](https://elevenlabs.io/) | Optional transcription in `reel-editor`, only when the creator adds their own API key; otherwise local Whisper | A paid service with its own terms; audio is sent to it only when a key is set |
 | [PDQ](https://github.com/facebook/ThreatExchange/tree/main/pdq) via `pdqhash` | Frame hashing for the optional duplicate check | BSD-style upstream license; installed with pip, verify the installed package |
 | [NumPy](https://numpy.org/), [SciPy](https://scipy.org/), [OpenCV](https://opencv.org/) | Optional duplicate check and breakout-card plates | BSD / Apache-2.0 upstream; installed with pip |
@@ -41,3 +44,5 @@ Version 0.2.0 (By Mel Ross) adds the Apple Vision, libvpx, Python, sound-effects
 Version 0.2.2 (By Mel Ross) adds the `avconvert` row above. `avconvert` is part of macOS and nothing was added to the repository for it.
 
 Version 0.5.0 (By Mel Ross) adds the Caveat row above (a font, license text beside it). Nothing else third-party was added to the repository for it; the Style Menu, storyboard, word list and crossfade use only the Python standard library, ffmpeg and HyperFrames, as before.
+
+Version 0.8.0 (By Mel Ross) adds the Anton, Fredoka and Pacifico rows above for the themes, and a second copy of Lora and Inter (with their license texts) in `skills/3-editing/reel-editor/themes/_fonts/` so a theme works without the example brand folder.

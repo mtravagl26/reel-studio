@@ -137,3 +137,7 @@ Added by By Mel Ross in 0.5.0 (November 2026), in skills/3-editing/reel-editor u
   step is live; the on-page help text is rewritten in plainer words.
 - 0.7.0: the orbit card (photos that circle the speaker's head, behind and in front) in
   build_reel.py, and cutout.head_box, which finds the head in the cutout to place the ring.
+- 0.8.0: themes. scripts/theme.py lays a theme (fonts, caption look, title look, card shapes)
+  over brand.json; 4 themes ship in skills/3-editing/reel-editor/themes (editorial, bold,
+  handwritten, whimsical); build_reel.py, auto_edit.py, review_sync.py, cover.py,
+  thumbnail_studio.py and storyboard.py read the brand through it.

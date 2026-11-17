@@ -22,7 +22,8 @@ W, H = 1080, 1920
 SAFE_TOP, SAFE_BOTTOM = 240, 1680          # the profile grid crops the cover to the middle 1080x1440
 reel = Path(sys.argv[1]).expanduser().resolve()
 home = Path(os.environ.get("REELS_HOME", "~/reels")).expanduser()
-brand = json.load(open(home / "brand.json"))
+sys.path.insert(0, str(Path(__file__).resolve().parent)); import theme as _theme   # Added by By Mel Ross (themes): the look is laid over brand.json
+brand = _theme.load_brand(home, reel, quiet=True)
 src = reel / "master.mp4"
 if not src.exists():
     src = reel / "final.mp4"
