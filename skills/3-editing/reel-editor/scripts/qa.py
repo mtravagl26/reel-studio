@@ -24,7 +24,8 @@ measured, unmeasured = ["size", "length", "loudness"], []
 reel = Path(sys.argv[1]).expanduser()
 video = reel / (sys.argv[2] if len(sys.argv) > 2 else "final.mp4")
 home = Path(os.environ.get("REELS_HOME", "~/reels")).expanduser()
-brand = json.load(open(home / "brand.json"))
+sys.path.insert(0, str(Path(__file__).resolve().parent)); import theme as _theme   # the reel's look (speed, resolution, sfx ...) is laid over brand.json
+brand = _theme.load_brand(home, reel, quiet=True)
 fails = []
 
 def probe(entries):

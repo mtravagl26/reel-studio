@@ -85,7 +85,8 @@ def compare(reel, at=None):
     """before | after for one frame of the cut, written to enhance_before_after.jpg (540x960 each)."""
     reel = Path(reel)
     home = Path(os.environ.get("REELS_HOME", "~/reels")).expanduser()
-    brand = json.load(open(home / "brand.json"))
+    sys.path.insert(0, str(Path(__file__).resolve().parent)); import theme as _theme
+    brand = _theme.load_brand(home, reel, quiet=True)
     edl = json.load(open(reel / "edl.json")) if (reel / "edl.json").exists() else {}
     spans = edl.get("keep") or []
     src = reel / edl["source"] if edl.get("source") else None

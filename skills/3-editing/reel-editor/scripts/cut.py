@@ -10,7 +10,8 @@ from pathlib import Path
 
 reel = Path(sys.argv[1]).expanduser()
 home = Path(os.environ.get("REELS_HOME", "~/reels")).expanduser()
-brand = json.load(open(home / "brand.json"))
+sys.path.insert(0, str(Path(__file__).resolve().parent)); import theme as _theme   # the reel's look (speed, resolution, sfx ...) is laid over brand.json
+brand = _theme.load_brand(home, reel, quiet=True)
 edl = json.load(open(reel / "edl.json"))
 
 src, audio = reel / edl["source"], reel / edl.get("audio", "voice.wav")

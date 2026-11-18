@@ -179,7 +179,8 @@ def main():
     video = reel / opt("--video", "final.mp4"); out = reel / opt("--out", "final_ln.mp4")
     stems = Path(opt("--stems-dir")).expanduser() if opt("--stems-dir") else None
     home = Path(os.environ.get("REELS_HOME", "~/reels")).expanduser()
-    brand = json.load(open(home / "brand.json")) if (home / "brand.json").exists() else {}
+    sys.path.insert(0, str(Path(__file__).resolve().parent)); import theme as _theme
+    brand = _theme.load_brand(home, reel, quiet=True) if (home / "brand.json").exists() else {}
     edit = json.load(open(reel / "edit.json")) if (reel / "edit.json").exists() else {}
     cfg = {**DEFAULTS, **brand.get("mix", {}), **edit.get("mix", {})}
     music = edit.get("music") or brand.get("music")

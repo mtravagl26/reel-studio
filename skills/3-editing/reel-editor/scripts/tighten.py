@@ -18,7 +18,8 @@ edl = {} if DETECT else json.load(open(reel / "edl.json"))
 voice = reel / edl.get("audio", "voice.wav")
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from pacing import pacing
-P_ = pacing(json.load(open(Path(os.environ.get("REELS_HOME", "~/reels")).expanduser() / "brand.json")))
+import theme as _theme   # the reel's look can set pacing/speed too
+P_ = pacing(_theme.load_brand(Path(os.environ.get("REELS_HOME", "~/reels")).expanduser(), Path(sys.argv[1]).expanduser() if len(sys.argv) > 1 and not sys.argv[1].startswith("-") else None, quiet=True))
 PAD, MIN_PAUSE = P_["air"], P_["pause_min"]
 FILLERS = set(P_["fillers"])
 
