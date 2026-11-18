@@ -19,6 +19,8 @@ edges must be clean rather than mushy. A shot that fails is drawn as a plain ove
 """
 import hashlib, json, os, shutil, subprocess, sys
 from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import draft
 
 HERE = Path(__file__).resolve().parent
 W, H = 1080, 1920
@@ -239,7 +241,7 @@ def main():
     opt = lambda k, d=None: a[a.index(k) + 1] if k in a else d
     edit = json.load(open(reel / "edit.json")) if (reel / "edit.json").exists() else {}
     boxes = (edit.get("cutout") or {}) if isinstance(edit.get("cutout"), dict) else None
-    q = opt("--quality", "balanced" if os.environ.get("REEL_PREVIEW") else "accurate")
+    q = opt("--quality", "balanced" if draft.is_draft() else "accurate")
     if cmd == "build":
         src = reel / opt("--src", "master_sharp.mp4" if (reel / "master_sharp.mp4").exists() else "master.mp4")
         m = build_matte(reel, src, q, opt("--matte"), boxes)

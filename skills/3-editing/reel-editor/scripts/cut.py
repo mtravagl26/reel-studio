@@ -17,7 +17,7 @@ src, audio = reel / edl["source"], reel / edl.get("audio", "voice.wav")
 spans = edl["keep"]
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from pacing import pacing
-import enhance, cutout, hdr2sdr   # Added by By Mel Ross: studio look, HDR to SDR
+import enhance, cutout, hdr2sdr, draft   # Added by By Mel Ross: studio look, HDR to SDR
 import shutil
 # Added by By Mel Ross: HDR phone clips (HLG / PQ / BT.2020) are converted to SDR up front with macOS avconvert; SDR clips are untouched.
 # If that is not possible the clip is used as it is and the output says the colour is only approximate.
@@ -82,14 +82,14 @@ FILTER_FLAG = "-filter_complex_script" if _v and int(_v.group(1)) < 7 else "-/fi
 NICE = [] if os.environ.get("REEL_NO_NICE") else ["nice", "-n", "15"]
 subprocess.run([*NICE, "ffmpeg", "-y", "-v", "error", "-stats", "-i", str(src), "-i", str(audio),
                 FILTER_FLAG, str(script), "-map", "[vout]", "-map", "[aout]",
-                *((["-c:v", "h264_videotoolbox", "-b:v", "12M"] if sys.platform == "darwin" else ["-c:v", "libx264", "-preset", "veryfast", "-crf", "20"]) if os.environ.get("REEL_PREVIEW") else ["-c:v", "libx264", "-preset", "medium", "-crf", "16"]), "-pix_fmt", "yuv420p", *hdr2sdr.TAG_BT709,
+                *((["-c:v", "h264_videotoolbox", "-b:v", "12M"] if sys.platform == "darwin" else ["-c:v", "libx264", "-preset", "veryfast", "-crf", "20"]) if draft.is_draft() else ["-c:v", "libx264", "-preset", "medium", "-crf", "16"]), "-pix_fmt", "yuv420p", *hdr2sdr.TAG_BT709,
                 "-c:a", "aac", "-b:a", "256k", "-movflags", "+faststart", str(reel / "master.mp4")], check=True)
 ES = enhance.settings(brand, edl)
 EINFO["source_colour"] = SRC_COLOR.get("note")
 EINFO["background"] = "off"
 if ES["on"] is not False and ES["background"] * ES["strength"] > 0:
     try:
-        ok = cutout.soften(reel, ES["background"] * ES["strength"], "balanced" if os.environ.get("REEL_PREVIEW") else "accurate")
+        ok = cutout.soften(reel, ES["background"] * ES["strength"], "balanced" if draft.is_draft() else "accurate")
         EINFO["background"] = "softened" if ok else "skipped (no cutout available: needs macOS with the Swift compiler)"
     except Exception as e:                     # the look is a nicety: never lose the cut over it
         EINFO["background"] = f"skipped ({e})"

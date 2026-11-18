@@ -573,13 +573,13 @@ CARD_SFX = None
 LAYERED = False
 if ORBITS or any(c.get("layer") in ("behind", "both") for c in edit.get("cards", [])):
     sys.path.insert(0, str(Path(__file__).resolve().parent))
-    import cutout
+    import cutout, draft
     _src = reel / "master_sharp.mp4" if (reel / "master_sharp.mp4").exists() else reel / "master.mp4"
     _boxes = edit.get("cutout") if isinstance(edit.get("cutout"), dict) else None
     _m = None
     try:
         _own = (_boxes or {}).get("matte")                      # a white-on-black matte video of your own, instead of Apple Vision
-        _m = cutout.build_matte(reel, _src, "balanced" if os.environ.get("REEL_PREVIEW") else "accurate", str(reel / _own) if _own else None, _boxes)
+        _m = cutout.build_matte(reel, _src, "balanced" if draft.is_draft() else "accurate", str(reel / _own) if _own else None, _boxes)
     except Exception as ex:
         print(f"warning: cutout failed ({ex})")
     if not _m:
