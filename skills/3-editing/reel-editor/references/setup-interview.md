@@ -11,6 +11,7 @@ Runs once, before the first edit. Output: `~/reels/brand.md` (for people and for
 - If they say "I don't know", suggest a sensible choice from what they've already told you and move on. Don't stall.
 - If they share a reel they love, look at it (download it with `yt-dlp` if you can, or ask for a screenshot) and pull colors, caption style and pacing from it.
 - At the end, show a short summary and ask "anything to change?" before writing the files.
+- **After the summary, tell them the camera settings, once:** film upright in 1080p at 30 fps with HDR off (iPhone: Settings > Camera > Record Video > 1080p HD at 30 fps, HDR Video off). 4K at 60 fps is 8 times the data for a reel that is built at 1080p, so every step is slower; 4K is only worth it for a big zoom on the face. Don't ask a question about it. Just say it.
 
 ## The questions
 

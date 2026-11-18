@@ -96,7 +96,7 @@ Claude may ask permission to install things. Check each request is about this se
 
 ## Make a reel
 
-1. Film yourself talking to camera on your phone. Under two minutes is easiest.
+1. Film yourself talking to camera on your phone, **in 1080p at 30 fps with HDR off** (see "Camera settings" below). Under two minutes is easiest.
 2. Get the video onto your Mac (AirDrop, or film into a synced folder like iCloud Drive).
 3. In Claude Code, type **edit this into a reel** and drag the video into the message box.
 4. **First time only:** Claude asks about your brand, one question at a time: colors, fonts, caption style, sounds, pacing, zooms and your usual call to action. A reel you wish you'd made is the most useful thing to share. About 5 minutes.
@@ -109,6 +109,18 @@ Claude may ask permission to install things. Check each request is about this se
 8. Post it yourself whenever you like.
 
 From the second reel on, your brand is saved, so it's just film, drop, review, final.
+
+### Camera settings
+
+Set these once on your phone:
+
+- **1080p at 30 fps.** The reel is built at 1080 x 1920, which is also what Instagram shows, so 4K detail is thrown away. A 4K clip at 60 fps is 8 times the data and makes every step slower.
+- **HDR video off.** HDR has to be converted to standard color first, and that conversion is only approximate on some computers.
+- **Phone upright** (portrait).
+
+On an iPhone: Settings > Camera > Record Video > **1080p HD at 30 fps**, and switch off **HDR Video**.
+
+A 4K or HDR clip still works. The editor tells you when a clip is heavier than it needs to be. Film in 4K only when you want a big zoom on your face (1.5x or more).
 
 ## Your brand file
 
