@@ -30,9 +30,6 @@ jobs:
       - name: Install ffmpeg
         run: sudo apt-get update && sudo apt-get install -y ffmpeg
       - run: npm test
-      # Added by By Mel Ross: the review and touch-ups pages in headless Chrome (skips itself if Chrome is missing).
-      - name: Pages in a real browser
-        run: CHROME="$(command -v google-chrome || command -v chromium-browser || echo none)" node tests/test_review_ui.mjs
       - run: npm run validate
       - name: Validate the Claude plugin
         run: npx --yes @anthropic-ai/claude-code@2.1.284 plugin validate --strict .

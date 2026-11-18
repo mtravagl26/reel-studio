@@ -1,7 +1,7 @@
 // Added by By Mel Ross (0.9.0). The Reel Studio pages in a real browser, on one link: the review page (tap a word to cut it, tabs,
 // the theme picker, decisions saved to disk), then the touch-ups page once the reel is built (step bar, theme picker, adding text,
 // pictures that circle the head, and the GIPHY box staying off without a key).
-// Run: node tests/test_review_ui.mjs   (needs Node 22+, python3, ffmpeg and Google Chrome; set CHROME=/path/to/chrome if it's elsewhere)
+// Run by hand, like test_thumbnail_ui.mjs (it is not part of `npm test` or CI): node tests/test_review_ui.mjs   (needs Node 22+, python3, ffmpeg and Google Chrome; set CHROME=/path/to/chrome if it's elsewhere)
 import { spawn, execFileSync } from "node:child_process";
 import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync, rmSync, copyFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -59,6 +59,7 @@ const decisions = () => read(reel, "review_db", "review", "current.json");
 try {
   let devtools = null;
   for (let i = 0; i < 100 && !devtools; i++, await sleep(100)) { try { devtools = readFileSync(join(profile, "DevToolsActivePort"), "utf8").split("\n")[0]; } catch {} }
+  if (!devtools) throw new Error("Chrome started but did not open its control port: run this on a computer with a normal Chrome install");
   const targets = await (await fetch(`http://127.0.0.1:${devtools}/json/list`)).json();
   ws = new WebSocket(targets.find((t) => t.type === "page").webSocketDebuggerUrl);
   await new Promise((r) => ws.addEventListener("open", r));
