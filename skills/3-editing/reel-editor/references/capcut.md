@@ -34,8 +34,8 @@ Render the HyperFrames graphics with **no captions and no sound effects baked in
    "lines": [[{ "text": "claude", "kind": "big", "t": 1.20 }, { "text": "edits", "kind": "acc", "t": 1.55 }]] }]
 ```
 
-- `kind`: `sm` (small), `big` (normal), `acc` (accent word: pop colour, bigger)
-- `over_light: true` when the caption sits on a white or very light background (caption turns pop colour so it doesn't vanish)
+- `kind`: `sm` (small), `big` (normal), `acc` (accent word: pop color, bigger)
+- `over_light: true` when the caption sits on a white or very light background (caption turns pop color so it doesn't vanish)
 - Pick accent words with the person's taste: usually one emotional or key word per caption.
 
 `sfx.json` - `[{ "name": "whoosh", "t": 3.4, "vol": 0.35 }]` using names from the `SFX` table in `scripts/capcut_draft.py`.

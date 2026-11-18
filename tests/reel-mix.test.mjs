@@ -95,6 +95,13 @@ test("qa.py passes the mixed reel and fails a reel whose peak is over the limit"
   assert.match(seen.stdout, /Looked at\s+every card: text inside the frame and readable; the cover: eyes open, title readable/);
   assert.doesNotMatch(/Not checked.*/.exec(seen.stdout)[0], /every card/);
   assert.notEqual(py("qa.py", [c.reel, "final_ln.mp4", "--looked", "vibes"], { REELS_HOME: c.home }).status, 0);
+  // 0.10.1: length is a target (default 180 s). A reel past the brand's own target gets a note and still passes.
+  assert.match(ok.stdout, /length\s+[\d.]+s  \(target: up to 180s\)\n/);
+  const brandFile = path.join(c.home, "brand.json"), brand = JSON.parse(fs.readFileSync(brandFile, "utf8"));
+  fs.writeFileSync(brandFile, JSON.stringify({ ...brand, max_seconds: 1 }));
+  const long = py("qa.py", [c.reel, "final_ln.mp4"], { REELS_HOME: c.home });
+  assert.equal(long.status, 0, long.stdout); assert.match(long.stdout, /NOTE: over the target/);
+  fs.writeFileSync(brandFile, JSON.stringify(brand));
   // a loud, un-limited file: its peak is over -1 dBTP, so qa must say so
   ff(["-i", path.join(c.reel, "master.mp4"), "-af", "volume=14dB,alimiter=limit=1:level=disabled", "-c:v", "copy", path.join(c.reel, "hot.mp4")]);
   const bad = py("qa.py", [c.reel, "hot.mp4"], { REELS_HOME: c.home });

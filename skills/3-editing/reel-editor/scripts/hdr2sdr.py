@@ -6,11 +6,11 @@ lifted, grey and cooler than the real scene. macOS ships a real HDR to SDR conve
 to install, nothing leaves the Mac). This step runs it up front and the rest of the pipeline works from the converted file.
 
 What it does:
-  - detects HDR: colour transfer arib-std-b67 (HLG) or smpte2084 (PQ), or BT.2020 primaries
+  - detects HDR: color transfer arib-std-b67 (HLG) or smpte2084 (PQ), or BT.2020 primaries
   - converts with avconvert to H.264 8-bit, tagged BT.709, keeping the whole duration, the audio and the upright orientation
   - checks the result with ffprobe (upright size, duration, audio, BT.709 tags); if anything is off it is not used
   - SDR sources are left alone (nothing is converted, nothing is copied)
-  - not on macOS, or avconvert fails: the original file is used and the result says plainly that the colour is only approximate
+  - not on macOS, or avconvert fails: the original file is used and the result says plainly that the color is only approximate
 
   python3 hdr2sdr.py <clip> <out.mp4> [--start S --duration D] [--check]   convert one clip (or a span of it) if it is HDR
   python3 hdr2sdr.py <clip> --check                                          just say whether the clip is HDR
@@ -22,7 +22,7 @@ from pathlib import Path
 HDR_TRANSFERS = ("arib-std-b67", "smpte2084")
 TAG_BT709 = ["-colorspace", "bt709", "-color_primaries", "bt709", "-color_trc", "bt709", "-color_range", "tv"]   # label every encode we make as BT.709 (what the picture is)
 TAG_FILTER = "setparams=colorspace=bt709:color_primaries=bt709:color_trc=bt709:range=tv"   # also set on the frames: some ffmpeg builds only write the matrix from the -colorspace flag
-APPROX = "HDR source used without a proper conversion: colour is only approximate (it comes out lighter, greyer and cooler than the real picture)"
+APPROX = "HDR source used without a proper conversion: color is only approximate (it comes out lighter, greyer and cooler than the real picture)"
 
 
 def probe(path):
@@ -95,7 +95,7 @@ def convert(src, dst, start=None, duration=None):
 
 def working_source(src, reel):
     """(path_to_use, info). SDR clips come back untouched. HDR clips are converted once to <reel>/source_sdr.mp4 (reused while
-    the original is unchanged); if that is not possible the original comes back and info["note"] says the colour is approximate."""
+    the original is unchanged); if that is not possible the original comes back and info["note"] says the color is approximate."""
     src, reel = Path(src), Path(reel)
     if (str(src), str(reel)) in _DONE: return _DONE[(str(src), str(reel))]
     r = _working_source(src, reel); _DONE[(str(src), str(reel))] = r; return r

@@ -204,7 +204,7 @@ test("the three pages share one step bar and one palette, and load nothing from 
     assert.ok(/#f5f2ec/i.test(html) && /#0d2b2d/i.test(html), `${f}: cream and teal`);
     assert.ok(!/ED84B0|FFF8FB/i.test(html), `${f}: no leftover pink`);
     // the one outside address is GIPHY, on the touch-ups page, and only when the person has set a key and presses Search
-    const outside = (html.match(/https?:\/\/(?!127\.0\.0\.1|localhost)[a-z0-9.-]+\.(com|net|org)/gi) || []).filter((u) => !(f === "editor.html" && u === "https://api.giphy.com"));
+    const outside = (html.match(/https?:\/\/(?!127\.0\.0\.1|localhost)[a-z0-9.-]+\.(com|net|org)/gi) || []).filter((u) => !(f !== "thumbnail.html" && u === "https://api.giphy.com"));   // 0.10.2: the review page searches GIPHY too
     assert.deepEqual(outside, [], `${f}: no outside address`);
   }
 });

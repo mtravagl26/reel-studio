@@ -48,7 +48,7 @@ const hasReview = () => fs.existsSync(path.join(REVIEW_DB, "reel", "current.json
 
 const TYPES = { ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".mjs": "text/javascript; charset=utf-8", ".json": "application/json; charset=utf-8",
   ".mp4": "video/mp4", ".webm": "video/webm", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png", ".gif": "image/gif", ".webp": "image/webp",
-  ".otf": "font/otf", ".ttf": "font/ttf", ".woff2": "font/woff2" };
+  ".wav": "audio/wav", ".otf": "font/otf", ".ttf": "font/ttf", ".woff2": "font/woff2" };
 
 // ---- small file helpers ---------------------------------------------------------------------------------------------------------------
 const readJSON = (f, dflt) => { try { return JSON.parse(fs.readFileSync(f, "utf8")); } catch { return dflt; } };
@@ -114,17 +114,20 @@ function menuLooks() {
   const looks = (readJSON(MENU_FILE, {}).looks) || {};
   return Object.entries(looks).map(([id, l]) => ({ id, name: l.name, group: l.group, status: l.status, missing: l.missing || null, recipe: l.recipe || null }));
 }
-function stylePicks() { const p = readJSON(PICKS_FILE, {}); return { ids: Array.isArray(p.ids) ? p.ids : [], theme: typeof p.theme === "string" ? p.theme : "" }; }
+const menuExtras = () => (readJSON(path.join(SKILL, "assets", "style-extras.json"), {}).extras) || [];   // 0.10.1: animations and moving extras
+function stylePicks() { const p = readJSON(PICKS_FILE, {}); return { ids: Array.isArray(p.ids) ? p.ids : [], extras: Array.isArray(p.extras) ? p.extras : [], theme: typeof p.theme === "string" ? p.theme : "" }; }
 function setStylePicks(body) {
   const ok = new Set(menuLooks().filter((l) => USABLE_LOOK.has(l.status)).map((l) => l.id));
   const ids = [...new Set((Array.isArray(body.ids) ? body.ids : []).map(String))].filter((i) => ok.has(i)).slice(0, 40);
   const theme = String(body.theme || "");
   if (theme && !listThemes().some((t) => t.id === theme)) throw new Error("unknown theme");
-  writeJSON(PICKS_FILE, { ids, theme });
-  return { ids, theme };
+  const okx = new Set(menuExtras().map((x) => x.id));
+  const extras = [...new Set((Array.isArray(body.extras) ? body.extras : []).map(String))].filter((i) => okx.has(i));
+  writeJSON(PICKS_FILE, { ids, extras, theme });
+  return { ids, extras, theme };
 }
 function stylePage() {
-  const data = { reel: path.basename(REEL), looks: menuLooks(), themes: listThemes(), picks: stylePicks(), canSave: true };
+  const data = { reel: path.basename(REEL), looks: menuLooks(), extras: menuExtras(), themes: listThemes(), picks: stylePicks(), canSave: true };
   return fs.readFileSync(path.join(HERE, "style-menu.html"), "utf8").replace("/*MENU*/null", () => JSON.stringify(data).replace(/</g, "\\u003c"));
 }
 function setTheme(body) {
@@ -475,6 +478,20 @@ const server = http.createServer(async (req, res) => {
       res.writeHead(204).end(); return;
     }
     if (p === "/api/state" && req.method === "GET") return json(res, 200, built() ? view() : { built: false, reel: path.basename(REEL), review: hasReview(), links: LINKS });
+    if (req.method === "GET" && p === "/api/review-giphy-key") return json(res, 200, { key: giphyKey() || null });   // 0.10.2: GIPHY on the review page, before the build
+    if (req.method === "POST" && p === "/api/review-giphy") {
+      try {
+        fs.mkdirSync(P.popups, { recursive: true });
+        return json(res, 200, { ok: true, upload: await giphyAdd(JSON.parse((await readBody(req, 1e5)).toString() || "{}")) });
+      } catch (e) { return json(res, 400, { ok: false, error: String(e.message || e) }); }
+    }
+    if (req.method === "POST" && p === "/api/review-upload") {   // Added by By Mel Ross (0.10.2): their own picture for a graphic, from the review page (works before the build)
+      try {
+        const buf = await readBody(req, 60e6); if (!buf.length) throw new Error("empty file");
+        fs.mkdirSync(P.popups, { recursive: true });
+        return json(res, 200, { ok: true, upload: saveUpload(buf, url.searchParams.get("name") || "picture.png") });
+      } catch (e) { return json(res, 400, { ok: false, error: String(e.message || e) }); }
+    }
     if (p.startsWith("/api/") && !built()) return json(res, 409, { ok: false, error: "This reel is not built yet. Finish the review step first." });
     if (p === "/api/giphy-key" && req.method === "GET") return json(res, giphyKey() ? 200 : 404, { key: giphyKey() });
     if (p === "/api/job" && req.method === "GET") return json(res, 200, { job, canUndo: history().length > 0 });
@@ -494,6 +511,12 @@ const server = http.createServer(async (req, res) => {
         }
       } catch (e) { return json(res, 400, { ok: false, error: String(e.message || e) }); }
       res.writeHead(404).end(); return;
+    }
+    if (p.startsWith("/sfx/")) {   // Added by By Mel Ross (0.10.2): sound previews for both pages, straight from the effects library
+      const name = decodeURIComponent(p.slice(5)).replace(/\.wav$/, "");
+      if (!/^[a-z0-9][a-z0-9-]{0,40}$/.test(name)) { res.writeHead(404).end(); return; }
+      const engine = process.env.REEL_ENGINE || path.join(SKILL, "engine");
+      return sendFile(req, res, path.join(engine, "sfx", name + ".wav"));
     }
     if (p.startsWith("/files/")) {
       const file = path.resolve(REEL, "." + p.slice(6));

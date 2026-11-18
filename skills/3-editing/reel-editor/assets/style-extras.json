@@ -1,0 +1,13 @@
+{
+  "_note": "Added by By Mel Ross (0.10.1). Animations and moving extras the looks page offers next to the Style Menu looks. Each is something build_reel.py already draws (a motion card, a follow card, a popup, an orbit). 'needs' is what the person has to supply.",
+  "extras": [
+    { "id": "A1", "name": "Picture carousel", "draw": "carousel", "card": "motion carousel-*", "needs": "3 or more pictures or screenshots" },
+    { "id": "A2", "name": "Chart that draws itself", "draw": "chart", "card": "motion animated-bar-chart / mk-line-graph", "needs": "the numbers" },
+    { "id": "A3", "name": "Number that counts up", "draw": "counter", "card": "motion count-up", "needs": "the number" },
+    { "id": "A4", "name": "Words written across the screen", "draw": "follow", "card": "follow", "needs": null },
+    { "id": "A5", "name": "Comment, message or notification", "draw": "social", "card": "motion yt-comment-card / chat-message / native-notification-pop", "needs": "what it should read" },
+    { "id": "A6", "name": "GIFs that pop up", "draw": "gif", "card": "popup", "needs": "a free GIPHY key (references/giphy.md); you pick the GIFs on the touch-ups page" },
+    { "id": "A7", "name": "Photos circling your head", "draw": "orbit", "card": "orbit", "needs": "1 to 6 pictures; Mac only" },
+    { "id": "A8", "name": "Website in a browser window", "draw": "shot", "card": "shot", "needs": "the web address" }
+  ]
+}

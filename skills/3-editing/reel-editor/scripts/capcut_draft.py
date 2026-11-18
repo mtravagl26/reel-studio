@@ -55,7 +55,7 @@ def text_seg(sid, content, cx, cy, px, color, t0, t1, layer, acc=False):
             "layout": {"position_x": round(cx / 540 - 1, 3), "position_y": round(1 - cy / 960, 3), "layer": layer},
             "timeline": {"start.ms": ms(t0), "duration.ms": ms(t1) - ms(t0)}}   # not ms(t1-t0): rounding overlapped back-to-back captions by 1 ms
 
-def patch(sid, k, a, b, px, color, acc):   # restyles letters a..b inside one caption (mixed sizes / accent font + colour)
+def patch(sid, k, a, b, px, color, acc):   # restyles letters a..b inside one caption (mixed sizes / accent font + color)
     return {"id": f"{sid}p{k}", "type": "PATCH", "parent_id": sid,
             "attributes": {"letter_start": a, "letter_end": b, "font_size": round(px / PX, 1), "font_color": color,
                            "font": ACC_FONT if acc else FONT, "italic": bool(acc and ITALIC)}}

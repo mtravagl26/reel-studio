@@ -58,5 +58,5 @@ Every change first copies `edit.json`, `edl.json`, `master_transcript.json`, `ex
 
 - The video shown is the last render, not a live preview. The dashed box on the video shows where a popup or pill will land; the real look comes from re-rendering.
 - Only pills and popups can be added; stickers, titles, list cards and the other card types can be switched on/off, retimed and given a layer, not created.
-- Not built: dragging on a timeline, brand-new cards of other types, restoring cuts removed before this page, music, colour/look settings.
+- Not built: dragging on a timeline, brand-new cards of other types, restoring cuts removed before this page, music, color/look settings.
 - HEIC conversion needs macOS (`sips`). EXIF-rotated phone JPGs are untested.

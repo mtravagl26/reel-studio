@@ -64,6 +64,24 @@ textarea{min-height:80px;resize:vertical}
 .w.filler.back{color:var(--ink);text-decoration:none;outline:2px solid var(--keep);outline-offset:-2px}
 .pz{font:600 11px var(--f-mono);border:1.5px dashed var(--auto);color:var(--auto);background:none;border-radius:999px;padding:0 7px;cursor:pointer}
 .pz.kept{border-style:solid;border-color:var(--keep);color:var(--keep)}
+/* graphics: amount dial and "add a graphic" (Added by By Mel Ross, 0.10.1) */
+.amount{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;margin:0 0 12px;font-weight:700}
+.amount .lede{margin:0;font-weight:400;flex-basis:100%}
+.addg{margin:12px 0}
+#addform{display:grid;gap:6px;margin-top:10px;padding:12px;border:2px solid var(--line);border-radius:14px;background:var(--card,#fff)}
+#addform label{font-weight:700;font-size:13px}
+#addform select,#addform input{font:inherit;padding:9px 10px;border:2px solid var(--line);border-radius:10px;width:100%;background:#fff;color:inherit}
+.card.wanted{border-style:dashed;display:block}
+.upl{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:8px}
+.card>div{min-width:0}
+.upl{min-width:0}
+.giphy{flex-basis:100%;max-width:100%;min-width:0;box-sizing:border-box;border:2px solid var(--line);border-radius:14px;padding:10px;background:#fff}.giphy[hidden]{display:none}
+.giphy .ctl{display:flex;gap:6px;flex-wrap:wrap}.giphy input[type=search]{flex:1 1 120px;min-width:0;width:100%;box-sizing:border-box;font:inherit;padding:8px 10px;border:2px solid var(--line);border-radius:10px}.giphy select{font:inherit;padding:8px;border:2px solid var(--line);border-radius:10px;background:#fff}
+.ggrid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin:8px 0}.ggrid button{padding:0;border:2px solid var(--line);border-radius:8px;overflow:hidden;background:#eee;cursor:pointer;aspect-ratio:1}.ggrid img{width:100%;height:100%;object-fit:cover;display:block}
+.upchip{position:relative;display:inline-block}.upchip img{width:56px;height:56px;object-fit:cover;border-radius:8px;border:2px solid var(--line);display:block}
+.upchip button{position:absolute;top:-6px;right:-6px;width:22px;height:22px;border-radius:50%;border:0;background:var(--drop,#a32727);color:#fff;font-weight:700;line-height:1;cursor:pointer}
+.card.wanted .b{margin-top:8px}
+#addform[hidden],#addg[hidden]{display:none}
 /* graphics */
 .cards{display:flex;flex-direction:column;gap:10px}
 .card{display:grid;grid-template-columns:90px minmax(0,1fr);gap:14px;padding:12px;border-radius:16px;background:var(--surface);border:2px solid var(--line)}
@@ -95,7 +113,7 @@ textarea{min-height:80px;resize:vertical}
 .tools{display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end}
 .tools button{font:600 12px var(--f-mono);border:1.5px solid var(--line);background:var(--surface);color:var(--ink);border-radius:8px;padding:3px 7px;cursor:pointer}
 .tools button:hover{border-color:var(--accent)}
-/* sound & colour */
+/* sound & color */
 .pair{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;margin-bottom:18px}
 .pair figure{margin:0;display:flex;flex-direction:column;gap:6px}
 .pair img{border-radius:12px;width:100%;aspect-ratio:9/16;object-fit:cover;max-width:260px}
@@ -167,7 +185,7 @@ code{font:500 13px var(--f-mono);background:var(--accent-soft);border-radius:6px
       <button class="tab" role="tab" data-tab="cuts">Cuts <span class="dot" hidden></span></button>
       <button class="tab" role="tab" data-tab="graphics">Graphics <span class="dot" hidden></span></button>
       <button class="tab" role="tab" data-tab="captions">Captions <span class="dot" hidden></span></button>
-      <button class="tab" role="tab" data-tab="sound">Sound &amp; colour <span class="dot" hidden></span></button>
+      <button class="tab" role="tab" data-tab="sound">Sound &amp; color <span class="dot" hidden></span></button>
       <button class="tab" role="tab" data-tab="preview">Preview</button>
       <button class="tab" role="tab" data-tab="cover">Cover</button>
     </div>
@@ -181,7 +199,24 @@ code{font:500 13px var(--f-mono);background:var(--accent-soft);border-radius:6px
 
     <section data-p="graphics" hidden>
       <p class="lede">These are the graphics planned for this reel. Each picture shows roughly where the graphic will sit. It's a sketch, so the finished one moves and looks better. Keep it, drop it, or ask for a change and say what you want.</p>
+      <div class="amount"><span id="amountlabel">How many graphics?</span>
+        <div class="seg" id="amount" role="group" aria-labelledby="amountlabel">
+          <button type="button" class="k" data-amt="few">A few</button><button type="button" class="k" data-amt="some">Some</button><button type="button" class="k" data-amt="lots">Lots</button>
+        </div>
+        <span class="lede" id="amountnote"></span>
+      </div>
       <div class="tally" id="gtally"></div>
+      <div class="addg">
+        <button class="b" id="addg" type="button">Add a graphic</button>
+        <form id="addform" hidden>
+          <label for="addwhen">When should it appear?</label><select id="addwhen"></select>
+          <label for="addkind">What kind?</label><select id="addkind"></select>
+          <label for="addnote">What should it show?</label><input type="text" id="addnote" maxlength="300" placeholder="e.g. the 3 jobs I moved, as a list">
+          <p class="lede" id="addhint"></p>
+          <div class="ctl"><button class="b" type="submit">Add it</button><button class="b quiet" type="button" id="addcancel">Cancel</button></div>
+        </form>
+      </div>
+      <div class="cards" id="wanted"></div>
       <div class="cards" id="cards"><div class="empty">Graphics appear here once the reel loads.</div></div>
     </section>
 
@@ -195,8 +230,8 @@ code{font:500 13px var(--f-mono);background:var(--accent-soft);border-radius:6px
       <h2>Voice clean-up</h2>
       <p class="lede">The same 10 seconds, before and after the clean-up. Background noise comes down and the volume is set for Instagram.</p>
       <div class="pair" id="audio"></div>
-      <h2>Colour</h2>
-      <p class="lede">One frame, before and after the colour change: a little warmer, brighter shadows, softer windows.</p>
+      <h2>Color</h2>
+      <p class="lede">One frame, before and after the color change: a little warmer, brighter shadows, softer windows.</p>
       <div class="pair" id="colour"></div>
       <h2>Sound effects</h2>
       <p class="lede">Each sound plays when its graphic appears. Tap Play to hear it and switch off any you don't want. If you finish the reel in CapCut, CapCut's own sounds replace these.</p>
@@ -256,7 +291,7 @@ const v = $("#v"), ov = $("#ov");
 const fmt = t => `${Math.floor(t / 60)}:${(Math.max(0, t) % 60).toFixed(1).padStart(4, "0")}`;
 let R = null, B = null, S = blank(), P = null, CAPS = [], GFX = [];
 let tab = "cuts", ref = null, saving = Promise.resolve(), timer = null, undo = [], mode = "idle", loop = null;
-function blank() { return { theme: null, cut: null, restoredFillers: [], restoredPauses: [], trimmedPauses: [], captions: null, board: {}, sfxOff: {}, notes: {}, brandRequest: "", revisions: [], buildRequest: null }; }
+function blank() { return { theme: null, cut: null, restoredFillers: [], restoredPauses: [], trimmedPauses: [], captions: null, board: {}, wanted: [], amount: null, sfxOff: {}, notes: {}, brandRequest: "", revisions: [], buildRequest: null }; }
 
 // ---------- saving, undo ----------
 const pill = (t, err) => { $("#save").textContent = t; $("#save").classList.toggle("err", !!err); $("#retry").hidden = !err; };
@@ -292,7 +327,7 @@ function showTab(t) {
   tab = t;
   $$(".tab").forEach(b => b.setAttribute("aria-selected", b.dataset.tab === t));
   $$("section[data-p]").forEach(s => s.hidden = s.dataset.p !== t);
-  $("#notetab").textContent = { cuts: "cuts", graphics: "graphics", captions: "captions", sound: "sound and colour", preview: "preview", cover: "cover" }[t];
+  $("#notetab").textContent = { cuts: "cuts", graphics: "graphics", captions: "captions", sound: "sound and color", preview: "preview", cover: "cover" }[t];
   $("#notes").value = S.notes[t] || ""; $("#resetbox").hidden = t === "preview"; $("#notesbox").hidden = t === "cover";
   stopPlay();
   if (t === "preview") { if (B?.url && v.getAttribute("src") !== B.url) { v.setAttribute("src", B.url); v.load(); } $("#rough").hidden = $("#back5").hidden = $("#fwd5").hidden = true; $(".scrub").hidden = true; v.controls = true; }
@@ -310,7 +345,7 @@ function renderLook() {
   sel.textContent = "";
   for (const t of [{ id: "", name: "My brand as it is" }, ...list]) { const o = document.createElement("option"); o.value = t.id; o.textContent = t.name; o.selected = t.id === cur; sel.append(o); }
   const t = list.find(x => x.id === cur);
-  $("#themenote").textContent = (t ? t.summary + " " : "A theme changes the fonts, captions, titles and card shapes together. Your colours and name stay. ") + "You'll see it in the preview build.";
+  $("#themenote").textContent = (t ? t.summary + " " : "A theme changes the fonts, captions, titles and card shapes together. Your colors and name stay. ") + "You'll see it in the preview build.";
 }
 $("#theme").addEventListener("change", e => { mutate(() => { S.theme = e.target.value; }); renderLook(); });
 $("#reset").addEventListener("click", () => {
@@ -511,12 +546,138 @@ function renderGraphics() {
       const inp = document.createElement("input"); inp.type = "text"; inp.id = "note-" + g.id; inp.placeholder = "What should change?"; inp.value = (S.board[g.id] || {}).note || "";
       inp.addEventListener("input", () => { S.board[g.id] = { ...(S.board[g.id] || { state: "c" }), note: inp.value }; queueSave(); });
       body.appendChild(inp);
+      body.appendChild(uploader((S.board[g.id] || {}).files || [], files => mutate(() => { S.board[g.id] = { ...(S.board[g.id] || { state: "c" }), files }; })));
     }
     el.append(th, body); box.appendChild(el);
   }
   $("#gtally").innerHTML = `<span><b>${GFX.length}</b> graphics</span><span><b>${n.k}</b> keep</span><span><b>${n.c}</b> change</span><span><b>${n.d}</b> drop</span>`;
 }
 const box_ = g => box(g, false);
+
+// Their own pictures for a graphic (Added by By Mel Ross, 0.10.2). Only at the local Reel Studio link: the picture is saved in the
+// reel folder (popups/) and its path travels with the decision, so Claude uses that file when it builds the graphic.
+function uploader(files, onChange) {
+  const wrap = document.createElement("div"); wrap.className = "upl";
+  if (!window.REEL_STUDIO_LINKS) return wrap;
+  const inp = document.createElement("input"); inp.type = "file"; inp.accept = "image/*,.gif,.heic,.heif"; inp.multiple = true; inp.hidden = true;
+  const btn = document.createElement("button"); btn.type = "button"; btn.className = "b quiet"; btn.textContent = files.length ? "Add another picture" : "Use my own picture or GIF";
+  const msg = document.createElement("span"); msg.className = "lede";
+  btn.addEventListener("click", () => inp.click());
+  inp.addEventListener("change", async () => {
+    const got = [...files];
+    for (const f of inp.files) {
+      msg.textContent = `Uploading ${f.name}…`;
+      try {
+        const r = await fetch("/api/review-upload?name=" + encodeURIComponent(f.name), { method: "POST", body: f }), j = await r.json();
+        if (!j.ok) throw new Error(j.error || "upload failed");
+        got.push(j.upload.src);
+      } catch (e) { msg.textContent = `${f.name}: ${e.message}`; msg.classList.add("warnline"); return; }
+    }
+    onChange(got.slice(0, 6));
+  });
+  // GIPHY search (their own free key, kept on this computer; see references/giphy.md). The page asks GIPHY for small previews;
+  // the picked GIF is downloaded by the local server into the reel folder, like an upload.
+  const gbtn = document.createElement("button"); gbtn.type = "button"; gbtn.className = "b quiet"; gbtn.textContent = "Search GIPHY";
+  const gbox = document.createElement("div"); gbox.className = "giphy"; gbox.hidden = true;
+  const gq = document.createElement("input"); gq.type = "search"; gq.placeholder = "Search GIFs, e.g. mind blown"; gq.setAttribute("aria-label", "Search GIPHY");
+  const kind = document.createElement("select"); kind.setAttribute("aria-label", "GIFs or stickers"); kind.append(new Option("GIFs", "gifs"), new Option("Stickers (see-through)", "stickers"));
+  const go = document.createElement("button"); go.type = "button"; go.className = "b"; go.textContent = "Search";
+  const grid = document.createElement("div"); grid.className = "ggrid"; const gnote = document.createElement("p"); gnote.className = "lede";
+  const credit = document.createElement("p"); credit.className = "lede"; credit.textContent = "Powered by GIPHY";
+  const search = async () => {
+    const q = gq.value.trim(); if (!q) return gq.focus();
+    gnote.textContent = "Searching…"; grid.textContent = "";
+    try {
+      const { key } = await (await fetch("/api/review-giphy-key")).json();
+      if (!key) throw new Error("GIPHY isn't set up on this computer yet. Tell Claude: \"set up GIPHY for the reel editor\". It takes a free key and about 2 minutes.");
+      const u = new URL(`https://api.giphy.com/v1/${kind.value}/search`); u.search = new URLSearchParams({ api_key: key, q, limit: "12", rating: "g", bundle: "messaging_non_clips" });
+      const r = await fetch(u); if (r.status === 429) throw new Error("GIPHY's hourly limit is used up for this key. Try again later.");
+      if (!r.ok) throw new Error(`GIPHY said no (${r.status}). Ask Claude to check the key.`);
+      const items = ((await r.json()).data || []).map(d => ({ id: d.id, title: d.title || "GIF", preview: d.images?.fixed_width_small?.url || d.images?.fixed_width?.url || "" })).filter(g => /^https:\/\/[\w-]+\.giphy\.com\//.test(g.preview));
+      gnote.textContent = items.length ? "Tap one to use it for this graphic." : "Nothing found. Try other words.";
+      for (const g of items) {
+        const b = document.createElement("button"); b.type = "button"; b.title = g.title; const im = document.createElement("img"); im.src = g.preview; im.alt = g.title; im.loading = "lazy"; b.append(im);
+        b.addEventListener("click", async () => {
+          gnote.textContent = "Adding it…";
+          try {
+            const j = await (await fetch("/api/review-giphy", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: g.id }) })).json();
+            if (!j.ok) throw new Error(j.error || "couldn't add it");
+            onChange([...files, j.upload.src].slice(0, 6));
+          } catch (e) { gnote.textContent = e.message; }
+        });
+        grid.append(b);
+      }
+    } catch (e) { gnote.textContent = e.message; }
+  };
+  go.addEventListener("click", search); gq.addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); search(); } });
+  gbtn.addEventListener("click", () => { gbox.hidden = !gbox.hidden; if (!gbox.hidden) gq.focus(); });
+  const row = document.createElement("div"); row.className = "ctl"; row.append(gq, kind, go); gbox.append(row, gnote, grid, credit);
+  wrap.append(btn, gbtn, inp, msg, gbox);
+  files.forEach((src, k) => {
+    const chip = document.createElement("span"); chip.className = "upchip";
+    const im = document.createElement("img"); im.src = "/files/" + src; im.alt = "";
+    const rm = document.createElement("button"); rm.type = "button"; rm.textContent = "×"; rm.title = "Remove this picture"; rm.setAttribute("aria-label", "Remove this picture");
+    rm.addEventListener("click", () => onChange(files.filter((_, i) => i !== k)));
+    chip.append(im, rm); wrap.append(chip);
+  });
+  return wrap;
+}
+
+// ---------- 2b. ask for more graphics (Added by By Mel Ross, 0.10.1) ----------
+// The page can't design a graphic, so these are requests: Claude builds each one when the decisions are imported
+// (review_sync.py prints them as GRAPHIC WANTED / GRAPHICS AMOUNT). They change the build fingerprint like any other decision.
+const KINDS = [
+  ["choose", "You choose what fits", ""],
+  ["title", "Big headline", ""],
+  ["list", "List that builds row by row", ""],
+  ["checks", "Check or X list", ""],
+  ["label", "Small label", ""],
+  ["number", "Number or stat card", ""],
+  ["photo", "My photo or screenshot", "Put the picture in the reel folder, or say which site to screenshot."],
+  ["gif", "GIF", "Say what the GIF should be. You can also search and place GIFs yourself on the touch-ups page after the build."],
+  ["carousel", "Animation: picture carousel", "Needs 3 or more pictures from you."],
+  ["chart", "Animation: chart that draws itself", "Say the numbers."],
+  ["counter", "Animation: number that counts up", "Say the number."],
+  ["follow", "Animation: words written across the screen", ""],
+  ["social", "Animation: comment, message or notification", "Say what it should read."],
+  ["orbit", "Photos circling my head", "Needs 1 to 6 pictures from you. Mac only."],
+];
+const AMOUNT = { few: "About 1 every 10 seconds.", some: "About 1 every 5 seconds.", lots: "About 1 every 3 seconds." };
+const capText = c => c.words.map(w => w.text).join(" ");
+function renderWanted() {
+  const cur = S.amount || R.graphicsAmount || "some";
+  $$("#amount button").forEach(b => b.setAttribute("aria-pressed", b.dataset.amt === cur));
+  $("#amountnote").textContent = AMOUNT[cur] + (S.amount && S.amount !== (R.graphicsAmount || "some") ? " Claude re-plans the graphics when you send this, so the list below is the old plan." : "");
+  const box = $("#wanted"); box.textContent = "";
+  for (const w of S.wanted || []) {
+    const el = document.createElement("div"); el.className = "card wanted";
+    const body = document.createElement("div");
+    const kind = document.createElement("div"); kind.className = "kind"; kind.textContent = "You asked for: " + (KINDS.find(k => k[0] === w.kind) || KINDS[0])[1];
+    const what = document.createElement("div"); what.className = "what"; what.textContent = w.note || "No details given. Claude picks.";
+    const meta = document.createElement("div"); meta.className = "meta";
+    const line = document.createElement("span"); line.textContent = `At "${w.line}"`; meta.append(line);
+    const rm = document.createElement("button"); rm.type = "button"; rm.className = "b quiet"; rm.textContent = "Remove";
+    rm.addEventListener("click", () => mutate(() => { S.wanted = S.wanted.filter(x => x.id !== w.id); }));
+    body.append(kind, what, meta, uploader(w.files || [], files => mutate(() => { S.wanted = S.wanted.map(x => x.id === w.id ? { ...x, files } : x); })), rm); el.append(body); box.appendChild(el);
+  }
+  if ((S.wanted || []).length) $("#gtally").insertAdjacentHTML("beforeend", `<span><b>${S.wanted.length}</b> asked for</span>`);
+}
+$$("#amount button").forEach(b => b.addEventListener("click", () => mutate(() => { S.amount = b.dataset.amt === (R.graphicsAmount || "some") ? null : b.dataset.amt; })));
+$("#addkind").append(...KINDS.map(([v, t]) => new Option(t, v)));
+$("#addkind").addEventListener("change", () => { $("#addhint").textContent = (KINDS.find(k => k[0] === $("#addkind").value) || [])[2] || ""; });
+$("#addg").addEventListener("click", () => {
+  const sel = $("#addwhen"); sel.textContent = "";
+  for (const c of CAPS.filter(c => !c.gone)) sel.append(new Option(`${fmt(c.start)}  ${capText(c)}`.slice(0, 70), String(c.ci)));
+  $("#addform").hidden = false; $("#addg").hidden = true; $("#addnote").value = ""; $("#addkind").value = "choose"; $("#addhint").textContent = ""; sel.focus();
+});
+const closeAdd = () => { $("#addform").hidden = true; $("#addg").hidden = false; };
+$("#addcancel").addEventListener("click", closeAdd);
+$("#addform").addEventListener("submit", e => {
+  e.preventDefault();
+  const c = CAPS.find(c => String(c.ci) === $("#addwhen").value); if (!c) return closeAdd();
+  const w = { id: "w" + Date.now().toString(36), kind: $("#addkind").value, ci: c.ci, word: c.words[0].i ?? null, line: capText(c).slice(0, 80), note: $("#addnote").value.trim().slice(0, 300) };
+  mutate(() => { S.wanted = [...(S.wanted || []), w]; }); closeAdd();
+});
 
 // ---------- 3. captions ----------
 function capsEditable() { if (!S.captions) S.captions = JSON.parse(JSON.stringify(R.captions)); return S.captions; }
@@ -571,14 +732,14 @@ function renderCaptions() {
   $("#captally").innerHTML = `<span><b>${live.length}</b> captions</span><span><b>${CAPS.length - live.length}</b> cut out with their words</span><span><b>${acc}</b> accent words</span>`;
 }
 
-// ---------- 4. sound & colour ----------
+// ---------- 4. sound & color ----------
 function renderSound() {
   const A = R.assets || {};
   const fig = (label, el) => { const f = document.createElement("figure"); const c = document.createElement("figcaption"); c.textContent = label; f.append(c, el); return f; };
   const au = u => { const a = document.createElement("audio"); a.controls = true; a.preload = "none"; a.src = u; return a; };
   const im = (u, alt) => { const i = document.createElement("img"); i.src = u; i.alt = alt; return i; };
   $("#audio").replaceChildren(...(A.audioOriginal ? [fig("Original", au(A.audioOriginal)), fig("Cleaned", au(A.audioCleaned))] : [Object.assign(document.createElement("div"), { className: "empty", textContent: "No audio comparison for this reel yet." })]));
-  $("#colour").replaceChildren(...(A.colourBefore && R.grade ? [fig("Original", im(A.colourBefore, "Frame before grading")), fig("Graded", im(A.colourAfter, "Same frame after grading"))] : [Object.assign(document.createElement("div"), { className: "empty", textContent: "No colour grade is set for this brand, so the reel keeps its original colour." })]));
+  $("#colour").replaceChildren(...(A.colourBefore && R.grade ? [fig("Original", im(A.colourBefore, "Frame before grading")), fig("Graded", im(A.colourAfter, "Same frame after grading"))] : [Object.assign(document.createElement("div"), { className: "empty", textContent: "No color grade is set for this brand, so the reel keeps its original color." })]));
   const cues = $("#cues"); cues.textContent = "";
   for (const g of GFX.filter(g => g.sfx && !g.gone && g.state !== "d")) {
     const off = !!S.sfxOff[g.id];
@@ -587,7 +748,15 @@ function renderSound() {
     const w = document.createElement("span"); w.className = "what"; w.textContent = `${g.sfx.name} · ${g.kind}`;
     const ctl = document.createElement("span"); ctl.className = "ctl";
     const play = document.createElement("button"); play.type = "button"; play.className = "b quiet"; play.textContent = "Play";
-    play.addEventListener("click", () => { const u = A.sfx?.[g.sfx.name]; if (!u) return; const a = new Audio(u); a.volume = Math.min(1, Math.pow(10, (g.sfx.db + 8) / 20)); a.play().catch(() => {}); });
+    // Modified by By Mel Ross (0.10.2): Play did nothing, with no message, when the reel's data had no address for the sound.
+    // The local Reel Studio link serves every library sound at /sfx/<name>.wav, and a sound that can't play now says so.
+    play.addEventListener("click", () => {
+      const u = A.sfx?.[g.sfx.name] || (window.REEL_STUDIO_LINKS ? `/sfx/${encodeURIComponent(g.sfx.name)}.wav` : null);
+      const fail = () => { play.textContent = "Can't play"; play.title = "This sound's file wasn't found. Tell Claude: run setup_engine.sh, then refresh the review page."; };
+      if (!u) return fail();
+      const a = new Audio(u); a.volume = Math.min(1, Math.pow(10, (g.sfx.db + 8) / 20));
+      a.addEventListener("error", fail); a.play().then(() => { play.textContent = "Play"; }).catch(fail);
+    });
     const tg = document.createElement("button"); tg.type = "button"; tg.className = "b quiet"; tg.textContent = off ? "Switch on" : "Switch off";
     tg.addEventListener("click", () => mutate(() => { if (off) delete S.sfxOff[g.id]; else S.sfxOff[g.id] = true; }));
     ctl.append(play, tg); row.append(t, w, ctl); cues.appendChild(row);
@@ -607,19 +776,22 @@ function renderPreview() {
     const row = document.createElement("div"); row.className = "rev";
     const t = document.createElement("button"); t.className = "ts"; t.type = "button"; t.innerHTML = `<span class="tc">${fmt(r.t)}</span>`;
     t.addEventListener("click", () => { if (B?.url) { v.currentTime = r.t; v.play().catch(() => {}); } });
-    const x = document.createElement("span"); x.textContent = r.text;
+    const x = document.createElement("span"); x.textContent = r.text + (r.rough ? " (written before the build)" : "");
     const del = document.createElement("button"); del.type = "button"; del.className = "b quiet"; del.textContent = "Remove";
     del.addEventListener("click", () => mutate(() => S.revisions.splice(k, 1)));
     row.append(t, x, del); revs.appendChild(row);
   });
-  if (!S.revisions.length) revs.innerHTML = `<div class="empty">No notes yet. Pause the draft where something's off, describe it, and add the note.</div>`;
+  if (!S.revisions.length) revs.innerHTML = `<div class="empty">No notes yet. Write what should change and add the note. With a draft built, pause it at the moment first.</div>`;
 }
 $("#build").addEventListener("click", () => mutate(() => { S.buildRequest = { hash: ReelCore.hash(decisions()), at: new Date().toISOString() }; }));
 $("#revadd").addEventListener("click", () => {
   const text = $("#revtext").value.trim(); if (!text) { $("#revtext").focus(); return; }
-  if (!B?.url) { pill("Build a preview first, then add notes at moments in it.", true); return; }
-  mutate(() => { S.revisions.push({ t: +v.currentTime.toFixed(2), text, hash: B.hash }); S.revisions.sort((a, b) => a.t - b.t); }); $("#revtext").value = "";
+  // Modified by By Mel Ross (0.10.2): this refused every note until a preview was built, with a message that vanished. A note
+  // written before the build is kept too: it carries the rough-cut time and "rough": true, and the import passes it to Claude.
+  const built = !!B?.url, t = built ? v.currentTime : pos;
+  mutate(() => { S.revisions.push({ t: +(+t || 0).toFixed(2), text, hash: built ? B.hash : null, ...(built ? {} : { rough: true }) }); S.revisions.sort((a, b) => a.t - b.t); }); $("#revtext").value = "";
 });
+$("#revtext").addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); $("#revadd").click(); } });
 
 // ---------- 6. cover: a link to the thumbnail studio on their own computer ----------
 function renderCover() {
@@ -636,8 +808,8 @@ function renderCover() {
 }
 
 function renderAll() {
-  renderCuts(); renderGraphics(); renderCaptions(); renderSound(); renderPreview(); renderCover();
-  const sent = { cuts: S.cut != null, graphics: Object.keys(S.board).length, captions: S.captions != null, sound: Object.keys(S.sfxOff).length };
+  renderCuts(); renderGraphics(); renderWanted(); renderCaptions(); renderSound(); renderPreview(); renderCover();
+  const sent = { cuts: S.cut != null, graphics: Object.keys(S.board).length || (S.wanted || []).length || S.amount, captions: S.captions != null, sound: Object.keys(S.sfxOff).length };
   $$(".tab").forEach(b => { const d = b.querySelector(".dot"); if (d) d.hidden = !sent[b.dataset.tab]; });
 }
 

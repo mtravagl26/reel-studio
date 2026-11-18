@@ -237,7 +237,7 @@ export function cleanCardFields(type, set, dur) {
     else if (k === "size") out[k] = Math.round(num(v, k, type === "popup" ? 80 : 40, type === "popup" ? 1000 : 900));
     else if (k === "rotate") out[k] = num(v, k, -45, 45);
     else if (k === "rows") out[k] = (Array.isArray(v) ? v : []).map((x) => cleanText(x, "row", 40)).slice(0, 6);
-    else if (k === "color") { if (!/^#[0-9a-fA-F]{6}$/.test(v)) throw new Error("colour must look like #B9C8A5"); out[k] = v; }
+    else if (k === "color") { if (!/^#[0-9a-fA-F]{6}$/.test(v)) throw new Error("color must look like #B9C8A5"); out[k] = v; }
   }
   if (out.start != null && out.end != null && out.end < out.start + 0.3) throw new Error("a card must stay on screen for at least 0.3 s");
   return out;

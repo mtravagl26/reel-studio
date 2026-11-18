@@ -84,7 +84,7 @@ test("without avconvert an HDR clip is used as it is and the build says the colo
   const d = tmp("colour-fallback"), src = clip(d, "hlg.mp4", HLG), c = reelWith(src, "hlg.mp4");
   const r = py("cut.py", [c.reel], { ...c.env, REEL_NO_AVCONVERT: "1" });
   assert.equal(r.status, 0, r.stdout + r.stderr);
-  assert.match(r.stdout, /colour is only approximate/);
+  assert.match(r.stdout, /color is only approximate/);
   const info = JSON.parse(fs.readFileSync(path.join(c.reel, "enhance.json"), "utf8"));
   assert.match(info.source_colour, /only approximate/);
   assert.ok(!fs.existsSync(path.join(c.reel, "source_sdr.mp4")), "no converted copy was made");
