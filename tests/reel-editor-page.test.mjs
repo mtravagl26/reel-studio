@@ -5,6 +5,7 @@ import { spawn } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
+import http from "node:http";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { ff, haveVp9, py, run, skill, skipReason, tmp } from "./reel-helpers.mjs";
 
@@ -308,6 +309,15 @@ test("studio server: an unbuilt reel opens on the review page, saves decisions, 
     assert.equal((await fetch(base + "/db/reel/current", { method: "PUT", body: "{}" })).status, 403, "the page cannot rewrite the reel data");
     assert.equal((await fetch(base + "/files/review_db/reel/current.json")).status, 403, "review data is only served through /db");
     assert.ok(!fs.existsSync(path.join(reel, "editor")), "an unbuilt reel gets no editor folder");
+    // Added by By Mel Ross (0.8.1): another website open in the same browser cannot change or read this reel
+    const from = (h) => ({ method: "POST", headers: h, body: "{}" });
+    assert.equal((await fetch(base + "/api/render", from({ Origin: "https://evil.example" }))).status, 403, "a post from another site is refused");
+    assert.equal((await fetch(base + "/api/render", from({ "Sec-Fetch-Site": "cross-site" }))).status, 403);
+    assert.equal((await fetch(base + "/db/review/current", { method: "PUT", headers: { Origin: "null" }, body: "{}" })).status, 403);
+    assert.equal((await fetch(base + "/api/render", from({ Origin: base }))).status, 409, "the page's own post gets through (and finds nothing to render yet)");
+    const raw = await new Promise((resolve) => { const r = http.request({ host: "127.0.0.1", port, path: "/api/state", headers: { Host: `evil.example:${port}` } }, (x) => resolve(x.statusCode)); r.end(); });
+    assert.equal(raw, 403, "a request addressed to another name is refused");
+
     // the reel gets built while the server is running: the same link now opens touch-ups
     fs.writeFileSync(path.join(reel, "edit.json"), JSON.stringify(mkEdit()));
     fs.writeFileSync(path.join(reel, "edl.json"), JSON.stringify(EDL));

@@ -3,7 +3,11 @@
 > Modified by By Mel Ross from the FavStash creator skills agent contract (see NOTICE).
 
 Eleven skills: the ten FavStash creator skills in four stages of the short-form
-loop, plus `reel-editor` for talking-head reels. For a user-requested
+loop, plus `reel-editor` for talking-head reels. Setup installs `reel-editor`,
+`find-ideas` and `write-script`; the rest are extras the user asks for. **One person
+talking to camera always goes to `reel-editor`** (it has the themes, the review and
+touch-ups pages and the cover). Use `edit-video` and its styles only when the user
+asks for one of those styles by name or the reel is not a talking head. For a user-requested
 installation, follow [INSTALL_FOR_AGENTS.md](INSTALL_FOR_AGENTS.md). Which skill to
 use when: [skills/README.md](skills/README.md).
 

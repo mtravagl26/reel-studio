@@ -17,8 +17,7 @@ This product combines and modifies two open-source projects:
    Copyright (c) 2026 Nicola Pocock (getgitgirl)
    https://github.com/nicolapocock/claude-reel-editor
    Licensed under the MIT License (see skills/3-editing/reel-editor/LICENSE).
-   Included: skills/3-editing/reel-editor (with changes), docs/images and
-   brand/examples/getgitgirl. The setup steps in README.md follow the structure of
+   Included: skills/3-editing/reel-editor (with changes) and docs/images. The setup steps in README.md follow the structure of
    its beginner guide.
 
 Changes made by By Mel Ross (files carry a "Modified by By Mel Ross" or
@@ -47,7 +46,7 @@ Changes made by By Mel Ross (files carry a "Modified by By Mel Ross" or
   are not included.
 - Added brand/: the By Mel Ross example brand (brand.example.json,
   brand.example.md, style-reference.md) with the Lora and Inter fonts, which are
-  licensed under the SIL Open Font License 1.1 (license texts in brand/fonts/).
+  licensed under the SIL Open Font License 1.1 (license texts in skills/3-editing/reel-editor/themes/_fonts/).
 
 Changes made by By Mel Ross in Reel Studio 0.2.0 (November 2026). Modified files carry a
 "Modified by By Mel Ross" or "Added by By Mel Ross" note; everything below is in
@@ -141,3 +140,8 @@ Added by By Mel Ross in 0.5.0 (November 2026), in skills/3-editing/reel-editor u
   over brand.json; 4 themes ship in skills/3-editing/reel-editor/themes (editorial, bold,
   handwritten, whimsical); build_reel.py, auto_edit.py, review_sync.py, cover.py,
   thumbnail_studio.py and storyboard.py read the brand through it.
+- 0.8.1: the local review and touch-ups servers refuse requests that do not come from their
+  own page; reel-editor is the default install and the other skills are extras, each marked
+  with what it sends off the computer; brand/examples/getgitgirl (the upstream author's own
+  brand) is replaced by a made-up example, brand/examples/example-studio; the example brand's
+  fonts now live once, in skills/3-editing/reel-editor/themes/_fonts/.

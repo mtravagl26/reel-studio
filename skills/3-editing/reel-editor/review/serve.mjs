@@ -12,7 +12,7 @@ import path from "node:path";
 import os from "node:os";
 import crypto from "node:crypto";
 import { fileURLToPath } from "node:url";
-import { SHIM, DOCS, WRITABLE } from "./review-shim.mjs";
+import { SHIM, DOCS, WRITABLE, trusted } from "./review-shim.mjs";
 
 const args = process.argv.slice(2);
 const REEL = path.resolve(args.find(a => !a.startsWith("--") && !/^\d+$/.test(a)) || ".");
@@ -44,6 +44,7 @@ function sendFile(req, res, file) {
 }
 
 http.createServer((req, res) => {
+  if (!trusted(req, PORT, LAN)) { res.writeHead(403).end("this page only answers requests sent from its own address"); return; }
   const url = new URL(req.url, "http://x"), p = decodeURIComponent(url.pathname);
   if (KEY) {   // the key arrives once in the link, then rides in a cookie so videos, images and fonts load too
     if (url.searchParams.get("k") === KEY) res.setHeader("Set-Cookie", `rk=${KEY}; HttpOnly; SameSite=Strict; Path=/`);

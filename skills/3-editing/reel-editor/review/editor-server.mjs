@@ -13,7 +13,7 @@ import path from "node:path";
 import os from "node:os";
 import crypto from "node:crypto";
 import { spawn, spawnSync } from "node:child_process";
-import { SHIM, DOCS, WRITABLE } from "./review-shim.mjs";
+import { SHIM, DOCS, WRITABLE, trusted } from "./review-shim.mjs";
 import { fileURLToPath } from "node:url";
 import * as core from "./editor-core.mjs";
 
@@ -356,6 +356,7 @@ const readBody = (req, limit) => new Promise((resolve, reject) => {
 
 const server = http.createServer(async (req, res) => {
   try {
+    if (!trusted(req, PORT, LAN)) { res.writeHead(403).end("this page only answers requests sent from its own address"); return; }
     const url = new URL(req.url, "http://x"), p = decodeURIComponent(url.pathname);
     if (KEY) {   // the key arrives once in the link, then rides in a cookie so videos, images and the API work too
       if (url.searchParams.get("k") === KEY) res.setHeader("Set-Cookie", `rk=${KEY}; HttpOnly; SameSite=Strict; Path=/`);

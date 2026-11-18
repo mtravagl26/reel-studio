@@ -4,7 +4,7 @@
 
 You film yourself talking to your phone. You drop the video into Claude. You get back a finished reel in your own brand: tidy audio, filler words gone, captions that land on the word, a hook title, gentle zooms, and a cover, saved right back next to your footage.
 
-Everything happens on your own computer. Nothing gets posted, uploaded or scheduled for you. You stay the one who hits "share".
+The reel editor runs on your own computer, and nothing is posted or scheduled for you. You stay the one who hits "share". A few optional extras do go online, and each one is listed under [Privacy](#privacy).
 
 ## What's inside
 
@@ -36,7 +36,7 @@ Two free, open-source skill sets in one folder, plus one creator's way of workin
   - **1080x1920 by default, 4K optional.** Instagram shows 1080x1920 at most, so that is what renders unless you choose 4K in the setup (slower, and only sharper if you filmed in 4K).
   - Telemetry is off, and nothing is ever posted for you.
 
-Not sure which skill does what? See [skills/README.md](skills/README.md). The short version: **talking-head reel = reel editor**. Effects, styles, scripts and ideas = the FavStash skills.
+Not sure which skill does what? See [skills/README.md](skills/README.md). The short version: **talking-head reel = reel editor**. Setup installs it with the two planning skills (ideas and scripts). The FavStash editing styles, the motion effects and the publishing skill are extras: ask Claude to add them when you want them.
 
 ## What you need
 
@@ -83,7 +83,8 @@ You can close Terminal now.
 
 ```text
 Set up Reel Studio from github.com/mtravagl26/reel-studio for my reels.
-Follow its INSTALL_FOR_AGENTS.md: install all eleven skills, keep telemetry off,
+Follow its INSTALL_FOR_AGENTS.md: install the reel editor and the two planning
+skills (no extras yet), keep telemetry off,
 copy the example brand so I can make it mine, and run both doctor checks.
 ```
 
@@ -124,13 +125,13 @@ Want to start from an example? [`brand/`](brand) holds By Mel Ross's brand:
 | Main colour | `#0d2b2d` deep teal |
 | Highlight colour | `#B9C8A5` light sage |
 | Light colour | `#f5f2ec` cream |
-| Fonts | Lora (headlines), Inter (captions), Lora Italic (accents). Free fonts, included in `brand/fonts/` |
+| Fonts | Lora (headlines), Inter (captions), Lora Italic (accents). Free fonts, included in `skills/3-editing/reel-editor/themes/_fonts/` |
 | Captions | Short phrases, sentence case, white, sage key word with a soft teal shadow |
 | Zooms | 1.04x over 2.5 s, eased in and out, about every 6 s |
 | Music and sound effects | None |
 | Finished files | Back into the footage folder (`"deliver_dir": "footage"`) |
 
-[`brand/style-reference.md`](brand/style-reference.md) describes, in words, the reel this brand is tuned to. Copy `brand.example.json` to `~/reels/brand.json`, `brand.example.md` to `~/reels/brand.md` and the fonts to `~/reels/fonts/`, then make them yours. There's a second, very different example in [`brand/examples/`](brand/examples).
+[`brand/style-reference.md`](brand/style-reference.md) describes, in words, the reel this brand is tuned to. Copy `brand.example.json` to `~/reels/brand.json`, `brand.example.md` to `~/reels/brand.md` and the fonts from `skills/3-editing/reel-editor/themes/_fonts/` to `~/reels/fonts/`, then make them yours. There's a second, made-up example in [`brand/examples/`](brand/examples) that is fast and loud where this one is calm.
 
 Useful `brand.json` settings this version adds:
 
@@ -157,12 +158,17 @@ Useful `brand.json` settings this version adds:
 
 ## Privacy
 
-- Your footage, transcripts and renders stay on your computer.
+- Your footage and renders stay on your computer. Claude reads the transcript and a few still frames to plan the edit, as with anything you do in Claude.
 - Transcription runs locally with Whisper. If you choose to add an ElevenLabs key, audio goes to ElevenLabs for tighter caption timing; without a key, nothing leaves your Mac.
 - HDR to standard colour uses `avconvert`, built into macOS, on your own computer.
 - The speaker cutout uses Apple's built-in person segmentation (macOS) on your own computer; the sound effects and the optional music bed are generated on your computer. Nothing is downloaded for them.
 - HyperFrames telemetry is switched off (`HYPERFRAMES_NO_TELEMETRY=1`, `DO_NOT_TRACK=1`).
-- Nothing is connected to your social accounts. The FavStash posting service isn't set up by this pack; if you connect it yourself, it still needs your approval for each post.
+- Nothing is connected to your social accounts, and setup does not install the publishing skill.
+- **What goes online, and only if you ask for it:**
+  - An ElevenLabs key (optional) sends your audio to ElevenLabs for caption timing.
+  - Giving Claude a link to someone's reel downloads that video to your computer with `yt-dlp` so it can be studied.
+  - The planning skills can read your saved posts and results from FavStash if you connect a FavStash account. Without one they work from links and transcripts you give them.
+  - The `publish-and-analyze` extra sends a finished reel to FavStash to schedule it. You connect it yourself and approve each post.
 
 ## For developers
 
