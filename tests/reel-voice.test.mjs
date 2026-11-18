@@ -55,3 +55,17 @@ test("the mix can still be asked for -14 LUFS / -1.5 dBTP", { skip: skipReason }
   assert.equal(rep.target_lufs, -14);
   assert.ok(Math.abs(rep.lufs - -14) <= 1, `loudness ${rep.lufs}`);
 });
+
+test("a recording that is already clean is left as recorded; a noisy one still gets the full clean-up", { skip: skipReason }, () => {
+  const dir = tmp("voice-auto"), clean = path.join(dir, "clean.wav"), noisy = path.join(dir, "noisy.wav");
+  const beeps = "sine=f=220:d=6,volume=0.5,aeval=val(0)*gt(mod(t\\,1)\\,0.5)";      // half a second of tone, half a second of silence
+  ff(["-f", "lavfi", "-i", beeps, clean]);
+  ff(["-f", "lavfi", "-i", "anoisesrc=d=6:c=pink:a=0.05", "-f", "lavfi", "-i", beeps, "-filter_complex", "amix=inputs=2:normalize=0", noisy]);
+  const a = run("bash", [script, clean, path.join(dir, "a.wav")]);
+  assert.equal(a.status, 0, a.stderr); assert.match(a.stderr, /clean recording \(background -?\d+ dB\): voice left as recorded/);
+  assert.doesNotMatch(a.stderr, /denoiser|WARNING/);
+  const b = run("bash", [script, noisy, path.join(dir, "b.wav")]);
+  assert.equal(b.status, 0, b.stderr); assert.doesNotMatch(b.stderr, /clean recording/);
+  const c = run("bash", [script, clean, path.join(dir, "c.wav")], { CLEAN: "full" });
+  assert.doesNotMatch(c.stderr, /clean recording/, "CLEAN=full forces the whole chain");
+});

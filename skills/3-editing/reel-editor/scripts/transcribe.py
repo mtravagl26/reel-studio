@@ -48,7 +48,12 @@ if k:
     print(f"transcribed with ElevenLabs {model}: {len(words)} words")
 else:
     d = out.parent / (out.stem + "_whisper")
-    subprocess.run(["npx", "-y", "hyperframes@0.8.145", "transcribe", str(src), "-d", str(d), "--json", "--model", "small.en"], capture_output=True, check=True)
+    r = subprocess.run(["npx", "-y", "hyperframes@0.8.145", "transcribe", str(src), "-d", str(d), "--json", "--model", "small.en"], capture_output=True, text=True)
+    if r.returncode != 0 or not (d / "transcript.json").exists():   # Modified by By Mel Ross (0.10.1): this used to end in a bare traceback
+        why = (r.stdout + r.stderr).strip().splitlines()[-3:]
+        sys.exit("local Whisper could not transcribe this clip:\n  " + "\n  ".join(why or ["no output"]) +
+                 "\nThe first run downloads the speech model (about 500 MB) from huggingface.co, so it needs internet. "
+                 "Or add ELEVENLABS_API_KEY to ~/.config/reels/.env to use Scribe.")
     words = json.load(open(d / "transcript.json"))
     print(f"transcribed with local Whisper (no ElevenLabs key): {len(words)} words - timing can drift ~0.3 s")
 json.dump(words, open(out, "w"))

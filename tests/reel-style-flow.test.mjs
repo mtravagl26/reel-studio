@@ -23,6 +23,8 @@ test("looks page: one palette, nothing from the internet, a data slot, and a ske
   assert.equal(html.split("/*MENU*/null").length, 2, "exactly one data slot");
   const kinds = new Set(Object.values(menu).map((l) => l.recipe?.card?.type).filter(Boolean));
   for (const k of kinds) assert.ok(html.includes(`kind === "${k}"`), `a sketch for ${k} cards`);
+  const extras = JSON.parse(fs.readFileSync(path.join(skill, "assets", "style-extras.json"), "utf8")).extras;
+  for (const x of extras) assert.ok(html.includes(`d === "${x.draw}"`), `a sketch for the ${x.name} extra`);
 });
 
 test("style_menu_page.py writes one stand-alone file with the looks and themes inside it", { skip: skipReason }, () => {
@@ -48,7 +50,7 @@ test("style card: 6 lines from picks, theme and brand; picks that are not built 
   fs.writeFileSync(path.join(c.reel, "edit.json"), JSON.stringify({ cards: [{ type: "title", text: "big / news" }, { type: "stat" }, { type: "tag", off: true }], sfx_events: [{ name: "pop", t: 1 }] }));
   fs.rmSync(path.join(c.reel, "style-picks.json"));
   out = py("style_card.py", [c.reel], { REELS_HOME: c.home });
-  assert.match(out, /Hook\s+title card "big\s+news"/); assert.match(out, /in the edit now: 1 stat/); assert.match(out, /1 sound effects/);
+  assert.match(out, /Hook\s+title card "big\s+news"/); assert.match(out, /in the edit now: 1 stat/); assert.match(out, /a sound as each card comes on, plus 1 placed by hand/); assert.match(out, /title card "big news"/);
 });
 
 test("notes: once is a note, twice is a rule in brand.md, the same sitting counts once, forget removes both", { skip: skipReason }, () => {
@@ -87,8 +89,12 @@ test("studio server: /styles serves the looks for this reel and saves picks, ref
     const data = JSON.parse(/window\.STYLE_MENU = (.*);\n/.exec(html)[1]);
     assert.equal(data.reel, "r1"); assert.equal(data.canSave, true); assert.ok(data.looks.some((l) => l.id === "L8"));
     const saved = await (await post({ ids: ["H3", "H1", "L8", "nope", "L8"], theme: "bold" })).json();
-    assert.deepEqual(saved.picks, { ids: ["H3", "L8"], theme: "bold" }, "H1 is not built and nope is not a look");
-    assert.deepEqual(JSON.parse(fs.readFileSync(path.join(c.reel, "style-picks.json"), "utf8")), { ids: ["H3", "L8"], theme: "bold" });
+    assert.deepEqual(saved.picks, { ids: ["H3", "L8"], extras: [], theme: "bold" }, "H1 is not built and nope is not a look");
+    assert.deepEqual(JSON.parse(fs.readFileSync(path.join(c.reel, "style-picks.json"), "utf8")), { ids: ["H3", "L8"], extras: [], theme: "bold" });
+    assert.ok(data.extras.some((x) => x.id === "A1"), "animations are on the page");   // 0.10.1
+    assert.deepEqual((await (await post({ ids: [], extras: ["A1", "A6", "zz"], theme: "" })).json()).picks, { ids: [], extras: ["A1", "A6"], theme: "" });
+    const cardOut = py("style_card.py", [c.reel], { REELS_HOME: c.home });
+    assert.match(cardOut, /Layout\s+A1 Picture carousel \(needs 3 or more pictures or screenshots\); A6 GIFs that pop up/);
     assert.equal((await post({ ids: [], theme: "../x" })).status, 400);
     assert.equal((await fetch(base + "/api/style-picks", { method: "POST", headers: { "content-type": "application/json", origin: "https://example.test", "sec-fetch-site": "cross-site" }, body: "{}" })).status, 403, "another site can't change picks");
     assert.match(await (await fetch(base + "/review")).text(), /href="\/styles"/);

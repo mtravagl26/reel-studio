@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
+import { createRequire } from "node:module";
 import { ff, py, skill, skipReason, tmp } from "./reel-helpers.mjs";
 import * as core from "../skills/3-editing/reel-editor/review/editor-core.mjs";
 
@@ -130,4 +131,17 @@ test("an older reel that was touched up before touch-ups carried over: the impor
   const saved = JSON.parse(fs.readFileSync(path.join(c.reel, "editor", "pre-import", "edit.json"), "utf8"));
   assert.ok(saved.cards.some((x) => x.id === "mine"), "the edit as it was is saved");
   assert.doesNotMatch(c.imp(), /TOUCH-UP/, "the next import has a base to compare with");
+});
+
+test("graphics asked for on the review page reach the import as plain instructions, and change the build fingerprint", { skip: skipReason }, () => {
+  const c = makeReel();
+  const out = c.imp({ amount: "lots", wanted: [{ id: "w1", kind: "carousel", ci: 0, word: 0, line: "word0 word1", note: "my 3 screenshots" }, { id: "w2", kind: "choose", ci: 1, line: "word5", note: "" }] });
+  assert.match(out, /GRAPHICS AMOUNT: busy \(about 1 every 2-4 s\) for this reel/);
+  assert.match(out, /GRAPHIC WANTED: motion carousel-\* at the line "word0 word1": my 3 screenshots\. Add it to edit\.json/);
+  assert.match(out, /GRAPHIC WANTED: your choice of card at the line "word5"\. Add it/);
+  assert.doesNotMatch(c.imp({}), /GRAPHIC|GRAPHICS AMOUNT/, "nothing asked, nothing printed");
+  const core = createRequire(import.meta.url)(path.join(skill, "review", "core.js"));
+  assert.equal(core.hash({}), core.hash({ wanted: [], amount: null }), "older fingerprints still match");
+  assert.notEqual(core.hash({}), core.hash({ amount: "lots" })); assert.notEqual(core.hash({}), core.hash({ wanted: [{ id: "w1" }] }));
+  assert.equal(JSON.parse(fs.readFileSync(path.join(c.out, "reel.json"), "utf8")).graphicsAmount, "some", "the dial starts at the brand's setting");
 });

@@ -84,7 +84,7 @@ Runs once, before the first edit. Output: `~/reels/brand.md` (for people and for
   "resolution": [1080, 1920],
   "pacing": "natural",
   "graphics": "balanced",
-  "max_seconds": 60,
+  "max_seconds": 180,
   "colors": { "main": "#1A1A1A", "pop": "#FF5A36", "light": "#FFF6EE", "caption": "#FFFFFF", "caption_accent": "#FF5A36" },
   "capcut": false,
   "capcut_font": null,

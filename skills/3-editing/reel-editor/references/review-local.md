@@ -19,3 +19,14 @@ Added by By Mel Ross. Same page as `review.md`, but without claude.ai Artifacts:
    It prints the links. With `--lan` each link carries a one-off key (`?k=...`): send them the full link so they can review on their phone over the same Wi-Fi; a link without the key gets "missing or wrong key".
 4. When they say "build preview": `python3 scripts/review_sync.py import <reel> <reel>/review_db/review/current.json`, then review.md "When they say build preview" steps 3-4. For step 5 put the 540p proxy in the reel folder and write `review_db/builds/latest.json` = `{"url": "/files/preview_540.mp4", "hash", "at", "cutDur"}`; the open page picks it up within 2 s.
 5. Stop the server when the reel is delivered.
+
+## Asking for more graphics (0.10.1)
+
+The Graphics tab has two ways to ask for more than the plan shows. Neither one draws anything on the page: they are requests, and the import prints them for you to act on **before the render**.
+
+- **How many graphics?** (A few / Some / Lots). Starts at the brand's `"graphics"` setting. The import prints `GRAPHICS AMOUNT: ...`. Add or drop cards in `edit.json` to match for this reel, export the review again, and tell them the plan changed.
+- **Add a graphic.** They pick the line, the kind (headline, list, number, photo, GIF, an animation, photos circling their head, or "you choose") and say what it should show. The import prints one `GRAPHIC WANTED: <card type> at the line "..."` per request. Build each as a card in `edit.json` at that line. If it needs pictures or numbers you don't have, ask before the render; never fill one with a placeholder.
+
+The looks page (`/styles`) also lists animations and moving extras (`assets/style-extras.json`). Picks land in `style-picks.json` under `"extras"`.
+
+**These pages only exist at the Reel Studio link** (`http://localhost:<port>/...` from `studio-server.mjs`). Never hand the person an HTML file to open from disk: a file has no looks page, no saving and no touch-ups.

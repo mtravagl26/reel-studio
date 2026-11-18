@@ -64,6 +64,16 @@ textarea{min-height:80px;resize:vertical}
 .w.filler.back{color:var(--ink);text-decoration:none;outline:2px solid var(--keep);outline-offset:-2px}
 .pz{font:600 11px var(--f-mono);border:1.5px dashed var(--auto);color:var(--auto);background:none;border-radius:999px;padding:0 7px;cursor:pointer}
 .pz.kept{border-style:solid;border-color:var(--keep);color:var(--keep)}
+/* graphics: amount dial and "add a graphic" (Added by By Mel Ross, 0.10.1) */
+.amount{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;margin:0 0 12px;font-weight:700}
+.amount .lede{margin:0;font-weight:400;flex-basis:100%}
+.addg{margin:12px 0}
+#addform{display:grid;gap:6px;margin-top:10px;padding:12px;border:2px solid var(--line);border-radius:14px;background:var(--card,#fff)}
+#addform label{font-weight:700;font-size:13px}
+#addform select,#addform input{font:inherit;padding:9px 10px;border:2px solid var(--line);border-radius:10px;width:100%;background:#fff;color:inherit}
+.card.wanted{border-style:dashed;display:block}
+.card.wanted .b{margin-top:8px}
+#addform[hidden],#addg[hidden]{display:none}
 /* graphics */
 .cards{display:flex;flex-direction:column;gap:10px}
 .card{display:grid;grid-template-columns:90px minmax(0,1fr);gap:14px;padding:12px;border-radius:16px;background:var(--surface);border:2px solid var(--line)}
@@ -181,7 +191,24 @@ code{font:500 13px var(--f-mono);background:var(--accent-soft);border-radius:6px
 
     <section data-p="graphics" hidden>
       <p class="lede">These are the graphics planned for this reel. Each picture shows roughly where the graphic will sit. It's a sketch, so the finished one moves and looks better. Keep it, drop it, or ask for a change and say what you want.</p>
+      <div class="amount"><span id="amountlabel">How many graphics?</span>
+        <div class="seg" id="amount" role="group" aria-labelledby="amountlabel">
+          <button type="button" class="k" data-amt="few">A few</button><button type="button" class="k" data-amt="some">Some</button><button type="button" class="k" data-amt="lots">Lots</button>
+        </div>
+        <span class="lede" id="amountnote"></span>
+      </div>
       <div class="tally" id="gtally"></div>
+      <div class="addg">
+        <button class="b" id="addg" type="button">Add a graphic</button>
+        <form id="addform" hidden>
+          <label for="addwhen">When should it appear?</label><select id="addwhen"></select>
+          <label for="addkind">What kind?</label><select id="addkind"></select>
+          <label for="addnote">What should it show?</label><input type="text" id="addnote" maxlength="300" placeholder="e.g. the 3 jobs I moved, as a list">
+          <p class="lede" id="addhint"></p>
+          <div class="ctl"><button class="b" type="submit">Add it</button><button class="b quiet" type="button" id="addcancel">Cancel</button></div>
+        </form>
+      </div>
+      <div class="cards" id="wanted"></div>
       <div class="cards" id="cards"><div class="empty">Graphics appear here once the reel loads.</div></div>
     </section>
 
@@ -256,7 +283,7 @@ const v = $("#v"), ov = $("#ov");
 const fmt = t => `${Math.floor(t / 60)}:${(Math.max(0, t) % 60).toFixed(1).padStart(4, "0")}`;
 let R = null, B = null, S = blank(), P = null, CAPS = [], GFX = [];
 let tab = "cuts", ref = null, saving = Promise.resolve(), timer = null, undo = [], mode = "idle", loop = null;
-function blank() { return { theme: null, cut: null, restoredFillers: [], restoredPauses: [], trimmedPauses: [], captions: null, board: {}, sfxOff: {}, notes: {}, brandRequest: "", revisions: [], buildRequest: null }; }
+function blank() { return { theme: null, cut: null, restoredFillers: [], restoredPauses: [], trimmedPauses: [], captions: null, board: {}, wanted: [], amount: null, sfxOff: {}, notes: {}, brandRequest: "", revisions: [], buildRequest: null }; }
 
 // ---------- saving, undo ----------
 const pill = (t, err) => { $("#save").textContent = t; $("#save").classList.toggle("err", !!err); $("#retry").hidden = !err; };
@@ -518,6 +545,62 @@ function renderGraphics() {
 }
 const box_ = g => box(g, false);
 
+// ---------- 2b. ask for more graphics (Added by By Mel Ross, 0.10.1) ----------
+// The page can't design a graphic, so these are requests: Claude builds each one when the decisions are imported
+// (review_sync.py prints them as GRAPHIC WANTED / GRAPHICS AMOUNT). They change the build fingerprint like any other decision.
+const KINDS = [
+  ["choose", "You choose what fits", ""],
+  ["title", "Big headline", ""],
+  ["list", "List that builds row by row", ""],
+  ["checks", "Check or X list", ""],
+  ["label", "Small label", ""],
+  ["number", "Number or stat card", ""],
+  ["photo", "My photo or screenshot", "Put the picture in the reel folder, or say which site to screenshot."],
+  ["gif", "GIF", "Say what the GIF should be. You can also search and place GIFs yourself on the touch-ups page after the build."],
+  ["carousel", "Animation: picture carousel", "Needs 3 or more pictures from you."],
+  ["chart", "Animation: chart that draws itself", "Say the numbers."],
+  ["counter", "Animation: number that counts up", "Say the number."],
+  ["follow", "Animation: words written across the screen", ""],
+  ["social", "Animation: comment, message or notification", "Say what it should read."],
+  ["orbit", "Photos circling my head", "Needs 1 to 6 pictures from you. Mac only."],
+];
+const AMOUNT = { few: "About 1 every 10 seconds.", some: "About 1 every 5 seconds.", lots: "About 1 every 3 seconds." };
+const capText = c => c.words.map(w => w.text).join(" ");
+function renderWanted() {
+  const cur = S.amount || R.graphicsAmount || "some";
+  $$("#amount button").forEach(b => b.setAttribute("aria-pressed", b.dataset.amt === cur));
+  $("#amountnote").textContent = AMOUNT[cur] + (S.amount && S.amount !== (R.graphicsAmount || "some") ? " Claude re-plans the graphics when you send this, so the list below is the old plan." : "");
+  const box = $("#wanted"); box.textContent = "";
+  for (const w of S.wanted || []) {
+    const el = document.createElement("div"); el.className = "card wanted";
+    const body = document.createElement("div");
+    const kind = document.createElement("div"); kind.className = "kind"; kind.textContent = "You asked for: " + (KINDS.find(k => k[0] === w.kind) || KINDS[0])[1];
+    const what = document.createElement("div"); what.className = "what"; what.textContent = w.note || "No details given. Claude picks.";
+    const meta = document.createElement("div"); meta.className = "meta";
+    const line = document.createElement("span"); line.textContent = `At "${w.line}"`; meta.append(line);
+    const rm = document.createElement("button"); rm.type = "button"; rm.className = "b quiet"; rm.textContent = "Remove";
+    rm.addEventListener("click", () => mutate(() => { S.wanted = S.wanted.filter(x => x.id !== w.id); }));
+    body.append(kind, what, meta, rm); el.append(body); box.appendChild(el);
+  }
+  if ((S.wanted || []).length) $("#gtally").insertAdjacentHTML("beforeend", `<span><b>${S.wanted.length}</b> asked for</span>`);
+}
+$$("#amount button").forEach(b => b.addEventListener("click", () => mutate(() => { S.amount = b.dataset.amt === (R.graphicsAmount || "some") ? null : b.dataset.amt; })));
+$("#addkind").append(...KINDS.map(([v, t]) => new Option(t, v)));
+$("#addkind").addEventListener("change", () => { $("#addhint").textContent = (KINDS.find(k => k[0] === $("#addkind").value) || [])[2] || ""; });
+$("#addg").addEventListener("click", () => {
+  const sel = $("#addwhen"); sel.textContent = "";
+  for (const c of CAPS.filter(c => !c.gone)) sel.append(new Option(`${fmt(c.start)}  ${capText(c)}`.slice(0, 70), String(c.ci)));
+  $("#addform").hidden = false; $("#addg").hidden = true; $("#addnote").value = ""; $("#addkind").value = "choose"; $("#addhint").textContent = ""; sel.focus();
+});
+const closeAdd = () => { $("#addform").hidden = true; $("#addg").hidden = false; };
+$("#addcancel").addEventListener("click", closeAdd);
+$("#addform").addEventListener("submit", e => {
+  e.preventDefault();
+  const c = CAPS.find(c => String(c.ci) === $("#addwhen").value); if (!c) return closeAdd();
+  const w = { id: "w" + Date.now().toString(36), kind: $("#addkind").value, ci: c.ci, word: c.words[0].i ?? null, line: capText(c).slice(0, 80), note: $("#addnote").value.trim().slice(0, 300) };
+  mutate(() => { S.wanted = [...(S.wanted || []), w]; }); closeAdd();
+});
+
 // ---------- 3. captions ----------
 function capsEditable() { if (!S.captions) S.captions = JSON.parse(JSON.stringify(R.captions)); return S.captions; }
 function renderCaptions() {
@@ -636,8 +719,8 @@ function renderCover() {
 }
 
 function renderAll() {
-  renderCuts(); renderGraphics(); renderCaptions(); renderSound(); renderPreview(); renderCover();
-  const sent = { cuts: S.cut != null, graphics: Object.keys(S.board).length, captions: S.captions != null, sound: Object.keys(S.sfxOff).length };
+  renderCuts(); renderGraphics(); renderWanted(); renderCaptions(); renderSound(); renderPreview(); renderCover();
+  const sent = { cuts: S.cut != null, graphics: Object.keys(S.board).length || (S.wanted || []).length || S.amount, captions: S.captions != null, sound: Object.keys(S.sfxOff).length };
   $$(".tab").forEach(b => { const d = b.querySelector(".dot"); if (d) d.hidden = !sent[b.dataset.tab]; });
 }
 

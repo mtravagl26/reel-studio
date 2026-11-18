@@ -65,6 +65,16 @@ edit.json (written by auto_edit.py, then Claude marks accents and adds cards):
 import html, json, os, re, shutil, subprocess, sys
 from pathlib import Path
 
+def _contrast(a, b):
+    """WCAG contrast ratio of two #rrggbb colours (1 = same, 21 = black on white). Anything unreadable as a colour counts as fine."""
+    def lum(h):
+        h = h.lstrip("#"); h = "".join(c * 2 for c in h) if len(h) == 3 else h
+        ch = [int(h[i:i + 2], 16) / 255 for i in (0, 2, 4)]
+        r, g, bl = [c / 12.92 if c <= 0.03928 else ((c + 0.055) / 1.055) ** 2.4 for c in ch]
+        return 0.2126 * r + 0.7152 * g + 0.0722 * bl
+    try: x, y = sorted((lum(a), lum(b)), reverse=True); return (x + 0.05) / (y + 0.05)
+    except (ValueError, IndexError, AttributeError): return 21.0
+
 reel = Path(sys.argv[1]).expanduser()
 CAPCUT = "--capcut" in sys.argv
 HOME = Path(os.environ.get("REELS_HOME", "~/reels")).expanduser()
@@ -354,7 +364,10 @@ for i, c in enumerate(edit.get("cards", [])):
     elif kind == "cta":
         quiet.append((a, b))
         words = c["text"].split()
-        inner = " ".join(f'<span style="color:{POP}">{esc(w)}</span>' if w.isupper() and len(w) > 1 else esc(case(w)) for w in words)
+        # Modified by By Mel Ross (0.10.1): a soft highlight colour on a light pill (sage on cream) was unreadable. When the two are
+        # too close, the CAPS word gets the highlight as a marker behind it and keeps the main text colour.
+        hi = f"color:{POP}" if _contrast(POP, LIGHT) >= 3 else f"background:{POP};color:{MAIN};padding:0 .22em;border-radius:.2em"
+        inner = " ".join(f'<span style="{hi}">{esc(w)}</span>' if w.isupper() and len(w) > 1 else esc(case(w)) for w in words)
         front.append(f'<div id="{cid}" class="ctaw" style="top:{c.get("y", 1360)}px"><span class="cta" style="{font("head", 78)};color:{MAIN};background:{LIGHT}">{inner}</span></div>')
         show(f"#{cid}", a, b)
         js.append(f'tl.fromTo("#{cid} .cta",{{scale:0.5,y:60,opacity:0}},{{scale:1,y:0,opacity:1,duration:0.5,ease:"back.out(2.4)"}},{q(a)});')

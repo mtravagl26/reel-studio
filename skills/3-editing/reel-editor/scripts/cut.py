@@ -71,8 +71,11 @@ script = reel / "cut_filter.txt"
 script.write_text(";".join(vp + ap) + ";" + vcat + ";" + acat)
 kept = sum(b - a for a, b in spans)
 print(f"{n} spans, {kept:.1f}s kept -> {kept / speed:.1f}s at {speed}x, {w}x{h}")
-if kept / speed > brand.get("max_seconds", 60):
-    print(f"warning: longer than {brand.get('max_seconds', 60)}s - suggest more cuts")
+# Modified by By Mel Ross (0.10.1): the default was 60 s. Instagram stops recommending a reel to non-followers past 3 minutes,
+# so that is the default line; "max_seconds" in brand.json sets a personal target. It is a note, never a reason to speed up or cut.
+MAXS = brand.get("max_seconds", 180)
+if kept / speed > MAXS:
+    print(f"note: {kept / speed:.0f}s is past the {MAXS}s target - say so, and let them decide whether to cut")
 
 # Modified by By Mel Ross: ffmpeg 7+ reads a filter script with "-/filter_complex" (the old -filter_complex_script
 # is deprecated, then removed); REEL_NO_NICE=1 skips the low-priority wrapper, which some background runners refuse.
@@ -83,6 +86,7 @@ NICE = [] if os.environ.get("REEL_NO_NICE") else ["nice", "-n", "15"]
 subprocess.run([*NICE, "ffmpeg", "-y", "-v", "error", "-stats", "-i", str(src), "-i", str(audio),
                 FILTER_FLAG, str(script), "-map", "[vout]", "-map", "[aout]",
                 *((["-c:v", "h264_videotoolbox", "-b:v", "12M"] if sys.platform == "darwin" else ["-c:v", "libx264", "-preset", "veryfast", "-crf", "20"]) if os.environ.get("REEL_PREVIEW") else ["-c:v", "libx264", "-preset", "medium", "-crf", "16"]), "-pix_fmt", "yuv420p", *hdr2sdr.TAG_BT709,
+                "-g", "30",   # Modified by By Mel Ross (0.10.1): a keyframe every second. The render seeks into this file frame by frame, and HyperFrames warned of freezes at the 6 s gaps the encoders pick on their own.
                 "-c:a", "aac", "-b:a", "256k", "-movflags", "+faststart", str(reel / "master.mp4")], check=True)
 ES = enhance.settings(brand, edl)
 EINFO["source_colour"] = SRC_COLOR.get("note")

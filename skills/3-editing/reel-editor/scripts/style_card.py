@@ -41,7 +41,7 @@ def card(reel, home, looks=None, theme=None):
     edit = _load(reel / "edit.json") or {}
     cards = [c for c in edit.get("cards") or [] if not c.get("off")]
     by = lambda g: [f"{i} {menu[i]['name']}" for i in ids if menu[i]["group"].lower().startswith(g)]
-    named = lambda c: (c.get("text") or c.get("label") or c.get("name") or "").replace("/", " ").strip()
+    named = lambda c: " ".join((c.get("text") or c.get("label") or c.get("name") or "").replace("/", " ").split())
 
     hook = by("hook"); first = next((c for c in cards if c.get("type") == "title"), None)
     if not hook and first: hook = [f'title card "{named(first)}"']
@@ -52,13 +52,15 @@ def card(reel, home, looks=None, theme=None):
     kinds = {}
     for c in cards:
         if c is not first: kinds[c.get("type", "card")] = kinds.get(c.get("type", "card"), 0) + 1
+    extras = {x["id"]: x for x in json.load(open(SKILL / "assets" / "style-extras.json"))["extras"]}
+    layout += [f'{i} {extras[i]["name"]}' + (f' (needs {extras[i]["needs"]})' if extras[i].get("needs") else "") for i in picks.get("extras") or [] if i in extras]
     if kinds: layout.append("in the edit now: " + ", ".join(f"{n} {k}" for k, n in sorted(kinds.items())))
     zoom = brand.get("zoom") or {}; pace = _pacing.pacing(brand)
     motion = [f'zoom to {zoom.get("scale", 1.04)}x over {zoom.get("seconds", 2.5)} s, about every {zoom.get("every", 6.0):g} s',
               f'{brand.get("pacing", "natural")} pacing' + (f', {pace["speed"]:g}x speed' if pace["speed"] != 1 else "")]
     music = edit.get("music") or brand.get("music"); sfx = [e for e in edit.get("sfx_events") or [] if not e.get("off")]
     sound = [f"music: {Path(str(music)).name}" if music else "no music bed",
-             f"{len(sfx)} sound effects" if edit else ("sound effects on cards" if brand.get("sfx", True) else "no sound effects")]
+             ("no sound effects" if brand.get("sfx") in (False, "off", "none") else "a sound as each card comes on") + (f", plus {len(sfx)} placed by hand" if sfx else "")]
     col = brand.get("colors") or {}; tname = (brand.get("_theme") or {}).get("name") if isinstance(brand.get("_theme"), dict) else brand.get("_theme")
     colour = [f"{tname} theme" if tname else "your brand as it is", f'main {col.get("main", "?")}, highlight {col.get("pop", "?")}', f'grade: {brand.get("grade") or "none"}']
     rows = [("Hook", hook or ["not decided yet: opens on the first line, no title card"]), ("Captions", caps),

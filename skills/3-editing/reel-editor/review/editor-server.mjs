@@ -114,17 +114,20 @@ function menuLooks() {
   const looks = (readJSON(MENU_FILE, {}).looks) || {};
   return Object.entries(looks).map(([id, l]) => ({ id, name: l.name, group: l.group, status: l.status, missing: l.missing || null, recipe: l.recipe || null }));
 }
-function stylePicks() { const p = readJSON(PICKS_FILE, {}); return { ids: Array.isArray(p.ids) ? p.ids : [], theme: typeof p.theme === "string" ? p.theme : "" }; }
+const menuExtras = () => (readJSON(path.join(SKILL, "assets", "style-extras.json"), {}).extras) || [];   // 0.10.1: animations and moving extras
+function stylePicks() { const p = readJSON(PICKS_FILE, {}); return { ids: Array.isArray(p.ids) ? p.ids : [], extras: Array.isArray(p.extras) ? p.extras : [], theme: typeof p.theme === "string" ? p.theme : "" }; }
 function setStylePicks(body) {
   const ok = new Set(menuLooks().filter((l) => USABLE_LOOK.has(l.status)).map((l) => l.id));
   const ids = [...new Set((Array.isArray(body.ids) ? body.ids : []).map(String))].filter((i) => ok.has(i)).slice(0, 40);
   const theme = String(body.theme || "");
   if (theme && !listThemes().some((t) => t.id === theme)) throw new Error("unknown theme");
-  writeJSON(PICKS_FILE, { ids, theme });
-  return { ids, theme };
+  const okx = new Set(menuExtras().map((x) => x.id));
+  const extras = [...new Set((Array.isArray(body.extras) ? body.extras : []).map(String))].filter((i) => okx.has(i));
+  writeJSON(PICKS_FILE, { ids, extras, theme });
+  return { ids, extras, theme };
 }
 function stylePage() {
-  const data = { reel: path.basename(REEL), looks: menuLooks(), themes: listThemes(), picks: stylePicks(), canSave: true };
+  const data = { reel: path.basename(REEL), looks: menuLooks(), extras: menuExtras(), themes: listThemes(), picks: stylePicks(), canSave: true };
   return fs.readFileSync(path.join(HERE, "style-menu.html"), "utf8").replace("/*MENU*/null", () => JSON.stringify(data).replace(/</g, "\\u003c"));
 }
 function setTheme(body) {

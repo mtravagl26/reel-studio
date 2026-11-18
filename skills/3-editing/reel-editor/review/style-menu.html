@@ -72,7 +72,7 @@ const M = window.STYLE_MENU, $ = (s) => document.querySelector(s);
 const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
 const USABLE = new Set(["built", "partial", "cut-choice"]);
 const ONE_PER_GROUP = /^(hook|caption)/i;                       // one hook and one captions look per reel; layouts can stack
-const picks = new Set((M && M.picks && M.picks.ids) || []); let theme = (M && M.picks && M.picks.theme) || "";
+const picks = new Set((M && M.picks && M.picks.ids) || []), extras = new Set((M && M.picks && M.picks.extras) || []); let theme = (M && M.picks && M.picks.theme) || "";
 
 // ---- sketches: plain shapes that show where a look puts things. Sizes are container-width units (cqw): 1 cqw = 10.8 reel px.
 const px = (n) => (n / 10.8).toFixed(2) + "cqw", pct = (y) => (y / 19.2).toFixed(2) + "%";
@@ -122,6 +122,18 @@ function card(f, c) {
   }
   const d = el("div", "paper", kind || "card"); d.style.cssText = "left:12%;right:12%;top:58%;padding:3cqw;font-size:5cqw;text-align:center"; f.append(d);
 }
+function extraSketch(x) {
+  const f = frame(), d = x.draw, add = (cls, css, text) => { const e = el("div", cls, text); e.style.cssText += css; f.append(e); return e; };
+  if (d === "carousel") [[4, -6], [35, 0], [66, 6]].forEach(([l, r]) => { const p = add("photo", `left:${l}%;top:8%;width:30%;height:18%;transform:rotate(${r}deg)`); p.append(el("i")); });
+  else if (d === "chart") { const c = add("paper", "left:14%;right:14%;top:6%;height:20%;background:#fff"); [30, 48, 40, 72, 90].forEach((h, i) => { const b = el("div"); b.style.cssText = `left:${10 + i * 17}%;bottom:10%;width:11%;height:${h * 0.75}%;background:#8da273;border-radius:1cqw 1cqw 0 0`; c.append(b); }); }
+  else if (d === "counter") add("tx", "top:8%;font-size:26cqw;text-align:center", "1,240");
+  else if (d === "follow") add("tx serif", "top:7%;font-size:13cqw;text-align:left;line-height:1.05", "one word\nat a time");
+  else if (d === "social") { const c = add("paper", "left:10%;right:10%;top:9%;padding:3cqw 4cqw;background:#fff;font-size:5cqw;font-weight:600;border-radius:5cqw"); c.textContent = "this changed my week"; }
+  else if (d === "gif") { const p = add("photo", "right:6%;top:8%;width:36%;height:20%;transform:rotate(4deg);border-radius:2cqw"); p.append(el("i")); add("strip", "right:8%;top:25%;font-size:4.6cqw;font-weight:700;transform:none", "GIF"); }
+  else if (d === "orbit") [[14, 22, -8], [40, 14, 0], [66, 22, 8]].forEach(([l, t, r]) => { const p = add("photo", `left:${l}%;top:${t}%;width:20%;height:11%;padding:1cqw;transform:rotate(${r}deg)`); p.append(el("i")); });
+  else if (d === "shot") { const c = add("paper", "left:10%;right:10%;top:6%;height:22%;background:#fff;overflow:hidden"); const bar = el("div"); bar.style.cssText = "left:0;right:0;top:0;height:18%;background:#e1dccf"; c.append(bar); }
+  return f;
+}
 function sketch(look) {
   const f = frame(), r = look.recipe;
   if (!r) { const bar = el("div", "cutbar"); bar.append(el("b"), el("b")); f.append(bar); return f; }   // an edit decision: no graphic to draw
@@ -133,20 +145,23 @@ function sketch(look) {
 // ---- the request the person hands to their assistant
 function request() {
   const ids = [...picks], t = (M.themes || []).find((x) => x.id === theme);
-  if (!ids.length && !t) return "";
+  const ex = (M.extras || []).filter((x) => extras.has(x.id));
+  if (!ids.length && !t && !ex.length) return "";
   const what = [ids.join(", "), t ? `the ${t.name} theme` : ""].filter(Boolean).join(" and ");
-  return `Edit ${M.reel ? `the reel "${M.reel}"` : "my clip"} with ${what}. Show me the style card before you build.`;
+  const more = ex.length ? `${what ? " Also add" : "Add"}: ${ex.map((x) => x.name.toLowerCase()).join(", ")}. Ask me for any pictures or numbers you need.` : "";
+  return `Edit ${M.reel ? `the reel "${M.reel}"` : "my clip"}${what ? " with " + what + "." : "."}${more} Show me the style card before you build.`;
 }
 function refresh() {
   document.querySelectorAll("[data-id]").forEach((n) => { const on = picks.has(n.dataset.id); n.classList.toggle("on", on); const b = n.querySelector("button"); b.classList.toggle("on", on); b.textContent = on ? "Added" : "Add"; b.setAttribute("aria-pressed", on); });
   document.querySelectorAll("[data-theme]").forEach((n) => { const on = n.dataset.theme === theme; n.classList.toggle("on", on); const b = n.querySelector("button"); b.classList.toggle("on", on); b.textContent = on ? "Added" : "Add"; b.setAttribute("aria-pressed", on); });
-  const n = picks.size + (theme ? 1 : 0), say = request();
+  document.querySelectorAll("[data-extra]").forEach((n) => { const on = extras.has(n.dataset.extra); n.classList.toggle("on", on); const b = n.querySelector("button"); b.classList.toggle("on", on); b.textContent = on ? "Added" : "Add"; b.setAttribute("aria-pressed", on); });
+  const n = picks.size + extras.size + (theme ? 1 : 0), say = request();
   $("#bar").hidden = !n; $("#count").textContent = n === 1 ? "1 pick" : `${n} picks`; $("#say").textContent = say;
 }
 let saving = null;
 function save() {
   if (!M.canSave) return;
-  clearTimeout(saving); saving = setTimeout(() => { fetch("/api/style-picks", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ids: [...picks], theme }) }).catch(() => {}); }, 300);
+  clearTimeout(saving); saving = setTimeout(() => { fetch("/api/style-picks", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ids: [...picks], extras: [...extras], theme }) }).catch(() => {}); }, 300);
 }
 function toggle(look) {
   if (picks.has(look.id)) picks.delete(look.id);
@@ -157,7 +172,7 @@ function toggle(look) {
 function build() {
   if (!M || !Array.isArray(M.looks)) { $("#empty").hidden = false; return; }
   const usable = M.looks.filter((l) => USABLE.has(l.status)), main = $("#main");
-  $("#sub").textContent = `${usable.length} looks${M.reel ? " · " + M.reel : ""}`; $("#back").hidden = !M.canSave;
+  $("#sub").textContent = `${usable.length} looks, ${(M.extras || []).length} animations${M.reel ? " · " + M.reel : ""}`; $("#back").hidden = !M.canSave;
   for (const id of [...picks]) if (!usable.some((l) => l.id === id)) picks.delete(id);
   const groups = [...new Set(usable.map((l) => l.group))];
   for (const g of groups) {
@@ -173,6 +188,17 @@ function build() {
     }
     main.append(grid);
   }
+  if ((M.extras || []).length) {
+    main.append(el("h2", "", "Animations and moving extras"), el("p", "", "Pick any. Most need something from you, shown on each one."));
+    const grid = el("div", "grid");
+    for (const x of M.extras) {
+      const c = el("div", "look"); c.dataset.extra = x.id;
+      c.append(extraSketch(x), el("div", "id", x.id), el("div", "nm", x.name));
+      if (x.needs) c.append(el("div", "need", "Needs " + x.needs + "."));
+      const b = el("button", "", "Add"); b.type = "button"; b.addEventListener("click", () => { extras.has(x.id) ? extras.delete(x.id) : extras.add(x.id); refresh(); save(); }); c.append(b); grid.append(c);
+    }
+    main.append(grid);
+  }
   if ((M.themes || []).length) {
     main.append(el("h2", "", "Theme"), el("p", "", "Pick 1, or none to keep your brand as it is. A theme changes fonts, captions and card shapes together."));
     const grid = el("div", "themes");
@@ -182,7 +208,7 @@ function build() {
     }
     main.append(grid);
   }
-  $("#clear").addEventListener("click", () => { picks.clear(); theme = ""; refresh(); save(); });
+  $("#clear").addEventListener("click", () => { picks.clear(); extras.clear(); theme = ""; refresh(); save(); });
   $("#copy").addEventListener("click", async () => {
     const text = request(), b = $("#copy");
     try { await navigator.clipboard.writeText(text); b.textContent = "Copied"; }
