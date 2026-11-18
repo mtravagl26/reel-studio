@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Apply the approved rough cut: keep spans from edl.json (in play order), speed up, optional colour grade, scale to the
+"""Apply the approved rough cut: keep spans from edl.json (in play order), speed up, optional color grade, scale to the
 brand resolution. Writes master.mp4 in the reel folder.
 Usage: python3 cut.py <reel-folder>      (reads <reel-folder>/edl.json and ~/reels/brand.json)
 Modified by By Mel Ross: the studio look (enhance.py: gentle exposure/colour, mild denoise and sharpen, in the same encode as
@@ -20,7 +20,7 @@ from pacing import pacing
 import enhance, cutout, hdr2sdr   # Added by By Mel Ross: studio look, HDR to SDR
 import shutil
 # Added by By Mel Ross: HDR phone clips (HLG / PQ / BT.2020) are converted to SDR up front with macOS avconvert; SDR clips are untouched.
-# If that is not possible the clip is used as it is and the output says the colour is only approximate.
+# If that is not possible the clip is used as it is and the output says the color is only approximate.
 src, SRC_COLOR = hdr2sdr.working_source(src, reel)
 if SRC_COLOR.get("hdr") and not SRC_COLOR.get("converted"): print("WARNING:", SRC_COLOR["note"])
 (reel / "master_sharp.mp4").unlink(missing_ok=True)     # a new cut makes the old background-softening and cutout obsolete

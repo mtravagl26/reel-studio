@@ -139,7 +139,8 @@ def do_import(reel, review):
     for g in P["graphics"]:
         if g.get("gone") or g["state"] == "d": continue
         note = ((d.get("board") or {}).get(g["id"]) or {}).get("note")
-        if g["state"] == "c": changes.append(f"{g['id']} @ cut {g['start']:.1f}s: {note or '(no note)'}")
+        mine = [f for f in ((d.get("board") or {}).get(g["id"]) or {}).get("files") or [] if isinstance(f, str) and f.startswith("popups/")]   # 0.10.2: their own pictures
+        if g["state"] == "c": changes.append(f"{g['id']} @ cut {g['start']:.1f}s: {note or '(no note)'}" + (f". Use their own picture(s), already in the reel folder: {', '.join(mine)}" if mine else ""))
         spec = {k: v for k, v in g.items() if k not in ("id", "kind", "what", "w0", "w1", "state", "place", "moved", "gone")}
         spec.update(start=round(g["start"], 3), end=round(g["end"], 3), id=g["id"])
         if g["id"] in (d.get("sfxOff") or {}) and d["sfxOff"][g["id"]]: spec["sfx"] = False
@@ -167,12 +168,12 @@ def do_import(reel, review):
             "gif": "popup with a GIF (references/giphy.md)", "carousel": "motion carousel-*", "chart": "motion chart (references/motions.md)", "counter": "motion count-up",
             "follow": "follow card", "social": "motion comment / chat / notification", "orbit": "orbit"}
     for w in d.get("wanted") or []:
-        print(f'GRAPHIC WANTED: {KIND.get(w.get("kind"), "your choice of card")} at the line "{w.get("line", "")}"' + (f': {w["note"]}' if w.get("note") else "") +
+        print(f'GRAPHIC WANTED: {KIND.get(w.get("kind"), "your choice of card")} at the line "{w.get("line", "")}"' + (f': {w["note"]}' if w.get("note") else "") + (f' Use their own picture(s), already in the reel folder: {", ".join(f for f in w["files"] if isinstance(f, str) and f.startswith("popups/"))}' if w.get("files") else "") +
               ". Add it to edit.json. If it needs pictures or numbers you don't have, ask them before the render.")
     for k, n in (d.get("notes") or {}).items():
         if n.strip(): print(f"NOTE ({k}):", n.strip())
     if (d.get("brandRequest") or "").strip(): print("BRAND CHANGE REQUESTED (only apply if confirmed):", d["brandRequest"].strip())
-    for r in d.get("revisions") or []: print(f"REVISION @ cut {r['t']:.1f}s:", r["text"])
+    for r in d.get("revisions") or []: print(f"REVISION @ {'rough cut' if r.get('rough') else 'cut'} {r['t']:.1f}s" + (" (written before the build; act on it before rendering)" if r.get("rough") else "") + ":", r["text"])
 
 if __name__ == "__main__":
     cmd, reel = sys.argv[1], Path(sys.argv[2]).expanduser()

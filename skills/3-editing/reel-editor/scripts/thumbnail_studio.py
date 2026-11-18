@@ -46,7 +46,7 @@ def check_settings(d):
     if not isinstance(d["source"], str) or not source_ok(d["source"]): raise ValueError("unknown footage")
     if not isinstance(d["headline"], str) or len(d["headline"]) > 200: raise ValueError("headline too long")
     if not isinstance(d["font"], str) or not re.fullmatch(r"[A-Za-z0-9_-]{1,40}", d["font"]): raise ValueError("bad font")
-    if not isinstance(d["color"], str) or not re.fullmatch(r"#[0-9a-fA-F]{6}", d["color"]): raise ValueError("bad colour")
+    if not isinstance(d["color"], str) or not re.fullmatch(r"#[0-9a-fA-F]{6}", d["color"]): raise ValueError("bad color")
     if d["style"] not in STYLES: raise ValueError("bad style")
     for k, lo, hi in (("time", 0, 86400), ("size", 40, 220), ("y", 0, 1920)):
         v = d[k]

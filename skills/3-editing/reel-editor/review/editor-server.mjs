@@ -48,7 +48,7 @@ const hasReview = () => fs.existsSync(path.join(REVIEW_DB, "reel", "current.json
 
 const TYPES = { ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".mjs": "text/javascript; charset=utf-8", ".json": "application/json; charset=utf-8",
   ".mp4": "video/mp4", ".webm": "video/webm", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png", ".gif": "image/gif", ".webp": "image/webp",
-  ".otf": "font/otf", ".ttf": "font/ttf", ".woff2": "font/woff2" };
+  ".wav": "audio/wav", ".otf": "font/otf", ".ttf": "font/ttf", ".woff2": "font/woff2" };
 
 // ---- small file helpers ---------------------------------------------------------------------------------------------------------------
 const readJSON = (f, dflt) => { try { return JSON.parse(fs.readFileSync(f, "utf8")); } catch { return dflt; } };
@@ -478,6 +478,13 @@ const server = http.createServer(async (req, res) => {
       res.writeHead(204).end(); return;
     }
     if (p === "/api/state" && req.method === "GET") return json(res, 200, built() ? view() : { built: false, reel: path.basename(REEL), review: hasReview(), links: LINKS });
+    if (req.method === "POST" && p === "/api/review-upload") {   // Added by By Mel Ross (0.10.2): their own picture for a graphic, from the review page (works before the build)
+      try {
+        const buf = await readBody(req, 60e6); if (!buf.length) throw new Error("empty file");
+        fs.mkdirSync(P.popups, { recursive: true });
+        return json(res, 200, { ok: true, upload: saveUpload(buf, url.searchParams.get("name") || "picture.png") });
+      } catch (e) { return json(res, 400, { ok: false, error: String(e.message || e) }); }
+    }
     if (p.startsWith("/api/") && !built()) return json(res, 409, { ok: false, error: "This reel is not built yet. Finish the review step first." });
     if (p === "/api/giphy-key" && req.method === "GET") return json(res, giphyKey() ? 200 : 404, { key: giphyKey() });
     if (p === "/api/job" && req.method === "GET") return json(res, 200, { job, canUndo: history().length > 0 });
@@ -497,6 +504,12 @@ const server = http.createServer(async (req, res) => {
         }
       } catch (e) { return json(res, 400, { ok: false, error: String(e.message || e) }); }
       res.writeHead(404).end(); return;
+    }
+    if (p.startsWith("/sfx/")) {   // Added by By Mel Ross (0.10.2): sound previews for both pages, straight from the effects library
+      const name = decodeURIComponent(p.slice(5)).replace(/\.wav$/, "");
+      if (!/^[a-z0-9][a-z0-9-]{0,40}$/.test(name)) { res.writeHead(404).end(); return; }
+      const engine = process.env.REEL_ENGINE || path.join(SKILL, "engine");
+      return sendFile(req, res, path.join(engine, "sfx", name + ".wav"));
     }
     if (p.startsWith("/files/")) {
       const file = path.resolve(REEL, "." + p.slice(6));

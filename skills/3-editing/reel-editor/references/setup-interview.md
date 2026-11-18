@@ -9,21 +9,21 @@ Runs once, before the first edit. Output: `~/reels/brand.md` (for people and for
 - **One question at a time.** Plain language, no jargon. Most people installing this are not technical.
 - Offer 2-4 concrete options where you can, plus "something else".
 - If they say "I don't know", suggest a sensible choice from what they've already told you and move on. Don't stall.
-- If they share a reel they love, look at it (download it with `yt-dlp` if you can, or ask for a screenshot) and pull colours, caption style and pacing from it.
+- If they share a reel they love, look at it (download it with `yt-dlp` if you can, or ask for a screenshot) and pull colors, caption style and pacing from it.
 - At the end, show a short summary and ask "anything to change?" before writing the files.
 
 ## The questions
 
 1. **What's your account about, and who's watching?** (one sentence each)
 2. **Show me a reel you wish you'd made.** A link or screenshot. This is the best single input. Ask what they like about it.
-3. **Brand colours.** Hex codes if they have them, or describe them ("soft pink and black"). Ask which one is the pop colour.
-4. **Colours or styles you never want.** (e.g. "no black text", "no neon")
+3. **Brand colors.** Hex codes if they have them, or describe them ("soft pink and black"). Ask which one is the pop color.
+4. **Colors or styles you never want.** (e.g. "no black text", "no neon")
 5. **Fonts.** Headline font and body font if they have them. If not, offer 3 free pairs that fit their vibe (e.g. Google Fonts). Note: CapCut can only use fonts in its own library or the person's CapCut brand kit.
 6. **Caption style.** Offer:
    - one word at a time, big and centred
    - short phrases (2-4 words) near the bottom
    - full-sentence subtitles
-   Then: highlight colour for key words? Lowercase or sentence case? Any outlines or boxes (many creators now avoid them)?
+   Then: highlight color for key words? Lowercase or sentence case? Any outlines or boxes (many creators now avoid them)?
 7. **Graphics energy.** Clean and minimal / playful and scrapbook / bold and editorial. Ask if they have stickers, logos or brand images in a folder.
 7a. **How many graphics?** Minimal (one every 8-12 s, mostly you on camera) / balanced (every 4-6 s, the default) / busy (every 2-4 s). → `"graphics": "minimal" | "balanced" | "busy"`.
 7b. **Zooms.** Gentle (a slow push in and back out every few sentences, eased, never a snap; the default) / punchy (quick snap zoom-ins on most sentences) / none. → `"zoom"`: leave it out for gentle; punchy = `{"scale": 1.07, "seconds": 0.22, "ease": "power3.out", "every": 2.2}`; none = leave `punch` empty in each edit.
@@ -46,7 +46,7 @@ Runs once, before the first edit. Output: `~/reels/brand.md` (for people and for
 ## Reference reel
 <link> - what they love about it: <...>
 
-## Colours
+## Colors
 - Main: #...  (what it's for)
 - Pop: #...   (key words, buttons)
 - Light: #... (backgrounds)
@@ -58,7 +58,7 @@ Runs once, before the first edit. Output: `~/reels/brand.md` (for people and for
 - CapCut stand-in (if their font isn't in CapCut): <font>
 
 ## Captions
-<style, size, case, highlight colour, position, what's banned>
+<style, size, case, highlight color, position, what's banned>
 
 ## Graphics
 <energy, card style, where their assets folder is>
@@ -105,10 +105,10 @@ Runs once, before the first edit. Output: `~/reels/brand.md` (for people and for
 
 - `resolution`: `[1080, 1920]` (default) or `[2160, 3840]` for 4K.
 - `capcut_font`: a CapCut font URI (`vimo://...`), filled in later - see capcut.md.
-- `grade`: optional ffmpeg colour filter string; leave `null` unless they ask for a look.
+- `grade`: optional ffmpeg color filter string; leave `null` unless they ask for a look.
 - `deliver_dir`: where the finished files go. `"footage"` = back into the folder the raw clip came from (handy when they film into a synced folder such as iCloud Drive and want the reel on their phone); otherwise a folder like `~/Movies/Reels` (on Windows/Linux `~/Videos/Reels`). Keep the reel working folders (`~/reels/`) off cloud-synced folders: the big working files make syncing struggle. Only the three finished files go to `"footage"`.
 - `zoom` (optional): `scale`, `seconds`, `ease` and `every` for the camera zooms; see question 7b.
-- `caption_accent_shadow` (optional): CSS text-shadow behind highlighted caption words, e.g. a soft shadow in the main colour so a light highlight colour still reads over light clothes.
+- `caption_accent_shadow` (optional): CSS text-shadow behind highlighted caption words, e.g. a soft shadow in the main color so a light highlight color still reads over light clothes.
 - `cover_title_y` (optional): how far from the top the cover title starts (default 300).
 
 See `brand/` in the repo for complete filled-in pairs (`brand.example.*`, and `examples/`).

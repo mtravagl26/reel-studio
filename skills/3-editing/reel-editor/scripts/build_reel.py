@@ -14,7 +14,7 @@ edit.json (written by auto_edit.py, then Claude marks accents and adds cards):
      card   {title: "my stack", rows: ["a","b"]}     white UI card, rows appear one by one (lists, steps, tools)
      tag    {text: "open source", y: 300}            small pill label that pops on (name drops)
      (every card: leave out "end" and it clears when the phrase it starts in finishes)
-     cta    {text: "comment EDIT", y?: 1360}         call-to-action pill (kept above the bottom ~420 px IG covers); CAPS word = pop colour
+     cta    {text: "comment EDIT", y?: 1360}         call-to-action pill (kept above the bottom ~420 px IG covers); CAPS word = pop color
      shot   {src: "shots/tool.png", label: "heyclicky.com", y?: 130}   website screenshot in a browser window (make it with screenshot.sh);
                                                      set y lower (e.g. 1000) when the face sits high in frame
      image  {src: ["a.png", "b.jpg"]}               1-3 images fanned out above the head (their own photos, screenshots, stock)
@@ -24,7 +24,7 @@ edit.json (written by auto_edit.py, then Claude marks accents and adds cards):
      motion {name: "carousel-vision-1", vars: {...}, box: [x, y, w, h]}   any HyperFrames catalog motion cached in
                                                      engine/hf (see references/motions.md for names + vars). Carousels take
                                                      images: {"images": ["a.png", ...]} and the slots are filled for you.
-     follow {words: [{text, accent}], framing: "wide"}   caption-camera-follow in brand colours/font: one sentence
+     follow {words: [{text, accent}], framing: "wide"}   caption-camera-follow in brand colors/font: one sentence
                                                      written word by word across a camera that pulls back (hook moments)
      popup  {src: "popups/hello.gif", pos: "top-right", size: 360, rotate: 0, frame?: true}   (Added by By Mel Ross, reel editor page) a picture, graphic
                                                      or animated GIF that pops up. pos: top-left | top-center | top-right | middle-left | middle-right |
@@ -34,7 +34,7 @@ edit.json (written by auto_edit.py, then Claude marks accents and adds cards):
                                                      white photo cards that fan in, with a handwritten label on a torn paper strip. side: left | right | center (or x).
      popup also takes caption: "how is this real?!" (Style Menu L9): a handwritten label on a torn strip under the photo; add "exit": true for a soft shrink-out.
      xlist  {items: ["no coach", "no paid ads"], mark: "check" | "x", y: 1050, font: "hand" | "body"}   (Style Menu L6) a paper card; each row gets a hand-drawn sage check (default) or red X,
-                                                     drawn on one by one. row_times: [seconds...] to land each row on its spoken word; "color" overrides the mark colour.
+                                                     drawn on one by one. row_times: [seconds...] to land each row on its spoken word; "color" overrides the mark color.
                                                      The hand font draws a capital I like a 1, so set "font": "body" for text with "AI".
      stat   {label: "Employees", value: "12,000", delta: "+12%", spark: [3,4,6,5,9], y: 1080}   (Style Menu L8) a white dashboard card that pops over the lower half.
      tiles  {label: "Acme products", tiles: [{label: "Billing", icon: "dollar"}, ...], y: 1050}   (Style Menu L4) a torn paper label above a grid of soft icon tiles.
@@ -66,7 +66,7 @@ import html, json, os, re, shutil, subprocess, sys
 from pathlib import Path
 
 def _contrast(a, b):
-    """WCAG contrast ratio of two #rrggbb colours (1 = same, 21 = black on white). Anything unreadable as a colour counts as fine."""
+    """WCAG contrast ratio of two #rrggbb colors (1 = same, 21 = black on white). Anything unreadable as a color counts as fine."""
     def lum(h):
         h = h.lstrip("#"); h = "".join(c * 2 for c in h) if len(h) == 3 else h
         ch = [int(h[i:i + 2], 16) / 255 for i in (0, 2, 4)]
@@ -230,7 +230,7 @@ def tape(text, px, bg, fg, seed=1, rot=-2, maxw=860):
     return (f'<div class="tp" style="width:{w}px;height:{h}px;transform:rotate({rot}deg)"><div class="tpi" style="clip-path:{torn_clip(w, h, seed)};'
             f'background:{bg};{font("hand", px)};color:{fg};line-height:{h}px">{esc(text)}</div></div>'), w, h
 def mix_hex(a, b, t):
-    """Blend two #hex colours: t=0 is a, t=1 is b."""
+    """Blend two #hex colors: t=0 is a, t=1 is b."""
     A, B = [tuple(int(x.lstrip("#")[k:k + 2], 16) for k in (0, 2, 4)) for x in (a, b)]
     return "#" + "".join(f"{round(p + (q_ - p) * t):02x}" for p, q_ in zip(A, B))
 SAGE_DEEP = mix_hex(POP, MAIN, 0.42)          # a readable sage for marks drawn on cream paper (POP itself is too light there)
@@ -364,8 +364,8 @@ for i, c in enumerate(edit.get("cards", [])):
     elif kind == "cta":
         quiet.append((a, b))
         words = c["text"].split()
-        # Modified by By Mel Ross (0.10.1): a soft highlight colour on a light pill (sage on cream) was unreadable. When the two are
-        # too close, the CAPS word gets the highlight as a marker behind it and keeps the main text colour.
+        # Modified by By Mel Ross (0.10.1): a soft highlight color on a light pill (sage on cream) was unreadable. When the two are
+        # too close, the CAPS word gets the highlight as a marker behind it and keeps the main text color.
         hi = f"color:{POP}" if _contrast(POP, LIGHT) >= 3 else f"background:{POP};color:{MAIN};padding:0 .22em;border-radius:.2em"
         inner = " ".join(f'<span style="{hi}">{esc(w)}</span>' if w.isupper() and len(w) > 1 else esc(case(w)) for w in words)
         front.append(f'<div id="{cid}" class="ctaw" style="top:{c.get("y", 1360)}px"><span class="cta" style="{font("head", 78)};color:{MAIN};background:{LIGHT}">{inner}</span></div>')
@@ -782,7 +782,7 @@ html, body {{ margin: 0; background: #000; overflow: hidden; }}
 .glass {{ background: rgba(28,22,34,.34) !important; backdrop-filter: blur(22px) saturate(1.4); -webkit-backdrop-filter: blur(22px) saturate(1.4); border: 1.5px solid rgba(255,255,255,.55); box-shadow: 0 20px 60px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.6); }}
 .card.glass .cr {{ color: #fff !important; border-bottom-color: rgba(255,255,255,.25); }}
 .cap {{ position: absolute; left: 60px; right: 60px; text-align: center; line-height: 1.02; letter-spacing: -.02em; text-shadow: 0 2px 14px rgba(0,0,0,.3); }}
-.cap .acc {{ text-shadow: {brand.get("caption_accent_shadow", "0 0 2px rgba(0,0,0,.25), 0 3px 22px rgba(0,0,0,.5)")}; }}   /* accent colour stays readable over white screens, no outline; brand.json "caption_accent_shadow" overrides (Modified by By Mel Ross) */
+.cap .acc {{ text-shadow: {brand.get("caption_accent_shadow", "0 0 2px rgba(0,0,0,.25), 0 3px 22px rgba(0,0,0,.5)")}; }}   /* accent color stays readable over white screens, no outline; brand.json "caption_accent_shadow" overrides (Modified by By Mel Ross) */
 {_theme.css_for(brand, {r: FAM[r][0] for r in FAM})}
 </style></head>
 <body>

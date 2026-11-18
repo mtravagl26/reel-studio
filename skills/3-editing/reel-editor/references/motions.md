@@ -11,7 +11,7 @@ Add more from the 392-item catalog: `cd engine/hf && npx hyperframes add <name>`
 | carousel-path-1 | 1920x1080 | lists of tools/examples (the brand's required carousel) | `image1..N` (use images), `speed`, `background` |
 | carousel-vision-1 | 1920x1080 | lists of tools/examples (the brand's required carousel) | `image1..N` (use images), `speed`, `background` |
 | animated-bar-chart | fits box | comparing a few numbers | none (text is in the file) |
-| caption-camera-follow | fits box | use the `follow` card instead (brand font + colours) | `accent`, `framing`, `smear` |
+| caption-camera-follow | fits box | use the `follow` card instead (brand font + colors) | `accent`, `framing`, `smear` |
 | caption-editorial-emphasis | 1920x1080 | don't mount: the template's editorial caption style does this in brand fonts | none (text is in the file) |
 | chart-story | fits box | a chart that builds with exact values | `type`, `data`, `labels`, `emphasize`, `unit`, `accent`, `exit` |
 | chat-message | fits box | a DM or chat bubble | `type`, `text`, `cardTitle`, `cardDomain`, `tail`, `delivered` |

@@ -38,7 +38,7 @@ test("style_menu_page.py writes one stand-alone file with the looks and themes i
 test("style card: 6 lines from picks, theme and brand; picks that are not built are named, not used", { skip: skipReason }, () => {
   const c = mkHome({ pacing: "tight" });
   let out = py("style_card.py", [c.reel], { REELS_HOME: c.home }).split("\n").filter(Boolean);
-  assert.deepEqual(out.map((l) => l.split(/\s+/)[0]), ["Hook", "Captions", "Layout", "Motion", "Sound", "Colour"]);
+  assert.deepEqual(out.map((l) => l.split(/\s+/)[0]), ["Hook", "Captions", "Layout", "Motion", "Sound", "Color"]);
   assert.match(out[0], /not decided yet/); assert.match(out[3], /tight pacing, 1\.1x speed/); assert.match(out[5], /your brand as it is/);
   fs.writeFileSync(path.join(c.reel, "style-picks.json"), JSON.stringify({ ids: ["H3", "C3", "L8"], theme: "bold" }));
   out = py("style_card.py", [c.reel], { REELS_HOME: c.home }).split("\n");
@@ -79,7 +79,8 @@ test("studio server: /styles serves the looks for this reel and saves picks, ref
   const c = mkHome(); fs.mkdirSync(path.join(c.reel, "review_db", "reel"), { recursive: true });
   fs.writeFileSync(path.join(c.reel, "review_db", "reel", "current.json"), JSON.stringify({ title: "t", words: [] }));
   const port = 5500 + Math.floor(Math.random() * 500);
-  const p = spawn("node", [path.join(review, "studio-server.mjs"), c.reel, "--port", String(port)], { env: { ...process.env, REELS_HOME: c.home }, stdio: ["ignore", "pipe", "pipe"] });
+  const engine = path.join(c.dir, "engine"); fs.mkdirSync(path.join(engine, "sfx"), { recursive: true }); fs.writeFileSync(path.join(engine, "sfx", "pop.wav"), "RIFFtest");
+  const p = spawn("node", [path.join(review, "studio-server.mjs"), c.reel, "--port", String(port)], { env: { ...process.env, REELS_HOME: c.home, REEL_ENGINE: engine }, stdio: ["ignore", "pipe", "pipe"] });
   let out = ""; p.stdout.on("data", (d) => (out += d)); p.stderr.on("data", (d) => (out += d));
   for (let i = 0; i < 100 && !/Reel Studio for/.test(out); i++) await new Promise((r) => setTimeout(r, 100));
   const base = `http://127.0.0.1:${port}`, post = (body) => fetch(base + "/api/style-picks", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
@@ -98,5 +99,8 @@ test("studio server: /styles serves the looks for this reel and saves picks, ref
     assert.equal((await post({ ids: [], theme: "../x" })).status, 400);
     assert.equal((await fetch(base + "/api/style-picks", { method: "POST", headers: { "content-type": "application/json", origin: "https://example.test", "sec-fetch-site": "cross-site" }, body: "{}" })).status, 403, "another site can't change picks");
     assert.match(await (await fetch(base + "/review")).text(), /href="\/styles"/);
+    // 0.10.2: sound previews. Library sounds are served by name; anything that isn't a plain name is refused.
+    const wav = await fetch(base + "/sfx/pop.wav"); assert.equal(wav.status, 200); assert.equal(wav.headers.get("content-type"), "audio/wav");
+    assert.equal((await fetch(base + "/sfx/nope.wav")).status, 404); assert.equal((await fetch(base + "/sfx/..%2F..%2Fbrand.wav")).status, 404);
   } finally { p.kill(); }
 });

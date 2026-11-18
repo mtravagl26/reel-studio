@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Added by By Mel Ross (themes, 0.8.0). A theme is the style of a reel, kept apart from the brand.
 
-  brand.json   who you are: name, colours, call to action, word list, sound levels, where files go
+  brand.json   who you are: name, colors, call to action, word list, sound levels, where files go
   theme        how it looks: fonts, caption look, title look, how cards are shaped and move
 
 Pick one with  "theme": "editorial"  in ~/reels/brand.json, per reel with "theme" in edit.json, or for one build with
@@ -10,7 +10,7 @@ Pick one with  "theme": "editorial"  in ~/reels/brand.json, per reel with "theme
 A theme is a folder with theme.json, looked for in ~/reels/themes/<name>/ first (your own, or a pack you added) and then in this
 skill's themes/<name>/. theme.json:
 
-  "brand"  settings laid over brand.json (fonts, captions, zoom, title_outline, colors.caption ...). Your colours stay yours:
+  "brand"  settings laid over brand.json (fonts, captions, zoom, title_outline, colors.caption ...). Your colors stay yours:
            a theme writes "@main", "@pop" or "@light" where it wants one of them.
   "cards"  defaults per card type, used when a card does not set that field itself: {"title": {"align": "center"}}
   "css"    extra style rules added after the built-in ones. "@main" "@pop" "@light" and "@head" "@body" "@accent" "@hand"
@@ -96,7 +96,7 @@ def load_brand(home=None, reel=None, name=None, quiet=False):
 
 
 def css_for(brand, families):
-    """The theme's extra CSS with colour and font names filled in. `families`: {"head": "'Lora-head', ...", ...}."""
+    """The theme's extra CSS with color and font names filled in. `families`: {"head": "'Lora-head', ...", ...}."""
     t = brand.get("_theme")
     if not t: return ""
     c = brand.get("colors", {})

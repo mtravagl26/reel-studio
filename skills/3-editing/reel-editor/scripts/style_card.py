@@ -11,7 +11,7 @@ edit.json (when it exists), then brand.json with its theme laid over it. Prints:
   Layout    ...
   Motion    ...
   Sound     ...
-  Colour    ...
+  Color    ...
 
 Show the 6 lines to the person and wait for a yes before the first render. Nothing here is a guess about footage:
 a line says "not decided yet" when nothing sets it."""
@@ -62,9 +62,9 @@ def card(reel, home, looks=None, theme=None):
     sound = [f"music: {Path(str(music)).name}" if music else "no music bed",
              ("no sound effects" if brand.get("sfx") in (False, "off", "none") else "a sound as each card comes on") + (f", plus {len(sfx)} placed by hand" if sfx else "")]
     col = brand.get("colors") or {}; tname = (brand.get("_theme") or {}).get("name") if isinstance(brand.get("_theme"), dict) else brand.get("_theme")
-    colour = [f"{tname} theme" if tname else "your brand as it is", f'main {col.get("main", "?")}, highlight {col.get("pop", "?")}', f'grade: {brand.get("grade") or "none"}']
+    color = [f"{tname} theme" if tname else "your brand as it is", f'main {col.get("main", "?")}, highlight {col.get("pop", "?")}', f'grade: {brand.get("grade") or "none"}']
     rows = [("Hook", hook or ["not decided yet: opens on the first line, no title card"]), ("Captions", caps),
-            ("Layout", layout or ["not decided yet: no cards picked"]), ("Motion", motion), ("Sound", sound), ("Colour", colour)]
+            ("Layout", layout or ["not decided yet: no cards picked"]), ("Motion", motion), ("Sound", sound), ("Color", color)]
     return [f"{k:<9} {'; '.join(v)}" for k, v in rows], notes
 
 if __name__ == "__main__":

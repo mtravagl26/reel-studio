@@ -18,11 +18,11 @@ Two free, open-source skill sets in one folder, plus one creator's way of workin
   - **Every reel comes with a cover**: a 1080x1920 JPG from a smiling moment at the start or end, with a short topic title where Instagram's grid will show it.
   - **A phone-size copy** next to the full-quality one, small enough to text or AirDrop.
   - Finished files go **back into the folder your footage came from** (for example the iCloud Drive folder you film into), so they're on your phone when you're ready to post.
-  - **Correct colour from iPhone HDR clips.** An iPhone often films in HDR, and a plain conversion makes the picture lighter, greyer and cooler than the real scene. On a Mac the editor converts HDR clips with Apple's own HDR to SDR converter before it cuts, and labels every video it makes as standard colour (BT.709). If it can't (not a Mac, or the conversion fails its check), it tells you the colour is only approximate.
-  - **A natural studio look.** Out of the box: mild denoise and sharpen only. Your colours and your real background are left alone. A gentle colour grade and a background blur are there if you want them (set them to 1 in your brand file). No skin smoothing. You get a before/after frame to review.
+  - **Correct color from iPhone HDR clips.** An iPhone often films in HDR, and a plain conversion makes the picture lighter, greyer and cooler than the real scene. On a Mac the editor converts HDR clips with Apple's own HDR to SDR converter before it cuts, and labels every video it makes as standard color (BT.709). If it can't (not a Mac, or the conversion fails its check), it tells you the color is only approximate.
+  - **A natural studio look.** Out of the box: mild denoise and sharpen only. Your colors and your real background are left alone. A gentle color grade and a background blur are there if you want them (set them to 1 in your brand file). No skin smoothing. You get a before/after frame to review.
   - **Graphics behind, in front, or both.** Big type or a shape can sit behind your head so you stand in front of it. If the cutout's edges aren't clean in a shot, that graphic is drawn as a normal overlay and you're told.
   - **One link for a reel** (added by By Mel Ross): review the cut, then touch up the finished reel on the same page. Add text, pictures and sounds, pick a theme, make pictures circle your head, search GIPHY with your own free key. If you go back and re-cut, your touch-ups come along.
-  - **4 themes.** Editorial, Bold, Handwritten and Whimsical change the fonts, captions, titles and card shapes in one go. Your colours and name stay yours. Ask Claude to "show me this reel in each theme" and pick from stills.
+  - **4 themes.** Editorial, Bold, Handwritten and Whimsical change the fonts, captions, titles and card shapes in one go. Your colors and name stay yours. Ask Claude to "show me this reel in each theme" and pick from stills.
   - **Photos that circle your head.** Hand over 1 to 6 photos and they travel round you, behind your head on one side and in front on the other. The ring is placed from your outline so it stays above your eyes. Mac only; elsewhere the photos show in front and the build says so.
   - **40 sound effects** (whoosh, pop, snap, impact, rise, ding, typing, paper, glitch and more), every one generated for this project, so there's nothing to license. Each has its own volume.
   - **A music bed that follows your voice.** It dips while you speak and comes back up in the gaps, with a simple voice / music / effects mix and a final loudness of -16 LUFS with a true peak under -2 dBTP and no clipping (the same gentle level the voice clean-up uses; -14 is one setting away for a loud, music-led reel).
@@ -99,7 +99,7 @@ Claude may ask permission to install things. Check each request is about this se
 1. Film yourself talking to camera on your phone. Under two minutes is easiest.
 2. Get the video onto your Mac (AirDrop, or film into a synced folder like iCloud Drive).
 3. In Claude Code, type **edit this into a reel** and drag the video into the message box.
-4. **First time only:** Claude asks about your brand, one question at a time: colours, fonts, caption style, sounds, pacing, zooms and your usual call to action. A reel you wish you'd made is the most useful thing to share. About 5 minutes.
+4. **First time only:** Claude asks about your brand, one question at a time: colors, fonts, caption style, sounds, pacing, zooms and your usual call to action. A reel you wish you'd made is the most useful thing to share. About 5 minutes.
 5. **Review the cut.** Claude sends you one link. It opens on step 1, Review: tap words to cut them, bring back any "um" it removed, check the captions and graphics, then tell Claude **build preview**. The same link later opens step 3, Touch-ups, for small fixes to the finished reel. No link? Claude does the same review with you in chat.
 6. Watch the preview. Tell Claude what to change, with the time it happens ("at 0:12 the caption covers my face").
 7. Say **final**. Claude renders the full-quality reel, picks a few smiling stills for the cover, makes the cover with a short title, and puts three files back in your footage folder:
@@ -114,7 +114,7 @@ From the second reel on, your brand is saved, so it's just film, drop, review, f
 
 Your look lives in two files in a folder called `reels` in your home folder:
 
-- `brand.json`: the settings the scripts read (colours, fonts, caption size and position, zoom, where finished files go)
+- `brand.json`: the settings the scripts read (colors, fonts, caption size and position, zoom, where finished files go)
 - `brand.md`: the same in plain words, plus your rules ("no b-roll", "never outline captions")
 
 You never have to open them. Tell Claude what to change ("make my captions one word at a time", "use pink for highlight words") and it updates them, and it adds any correction you make during an edit to your rules.
@@ -124,9 +124,9 @@ Want to start from an example? [`brand/`](brand) holds By Mel Ross's brand:
 | Setting | By Mel Ross |
 |---|---|
 | Name | By Mel Ross |
-| Main colour | `#0d2b2d` deep teal |
-| Highlight colour | `#B9C8A5` light sage |
-| Light colour | `#f5f2ec` cream |
+| Main color | `#0d2b2d` deep teal |
+| Highlight color | `#B9C8A5` light sage |
+| Light color | `#f5f2ec` cream |
 | Fonts | Lora (headlines), Inter (captions), Lora Italic (accents). Free fonts, included in `skills/3-editing/reel-editor/themes/_fonts/` |
 | Captions | Short phrases, sentence case, white, sage key word with a soft teal shadow |
 | Zooms | 1.04x over 2.5 s, eased in and out, about every 6 s |
@@ -155,14 +155,14 @@ Useful `brand.json` settings this version adds:
 | A check line has ❌ | Paste the whole message into Claude Code and say "fix this" |
 | A render fails with `uv_os_setpriority EACCES` | Ask Claude to use `render-nonice.sh` (same render, without the low-priority setting some background runs refuse) |
 | The cover says no Chrome found | Install Google Chrome |
-| The build says "colour is only approximate" | The clip is HDR and this computer couldn't convert it (the converter is macOS only). Film in iPhone Settings > Camera > Formats > Most Compatible, or cut on a Mac |
+| The build says "color is only approximate" | The clip is HDR and this computer couldn't convert it (the converter is macOS only). Film in iPhone Settings > Camera > Formats > Most Compatible, or cut on a Mac |
 | The edit looks off-brand | Tell Claude what's wrong. It adds it to your brand rules |
 
 ## Privacy
 
 - Your footage and renders stay on your computer. Claude reads the transcript and a few still frames to plan the edit, as with anything you do in Claude.
 - Transcription runs locally with Whisper. If you choose to add an ElevenLabs key, audio goes to ElevenLabs for tighter caption timing; without a key, nothing leaves your Mac.
-- HDR to standard colour uses `avconvert`, built into macOS, on your own computer.
+- HDR to standard color uses `avconvert`, built into macOS, on your own computer.
 - The speaker cutout uses Apple's built-in person segmentation (macOS) on your own computer; the sound effects and the optional music bed are generated on your computer. Nothing is downloaded for them.
 - HyperFrames telemetry is switched off (`HYPERFRAMES_NO_TELEMETRY=1`, `DO_NOT_TRACK=1`).
 - Nothing is connected to your social accounts, and setup does not install the publishing skill.
