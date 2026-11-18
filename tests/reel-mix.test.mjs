@@ -88,6 +88,13 @@ test("qa.py passes the mixed reel and fails a reel whose peak is over the limit"
   const ok = py("qa.py", [c.reel, "final_ln.mp4"], { REELS_HOME: c.home });
   assert.equal(ok.status, 0, ok.stdout + ok.stderr);
   assert.match(ok.stdout, /peak\s+-?[\d.]+ dBTP/);
+  // 0.10.0: every check carries a label, and only what was passed with --looked counts as looked at
+  assert.match(ok.stdout, /Measured\s+size, length, loudness, true peak/); assert.match(ok.stdout, /Looked at\s+nothing yet/);
+  assert.match(ok.stdout, /Not checked\s+.*missing words \(no expected\.txt\).*how the cuts sound/);
+  const seen = py("qa.py", [c.reel, "final_ln.mp4", "--looked", "cards,cover"], { REELS_HOME: c.home });
+  assert.match(seen.stdout, /Looked at\s+every card: text inside the frame and readable; the cover: eyes open, title readable/);
+  assert.doesNotMatch(/Not checked.*/.exec(seen.stdout)[0], /every card/);
+  assert.notEqual(py("qa.py", [c.reel, "final_ln.mp4", "--looked", "vibes"], { REELS_HOME: c.home }).status, 0);
   // a loud, un-limited file: its peak is over -1 dBTP, so qa must say so
   ff(["-i", path.join(c.reel, "master.mp4"), "-af", "volume=14dB,alimiter=limit=1:level=disabled", "-c:v", "copy", path.join(c.reel, "hot.mp4")]);
   const bad = py("qa.py", [c.reel, "hot.mp4"], { REELS_HOME: c.home });

@@ -107,6 +107,26 @@ function listThemes() {
   }
   return [...out.values()];
 }
+// The Style Menu page (Added by By Mel Ross, 0.10.0): the looks from assets/style-menu.json, the themes, and this reel's picks.
+const MENU_FILE = path.join(SKILL, "assets", "style-menu.json"), PICKS_FILE = path.join(REEL, "style-picks.json");
+const USABLE_LOOK = new Set(["built", "partial", "cut-choice"]);
+function menuLooks() {
+  const looks = (readJSON(MENU_FILE, {}).looks) || {};
+  return Object.entries(looks).map(([id, l]) => ({ id, name: l.name, group: l.group, status: l.status, missing: l.missing || null, recipe: l.recipe || null }));
+}
+function stylePicks() { const p = readJSON(PICKS_FILE, {}); return { ids: Array.isArray(p.ids) ? p.ids : [], theme: typeof p.theme === "string" ? p.theme : "" }; }
+function setStylePicks(body) {
+  const ok = new Set(menuLooks().filter((l) => USABLE_LOOK.has(l.status)).map((l) => l.id));
+  const ids = [...new Set((Array.isArray(body.ids) ? body.ids : []).map(String))].filter((i) => ok.has(i)).slice(0, 40);
+  const theme = String(body.theme || "");
+  if (theme && !listThemes().some((t) => t.id === theme)) throw new Error("unknown theme");
+  writeJSON(PICKS_FILE, { ids, theme });
+  return { ids, theme };
+}
+function stylePage() {
+  const data = { reel: path.basename(REEL), looks: menuLooks(), themes: listThemes(), picks: stylePicks(), canSave: true };
+  return fs.readFileSync(path.join(HERE, "style-menu.html"), "utf8").replace("/*MENU*/null", () => JSON.stringify(data).replace(/</g, "\\u003c"));
+}
 function setTheme(body) {
   requireIdle();
   const name = String(body.name || ""), scope = body.scope === "reel" ? "reel" : "all";
@@ -430,6 +450,14 @@ const server = http.createServer(async (req, res) => {
       const html = fs.readFileSync(path.join(HERE, "reel-review.html"), "utf8")
         .replace('<script src="core.js"></script>', links + '<script src="shim.js"></script><script src="core.js"></script>');
       res.writeHead(200, { "Content-Type": TYPES[".html"], "Cache-Control": "no-store" }).end(html); return;
+    }
+    if (p === "/styles") { res.writeHead(200, { "Content-Type": TYPES[".html"], "Cache-Control": "no-store" }).end(stylePage()); return; }
+    if (p === "/api/style-picks") {   // works before the reel is built: looks are picked first
+      if (req.method === "GET") return json(res, 200, stylePicks());
+      if (req.method === "POST") {
+        try { return json(res, 200, { ok: true, picks: setStylePicks(JSON.parse((await readBody(req, 1e5)).toString() || "{}")) }); }
+        catch (e) { return json(res, 400, { ok: false, error: e.message }); }
+      }
     }
     if (p === "/shim.js") { res.writeHead(200, { "Content-Type": TYPES[".js"] }).end(SHIM); return; }
     if (p === "/core.js") return sendFile(req, res, path.join(HERE, "core.js"));

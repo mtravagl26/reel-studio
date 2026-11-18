@@ -76,6 +76,10 @@ Cut only at the end of a sentence or in the quietest part of a natural pause, on
 
 The person can pick looks by ID: H1-H5 hooks, C1-C5 captions, L1-L9 layouts ("H3, C2, L8"). Read `references/style-menu.md`: it says, per ID, which `edit.json` / `brand.json` setting or card type produces it (`assets/style-menu.json` has the same table for scripts) and which are only *partial* or *not built*. Built: H3, C1, C2, C3, L2 (`polaroids`), L4 (`tiles`), L6 (`xlist`), L7, L8 (`stat`), L9 (`popup` + `caption`); partial: H2, C5; not built: H1, H4, C4, L1, L3, L5; H5 is a cut choice. Say plainly when an ID is not built; never fake it. The eye rules apply to all of them: graphics go in the top corners or the lower third, never on the eyes, and captions step aside under lower-third cards.
 
+## Looks page, style card, labelled checks, standing notes
+
+Read `references/style-flow.md`. In short: (1) `python3 scripts/notes.py list` before every edit, and follow its rules; a style note goes in with `notes.py add`, and the same note twice becomes a rule in `brand.md`. (2) They can pick looks by sight at the reel link plus `/styles` (picks land in `<reel>/style-picks.json`), or from the file `scripts/style_menu_page.py` writes. (3) Before the first render of a reel, run `python3 scripts/style_card.py <folder>`, show its 6 lines, and wait for a yes. (4) `qa.py` ends with Measured / Looked at / Not checked: pass `--looked` only for what you opened yourself, and give the person all 3 lines.
+
 ## Storyboard first (before building new looks)
 
 When the person wants to compare looks or themes, or you are about to use a look they have not seen on this footage, show **stills, not videos**: `python3 scripts/storyboard.py <reel-folder> --out <NEW folder> --option "A=H3,C2,L8" --option "B=theme:bold"`. One image, about 25 s, no render, and the reel folder is never written to. Options, `--content` and what to check before sending it: `references/style-menu.md` ("Storyboard").
