@@ -14,7 +14,11 @@ command -v python3 >/dev/null && ok "Python 3" || no "Python 3" "macOS: xcode-se
 
 # Modified by By Mel Ross: also accepts HYPERFRAMES_SKILLS_DIR, for a copy kept outside the auto-loaded skills folder
 # (so HyperFrames' own skills don't take over requests meant for the editing skills), and reports telemetry.
-HF=0; for d in ~/.claude/skills/hyperframes ~/.agents/skills/hyperframes "${HYPERFRAMES_SKILLS_DIR:-/nonexistent}/hyperframes"; do [ -d "$d" ] && HF=1; done   # any of these is fine
+# It also looks in <workspace>/.favstash-studio/hyperframes-skills (where INSTALL_FOR_AGENTS.md puts it), found from
+# this script's own location or the current folder, so a new terminal window passes without any shell variable.
+SELF_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" 2>/dev/null && pwd)"
+HF=0; for d in ~/.claude/skills/hyperframes ~/.agents/skills/hyperframes "${HYPERFRAMES_SKILLS_DIR:-/nonexistent}/hyperframes" \
+  "$SELF_DIR/../../../../.favstash-studio/hyperframes-skills/hyperframes" "$PWD/.favstash-studio/hyperframes-skills/hyperframes"; do [ -d "$d" ] && HF=1; done   # any of these is fine
 [ "$HF" = 1 ] && ok "HyperFrames skills" || no "HyperFrames skills" "npx skills add heygen-com/hyperframes"
 
 ENG="$(cd "$(dirname "$0")/.." && pwd)/engine"
@@ -31,7 +35,7 @@ ffmpeg -hide_banner -encoders 2>/dev/null | grep -q libvpx-vp9 && ok "VP9 with t
 if [ "$(uname)" = "Darwin" ] && command -v swiftc >/dev/null; then ok "speaker cutout (Apple Vision via the Swift compiler)"
 else warn "no speaker cutout on this computer" "needs macOS with the Swift compiler (xcode-select --install). Without it layered graphics are plain overlays and the background blur is skipped"; fi
 command -v deepFilter >/dev/null && ok "noise removal (DeepFilterNet)" \
-  || warn "DeepFilterNet not installed" "background noise removal falls back to ffmpeg's weaker filter. Install: uv tool install deepfilternet"
+  || warn "DeepFilterNet not installed" "background noise removal falls back to ffmpeg's weaker filter. Optional install (needs uv: brew install uv): uv tool install --python 3.11 deepfilternet --with torch==2.1.2 --with torchaudio==2.1.2 --with soundfile"
 
 HOME_DIR="${REELS_HOME:-$HOME/reels}"
 if [ -f "$HOME_DIR/brand.json" ]; then

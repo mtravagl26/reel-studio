@@ -76,7 +76,7 @@ When it finishes, scroll up to **Next steps**, copy the two or three lines under
 **4. Install the video tools:**
 
 ```bash
-brew install ffmpeg node git
+brew install ffmpeg node git yt-dlp
 ```
 
 You can close Terminal now.
@@ -151,7 +151,7 @@ Useful `brand.json` settings this version adds:
 | What you see | What to do |
 |---|---|
 | `command not found: brew` | Close Terminal, open it again. Still broken? Redo the Next steps lines from your own Terminal |
-| `command not found: ffmpeg` or `node` | Run `brew install ffmpeg node` again |
+| `command not found: ffmpeg` or `node` | Run `brew install ffmpeg node git yt-dlp` again |
 | A check line has ❌ | Paste the whole message into Claude Code and say "fix this" |
 | A render fails with `uv_os_setpriority EACCES` | Ask Claude to use `render-nonice.sh` (same render, without the low-priority setting some background runs refuse) |
 | The cover says no Chrome found | Install Google Chrome |
