@@ -39,8 +39,8 @@ dur = float(info["format"]["duration"])
 want = [1080, 1920] if os.environ.get("REEL_PREVIEW") else brand.get("resolution", [1080, 1920])
 print(f"size      {w}x{h}  (want {want[0]}x{want[1]})")
 if [w, h] != list(want): fails.append("size")
-print(f"length    {dur:.1f}s  (max {brand.get('max_seconds', 60)}s)")
-if dur > brand.get("max_seconds", 60): fails.append("length")
+MAXS = brand.get("max_seconds", 180)   # Modified by By Mel Ross (0.10.1): a target, default 3 minutes; over it is a note, not a failed check
+print(f"length    {dur:.1f}s  (target: up to {MAXS}s)" + ("  NOTE: over the target - tell them, their call" if dur > MAXS else ""))
 
 ebu = subprocess.run(["ffmpeg", "-hide_banner", "-i", str(video), "-af", "ebur128=peak=true", "-f", "null", "-"],
                      capture_output=True, text=True).stderr
@@ -76,14 +76,19 @@ if exp.exists():
     tok = lambda s: re.sub(r"[^a-z0-9' ]", " ", s.lower()).split()
     subprocess.run(["npx", "-y", "hyperframes@0.8.145", "transcribe", str(video), "-d", str(reel / "qa_transcript"),
                     "--json", "--model", "small.en"], capture_output=True)
-    heard = [t for wd in json.load(open(reel / "qa_transcript/transcript.json")) for t in tok(wd["text"])]
-    expected = tok(exp.read_text())
-    ratio = difflib.SequenceMatcher(None, expected, heard, autojunk=False).ratio()
-    missing = [expected[i1:i2] for op, i1, i2, _, _ in
-               difflib.SequenceMatcher(None, expected, heard, autojunk=False).get_opcodes() if op in ("delete", "replace")]
-    print(f"words     {ratio:.0%} match" + (f"; check: {missing[:6]}" if missing else ""))
-    if ratio < 0.95: fails.append("words")
-    measured.append(f"spoken words against the script ({ratio:.0%} match)")
+    qt = reel / "qa_transcript/transcript.json"
+    if qt.exists() and qt.stat().st_mtime >= video.stat().st_mtime:
+        heard = [t for wd in json.load(open(qt)) for t in tok(wd["text"])]
+        expected = tok(exp.read_text())
+        ratio = difflib.SequenceMatcher(None, expected, heard, autojunk=False).ratio()
+        missing = [expected[i1:i2] for op, i1, i2, _, _ in
+                   difflib.SequenceMatcher(None, expected, heard, autojunk=False).get_opcodes() if op in ("delete", "replace")]
+        print(f"words     {ratio:.0%} match" + (f"; check: {missing[:6]}" if missing else ""))
+        if ratio < 0.95: fails.append("words")
+        measured.append(f"spoken words against the script ({ratio:.0%} match)")
+    else:   # Modified by By Mel Ross (0.10.1): this used to crash when local Whisper could not run
+        print("words     NOT CHECKED: local Whisper could not transcribe the render (it needs its speech model; see transcribe.py)")
+        unmeasured.append("missing words (transcription did not run)")
 else:
     print("words     skipped (write the approved script to expected.txt to check for clipped words)")
     unmeasured.append("missing words (no expected.txt)")

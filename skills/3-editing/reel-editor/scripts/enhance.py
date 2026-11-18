@@ -3,14 +3,14 @@
 
 What it does (all in ffmpeg, all local):
   exposure   nudges the picture toward a comfortable middle brightness (only as far as the clip needs, never more than a small step)
-  colour     a touch of contrast and saturation, a hint of warmth; no hue shifts, so skin tones stay skin tones
+  color     a touch of contrast and saturation, a hint of warmth; no hue shifts, so skin tones stay skin tones
   denoise    mild temporal/spatial denoise (hqdn3d) for phone grain
-  sharpen    mild sharpening of brightness only (no colour fringes)
+  sharpen    mild sharpening of brightness only (no color fringes)
   background a slight blur behind the speaker (cutout.py soften), the speaker stays sharp; skipped when there's no cutout
 It does NOT smooth skin: no plastic look.
 
 brand.json "enhance" (all optional; each amount is a multiplier, 1 = the default, 0 = off, 2 = twice as much):
-  {"on": true, "strength": 1.0, "color": 0.0, "exposure": 0.0, "denoise": 1.0, "sharpen": 1.0, "background": 0.0, "warmth": 0.0}   (defaults shown: colour, exposure, warmth and background blur are OFF; set any to 1 to turn it on)
+  {"on": true, "strength": 1.0, "color": 0.0, "exposure": 0.0, "denoise": 1.0, "sharpen": 1.0, "background": 0.0, "warmth": 0.0}   (defaults shown: color, exposure, warmth and background blur are OFF; set any to 1 to turn it on)
 A reel can override these in edl.json under "enhance". "on": false turns the whole thing off.
 
   python3 enhance.py <reel> compare [--at <seconds-into-the-cut>]   writes <reel>/enhance_before_after.jpg (before | after) to review
@@ -20,7 +20,7 @@ import json, os, re, subprocess, sys
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
-DEFAULTS = {"on": True, "strength": 1.0, "color": 0.0, "exposure": 0.0, "denoise": 1.0, "sharpen": 1.0, "background": 0.0, "warmth": 0.0}   # natural by default: no colour grade, no background blur; ask for them with 1
+DEFAULTS = {"on": True, "strength": 1.0, "color": 0.0, "exposure": 0.0, "denoise": 1.0, "sharpen": 1.0, "background": 0.0, "warmth": 0.0}   # natural by default: no color grade, no background blur; ask for them with 1
 TARGET_Y = 120            # comfortable mean brightness of the 16-235 video range for a face-to-camera clip
 
 
@@ -68,9 +68,9 @@ def filters(src, spans, brand, edl=None):
         if abs(lift) < 0.004: lift = 0.0
     c = s["color"] * k
     # Modified by By Mel Ross: cut.py converts HDR clips to SDR with macOS avconvert before this point, so `src` is normally SDR here.
-    # Only a clip that could not be converted still reads as HDR, and then the colour really is approximate.
+    # Only a clip that could not be converted still reads as HDR, and then the color really is approximate.
     hdr = is_hdr(src)
-    if hdr: info["note"] = "HDR (HLG/PQ) footage that could not be converted properly (needs macOS avconvert): colour is only approximate, it comes out lighter, greyer and cooler than the real picture"
+    if hdr: info["note"] = "HDR (HLG/PQ) footage that could not be converted properly (needs macOS avconvert): color is only approximate, it comes out lighter, greyer and cooler than the real picture"
     contrast, sat = 1 + (0.045 if hdr else 0.03) * c, 1 + (0.08 if hdr else 0.04) * c
     if lift or c > 0: pre.append(f"eq=brightness={lift:.4f}:contrast={contrast:.3f}:saturation={sat:.3f}")
     w = s["warmth"] * k

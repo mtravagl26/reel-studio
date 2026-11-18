@@ -15,7 +15,7 @@ Applying picks is unchanged: `references/style-menu.md` says what each ID sets.
 
 ## 2. The style card (before the first render)
 
-`python3 scripts/style_card.py <reel-folder> [--looks H3,C2,L8] [--theme bold]` prints 6 lines: Hook, Captions, Layout, Motion, Sound, Colour. It reads `--looks` / `--theme`, then `style-picks.json`, then `edit.json`, then `brand.json` with its theme.
+`python3 scripts/style_card.py <reel-folder> [--looks H3,C2,L8] [--theme bold]` prints 6 lines: Hook, Captions, Layout, Motion, Sound, Color. It reads `--looks` / `--theme`, then `style-picks.json`, then `edit.json`, then `brand.json` with its theme.
 
 Paste the 6 lines to the person as they are and **wait for a yes before the first render of a reel**. A change to any line is cheaper now than after a render. Skip the wait only when they already pressed "build preview" on the review page for this reel; still show the card. `NOTE (tell them):` lines name picks that are not built or not in the menu: say so and offer the nearest built look.
 

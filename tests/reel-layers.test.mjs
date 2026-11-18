@@ -184,3 +184,12 @@ test("head_box finds the head at the top of the cutout", { skip }, () => {
   assert.ok(Math.abs(b.top - 1920 * 0.22) <= 40, `top of the oval (top ${b.top})`);   // oval centre 0.55 H, radius 0.33 H
   assert.ok(b.w > 100 && b.w < 700 && b.h > b.w, `a plausible head (w ${b.w}, h ${b.h})`);
 });
+
+test("a call-to-action's CAPS word stays readable: a highlight too close to the pill colour becomes a marker behind dark text", { skip }, () => {
+  const c = makeReel([{ type: "cta", start: 0.5, end: 3, text: "comment MOVE now" }], { matte: null });   // this fixture's brand: sage on cream
+  assert.equal(build(c).status, 0);
+  assert.match(html(c), /<span style="background:#B9C8A5;color:#0d2b2d;[^"]*">MOVE<\/span>/);
+  fs.writeFileSync(path.join(c.home, "brand.json"), JSON.stringify({ colors: { main: "#1A1A1A", pop: "#C8102E", light: "#FFF6EE" }, sfx: "none" }));
+  assert.equal(build(c).status, 0);
+  assert.match(html(c), /<span style="color:#C8102E">MOVE<\/span>/, "a strong highlight colour is used as before");
+});

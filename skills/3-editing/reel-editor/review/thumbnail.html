@@ -111,8 +111,8 @@ input[type=color]{width:44px;height:34px;border:2px solid var(--line);border-rad
         <label for="font">Font<select id="font"></select></label>
         <label for="size">Text size <span class="tc" id="sizeval"></span><input type="range" id="size" min="40" max="220" step="2"></label>
       </div>
-      <label>Colour</label>
-      <div class="swatches" id="swatches"><input type="color" id="color" aria-label="Pick any colour"></div>
+      <label>Color</label>
+      <div class="swatches" id="swatches"><input type="color" id="color" aria-label="Pick any color"></div>
       <label for="y">Up or down <span class="sub" style="display:inline">(it always stays inside the frame)</span></label>
       <input type="range" id="y" min="0" max="1920" step="10">
       <label>Style</label>
@@ -360,13 +360,13 @@ async function pickReel() {
     if (!C.sources.length) { draw(); return say("No footage in this reel folder yet. Add your raw clip as raw.mov or raw.mp4 (or finish the cut so master.mp4 exists), then reload.", true); }
     const failed = await brandFonts();
     for (const s of C.sources) $("#source").add(new Option(`${s.label} (${s.file})`, s.file));
-    const colours = [...new Set([...Object.values(C.colors || {}), "#FFFFFF", "#141414"].map(c => String(c).toUpperCase()).filter(c => /^#[0-9A-F]{6}$/.test(c)))];
-    for (const c of colours) {
-      const b = document.createElement("button"); b.type = "button"; b.className = "sw"; b.dataset.c = c; b.style.background = c; b.setAttribute("aria-label", "Colour " + c);
+    const colors = [...new Set([...Object.values(C.colors || {}), "#FFFFFF", "#141414"].map(c => String(c).toUpperCase()).filter(c => /^#[0-9A-F]{6}$/.test(c)))];
+    for (const c of colors) {
+      const b = document.createElement("button"); b.type = "button"; b.className = "sw"; b.dataset.c = c; b.style.background = c; b.setAttribute("aria-label", "Color " + c);
       b.addEventListener("click", () => set("color", c)); $("#color").before(b);
     }
     const first = ["head", "body"].find(k => FONTS[k]) || "system";
-    S = { source: C.sources[0].file, time: 0, headline: "", font: first, size: 120, color: colours[0] || "#FFFFFF",
+    S = { source: C.sources[0].file, time: 0, headline: "", font: first, size: 120, color: colors[0] || "#FFFFFF",
           y: typeof C.titleY === "number" ? C.titleY : 420, style: "shadow", guides: { tall: false, square: false } };
     note = failed.length ? `Couldn't load the ${failed.join(", ")} font, so it uses system sans. ` : "";
     if (C.settings) {

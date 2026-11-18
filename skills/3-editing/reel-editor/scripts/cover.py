@@ -9,7 +9,7 @@ Usage:
       or mid-smile (not mid-word).
   python3 cover.py <reel-folder> --at <seconds> --title "short / topic title" [--y 300]
       Saves cover.jpg. "/" starts a new line; keep it to 2-3 lines of a few words. Title uses the brand's head font and
-      main colour with the hook-title outline, placed high in the 3:4 middle of the frame, which is what the profile grid
+      main color with the hook-title outline, placed high in the 3:4 middle of the frame, which is what the profile grid
       shows, and clear of the caption and button areas.
 
 The still comes from master.mp4 (the cut, before captions and graphics), so the cover is clean. Needs Chrome,

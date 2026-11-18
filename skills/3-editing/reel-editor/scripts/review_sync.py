@@ -104,7 +104,9 @@ def export(reel, proposal, out):
                  # Added by By Mel Ross (0.9.0): the themes this machine has, for the page's "Look for this reel" picker
                  "themes": [{"id": n, "name": json.load(open(p / "theme.json")).get("name", n), "summary": json.load(open(p / "theme.json")).get("summary", "")}
                             for n, p in _theme.available(HOME).items()],
-                 "theme": (brand.get("_theme") or {}).get("name", "")}
+                 "theme": (brand.get("_theme") or {}).get("name", ""),
+                 # Added by By Mel Ross (0.10.1): the brand's graphics amount, for the dial on the Graphics tab
+                 "graphicsAmount": {"minimal": "few", "balanced": "some", "busy": "lots"}.get(brand.get("graphics", "balanced"), "some")}
     P = node(reel_json, {"cut": proposed_cut})
     print(f"{len(words)} words ({sum(1 for w in words if w.get('filler'))} fillers), {len(caps)} captions, {len(board)} graphics, "
           f"proposed cut {P['cutDur']:.1f}s, {len(P['pauses'])} pauses ({len(keep_pauses)} kept on purpose)")
@@ -137,7 +139,8 @@ def do_import(reel, review):
     for g in P["graphics"]:
         if g.get("gone") or g["state"] == "d": continue
         note = ((d.get("board") or {}).get(g["id"]) or {}).get("note")
-        if g["state"] == "c": changes.append(f"{g['id']} @ cut {g['start']:.1f}s: {note or '(no note)'}")
+        mine = [f for f in ((d.get("board") or {}).get(g["id"]) or {}).get("files") or [] if isinstance(f, str) and f.startswith("popups/")]   # 0.10.2: their own pictures
+        if g["state"] == "c": changes.append(f"{g['id']} @ cut {g['start']:.1f}s: {note or '(no note)'}" + (f". Use their own picture(s), already in the reel folder: {', '.join(mine)}" if mine else ""))
         spec = {k: v for k, v in g.items() if k not in ("id", "kind", "what", "w0", "w1", "state", "place", "moved", "gone")}
         spec.update(start=round(g["start"], 3), end=round(g["end"], 3), id=g["id"])
         if g["id"] in (d.get("sfxOff") or {}) and d["sfxOff"][g["id"]]: spec["sfx"] = False
@@ -157,10 +160,20 @@ def do_import(reel, review):
     for k in kept: print("TOUCH-UP KEPT:", k)
     for k in lost: print("TOUCH-UP NOT KEPT (tell them):", k)
     for c in changes: print("CHANGE REQUESTED:", c)
+    # Added by By Mel Ross (0.10.1): graphics asked for on the Graphics tab. The page can't build them; you do, in edit.json, before the render.
+    AMT = {"few": "minimal (about 1 every 8-12 s)", "some": "balanced (about 1 every 4-6 s)", "lots": "busy (about 1 every 2-4 s)"}
+    if d.get("amount") in AMT:
+        print(f'GRAPHICS AMOUNT: {AMT[d["amount"]]} for this reel. Add or drop cards in edit.json to match, then export the review again so they can see the new plan.')
+    KIND = {"choose": "your choice of card", "title": "title card", "list": "card (rows)", "checks": "xlist", "label": "tag", "number": "stat", "photo": "image, shot or popup",
+            "gif": "popup with a GIF (references/giphy.md)", "carousel": "motion carousel-*", "chart": "motion chart (references/motions.md)", "counter": "motion count-up",
+            "follow": "follow card", "social": "motion comment / chat / notification", "orbit": "orbit"}
+    for w in d.get("wanted") or []:
+        print(f'GRAPHIC WANTED: {KIND.get(w.get("kind"), "your choice of card")} at the line "{w.get("line", "")}"' + (f': {w["note"]}' if w.get("note") else "") + (f' Use their own picture(s), already in the reel folder: {", ".join(f for f in w["files"] if isinstance(f, str) and f.startswith("popups/"))}' if w.get("files") else "") +
+              ". Add it to edit.json. If it needs pictures or numbers you don't have, ask them before the render.")
     for k, n in (d.get("notes") or {}).items():
         if n.strip(): print(f"NOTE ({k}):", n.strip())
     if (d.get("brandRequest") or "").strip(): print("BRAND CHANGE REQUESTED (only apply if confirmed):", d["brandRequest"].strip())
-    for r in d.get("revisions") or []: print(f"REVISION @ cut {r['t']:.1f}s:", r["text"])
+    for r in d.get("revisions") or []: print(f"REVISION @ {'rough cut' if r.get('rough') else 'cut'} {r['t']:.1f}s" + (" (written before the build; act on it before rendering)" if r.get("rough") else "") + ":", r["text"])
 
 if __name__ == "__main__":
     cmd, reel = sys.argv[1], Path(sys.argv[2]).expanduser()
