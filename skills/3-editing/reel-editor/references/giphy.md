@@ -29,3 +29,7 @@ Many GIFs on GIPHY are clips from films, TV and sport. GIPHY's API lets an app s
 - GIPHY asks apps to show its attribution wherever its content is searched. The page does that in text; an app that applies for a production key should use GIPHY's official logo files.
 - A GIF over 20 MB is refused. A GIF becomes a looped video in the render, like any other GIF popup.
 - Not tried against the live GIPHY service when this was written: the first real search is the test.
+
+## On the review page too (0.10.2)
+
+Before the build, the review page's Graphics tab offers **Search GIPHY** next to "Use my own picture or GIF": on any graphic set to Change, and on any graphic they asked for with "Add a graphic". The picked GIF is downloaded into `popups/` and named in the import output (`Use their own picture(s) ...`). Same key, same rules as on the touch-ups page. With no key, the page tells them to ask you to set GIPHY up.

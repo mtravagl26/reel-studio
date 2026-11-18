@@ -478,6 +478,13 @@ const server = http.createServer(async (req, res) => {
       res.writeHead(204).end(); return;
     }
     if (p === "/api/state" && req.method === "GET") return json(res, 200, built() ? view() : { built: false, reel: path.basename(REEL), review: hasReview(), links: LINKS });
+    if (req.method === "GET" && p === "/api/review-giphy-key") return json(res, 200, { key: giphyKey() || null });   // 0.10.2: GIPHY on the review page, before the build
+    if (req.method === "POST" && p === "/api/review-giphy") {
+      try {
+        fs.mkdirSync(P.popups, { recursive: true });
+        return json(res, 200, { ok: true, upload: await giphyAdd(JSON.parse((await readBody(req, 1e5)).toString() || "{}")) });
+      } catch (e) { return json(res, 400, { ok: false, error: String(e.message || e) }); }
+    }
     if (req.method === "POST" && p === "/api/review-upload") {   // Added by By Mel Ross (0.10.2): their own picture for a graphic, from the review page (works before the build)
       try {
         const buf = await readBody(req, 60e6); if (!buf.length) throw new Error("empty file");

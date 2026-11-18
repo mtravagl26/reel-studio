@@ -80,7 +80,7 @@ test("studio server: /styles serves the looks for this reel and saves picks, ref
   fs.writeFileSync(path.join(c.reel, "review_db", "reel", "current.json"), JSON.stringify({ title: "t", words: [] }));
   const port = 5500 + Math.floor(Math.random() * 500);
   const engine = path.join(c.dir, "engine"); fs.mkdirSync(path.join(engine, "sfx"), { recursive: true }); fs.writeFileSync(path.join(engine, "sfx", "pop.wav"), "RIFFtest");
-  const p = spawn("node", [path.join(review, "studio-server.mjs"), c.reel, "--port", String(port)], { env: { ...process.env, REELS_HOME: c.home, REEL_ENGINE: engine }, stdio: ["ignore", "pipe", "pipe"] });
+  const p = spawn("node", [path.join(review, "studio-server.mjs"), c.reel, "--port", String(port)], { env: { ...process.env, REELS_HOME: c.home, REEL_ENGINE: engine, HOME: c.dir, GIPHY_API_KEY: "" }, stdio: ["ignore", "pipe", "pipe"] });
   let out = ""; p.stdout.on("data", (d) => (out += d)); p.stderr.on("data", (d) => (out += d));
   for (let i = 0; i < 100 && !/Reel Studio for/.test(out); i++) await new Promise((r) => setTimeout(r, 100));
   const base = `http://127.0.0.1:${port}`, post = (body) => fetch(base + "/api/style-picks", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
@@ -100,6 +100,9 @@ test("studio server: /styles serves the looks for this reel and saves picks, ref
     assert.equal((await fetch(base + "/api/style-picks", { method: "POST", headers: { "content-type": "application/json", origin: "https://example.test", "sec-fetch-site": "cross-site" }, body: "{}" })).status, 403, "another site can't change picks");
     assert.match(await (await fetch(base + "/review")).text(), /href="\/styles"/);
     // 0.10.2: sound previews. Library sounds are served by name; anything that isn't a plain name is refused.
+    assert.deepEqual(await (await fetch(base + "/api/review-giphy-key")).json(), { key: null }, "no key on this test machine: the page gets a plain answer, before the build");
+    const noKey = await fetch(base + "/api/review-giphy", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ id: "abc123def" }) });
+    assert.equal(noKey.status, 400); assert.match((await noKey.json()).error, /no GIPHY key/);
     const wav = await fetch(base + "/sfx/pop.wav"); assert.equal(wav.status, 200); assert.equal(wav.headers.get("content-type"), "audio/wav");
     assert.equal((await fetch(base + "/sfx/nope.wav")).status, 404); assert.equal((await fetch(base + "/sfx/..%2F..%2Fbrand.wav")).status, 404);
   } finally { p.kill(); }
