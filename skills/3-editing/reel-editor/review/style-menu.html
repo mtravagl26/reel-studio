@@ -1,0 +1,197 @@
+<!doctype html>
+<!-- Added by By Mel Ross (0.10.0). The Style Menu as a page: every usable look drawn as a small sketch, an Add button on each,
+     and one button that writes the edit request. The looks come from assets/style-menu.json; the sketches are drawn here from
+     each look's own recipe, so a new look with a known card type gets a sketch without touching this file.
+     Served by studio-server.mjs at /styles (picks are saved in the reel folder), or written as a stand-alone file by
+     scripts/style_menu_page.py. Loads nothing from the internet. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Looks</title>
+<style>
+:root { --bg:#f5f2ec; --ink:#0d2b2d; --sage:#B9C8A5; --sage-d:#8da273; --card:#fff; --line:#e1dccf; --bad:#a32727; }
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html { background: var(--bg); }
+body { margin: 0 auto; max-width: 760px; padding: 0 12px 150px; font: 16px/1.4 -apple-system, "Helvetica Neue", Arial, sans-serif; color: var(--ink); }
+header { position: sticky; top: 0; z-index: 20; background: var(--bg); padding: 10px 0 8px; display: flex; gap: 8px; align-items: center; border-bottom: 1px solid var(--line); }
+h1 { font-size: 18px; margin: 0; flex: 1; } h1 small { display: block; font-weight: 400; color: #5b6b69; font-size: 12px; }
+h2 { font-size: 15px; margin: 22px 0 2px; } h2 + p { margin: 0 0 10px; color: #5b6b69; font-size: 13px; }
+a.back { color: var(--ink); font-weight: 600; font-size: 14px; }
+button { font: inherit; min-height: 40px; padding: 0 14px; border-radius: 12px; border: 1.5px solid var(--ink); background: #fff; color: var(--ink); font-weight: 600; cursor: pointer; }
+button.pri { background: var(--ink); color: #fff; } button.on { background: var(--sage); border-color: var(--sage-d); }
+button:disabled { opacity: .4; }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
+.look { background: var(--card); border: 1.5px solid var(--line); border-radius: 14px; padding: 8px; display: flex; flex-direction: column; gap: 6px; }
+.look.on { border-color: var(--sage-d); box-shadow: 0 0 0 2px var(--sage); }
+.look .id { font-size: 12px; font-weight: 700; color: #5b6b69; } .look .nm { font-weight: 600; font-size: 14px; line-height: 1.25; }
+.look .note { font-size: 12px; color: #6b3410; background: #fbe7d6; border-radius: 8px; padding: 4px 6px; }
+.look .need { font-size: 12px; color: #5b6b69; }
+.look button { margin-top: auto; }
+/* the sketch: a 108 x 192 frame, one unit = 10 px of a 1080 x 1920 reel */
+.fr { position: relative; width: 100%; aspect-ratio: 9 / 16; border-radius: 10px; overflow: hidden; background: linear-gradient(#93a394, #6f8073); container-type: inline-size; }
+.fr * { position: absolute; }
+.fr .who { left: 50%; top: 28%; width: 34%; aspect-ratio: 1; border-radius: 50%; background: #d9c3ab; transform: translateX(-50%); }
+.fr .body { left: 50%; top: 45%; width: 70%; height: 60%; border-radius: 38% 38% 0 0; background: #0d2b2d; transform: translateX(-50%); }
+.fr .tx { left: 6%; right: 6%; color: #fff; font-weight: 800; line-height: 1.02; text-shadow: 0 .4cqw 1.6cqw rgba(0,0,0,.35); white-space: pre-line; }
+.fr .hand { font-family: "Bradley Hand", "Segoe Script", "Comic Sans MS", cursive; font-weight: 600; }
+.fr .serif { font-family: Georgia, "Times New Roman", serif; }
+.fr .paper { background: #f5f2ec; color: #0d2b2d; border-radius: 2cqw; box-shadow: 0 1cqw 3cqw rgba(0,0,0,.25); }
+.fr .strip { background: #B9C8A5; color: #0d2b2d; padding: .6cqw 2.4cqw; font-size: 5.4cqw; white-space: nowrap; transform: rotate(-2deg); }
+.fr .photo { background: #fff; padding: 1.6cqw 1.6cqw 5cqw; box-shadow: 0 1cqw 3cqw rgba(0,0,0,.3); } .fr .photo i { position: static; display: block; width: 100%; height: 100%; background: linear-gradient(135deg, #c9d6ba, #8da273); }
+.fr .cutbar { left: 8%; right: 8%; bottom: 8%; height: 5%; display: flex; gap: 1.5%; } .fr .cutbar b { position: static; display: block; border-radius: 1cqw; background: #fff; opacity: .85; } .fr .cutbar b:first-child { flex: 1; background: var(--sage); opacity: 1; } .fr .cutbar b + b { flex: 4; }
+.themes { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; }
+.theme { background: var(--card); border: 1.5px solid var(--line); border-radius: 14px; padding: 10px; display: flex; flex-direction: column; gap: 6px; } .theme.on { border-color: var(--sage-d); box-shadow: 0 0 0 2px var(--sage); }
+.theme b { font-size: 15px; } .theme span { font-size: 13px; color: #5b6b69; }
+#bar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 30; background: var(--ink); color: #fff; padding: 10px 12px calc(10px + env(safe-area-inset-bottom)); }
+#bar .in { max-width: 760px; margin: 0 auto; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+#bar p { margin: 0; flex: 1 1 240px; font-size: 14px; } #bar p small { display: block; opacity: .75; }
+#bar button { border-color: #fff; } #bar button.pri { background: var(--sage); color: var(--ink); border-color: var(--sage); }
+#say { font-family: ui-monospace, Menlo, monospace; font-size: 13px; background: rgba(255,255,255,.12); border-radius: 8px; padding: 6px 8px; margin-top: 6px; display: block; }
+#empty { padding: 30px 0; color: #5b6b69; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Looks<small id="sub"></small></h1>
+  <a class="back" id="back" href="/" hidden>Back to the reel</a>
+</header>
+<main id="main"></main>
+<p id="empty" hidden>The look list is missing. Open this page from the reel link, or make it with scripts/style_menu_page.py.</p>
+<div id="bar" hidden><div class="in">
+  <p><span id="count"></span><code id="say"></code></p>
+  <button type="button" id="clear">Clear</button>
+  <button type="button" class="pri" id="copy">Copy the request</button>
+</div></div>
+<script>
+window.STYLE_MENU = /*MENU*/null;
+</script>
+<script>
+"use strict";
+const M = window.STYLE_MENU, $ = (s) => document.querySelector(s);
+const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
+const USABLE = new Set(["built", "partial", "cut-choice"]);
+const ONE_PER_GROUP = /^(hook|caption)/i;                       // one hook and one captions look per reel; layouts can stack
+const picks = new Set((M && M.picks && M.picks.ids) || []); let theme = (M && M.picks && M.picks.theme) || "";
+
+// ---- sketches: plain shapes that show where a look puts things. Sizes are container-width units (cqw): 1 cqw = 10.8 reel px.
+const px = (n) => (n / 10.8).toFixed(2) + "cqw", pct = (y) => (y / 19.2).toFixed(2) + "%";
+function frame() { const f = el("div", "fr"); f.append(el("div", "body"), el("div", "who")); return f; }
+function title(f, c) {
+  const lines = String(c.text || "").split("/").map((s) => s.trim()).join("\n"), size = Math.min(c.size || 150, 240);
+  const y = c.y || 95, align = c.align || "left";
+  if (c.overline) { const o = el("div", "tx hand", c.overline); o.style.cssText = `top:${pct(y)};font-size:${px(size * 0.42)};text-align:${align};font-weight:600`; f.append(o); }
+  const t = el("div", "tx", lines.toUpperCase() === lines ? lines : lines); t.style.cssText = `top:${pct(y + (c.overline ? size * 0.5 : 0))};font-size:${px(size)};text-align:${align};color:${c.color || "#fff"}`;
+  f.append(t);
+}
+function captions(f, r) {
+  const b = (r.brand || {}), cap = b.captions || {}, word = (r.mode || cap.mode) === "word";
+  const size = cap.size || 92, y = cap.y || 1250, serif = /lora|serif/i.test(JSON.stringify((b.fonts || {}).body || ""));
+  const t = el("div", "tx" + (serif ? " serif" : "")); t.style.cssText = `top:${pct(y)};font-size:${px(size)};text-align:center;font-weight:${serif ? 500 : 700};color:${(b.colors || {}).caption || "#fff"}`;
+  const say = word ? ["this"] : ["this is the", "line"]; let text = say.join(" ");
+  if (cap.case === "lower") text = text.toLowerCase();
+  if (r.accent && !word) { const parts = text.split(" "), last = parts.pop(); t.append(parts.join(" ") + " "); const a = el("i", "serif", last); a.style.cssText = "position:static;color:#B9C8A5;font-style:italic"; t.append(a); }
+  else t.textContent = text;
+  f.append(t);
+}
+function card(f, c) {
+  const kind = c.type;
+  if (kind === "title") return title(f, c);
+  if (kind === "polaroids") {
+    [[6, 30, -7], [16, 38, 5], [9, 49, -3]].forEach(([l, t, rot]) => { const p = el("div", "photo"); p.style.cssText = `left:${l}%;top:${t}%;width:34%;height:21%;transform:rotate(${rot}deg)`; p.append(el("i")); f.append(p); });
+    const s = el("div", "strip hand", c.label || "label"); s.style.cssText += "left:8%;top:73%"; f.append(s); return;
+  }
+  if (kind === "popup") {
+    const p = el("div", "photo"); p.style.cssText = `left:7%;top:8%;width:${px(c.size || 330)};height:${px((c.size || 330) * 1.05)};transform:rotate(${c.rotate || -5}deg);border-radius:2cqw`; p.append(el("i")); f.append(p);
+    if (c.caption) { const s = el("div", "strip hand", c.caption); s.style.cssText += `left:6%;top:${pct(120 + (c.size || 330) * 1.05)};font-size:4.6cqw`; f.append(s); } return;
+  }
+  if (kind === "tiles") {
+    const s = el("div", "strip hand", c.label || "label"); s.style.cssText += "left:8%;top:54%"; f.append(s);
+    (c.tiles || []).slice(0, 3).forEach((t, i) => { const d = el("div", "paper", t.label || ""); d.style.cssText = `left:${8 + i * 29}%;top:62%;width:26%;height:14%;font-size:4.4cqw;font-weight:600;display:flex;align-items:flex-end;justify-content:center;padding-bottom:1.5cqw`; f.append(d); }); return;
+  }
+  if (kind === "xlist") {
+    const d = el("div", "paper"); d.style.cssText = "left:8%;right:8%;top:55%;padding:3cqw 4cqw;font-size:5.4cqw;font-weight:600;line-height:1.5";
+    (c.items || []).slice(0, 3).forEach((it) => { const r = el("div"); r.style.position = "static"; const m = el("span", "", c.mark === "x" ? "✕ " : "✓ "); m.style.cssText = `position:static;color:${c.mark === "x" ? "#a32727" : "#8da273"}`; r.append(m, it); d.append(r); });
+    f.append(d); return;
+  }
+  if (kind === "stat") {
+    const d = el("div", "paper"); d.style.cssText = "left:17%;right:17%;top:56%;padding:3cqw 4cqw;background:#fff";
+    const a = el("div", "", c.label || ""), b = el("div", "", c.value || ""); a.style.cssText = "position:static;font-size:4.6cqw;color:#5b6b69"; b.style.cssText = "position:static;font-size:13cqw;font-weight:800;line-height:1.05";
+    d.append(a, b); if (c.delta) { const g = el("span", "", c.delta); g.style.cssText = "position:static;display:inline-block;background:#B9C8A5;border-radius:99px;padding:0 2cqw;font-size:4.4cqw;font-weight:700"; d.append(g); }
+    f.append(d); return;
+  }
+  const d = el("div", "paper", kind || "card"); d.style.cssText = "left:12%;right:12%;top:58%;padding:3cqw;font-size:5cqw;text-align:center"; f.append(d);
+}
+function sketch(look) {
+  const f = frame(), r = look.recipe;
+  if (!r) { const bar = el("div", "cutbar"); bar.append(el("b"), el("b")); f.append(bar); return f; }   // an edit decision: no graphic to draw
+  if (r.brand || r.mode) captions(f, r);
+  if (r.card) card(f, r.card);
+  return f;
+}
+
+// ---- the request the person hands to their assistant
+function request() {
+  const ids = [...picks], t = (M.themes || []).find((x) => x.id === theme);
+  if (!ids.length && !t) return "";
+  const what = [ids.join(", "), t ? `the ${t.name} theme` : ""].filter(Boolean).join(" and ");
+  return `Edit ${M.reel ? `the reel "${M.reel}"` : "my clip"} with ${what}. Show me the style card before you build.`;
+}
+function refresh() {
+  document.querySelectorAll("[data-id]").forEach((n) => { const on = picks.has(n.dataset.id); n.classList.toggle("on", on); const b = n.querySelector("button"); b.classList.toggle("on", on); b.textContent = on ? "Added" : "Add"; b.setAttribute("aria-pressed", on); });
+  document.querySelectorAll("[data-theme]").forEach((n) => { const on = n.dataset.theme === theme; n.classList.toggle("on", on); const b = n.querySelector("button"); b.classList.toggle("on", on); b.textContent = on ? "Added" : "Add"; b.setAttribute("aria-pressed", on); });
+  const n = picks.size + (theme ? 1 : 0), say = request();
+  $("#bar").hidden = !n; $("#count").textContent = n === 1 ? "1 pick" : `${n} picks`; $("#say").textContent = say;
+}
+let saving = null;
+function save() {
+  if (!M.canSave) return;
+  clearTimeout(saving); saving = setTimeout(() => { fetch("/api/style-picks", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ids: [...picks], theme }) }).catch(() => {}); }, 300);
+}
+function toggle(look) {
+  if (picks.has(look.id)) picks.delete(look.id);
+  else { if (ONE_PER_GROUP.test(look.group)) for (const o of M.looks) if (o.group === look.group) picks.delete(o.id); picks.add(look.id); }
+  refresh(); save();
+}
+
+function build() {
+  if (!M || !Array.isArray(M.looks)) { $("#empty").hidden = false; return; }
+  const usable = M.looks.filter((l) => USABLE.has(l.status)), main = $("#main");
+  $("#sub").textContent = `${usable.length} looks${M.reel ? " · " + M.reel : ""}`; $("#back").hidden = !M.canSave;
+  for (const id of [...picks]) if (!usable.some((l) => l.id === id)) picks.delete(id);
+  const groups = [...new Set(usable.map((l) => l.group))];
+  for (const g of groups) {
+    main.append(el("h2", "", g), el("p", "", ONE_PER_GROUP.test(g) ? "Pick 1." : "Pick as many as the reel has room for."));
+    const grid = el("div", "grid");
+    for (const look of usable.filter((l) => l.group === g)) {
+      const c = el("div", "look"); c.dataset.id = look.id;
+      c.append(sketch(look), el("div", "id", look.id), el("div", "nm", look.name));
+      if (look.status === "partial" && look.missing) c.append(el("div", "note", "Not included yet: " + look.missing));
+      if (look.status === "cut-choice") c.append(el("div", "need", "A cutting choice. No graphic."));
+      const need = look.recipe && look.recipe.needs_photos; if (need) c.append(el("div", "need", need === 1 ? "Needs 1 photo from you." : `Needs ${need} photos from you.`));
+      const b = el("button", "", "Add"); b.type = "button"; b.addEventListener("click", () => toggle(look)); c.append(b); grid.append(c);
+    }
+    main.append(grid);
+  }
+  if ((M.themes || []).length) {
+    main.append(el("h2", "", "Theme"), el("p", "", "Pick 1, or none to keep your brand as it is. A theme changes fonts, captions and card shapes together."));
+    const grid = el("div", "themes");
+    for (const t of M.themes) {
+      const c = el("div", "theme"); c.dataset.theme = t.id; c.append(el("b", "", t.name), el("span", "", t.summary || ""));
+      const b = el("button", "", "Add"); b.type = "button"; b.addEventListener("click", () => { theme = theme === t.id ? "" : t.id; refresh(); save(); }); c.append(b); grid.append(c);
+    }
+    main.append(grid);
+  }
+  $("#clear").addEventListener("click", () => { picks.clear(); theme = ""; refresh(); save(); });
+  $("#copy").addEventListener("click", async () => {
+    const text = request(), b = $("#copy");
+    try { await navigator.clipboard.writeText(text); b.textContent = "Copied"; }
+    catch { const r = document.createRange(); r.selectNodeContents($("#say")); const s = getSelection(); s.removeAllRanges(); s.addRange(r); b.textContent = "Select and copy the line"; }
+    setTimeout(() => { b.textContent = "Copy the request"; }, 1800);
+  });
+  refresh();
+}
+build();
+</script>
+</body>
+</html>

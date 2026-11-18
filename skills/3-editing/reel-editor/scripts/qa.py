@@ -1,12 +1,26 @@
 #!/usr/bin/env python3
 """QA gate for a finished reel. Checks size, length, loudness, and (if expected.txt exists) that no words were lost.
-Usage: python3 qa.py <reel-folder> [video]     default video: final.mp4. Exit code 1 if anything fails."""
+Usage: python3 qa.py <reel-folder> [video] [--looked cards,captions,cover,cuts,names]
+default video: final.mp4. Exit code 1 if anything fails.
+
+Ends with a report that labels every check (Added by By Mel Ross, 0.10.0):
+  Measured     a number this script read from the file
+  Looked at    something you opened and looked at or listened to yourself; name them with --looked, and only those
+  Not checked  everything else. Say these to the person as not checked; never fold them into "all good"."""
 import difflib, json, os, re, subprocess, sys
 # Modified by By Mel Ross: HyperFrames pinned to the version render.sh uses, telemetry off unless you opt in; also checks true peak,
 # clipping and the cover size (Reel Studio 0.2.0).
 os.environ.setdefault("HYPERFRAMES_NO_TELEMETRY", "1"); os.environ.setdefault("DO_NOT_TRACK", "1")
 from pathlib import Path
 
+LOOKS = {"cards": "every card: text inside the frame and readable", "captions": "captions: readable and clear of the face",
+         "cover": "the cover: eyes open, title readable", "cuts": "how the cuts sound", "names": "names and brand words spelled right"}
+looked = set()
+if "--looked" in sys.argv:
+    i = sys.argv.index("--looked"); looked = {x.strip() for x in (sys.argv[i + 1] if i + 1 < len(sys.argv) else "").split(",") if x.strip()}
+    del sys.argv[i:i + 2]
+    if looked - set(LOOKS): sys.exit(f"--looked takes: {', '.join(LOOKS)}")
+measured, unmeasured = ["size", "length", "loudness"], []
 reel = Path(sys.argv[1]).expanduser()
 video = reel / (sys.argv[2] if len(sys.argv) > 2 else "final.mp4")
 home = Path(os.environ.get("REELS_HOME", "~/reels")).expanduser()
@@ -37,6 +51,7 @@ if not -17.5 <= lufs <= -12.5: fails.append("loudness")
 tpk = re.findall(r"Peak:\s+(-?[\d.]+) dBFS", ebu)
 if tpk:
     print(f"peak      {float(tpk[-1]):.1f} dBTP  (want -1.0 or lower)")
+    measured.append("true peak")
     if float(tpk[-1]) > -1.0: fails.append("true peak")
 st = subprocess.run(["ffmpeg", "-hide_banner", "-i", str(video), "-vn", "-af", "astats=measure_perchannel=none", "-f", "null", "-"],
                     capture_output=True, text=True).stderr
@@ -50,8 +65,10 @@ if cov.exists():
                         capture_output=True, text=True).stdout.strip()
     print(f"cover     {cs}  (want 1080,1920)")
     if cs != "1080,1920": fails.append("cover size")
+    measured.append("cover size")
 else:
     print("cover     not made yet (cover.py, step 7: every reel gets one)")
+    unmeasured.append("cover size (no cover yet)")
 
 exp = reel / "expected.txt"
 if exp.exists():
@@ -65,8 +82,14 @@ if exp.exists():
                difflib.SequenceMatcher(None, expected, heard, autojunk=False).get_opcodes() if op in ("delete", "replace")]
     print(f"words     {ratio:.0%} match" + (f"; check: {missing[:6]}" if missing else ""))
     if ratio < 0.95: fails.append("words")
+    measured.append(f"spoken words against the script ({ratio:.0%} match)")
 else:
     print("words     skipped (write the approved script to expected.txt to check for clipped words)")
+    unmeasured.append("missing words (no expected.txt)")
 
+print("REPORT (pass each line on with its label)")
+print("  Measured     " + ", ".join(measured))
+print("  Looked at    " + ("; ".join(LOOKS[k] for k in LOOKS if k in looked) or "nothing yet"))
+print("  Not checked  " + "; ".join(unmeasured + [LOOKS[k] for k in LOOKS if k not in looked]) if unmeasured or looked != set(LOOKS) else "  Not checked  nothing")
 print("PASS" if not fails else f"FAIL: {', '.join(fails)}")
 sys.exit(1 if fails else 0)

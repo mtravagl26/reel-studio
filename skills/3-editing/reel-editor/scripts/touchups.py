@@ -86,7 +86,14 @@ def collect(reel):
     """The touch-ups made since the last import, or None when there is nothing to compare with (first import, or an older reel)."""
     reel = Path(reel)
     base = _load(reel / "editor" / "import-base.json"); cur = _load(reel / "edit.json"); edl = _load(reel / "edl.json")
-    if not base or not cur or not edl: return None
+    if not base or not cur or not edl:
+        # an older reel (imported before 0.9.0) has nothing to compare with: keep a copy of the edit so nothing is lost for good
+        if cur and (reel / "editor" / "state.json").exists():
+            backup = reel / "editor" / "pre-import"; backup.mkdir(parents=True, exist_ok=True)
+            for n in ("edit.json", "edl.json"):
+                if (reel / n).exists(): shutil.copyfile(reel / n, backup / n)
+            return {"legacy": True}
+        return None
     speed = base.get("speed") or 1.0
     tl_base, tl_cur = Timeline(base["keep"], speed), Timeline(edl.get("keep") or base["keep"], speed)
     state = _load(reel / "editor" / "state.json") or {}
@@ -119,7 +126,7 @@ def collect(reel):
 
 def cut_words(touch, words):
     """Indexes of the review page's words that sit inside a piece dropped on the touch-ups page."""
-    if not touch: return []
+    if not touch or touch.get("legacy"): return []
     return [i for i, w in enumerate(words) if any(a - 1e-6 <= w["s"] and w["e"] <= b + 1e-6 for a, b in touch["dropped"])]
 
 
@@ -136,6 +143,8 @@ def _place(src, tl, length):
 def apply(touch, edit, keep, speed):
     """Lay the collected touch-ups over a freshly imported edit (in place). Returns (kept, not_kept): lists of plain sentences."""
     if not touch: return [], []
+    if touch.get("legacy"):
+        return [], ["this reel was built before touch-ups carried over, so changes made on the touch-ups page were replaced by this import. The edit as it was is saved in editor/pre-import/edit.json"]
     tl = Timeline(keep, speed); kept, lost = [], []
     name = lambda c: f'{c.get("type", "sound")} "{str(c.get("text") or c.get("name") or (c.get("src")[0] if isinstance(c.get("src"), list) else c.get("src")) or "")[:30]}"'
     cards = edit.setdefault("cards", [])

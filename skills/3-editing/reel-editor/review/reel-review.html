@@ -225,6 +225,7 @@ code{font:500 13px var(--f-mono);background:var(--accent-soft);border-radius:6px
         <label for="theme">Look for this reel</label>
         <select id="theme"></select>
         <p class="lede" id="themenote"></p>
+        <p class="lede" id="lookslink" hidden><a href="/styles">See every look you can add</a></p>
       </div>
       <details>
         <summary>Change my brand defaults (every future reel)</summary>
@@ -668,6 +669,7 @@ function renderAll() {
     recompute();
     $("#reelname").textContent = `${R.title} · raw ${fmt(R.srcDur)} → reel ${fmt(P.cutDur)}`; setPos(0);
     setSteps("review", { cover: R.thumbnailUrl, touchups: R.editorUrl, ...(window.REEL_STUDIO_LINKS || {}) });
+    $("#lookslink").hidden = !window.REEL_STUDIO_LINKS;   // the looks page is served by the local Reel Studio link only
     if (window.REEL_STUDIO_LINKS) fetch("/api/stage").then(r => r.json()).then(st => { $("#builtnote").hidden = !st.built; }).catch(() => {});
     $("#brand").value = S.brandRequest || "";
     renderLook();
