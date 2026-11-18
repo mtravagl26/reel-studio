@@ -18,3 +18,23 @@ export const SHIM = `(() => {
   });
   window.claude = { use: async cap => cap === "db" ? { doc } : null };
 })();`;
+
+// Added by By Mel Ross (0.8.1). Only the page this server sent may talk to it. Without this, any website open in the same browser
+// could post to http://127.0.0.1:<port> and change the edit, and a look-alike address could read it. The request must be addressed
+// to this computer (its own name or IP and this port), and a change (POST/PUT) must come from that same page.
+import os from "node:os";
+export function trusted(req, port, lan) {
+  const host = String(req.headers.host || "").toLowerCase();
+  const mine = new Set([`127.0.0.1:${port}`, `localhost:${port}`, `[::1]:${port}`]);
+  if (lan) {
+    for (const list of Object.values(os.networkInterfaces())) for (const a of list || []) mine.add(`${a.family === "IPv6" ? `[${a.address}]` : a.address}:${port}`.toLowerCase());
+    const name = os.hostname().toLowerCase();
+    mine.add(`${name}:${port}`); mine.add(`${name.replace(/\.local$/, "")}.local:${port}`);
+  }
+  if (!mine.has(host)) return false;
+  if (req.method === "GET" || req.method === "HEAD") return true;
+  if (req.headers["sec-fetch-site"] === "cross-site") return false;
+  const origin = req.headers.origin;
+  if (origin === undefined) return true;                       // not a browser (a script on this computer)
+  try { return new URL(origin).host.toLowerCase() === host; } catch { return false; }
+}

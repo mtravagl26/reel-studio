@@ -1,6 +1,6 @@
 ---
 name: edit-video
-description: "Edit Reels, TikToks and YouTube Shorts from a brief, footage or reference: cut, captions, sound, motion graphics, safe areas and review of the encoded export. The base for every edit; add one style skill (adaptive-glass, paper-grid, breakout-card, product-motion-ads, text-over-footage) for the finished look."
+description: "Edit Reels, TikToks and YouTube Shorts from a brief, footage or reference: cut, captions, sound, motion graphics, safe areas and review of the encoded export. The base for the style skills (adaptive-glass, paper-grid, breakout-card, product-motion-ads, text-over-footage): add one for the finished look. For one person talking to camera with no named style, use reel-editor instead."
 ---
 
 # Edit video

@@ -3,7 +3,8 @@
 > Modified by By Mel Ross from the FavStash install guide (see NOTICE): installs the
 > reel editor too, keeps telemetry off and leaves posting services unconnected.
 
-Use this guide when the user asks to set up this pack. Install the eleven skills,
+Use this guide when the user asks to set up this pack. Install the reel editor and
+the two planning skills (the other eight are extras, added only when the user asks),
 prepare the local editing tools and set up the brand file. Reuse what already
 works; ask the user only for a needed workspace choice or system permission. This
 setup does not authorize publishing, scheduling or uploads, and it does not connect
@@ -92,19 +93,36 @@ workspace**, using the clone as its source. Choose the actual host identifier
 (for example `claude-code`, `codex` or `cursor`).
 
 ```bash
-npx --yes skills add "<pack>" --agent <agent-id> --skill reel-editor --skill find-ideas --skill write-script --skill edit-video --skill adaptive-glass --skill paper-grid --skill breakout-card --skill motion-effects --skill product-motion-ads --skill text-over-footage --skill publish-and-analyze --copy --yes
+npx --yes skills add "<pack>" --agent <agent-id> --skill reel-editor --skill find-ideas --skill write-script --copy --yes
 ```
 
-Install for this project by default. Verify that all eleven skills were installed
-with their scripts, references and assets (`reel-editor`'s `LICENSE`, `review/` and
-`scripts/`, `edit-video`'s SFX, each style's builder, the breakout card's fonts).
+Install for this project by default. Verify that the three skills were installed
+with their scripts, references and assets (`reel-editor`'s `LICENSE`, `review/`,
+`scripts/` and `themes/`).
+
+> Modified by By Mel Ross (0.8.1): the default install is the reel editor and the
+> planning skills. Everything a talking-head reel needs is in `reel-editor`,
+> including themes, the review and touch-ups pages and the cover.
+
+**Extras, only when the user asks for them.** Say what each one adds and what it
+sends off the computer before installing it:
+
+| Extra | Install with | Goes online? |
+| --- | --- | --- |
+| FavStash editing styles: a second editor for reels that are not one person talking, and five finished looks | `--skill edit-video --skill adaptive-glass --skill paper-grid --skill breakout-card --skill product-motion-ads --skill text-over-footage` | Only when given a reference link (`yt-dlp` downloads it) |
+| Named motion effects for `edit-video` | `--skill motion-effects` (needs `edit-video`) | No |
+| Publishing: covers, hook variants, scheduling, results | `--skill publish-and-analyze` | Yes: scheduling and results go through FavStash, which the user connects and approves per post |
+
+The extras do not use the reel editor's themes, review page or touch-ups page.
+Verify an installed extra the same way (`edit-video`'s SFX, each style's builder,
+the breakout card's fonts).
 
 ## 4. Set up the brand
 
 Create `~/reels/` (or the folder in `REELS_HOME`). If the user wants to start from
 the example brand, copy `<pack>/brand/brand.example.json` to `~/reels/brand.json`,
-`<pack>/brand/brand.example.md` to `~/reels/brand.md` and `<pack>/brand/fonts/*.ttf`
-to `~/reels/fonts/`, then change the name, colours, fonts and call to action with
+`<pack>/brand/brand.example.md` to `~/reels/brand.md` and the `.ttf` files in
+`<pack>/skills/3-editing/reel-editor/themes/_fonts/` to `~/reels/fonts/`, then change the name, colours, fonts and call to action with
 them. Otherwise the reel editor runs its 5-minute brand interview on the first edit.
 
 ## 5. Verify local editing

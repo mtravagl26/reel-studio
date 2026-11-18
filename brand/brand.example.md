@@ -19,7 +19,7 @@ See `style-reference.md`: the reel this brand is tuned to, described in words.
 - Headlines: Lora, semibold
 - Body and captions: Inter, semibold
 - Accent: Lora Italic
-- All three are free (SIL Open Font License) and ship in `brand/fonts/`. Copy them to `~/reels/fonts/`.
+- All three are free (SIL Open Font License) and ship in `skills/3-editing/reel-editor/themes/_fonts/`. Copy them to `~/reels/fonts/`.
 
 ## Captions
 Short phrases (2-4 words), sentence case, white, at mid-chest (move them below the chin when the face sits low in frame). One key word per sentence in light sage #B9C8A5, always with a soft deep-teal shadow behind it so it reads over light clothes. No boxes, no outlines on captions.

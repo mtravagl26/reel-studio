@@ -1,6 +1,6 @@
 # Which skill to use when
 
-Eleven skills, one folder. Claude picks the right one from what you ask, but here's the map.
+Eleven skills, one folder. Setup installs 3 of them: the reel editor and the two planning skills. The other 8 are extras you ask Claude to add. Claude picks the right one from what you ask, but here's the map.
 
 | You want to... | Use | Where |
 |---|---|---|
@@ -15,11 +15,12 @@ Eleven skills, one folder. Claude picks the right one from what you ask, but her
 ## The short version
 
 - **Talking-head reel** (you, a phone, one take or a few): `reel-editor`. It reads your brand file, lets you review the cut, renders, then delivers the reel, a phone-size copy and a cover.
-- **Effects, styles, scripts and ideas**: the FavStash skills. Use `write-script` before you film, `find-ideas` when you don't know what to film, and a style or `motion-effects` when a reel needs more than captions.
+- **Scripts and ideas**: `write-script` before you film, `find-ideas` when you don't know what to film. Both are installed with the reel editor.
+- **Extras** (ask Claude to add them): the FavStash editing styles and `motion-effects` for reels that are not one person talking, and `publish-and-analyze` for scheduling. They are a separate editor: they don't use the reel editor's themes, review page or touch-ups page.
 - **Both together**: write with `write-script`, film, edit with `reel-editor`, and borrow a named effect from `motion-effects` for one moment if you want it.
 
 ## House rules for every skill
 
-- Everything runs on your computer. Nothing is uploaded, posted or scheduled unless you connect a posting service yourself and approve the exact post.
+- Editing runs on your computer. Nothing is posted or scheduled unless you add the publishing extra, connect a posting service yourself and approve the exact post. Giving Claude a link to someone else's reel downloads that video to your computer.
 - Telemetry is off: set `HYPERFRAMES_NO_TELEMETRY=1` and `DO_NOT_TRACK=1` before running any FavStash render (the reel editor sets them itself).
 - Your original footage is never edited; each reel works on a copy.

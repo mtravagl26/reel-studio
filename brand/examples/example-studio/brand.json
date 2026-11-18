@@ -1,0 +1,50 @@
+{
+  "name": "Example Studio",
+  "resolution": [
+    1080,
+    1920
+  ],
+  "pacing": "tight",
+  "graphics": "busy",
+  "speed": 1.05,
+  "max_seconds": 45,
+  "theme": "bold",
+  "colors": {
+    "main": "#1F2A44",
+    "pop": "#F2A541",
+    "light": "#FFF6E9"
+  },
+  "sfx": "lots",
+  "deliver_dir": "~/Movies/Reels",
+  "title_y": 380,
+  "captions": {
+    "mode": "word",
+    "case": "sentence",
+    "size": 96,
+    "y": 1250
+  },
+  "fonts": {
+    "head": {
+      "family": "Anton",
+      "file": "~/reels/fonts/Anton-Regular.ttf",
+      "weight": 400
+    },
+    "body": {
+      "family": "Inter",
+      "file": "~/reels/fonts/Inter.ttf",
+      "weight": 800
+    },
+    "accent": {
+      "family": "Lora",
+      "file": "~/reels/fonts/Lora-Italic.ttf",
+      "weight": 500,
+      "style": "italic"
+    }
+  },
+  "theme_overrides": {
+    "captions": {
+      "mode": "word",
+      "size": 96
+    }
+  }
+}
