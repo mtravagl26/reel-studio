@@ -201,6 +201,7 @@ const FIELDS = {
   cta: [...COMMON, "text", "y", "layer"],
   card: [...COMMON, "title", "rows", "layer", "glass"],
   popup: [...COMMON, "pos", "x", "y", "size", "rotate", "frame", "layer"],
+  orbit: [...COMMON, "level", "size", "period", "frame"],   // Added by By Mel Ross (0.9.0): pictures that circle the head
   sticker: [...COMMON, "x", "y", "size", "rotate", "layer"],
   image: [...COMMON, "layer"], shot: [...COMMON, "label", "y", "layer"],
 };
@@ -228,6 +229,9 @@ export function cleanCardFields(type, set, dur) {
     else if (k === "text" || k === "title" || k === "label") out[k] = cleanText(v, k);
     else if (k === "layer") { if (!LAYERS.has(v)) throw new Error("layer must be front, behind or both"); out[k] = v; }
     else if (k === "pos") { if (!POS.has(v)) throw new Error("unknown position"); out[k] = v; }
+    else if (k === "level") { if (!["crown", "chest"].includes(v)) throw new Error("the ring goes round the top of your head (crown) or below your chin (chest)"); out[k] = v; }
+    else if (k === "period") out[k] = num(v, "seconds per lap", 1.5, 12);
+    else if (k === "size" && type === "orbit") out[k] = Math.round(num(v, k, 80, 400));
     else if (k === "x") out[k] = Math.round(num(v, k, -200, 1280));
     else if (k === "y") out[k] = Math.round(num(v, k, 0, 1920));
     else if (k === "size") out[k] = Math.round(num(v, k, type === "popup" ? 80 : 40, type === "popup" ? 1000 : 900));
@@ -242,6 +246,7 @@ export function cleanCardFields(type, set, dur) {
 /**
  * Apply one operation. Returns {edit, info}. Never mutates its input.
  * ops: caption_word{ci,wi,text,accent?} | card_set{i,set} | card_add{card} | card_del{i} | sfx_set{i,set} | sfx_add{event} | sfx_del{i}
+ * card_add takes type "tag", "popup" (src: one uploaded picture) or "orbit" (src: 1-6 uploaded pictures).
  */
 export function applyOp(edit0, op, { dur }) {
   const edit = clone(edit0), info = {};
@@ -268,16 +273,22 @@ export function applyOp(edit0, op, { dur }) {
     }
     case "card_add": {
       const type = op.card?.type;
-      if (!["tag", "popup"].includes(type)) throw new Error("this page adds pills (tag) and popups");
+      if (!["tag", "popup", "orbit"].includes(type)) throw new Error("this page adds pills (tag), popups and pictures that circle your head (orbit)");
       const { type: _t, src, ...rest } = op.card;
       const fields = cleanCardFields(type, rest, dur);
       if (fields.start == null) throw new Error("start time needed");
-      if (fields.end == null) fields.end = r4(Math.min(fields.start + (type === "popup" ? 3 : 2.5), dur));
+      if (fields.end == null) fields.end = r4(Math.min(fields.start + (type === "popup" ? 3 : type === "orbit" ? 6 : 2.5), dur));
       const card = { id: genId(), type, ...fields };
       if (type === "tag") { card.text = card.text || "new pill"; card.y = card.y ?? 130; card.glass = card.glass ?? true; card.sfx = false; }
       if (type === "popup") {
         if (!/^popups\/[\w.\- ]+$/.test(String(src || ""))) throw new Error("popups come from the upload button");
         card.src = src; card.pos = card.pos || "top-right"; card.size = card.size || 360;
+      }
+      if (type === "orbit") {
+        const list = Array.isArray(src) ? src.map(String) : [];
+        if (list.length < 1 || list.length > 6) throw new Error("pick 1 to 6 pictures");
+        if (!list.every((x) => /^popups\/[\w.\- ]+$/.test(x))) throw new Error("pictures come from the upload button");
+        card.src = list; card.level = card.level || "crown"; card.period = card.period || 4;
       }
       edit.cards = [...(edit.cards || []), card].sort((x, y) => x.start - y.start);
       info.index = edit.cards.indexOf(card);

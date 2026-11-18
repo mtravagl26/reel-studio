@@ -90,7 +90,62 @@ function loadState() {
   return st;
 }
 const cutKeyNow = (st) => sha(core.cutKey(st));
-const editHash = () => sha(fs.readFileSync(P.edit, "utf8"), fs.readFileSync(P.edl, "utf8"), JSON.stringify(brandJSON().text_default || null));
+const editHash = () => sha(fs.readFileSync(P.edit, "utf8"), fs.readFileSync(P.edl, "utf8"), JSON.stringify(brandJSON().text_default || null),
+  ...(brandJSON().theme ? [`theme:${brandJSON().theme}`] : []));   // a brand-wide theme changes the look of this reel too (added only when one is set, so older reels keep their hash)
+
+// ---- themes (Added by By Mel Ross, 0.9.0): the same folders scripts/theme.py reads, your own first
+const THEME_OK = /^[a-z0-9][a-z0-9_-]{0,40}$/;
+function listThemes() {
+  const out = new Map();
+  for (const dir of [path.join(SKILL, "themes"), path.join(HOME, "themes")]) {
+    if (!exists(dir)) continue;
+    for (const n of fs.readdirSync(dir).sort()) {
+      if (!THEME_OK.test(n) || !exists(path.join(dir, n, "theme.json"))) continue;
+      const t = readJSON(path.join(dir, n, "theme.json"), {});
+      out.set(n, { id: n, name: String(t.name || n).slice(0, 40), summary: String(t.summary || "").slice(0, 200) });
+    }
+  }
+  return [...out.values()];
+}
+function setTheme(body) {
+  requireIdle();
+  const name = String(body.name || ""), scope = body.scope === "reel" ? "reel" : "all";
+  if (name && !listThemes().some((t) => t.id === name)) throw new Error("unknown theme");
+  snapshot("theme", null, true);
+  const edit = readJSON(P.edit, {}), brand = brandJSON();
+  if (scope === "reel") { if (name) edit.theme = name; else edit.theme = "none"; }
+  else { delete edit.theme; if (name) brand.theme = name; else delete brand.theme; writeJSON(P.brand, brand); }
+  writeJSON(P.edit, edit);
+}
+
+// ---- GIPHY (Added by By Mel Ross, 0.9.0): the person's own key, kept where the ElevenLabs key is. The page searches GIPHY itself;
+// this only fetches the one GIF they tapped into the reel's popups folder, and notes where it came from.
+function giphyKey() {
+  if (process.env.GIPHY_API_KEY) return process.env.GIPHY_API_KEY.trim();
+  try { for (const line of fs.readFileSync(path.join(os.homedir(), ".config/reels/.env"), "utf8").split("\n")) if (line.startsWith("GIPHY_API_KEY=")) return line.split("=").slice(1).join("=").trim(); } catch { /* no file */ }
+  return "";
+}
+async function giphyAdd(body) {
+  requireIdle();
+  const key = giphyKey(); if (!key) throw new Error("no GIPHY key on this computer yet");
+  const id = String(body.id || ""); if (!/^[A-Za-z0-9]{6,40}$/.test(id)) throw new Error("that does not look like a GIPHY id");
+  const meta = await fetch(`https://api.giphy.com/v1/gifs/${id}?api_key=${encodeURIComponent(key)}`);
+  if (!meta.ok) throw new Error(meta.status === 429 ? "GIPHY's hourly limit is used up for this key: try again later" : `GIPHY said no (${meta.status})`);
+  const d = (await meta.json()).data || {};
+  const url = String(d.images?.original?.url || "");
+  if (!/^https:\/\/[\w-]+\.giphy\.com\//.test(url)) throw new Error("GIPHY did not give a usable file for that one");
+  const file = await fetch(url);
+  if (!file.ok) throw new Error(`could not download it (${file.status})`);
+  if (Number(file.headers.get("content-length") || 0) > 20e6) throw new Error("that GIF is over 20 MB: pick a smaller one");
+  const buf = Buffer.from(await file.arrayBuffer());
+  if (buf.length > 20e6) throw new Error("that GIF is over 20 MB: pick a smaller one");
+  if (buf.subarray(0, 3).toString("latin1") !== "GIF") throw new Error("GIPHY sent something that is not a GIF");
+  const up = saveUpload(buf, `${String(d.title || "giphy").slice(0, 40) || "giphy"}.gif`);
+  const log = path.join(P.popups, "sources.json"), all = readJSON(log, {});
+  all[up.src] = { from: "GIPHY", id, page: String(d.url || ""), title: String(d.title || ""), by: String(d.username || ""), added: new Date().toISOString() };
+  writeJSON(log, all);
+  return up;
+}
 
 /** What the current video on disk was made from. First time here: trust final.mp4 when its length matches the cuts. */
 function loadMeta(st) {
@@ -196,6 +251,7 @@ function view() {
     reel: path.basename(REEL), speed: st.speed, total, masterDur: masterDuration(), edit: { captions: edit.captions || [], cards: edit.cards || [], sfx_events: edit.sfx_events || [], punch: edit.punch || [] },
     pieces, media, popups: files, sfxNames: sfxNames(), notes, renders, job,
     textDefault: brand.text_default || { layer: "front", position: "above" }, hasTextDefault: !!brand.text_default,
+    themes: listThemes(), theme: { reel: edit.theme || null, all: brand.theme || null }, giphy: !!giphyKey(),
     cutsStale, dirty: meta.edit_hash !== editHash(), canUndo: history().length > 0, undoLabel: history().slice(-1)[0]?.replace(/^[\d_-]+?-(?=[A-Za-z])/, "") || null,
     video: renders.length ? renders[renders.length - 1].phone : null, prepping, links: LINKS, built: true,
   };
@@ -391,12 +447,15 @@ const server = http.createServer(async (req, res) => {
     }
     if (p === "/api/state" && req.method === "GET") return json(res, 200, built() ? view() : { built: false, reel: path.basename(REEL), review: hasReview(), links: LINKS });
     if (p.startsWith("/api/") && !built()) return json(res, 409, { ok: false, error: "This reel is not built yet. Finish the review step first." });
+    if (p === "/api/giphy-key" && req.method === "GET") return json(res, giphyKey() ? 200 : 404, { key: giphyKey() });
     if (p === "/api/job" && req.method === "GET") return json(res, 200, { job, canUndo: history().length > 0 });
     if (req.method === "POST" && p.startsWith("/api/")) {
       try {
         if (p === "/api/op") { const b = JSON.parse((await readBody(req, 2e6)).toString() || "{}"); return json(res, 200, { ok: true, ...doOp(b), state: view() }); }
         if (p === "/api/undo") { requireIdle(); const what = undo(); return json(res, 200, { ok: true, undid: what, state: view() }); }
         if (p === "/api/render") { startRender(); return json(res, 200, { ok: true, job }); }
+        if (p === "/api/theme") { const b = JSON.parse((await readBody(req, 1e5)).toString() || "{}"); setTheme(b); return json(res, 200, { ok: true, state: view() }); }
+        if (p === "/api/giphy-add") { const b = JSON.parse((await readBody(req, 1e5)).toString() || "{}"); const up = await giphyAdd(b); return json(res, 200, { ok: true, upload: up, state: view() }); }
         if (p === "/api/text-default") { const b = JSON.parse((await readBody(req, 1e5)).toString() || "{}"); setTextDefault(b); return json(res, 200, { ok: true, state: view() }); }
         if (p === "/api/upload") {
           const buf = await readBody(req, 60e6);
