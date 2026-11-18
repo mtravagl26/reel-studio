@@ -118,6 +118,15 @@ def do_import(reel, review):
     d = {"restoredFillers": [], "restoredPauses": [], "trimmedPauses": [], "board": {}, "sfxOff": {}, **d}
     if d.get("cut") is None: d["cut"] = reel_json["proposedCut"]          # [] is a real decision ("cut nothing"), not "unset"
     if d.get("captions") is None: d["captions"] = reel_json["captions"]
+    # Added by By Mel Ross (0.9.0): keep what was done on the touch-ups page (or by hand in edit.json) since the last import
+    sys.path.insert(0, str(Path(__file__).resolve().parent)); import touchups
+    carry = touchups.collect(reel)
+    also_cut = [i for i in touchups.cut_words(carry, reel_json["words"]) if i not in set(d["cut"])]
+    if also_cut:                                                   # pieces dropped on the touch-ups page become cut words here
+        d["cut"] = sorted(set(d["cut"]) | set(also_cut))
+        if Path(review).exists():
+            saved = json.load(open(review)); saved["cut"] = d["cut"]; saved["updatedAt"] = f"touch-ups-{len(d['cut'])}-{also_cut[0]}"
+            json.dump(saved, open(review, "w"))
     P = node(reel_json, d)
     json.dump({"source": raw_clip(reel).name, "audio": "voice.wav", "keep": [[round(a, 3), round(b, 3)] for a, b in P["spans"]]},
               open(reel / "edl.json", "w"))
@@ -138,8 +147,15 @@ def do_import(reel, review):
         if c["start"] - last > 6: punch.append(c["start"]); last = c["start"]
     out = {"captions": caps, "punch": punch, "cards": cards, "hash": P["hash"]}
     if d.get("theme") is not None: out["theme"] = d["theme"] or "none"       # picked on the review page ("" = my brand as it is)
+    keep = [[round(a, 3), round(b, 3)] for a, b in P["spans"]]
+    touchups.ensure_ids(out)
+    touchups.save_base(reel, out, keep, reel_json.get("speed") or 1.0)       # what this import wrote, before touch-ups: the next import compares with it
+    kept, lost = touchups.apply(carry, out, keep, reel_json.get("speed") or 1.0)
     json.dump(out, open(reel / "edit.json", "w"), indent=1)
     print(f"cut {P['cutDur']:.1f}s from {len(P['spans'])} spans; {len(caps)} captions; {len(cards)} graphics; hash {P['hash']}")
+    if also_cut: print(f"TOUCH-UPS: {len(also_cut)} word(s) from pieces dropped on the touch-ups page are now cut in the review decisions (words {also_cut[0]}-{also_cut[-1]}). On the claude.ai review page, write the same cut list into review/current so the page matches.")
+    for k in kept: print("TOUCH-UP KEPT:", k)
+    for k in lost: print("TOUCH-UP NOT KEPT (tell them):", k)
     for c in changes: print("CHANGE REQUESTED:", c)
     for k, n in (d.get("notes") or {}).items():
         if n.strip(): print(f"NOTE ({k}):", n.strip())
