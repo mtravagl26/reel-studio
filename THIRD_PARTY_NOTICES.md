@@ -33,7 +33,7 @@ This repository provides instructions and media helpers. Apart from the Montserr
 
 The adaptive glass CSS is an original implementation informed by the optical-layer model in [liquid-glass-css](https://github.com/turtiesocks/agent-skills/tree/main/liquid-glass-css); no code from it is included.
 
-Generated WAVs are original synthesis covered by Apache-2.0. The separately marked curated recordings were supplied by the maintainer from his public/non-copyright sound library and included at his request; they are not repository-generated recordings or newly relicensed by the code license.
+Every WAV in this repository is original synthesis covered by Apache-2.0. Version 0.9.0 (By Mel Ross) replaced the 7 recordings the FavStash pack had marked "curated" (supplied from a personal sound library, not covered by the code license) with new sounds of the same names, written by `scripts/make_curated_sfx.py`.
 
 The `product-motion-ads` method is informed by [brag](https://github.com/latent-spaces/brag) (MIT); no text or code from it is included.
 

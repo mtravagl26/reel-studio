@@ -36,7 +36,7 @@
         "reveal",
         "low"
       ],
-      "recommendedUse": "One important claim, number, or final reveal—not every cut.",
+      "recommendedUse": "One important claim, number, or final reveal\u2014not every cut.",
       "sha256": "c910408bd9f2ca52ceff846cda65207ed218e928ccde1d494694de81c694b157",
       "license": "Apache-2.0",
       "provenance": "Deterministically synthesized by scripts/generate-sfx.mjs; contains no third-party recording."
@@ -183,11 +183,9 @@
       "recommendedUse": "A substantial camera or layout change.",
       "transientLeadFramesAt30fps": 4,
       "suggestedGainDb": -11,
-      "sourceFileName": "Camera Shutter.wav",
-      "sourceTrimStartSeconds": 0.02,
-      "preparedTargetPeakDb": -9,
-      "provenance": "Maintainer-supplied recording; included at the maintainer's request.",
-      "sha256": "d3a2b6d91af724fedc04b5c39d157873f644300b321c77ea8fb3a8294c275a02"
+      "provenance": "Synthesised by scripts/make_curated_sfx.py (By Mel Ross); contains no third-party recording. Replaces a recording of the same name that was supplied from a personal library.",
+      "sha256": "3764d139e5af6fd667f06e96d226735b3845358ff086c63eb71ab0a499f30c89",
+      "license": "Apache-2.0"
     },
     {
       "id": "camera-shutter-light",
@@ -206,11 +204,9 @@
       "recommendedUse": "A smaller framing or take change.",
       "transientLeadFramesAt30fps": 2,
       "suggestedGainDb": -12,
-      "sourceFileName": "sfx-camera-shutter-photo-click-0s.wav",
-      "sourceTrimStartSeconds": 0.125,
-      "preparedTargetPeakDb": -12,
-      "provenance": "Maintainer-supplied recording; included at the maintainer's request.",
-      "sha256": "eb8e6782b8523bbe7268330a77acc2fec10091716fc2998c87bcde91e83da3b0"
+      "provenance": "Synthesised by scripts/make_curated_sfx.py (By Mel Ross); contains no third-party recording. Replaces a recording of the same name that was supplied from a personal library.",
+      "sha256": "a6f7f90e00466faa1cc291ce6f6e514daa97af63ca0467c8c30bab83bd505543",
+      "license": "Apache-2.0"
     },
     {
       "id": "ui-pop",
@@ -228,11 +224,9 @@
       "recommendedUse": "An element visibly arrives; not every caption.",
       "transientLeadFramesAt30fps": 0,
       "suggestedGainDb": -12,
-      "sourceFileName": "sfx-ui-pop-short.mp3",
-      "sourceTrimStartSeconds": 0.03,
-      "preparedTargetPeakDb": -8,
-      "provenance": "Maintainer-supplied recording; included at the maintainer's request.",
-      "sha256": "da8d4e9ab3b9e8bac5309243de329002948e57649fd25685f9c2f5d063eb6e76"
+      "provenance": "Synthesised by scripts/make_curated_sfx.py (By Mel Ross); contains no third-party recording. Replaces a recording of the same name that was supplied from a personal library.",
+      "sha256": "c6325622ccc1a185f5da0cd857a516531fce527a9b518a88d20254a554fd11aa",
+      "license": "Apache-2.0"
     },
     {
       "id": "ui-click",
@@ -250,11 +244,9 @@
       "recommendedUse": "A visible click, selection or editing action.",
       "transientLeadFramesAt30fps": 0,
       "suggestedGainDb": -13,
-      "sourceFileName": "sfx-ui-mouse-click-single-select-0s.mp3",
-      "sourceTrimStartSeconds": 0.02,
-      "preparedTargetPeakDb": -9,
-      "provenance": "Maintainer-supplied recording; included at the maintainer's request.",
-      "sha256": "2f508c0b362d225d791b34e487bfd7d692ffcf9fd1ba53ade810fd4dd4313ef0"
+      "provenance": "Synthesised by scripts/make_curated_sfx.py (By Mel Ross); contains no third-party recording. Replaces a recording of the same name that was supplied from a personal library.",
+      "sha256": "d1c5693a64cf14bc95730aa7c87c1189692a862d5dad3d77b34f319269f80e8b",
+      "license": "Apache-2.0"
     },
     {
       "id": "zoom-swish",
@@ -272,11 +264,9 @@
       "recommendedUse": "A motivated zoom; align its rise with travel.",
       "transientLeadFramesAt30fps": 12,
       "suggestedGainDb": -8,
-      "sourceFileName": "sfx-transition-swish-whoosh.mp3",
-      "sourceTrimStartSeconds": 0.02,
-      "preparedTargetPeakDb": -8,
-      "provenance": "Maintainer-supplied recording; included at the maintainer's request.",
-      "sha256": "f6abc91c096c49bf6bc3db3a45319fe0bc806d99adea657799ddda553d814453"
+      "provenance": "Synthesised by scripts/make_curated_sfx.py (By Mel Ross); contains no third-party recording. Replaces a recording of the same name that was supplied from a personal library.",
+      "sha256": "1cc4a2080d08965fc976501c22ef068798ea39c9f2ce08ff138045a3625718fa",
+      "license": "Apache-2.0"
     },
     {
       "id": "hook-impact",
@@ -294,11 +284,9 @@
       "recommendedUse": "The payoff of a reveal, below speech.",
       "transientLeadFramesAt30fps": 2,
       "suggestedGainDb": -6,
-      "sourceFileName": "sfx-hook-bass-impact.mp3",
-      "sourceTrimStartSeconds": 0.07,
-      "preparedTargetPeakDb": -9,
-      "provenance": "Maintainer-supplied recording; included at the maintainer's request.",
-      "sha256": "999a79c38284aa8879a183908db381873ce16eed5015366f3e2273a88138c749"
+      "provenance": "Synthesised by scripts/make_curated_sfx.py (By Mel Ross); contains no third-party recording. Replaces a recording of the same name that was supplied from a personal library.",
+      "sha256": "013aec37fc41100995b996b6c31ca94564889d39fa34180f191c4f6a53757669",
+      "license": "Apache-2.0"
     },
     {
       "id": "metallic-riser",
@@ -316,11 +304,9 @@
       "recommendedUse": "Build anticipation and end at the reveal.",
       "transientLeadFramesAt30fps": 0,
       "suggestedGainDb": -6,
-      "sourceFileName": "Metallic Riser.wav",
-      "sourceTrimStartSeconds": 0,
-      "preparedTargetPeakDb": -10,
-      "provenance": "Maintainer-supplied recording; included at the maintainer's request.",
-      "sha256": "6b93fa944a692adf5322a99245a9cc2837377df83e1f87e98103d6e37209e597"
+      "provenance": "Synthesised by scripts/make_curated_sfx.py (By Mel Ross); contains no third-party recording. Replaces a recording of the same name that was supplied from a personal library.",
+      "sha256": "50aed50bba302e2b19ab23a1fa61d29b958096d7ab5315e2ffb91bc89ec81bc0",
+      "license": "Apache-2.0"
     }
   ]
 }
