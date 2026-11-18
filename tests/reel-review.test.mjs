@@ -117,3 +117,17 @@ test("a first import, or a reel from before this version, has nothing to carry a
   assert.doesNotMatch(out, /TOUCH-UP/);
   assert.ok(fs.existsSync(path.join(c.reel, "editor", "import-base.json")));
 });
+
+test("an older reel that was touched up before touch-ups carried over: the import says so and keeps a copy", { skip: skipReason }, () => {
+  const c = makeReel();
+  c.imp();
+  fs.rmSync(path.join(c.reel, "editor", "import-base.json"));                    // as a reel imported before 0.9.0 looks
+  fs.writeFileSync(path.join(c.reel, "editor", "state.json"), JSON.stringify({ pieces: [] }));   // the touch-ups page was used
+  const edit = read(c.reel, "edit.json"); edit.cards.push({ id: "mine", type: "tag", text: "added by hand", start: 0.2, end: 1 });
+  fs.writeFileSync(path.join(c.reel, "edit.json"), JSON.stringify(edit));
+  const out = c.imp();
+  assert.match(out, /TOUCH-UP NOT KEPT \(tell them\): this reel was built before/);
+  const saved = JSON.parse(fs.readFileSync(path.join(c.reel, "editor", "pre-import", "edit.json"), "utf8"));
+  assert.ok(saved.cards.some((x) => x.id === "mine"), "the edit as it was is saved");
+  assert.doesNotMatch(c.imp(), /TOUCH-UP/, "the next import has a base to compare with");
+});

@@ -423,6 +423,7 @@ const server = http.createServer(async (req, res) => {
       if (built()) return sendFile(req, res, path.join(HERE, "editor.html"));
       res.writeHead(302, { Location: "/review" }).end(); return;
     }
+    if (p === "/favicon.ico") { res.writeHead(204); return res.end(); }   // no icon: answer quietly so the page shows no failed request
     if (p === "/touchups") return sendFile(req, res, path.join(HERE, "editor.html"));
     if (p === "/review") {
       const links = `<script>window.REEL_STUDIO_LINKS=${JSON.stringify({ touchups: LINKS.touchups, cover: LINKS.cover }).replace(/</g, "\\u003c")}</script>`;
