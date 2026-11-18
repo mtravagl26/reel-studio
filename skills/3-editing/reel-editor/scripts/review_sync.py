@@ -100,7 +100,11 @@ def export(reel, proposal, out):
                            "mode": mode, "editorial": brand["captions"].get("style") == "editorial",
                            "cap": brand["colors"].get("caption", "#FFFFFF"), "acc": brand["colors"].get("caption_accent", "#FF7DB8"),
                            "main": brand["colors"]["main"], "case": brand["captions"].get("case", "lower")},
-                 "grade": brand.get("grade")}
+                 "grade": brand.get("grade"),
+                 # Added by By Mel Ross (0.9.0): the themes this machine has, for the page's "Look for this reel" picker
+                 "themes": [{"id": n, "name": json.load(open(p / "theme.json")).get("name", n), "summary": json.load(open(p / "theme.json")).get("summary", "")}
+                            for n, p in _theme.available(HOME).items()],
+                 "theme": (brand.get("_theme") or {}).get("name", "")}
     P = node(reel_json, {"cut": proposed_cut})
     print(f"{len(words)} words ({sum(1 for w in words if w.get('filler'))} fillers), {len(caps)} captions, {len(board)} graphics, "
           f"proposed cut {P['cutDur']:.1f}s, {len(P['pauses'])} pauses ({len(keep_pauses)} kept on purpose)")
@@ -132,7 +136,9 @@ def do_import(reel, review):
     punch, last = [], -9.0   # punch-ins on sentence starts in the cut, at most every ~6 s (emphasis, not every line)
     for c in caps:
         if c["start"] - last > 6: punch.append(c["start"]); last = c["start"]
-    json.dump({"captions": caps, "punch": punch, "cards": cards, "hash": P["hash"]}, open(reel / "edit.json", "w"), indent=1)
+    out = {"captions": caps, "punch": punch, "cards": cards, "hash": P["hash"]}
+    if d.get("theme") is not None: out["theme"] = d["theme"] or "none"       # picked on the review page ("" = my brand as it is)
+    json.dump(out, open(reel / "edit.json", "w"), indent=1)
     print(f"cut {P['cutDur']:.1f}s from {len(P['spans'])} spans; {len(caps)} captions; {len(cards)} graphics; hash {P['hash']}")
     for c in changes: print("CHANGE REQUESTED:", c)
     for k, n in (d.get("notes") or {}).items():

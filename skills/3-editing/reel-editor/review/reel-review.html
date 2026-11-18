@@ -113,6 +113,8 @@ h2{font-size:18px;margin:18px 0 8px}
 .rev{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:10px;align-items:center;padding:6px 0;border-bottom:1px solid var(--line)}
 .notes{display:flex;flex-direction:column;gap:6px;margin-top:20px}
 .notes label{font-weight:700}
+.look{display:flex;flex-direction:column;gap:6px;margin:6px 0 4px}
+.look select{font:inherit;padding:10px 12px;border-radius:12px;border:1.5px solid var(--line);background:var(--surface);color:var(--ink)}
 .notes[hidden]{display:none}
 details{margin-top:14px;border:2px solid var(--line);border-radius:12px;padding:8px 12px}
 summary{cursor:pointer;font-weight:700}
@@ -219,6 +221,11 @@ code{font:500 13px var(--f-mono);background:var(--accent-soft);border-radius:6px
       <label for="notes">Anything else about this reel's <span id="notetab">cuts</span>?</label>
       <textarea id="notes" placeholder="Only for this reel."></textarea>
       <div class="ctl"><span id="resetbox"><button class="b quiet" id="reset" type="button">Reset this section</button></span></div>
+      <div class="look" id="lookbox" hidden>
+        <label for="theme">Look for this reel</label>
+        <select id="theme"></select>
+        <p class="lede" id="themenote"></p>
+      </div>
       <details>
         <summary>Change my brand defaults (every future reel)</summary>
         <p class="lede">Use this only for a change you want on every reel from now on, like "captions one size smaller". The notes above stay with this reel.</p>
@@ -248,7 +255,7 @@ const v = $("#v"), ov = $("#ov");
 const fmt = t => `${Math.floor(t / 60)}:${(Math.max(0, t) % 60).toFixed(1).padStart(4, "0")}`;
 let R = null, B = null, S = blank(), P = null, CAPS = [], GFX = [];
 let tab = "cuts", ref = null, saving = Promise.resolve(), timer = null, undo = [], mode = "idle", loop = null;
-function blank() { return { cut: null, restoredFillers: [], restoredPauses: [], trimmedPauses: [], captions: null, board: {}, sfxOff: {}, notes: {}, brandRequest: "", revisions: [], buildRequest: null }; }
+function blank() { return { theme: null, cut: null, restoredFillers: [], restoredPauses: [], trimmedPauses: [], captions: null, board: {}, sfxOff: {}, notes: {}, brandRequest: "", revisions: [], buildRequest: null }; }
 
 // ---------- saving, undo ----------
 const pill = (t, err) => { $("#save").textContent = t; $("#save").classList.toggle("err", !!err); $("#retry").hidden = !err; };
@@ -271,7 +278,7 @@ function mutate(fn) {
   undo.push(JSON.stringify(S)); if (undo.length > 60) undo.shift();
   fn(); $("#undo").disabled = false; recompute(); renderAll(); setPos(pos); queueSave();
 }
-function doUndo() { if (!undo.length) return; S = JSON.parse(undo.pop()); $("#undo").disabled = !undo.length; recompute(); renderAll(); queueSave(); }
+function doUndo() { if (!undo.length) return; S = JSON.parse(undo.pop()); $("#undo").disabled = !undo.length; recompute(); renderAll(); renderLook(); queueSave(); }
 $("#undo").addEventListener("click", doUndo);
 document.addEventListener("keydown", e => { if ((e.metaKey || e.ctrlKey) && e.key === "z" && !/INPUT|TEXTAREA/.test(document.activeElement.tagName)) { e.preventDefault(); doUndo(); } });
 
@@ -294,6 +301,17 @@ function showTab(t) {
 $$(".tab").forEach(b => b.addEventListener("click", () => showTab(b.dataset.tab)));
 $("#notes").addEventListener("input", e => { S.notes[tab] = e.target.value; queueSave(); });
 $("#brand").addEventListener("input", e => { S.brandRequest = e.target.value; queueSave(); });
+// Added by By Mel Ross (0.9.0): pick the theme for this reel. The page keeps showing your captions as they are; the theme shows in the preview build.
+function renderLook() {
+  const list = Array.isArray(R.themes) ? R.themes : [], sel = $("#theme");
+  $("#lookbox").hidden = !list.length; if (!list.length) return;
+  const cur = S.theme ?? R.theme ?? "";
+  sel.textContent = "";
+  for (const t of [{ id: "", name: "My brand as it is" }, ...list]) { const o = document.createElement("option"); o.value = t.id; o.textContent = t.name; o.selected = t.id === cur; sel.append(o); }
+  const t = list.find(x => x.id === cur);
+  $("#themenote").textContent = (t ? t.summary + " " : "A theme changes the fonts, captions, titles and card shapes together. Your colours and name stay. ") + "You'll see it in the preview build.";
+}
+$("#theme").addEventListener("change", e => mutate(() => { S.theme = e.target.value; }));
 $("#reset").addEventListener("click", () => {
   const box = $("#resetbox"); box.textContent = "";
   const msg = document.createElement("span"); msg.className = "confirm"; msg.textContent = "Reset this section to my proposal? ";
@@ -642,7 +660,7 @@ function renderAll() {
       const d = s.data(); if (d.updatedAt === mine || dirty) return;
       if (JSON.stringify(d) === JSON.stringify({ ...S })) return;
       S = { ...blank(), ...JSON.parse(JSON.stringify(d)) }; undo = []; $("#undo").disabled = true;
-      recompute(); renderAll(); setPos(pos); pill("Updated by Claude");
+      recompute(); renderAll(); renderLook(); setPos(pos); pill("Updated by Claude");
     }, () => {});
     let firstReel = true;
     db.doc("reel/current").onSnapshot(() => { if (firstReel) { firstReel = false; return; } pill("Claude loaded new footage: reload the page", true); }, () => {});
@@ -652,6 +670,7 @@ function renderAll() {
     setSteps("review", { cover: R.thumbnailUrl, touchups: R.editorUrl, ...(window.REEL_STUDIO_LINKS || {}) });
     if (window.REEL_STUDIO_LINKS) fetch("/api/stage").then(r => r.json()).then(st => { $("#builtnote").hidden = !st.built; }).catch(() => {});
     $("#brand").value = S.brandRequest || "";
+    renderLook();
     renderAll(); showTab(["cuts", "graphics", "captions", "sound", "preview", "cover"].includes(location.hash.slice(1)) ? location.hash.slice(1) : "cuts");
     pill(rv.exists ? "Saved decisions loaded" : "Ready");
   } catch (e) { pill("Couldn't load the reel (" + (e?.code || "error") + "). Reload to try again.", true); }

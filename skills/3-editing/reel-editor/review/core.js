@@ -91,7 +91,9 @@
 
   // a fingerprint of everything that changes the render, to tell whether a built preview is outdated
   function hash(d) {
-    const s = JSON.stringify([d.cut, d.restoredFillers, d.restoredPauses, d.trimmedPauses, d.captions, d.board, d.sfxOff]);
+    const parts = [d.cut, d.restoredFillers, d.restoredPauses, d.trimmedPauses, d.captions, d.board, d.sfxOff];
+    if (d.theme != null) parts.push(d.theme);   // Added by By Mel Ross (0.9.0): a theme picked on the page changes the render too (only added when one is picked, so older fingerprints still match)
+    const s = JSON.stringify(parts);
     let h = 5381; for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) | 0;
     return (h >>> 0).toString(36);
   }
