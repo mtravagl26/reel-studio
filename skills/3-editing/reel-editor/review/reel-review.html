@@ -311,7 +311,7 @@ function renderLook() {
   const t = list.find(x => x.id === cur);
   $("#themenote").textContent = (t ? t.summary + " " : "A theme changes the fonts, captions, titles and card shapes together. Your colours and name stay. ") + "You'll see it in the preview build.";
 }
-$("#theme").addEventListener("change", e => mutate(() => { S.theme = e.target.value; }));
+$("#theme").addEventListener("change", e => { mutate(() => { S.theme = e.target.value; }); renderLook(); });
 $("#reset").addEventListener("click", () => {
   const box = $("#resetbox"); box.textContent = "";
   const msg = document.createElement("span"); msg.className = "confirm"; msg.textContent = "Reset this section to my proposal? ";
