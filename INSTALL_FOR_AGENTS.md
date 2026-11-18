@@ -68,7 +68,7 @@ agent auto-loads, so they don't take over requests meant for the editing skills,
 and tell the reel editor where they are:
 
 ```bash
-git clone --depth 1 https://github.com/heygen-com/hyperframes.git "<workspace>/.favstash-studio/hyperframes-source"
+git clone --depth 1 --branch v0.8.145 https://github.com/heygen-com/hyperframes.git "<workspace>/.favstash-studio/hyperframes-source"
 cp -R "<workspace>/.favstash-studio/hyperframes-source/skills" "<workspace>/.favstash-studio/hyperframes-skills"
 export HYPERFRAMES_SKILLS_DIR="<workspace>/.favstash-studio/hyperframes-skills"
 ```
@@ -76,8 +76,13 @@ export HYPERFRAMES_SKILLS_DIR="<workspace>/.favstash-studio/hyperframes-skills"
 `HYPERFRAMES_SKILLS_DIR` should hold a `hyperframes/` folder (with its sibling
 `hyperframes-*` skills); add the export to the user's shell profile with their OK.
 
+The tag matches the renderer the reel editor runs (`hyperframes@0.8.145` in
+`scripts/render.sh`), so the skills and the renderer stay the same version. Change
+both together.
+
 If the user prefers the simple route, `npx skills add heygen-com/hyperframes` also
-works; the reel editor finds them in `~/.claude/skills/` or `~/.agents/skills/`.
+works, but it installs the newest skills, which can be ahead of the renderer; the
+reel editor finds them in `~/.claude/skills/` or `~/.agents/skills/`.
 
 The `paper-grid` and `breakout-card` styles and the duplicate check also use
 Python 3 packages. When the creator wants them, install into a virtual

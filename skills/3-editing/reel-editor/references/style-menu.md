@@ -1,32 +1,41 @@
 # Style Menu (looks by ID)
 
-Added by By Mel Ross (0.5.0). A menu of 19 looks seen in popular short-form reels, each with an ID: **H** = hook, **C** = captions, **L** = layout. When the person says "do H3 with C2 and L8", use the table below. The machine-readable version is `assets/style-menu.json` (what `scripts/storyboard.py` reads).
+Added by By Mel Ross (0.5.0). A menu of 19 looks seen in popular short-form reels (13 usable today, 6 not built yet), each with an ID: **H** = hook, **C** = captions, **L** = layout. When the person says "do H3 with C2 and L8", use the table below. The machine-readable version is `assets/style-menu.json` (what `scripts/storyboard.py` reads).
 
 Defaults for every look: the brand file's colours (`colors.pop` is the highlight; `SAGE_DEEP` in `build_reel.py` is a deeper tone blended from `colors.pop` and `colors.main`, used wherever a mark sits on cream paper), the brand fonts (`head`, `body`, `accent`) plus Caveat handwriting from `assets/fonts/` (SIL Open Font License 1.1, text in `assets/fonts/OFL-Caveat.txt`), no music, gentle zooms. When the speaker's face fills the frame their eyes sit near y 500-560 of 1920, so graphics go in the top corners (above y ~450) or the lower third (y 1050-1500, above the bottom 420 px Instagram covers), never on the eyes.
 
 **Status** = measured, not assumed: *built* means the look was rendered on talking-head footage and the frame was viewed; *partial* means the closest thing we have, with the difference named; *cut-choice* is an edit decision with no setting; *not built* means nothing yet.
 
+**What to offer.** Offer and show only the looks in the first table. The second table is a to-do list: never suggest those IDs, and never put them in a storyboard. If the person asks for one by ID, say it is not built yet and offer the nearest look that is (named in its row). For a *partial* look, say what is missing before using it.
+
+### Looks you can use
+
 | ID | Look | Status | What produces it |
 |---|---|---|---|
-| H1 | Logo-swap title | not built | needs two logo images (not supplied) |
 | H2 | Cold open + big number | partial | `title` card, one huge white number: `{"type":"title","text":"12,000","color":"#FFFFFF","size":240,"y":90,"align":"left"}` (size ~ 900 / (characters x 0.6)). Missing: cold open on b-roll, the sparkle |
 | H3 | Handwritten overline + bold caps headline | built | `title` card with `overline`: `{"type":"title","text":"ACME / OFFER","overline":"big news this week","align":"left","y":95,"size":150,"color":"#FFFFFF"}` |
-| H4 | Series title, phone-in-frame | not built | needs a logo and a phone-card layout |
 | H5 | Reaction cold open | cut-choice | no graphic: put a 1-2 s reaction span first in `edl.json` `keep`, then the story |
 | C1 | Small serif, one script word | built | brand.json `captions` `{"size":56,"y":150,"case":"lower","tracking":0}`, `fonts.body` = Lora, `fonts.accent` = Caveat; `"accent": true` on one word per caption. y 150 only works where there is headroom |
 | C2 | Bold sans + italic serif accent | built | the current default (Inter 600, accent Lora italic in sage): `captions` `{"size":92,"y":1250}`; accent one word per caption. Missing: the thin script CTA line (use a `cta` card) |
 | C3 | One word at a time | built | brand.json `captions` `{"mode":"word","size":120}`, `colors.caption` = `#B9C8A5`; `auto_edit.py` writes one caption per word |
-| C4 | Black on white for screen recordings | not built | needs screen-recording footage |
 | C5 | Tiny thin caption under a big label | partial | `captions` `{"size":44,"y":1440,"case":"lower"}` plus a `title` card for the label. Missing: bottom-left alignment, a thin weight |
-| L1 | Screen recording + small face cam | not built | needs screen-recording footage |
 | L2 | Tilted polaroid stack | built | card `polaroids` (below) |
-| L3 | Beige dotted paper card, one word | not built | nearest is the paper-grid skill (edit-video pipeline), not this editor |
 | L4 | Icon tile grid on a torn label | built | card `tiles` (below) |
-| L5 | Caps label + parenthetical + big number | not built | nearest is the `count-up` motion card |
 | L6 | Red X list | built | card `xlist` (below): sage check by default, `"mark": "x"` for red X marks |
 | L7 | Step label top-center | built | `title` card with `overline_font` accent: `{"type":"title","text":"the offer","overline":"step #2:","overline_font":"accent","align":"center","y":95,"size":150,"color":"#FFFFFF"}` |
 | L8 | Stat card pop | built | card `stat` (below) |
 | L9 | Photo sticker beside your face | built | card `popup` with `caption` (below) |
+
+### Not built yet (do not offer)
+
+| ID | Look | Status | What produces it |
+|---|---|---|---|
+| H1 | Logo-swap title | not built | needs two logo images (not supplied) |
+| H4 | Series title, phone-in-frame | not built | needs a logo and a phone-card layout |
+| C4 | Black on white for screen recordings | not built | needs screen-recording footage |
+| L1 | Screen recording + small face cam | not built | needs screen-recording footage |
+| L3 | Beige dotted paper card, one word | not built | nearest is the paper-grid skill (edit-video pipeline), not this editor |
+| L5 | Caps label + parenthetical + big number | not built | nearest is the `count-up` motion card |
 
 ## The new cards (all in `edit.json` `cards`; fields also in the header of `scripts/build_reel.py`)
 

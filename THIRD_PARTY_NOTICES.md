@@ -9,6 +9,7 @@ This repository provides instructions and media helpers. Apart from the Montserr
 | [HyperFrames](https://github.com/heygen-com/hyperframes) | Optional HTML-to-video renderer and local transcription | Apache-2.0 upstream at time of integration; verify the installed release |
 | [GSAP](https://gsap.com/) | Animation runtime copied into generated style compositions | GSAP Standard "no charge" license; installed from npm by setup, not redistributed here |
 | [FFmpeg](https://ffmpeg.org/) | Media probing, extraction, encoding, and QC | LGPL/GPL configuration varies by build; review the binary you install |
+| [GIPHY API](https://developers.giphy.com/) | Optional GIF and sticker search on the touch-ups page, with the person's own API key | GIPHY's API terms apply to whoever holds the key; nothing from GIPHY is bundled here. Files a person adds stay in their reel folder |
 | [yt-dlp](https://github.com/yt-dlp/yt-dlp) | User-authorized reference download and metadata | Unlicense upstream at time of integration; platform terms and media rights remain separate |
 | [FavStash CLI](https://www.npmjs.com/package/@sketric/favstash-mcp) | Optional sign-in, MCP bridge and local uploads for FavStash | MIT on npm at time of integration; the FavStash service has its own terms |
 | [Montserrat](https://github.com/JulietaUla/Montserrat) | Caption and graphics font **bundled** in `skills/3-editing-styles/breakout-card/assets/fonts/` | SIL Open Font License 1.1; the license text ships beside the fonts |
@@ -33,7 +34,7 @@ This repository provides instructions and media helpers. Apart from the Montserr
 
 The adaptive glass CSS is an original implementation informed by the optical-layer model in [liquid-glass-css](https://github.com/turtiesocks/agent-skills/tree/main/liquid-glass-css); no code from it is included.
 
-Generated WAVs are original synthesis covered by Apache-2.0. The separately marked curated recordings were supplied by the maintainer from his public/non-copyright sound library and included at his request; they are not repository-generated recordings or newly relicensed by the code license.
+Every WAV in this repository is original synthesis covered by Apache-2.0. Version 0.9.0 (By Mel Ross) replaced the 7 recordings the FavStash pack had marked "curated" (supplied from a personal sound library, not covered by the code license) with new sounds of the same names, written by `scripts/make_curated_sfx.py`.
 
 The `product-motion-ads` method is informed by [brag](https://github.com/latent-spaces/brag) (MIT); no text or code from it is included.
 

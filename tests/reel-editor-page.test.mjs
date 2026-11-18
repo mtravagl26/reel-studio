@@ -203,7 +203,9 @@ test("the three pages share one step bar and one palette, and load nothing from 
     for (const k of ["review", "cover", "touchups"]) assert.ok(html.includes(`data-step="${k}"`), `${f}: step ${k}`);
     assert.ok(/#f5f2ec/i.test(html) && /#0d2b2d/i.test(html), `${f}: cream and teal`);
     assert.ok(!/ED84B0|FFF8FB/i.test(html), `${f}: no leftover pink`);
-    assert.ok(!/https?:\/\/(?!127\.0\.0\.1|localhost)[a-z0-9.-]+\.(com|net|org)/i.test(html), `${f}: no outside address`);
+    // the one outside address is GIPHY, on the touch-ups page, and only when the person has set a key and presses Search
+    const outside = (html.match(/https?:\/\/(?!127\.0\.0\.1|localhost)[a-z0-9.-]+\.(com|net|org)/gi) || []).filter((u) => !(f === "editor.html" && u === "https://api.giphy.com"));
+    assert.deepEqual(outside, [], `${f}: no outside address`);
   }
 });
 
@@ -328,4 +330,43 @@ test("studio server: an unbuilt reel opens on the review page, saves decisions, 
     assert.equal(st2.built, true); assert.equal(st2.pieces.length, 3);
     assert.equal((await (await fetch(base + "/api/stage")).json()).built, true);
   } finally { p.kill(); }
+});
+
+// Added by By Mel Ross (0.9.0): the touch-ups page can add pictures that circle the head, pick a theme, and search GIPHY.
+test("orbit card from the page: 1 to 6 uploaded pictures, a ring level and a lap time", () => {
+  const edit = mkEdit(), o = { dur: 22 };
+  const add = core.applyOp(edit, { op: "card_add", card: { type: "orbit", start: 2, src: ["popups/a.png", "popups/b.gif"] } }, o);
+  const c = add.edit.cards[add.info.index];
+  assert.deepEqual({ type: c.type, start: c.start, end: c.end, level: c.level, period: c.period, src: c.src }, { type: "orbit", start: 2, end: 8, level: "crown", period: 4, src: ["popups/a.png", "popups/b.gif"] });
+  const set = core.applyOp(add.edit, { op: "card_set", i: add.info.index, set: { level: "chest", period: "6", size: "200" } }, o).edit.cards[add.info.index];
+  assert.deepEqual([set.level, set.period, set.size], ["chest", 6, 200]);
+  assert.throws(() => core.applyOp(edit, { op: "card_add", card: { type: "orbit", start: 2, src: [] } }, o), /1 to 6/);
+  assert.throws(() => core.applyOp(edit, { op: "card_add", card: { type: "orbit", start: 2, src: Array(7).fill("popups/a.png") } }, o), /1 to 6/);
+  assert.throws(() => core.applyOp(edit, { op: "card_add", card: { type: "orbit", start: 2, src: ["../secret.png"] } }, o), /upload/);
+  assert.throws(() => core.applyOp(add.edit, { op: "card_set", i: add.info.index, set: { level: "knees" } }, o), /crown/);
+  assert.throws(() => core.applyOp(add.edit, { op: "card_set", i: add.info.index, set: { period: 0.2 } }, o), /1.5 to 12/);
+});
+
+test("server: lists the themes, sets one for this reel or every reel, and keeps GIPHY off without a key", { skip: skipReason }, async () => {
+  await withServer(async ({ reel, home, get, post }) => {
+    const st = await (await get("/api/state")).json();
+    assert.deepEqual(st.themes.map((t) => t.id).sort(), ["bold", "editorial", "handwritten", "whimsical"]);
+    assert.ok(st.themes.every((t) => t.name && t.summary));
+    assert.deepEqual(st.theme, { reel: null, all: null });
+    let r = await post("/api/theme", { name: "bold", scope: "reel" });
+    assert.equal(r.ok, true); assert.deepEqual(r.state.theme, { reel: "bold", all: null }); assert.equal(r.state.dirty, true);
+    assert.equal(JSON.parse(fs.readFileSync(path.join(reel, "edit.json"), "utf8")).theme, "bold");
+    r = await post("/api/theme", { name: "whimsical", scope: "all" });
+    assert.deepEqual(r.state.theme, { reel: null, all: "whimsical" });
+    assert.equal(JSON.parse(fs.readFileSync(path.join(home, "brand.json"), "utf8")).theme, "whimsical");
+    r = await post("/api/theme", { name: "", scope: "reel" });
+    assert.equal(JSON.parse(fs.readFileSync(path.join(reel, "edit.json"), "utf8")).theme, "none", "this reel keeps the plain brand even though every reel has a theme");
+    assert.equal((await post("/api/theme", { name: "../../x", scope: "all" })).ok, false);
+    await post("/api/undo"); await post("/api/undo");
+    assert.equal(JSON.parse(fs.readFileSync(path.join(home, "brand.json"), "utf8")).theme, undefined, "undo takes the brand-wide theme back too");
+    assert.equal(st.giphy, false);
+    assert.equal((await get("/api/giphy-key")).status, 404);
+    const g = await post("/api/giphy-add", { id: "abc123XYZ" });
+    assert.equal(g.ok, false); assert.match(g.error, /no GIPHY key/);
+  });
 });

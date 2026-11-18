@@ -60,11 +60,9 @@ Tell them what changed, and what to check by ear (cuts, names, brand words spell
 
 The review page's **Cover** tab links to the thumbnail studio, a local page for picking the cover frame, adding a headline in their brand fonts and downloading 1080x1920, 1080x1440 and 1080x1080 PNGs. Start it with `python3 scripts/thumbnail_studio.py <reel>` in the background, check it answers, then send the link. When they say "open my thumbnail studio", start it the same way (safe if it's already running). Details: "Thumbnail studio" in `references/review.md`. No review page? Start it with `--open` and send the link in chat.
 
-## Editing a finished reel by tapping (the editor page)
+## Editing a finished reel by tapping (the touch-ups page)
 
-When the person wants to change a reel that is already built (fix a caption word, drop a piece of the cut, switch pills or sounds on and off, drop in a GIF, graphic or photo as a popup, put text in front of or behind themselves), start the editor page instead of rewriting `edit.json` by hand (if the review link from `references/review-local.md` is still running, it is the same server: send that link again): `node <skill>/review/studio-server.mjs <reel folder> --lan --port 4792` (with `REELS_HOME` set, as for the other scripts), check it answers, send them the `same Wi-Fi` link it prints, stop it when they are done. They tap; every change is saved to `edit.json`, `edl.json` or `brand.json` (with a timestamped backup and an Undo); **Re-render** runs the usual cut/render/QA as a background job and keeps the earlier renders (`renders/vNNN*.mp4`). It never delivers: delivery to the footage folder stays a separate step. Details, limits and how dropping a cut piece retimes everything: `references/editor-page.md`.
-
-Text defaults to the area above the speaker's head, in front of them (`brand.json` `"text_default": {"layer": "front", "position": "above"}`); any single piece of text can be set to **behind me** (it needs headroom, and falls back to in front, with a note, when the cutout fails).
+When the person wants to change a reel that is already built (fix a caption word, drop a piece, switch text or sounds on and off, add a GIF, graphic or photo, make pictures circle their head, change the theme), don't rewrite `edit.json` by hand: send them the Reel Studio link (`node <skill>/review/studio-server.mjs <reel folder> --lan --port 4792`; if the review link is still running it is the same server). They tap, every change is saved with an Undo, and **Re-render** runs the usual cut/render/QA and keeps earlier renders. It never delivers. Read `references/editor-page.md` before starting it; GIPHY search is `references/giphy.md`.
 
 ## Word list (permanent vocabulary)
 
@@ -80,7 +78,7 @@ The person can pick looks by ID: H1-H5 hooks, C1-C5 captions, L1-L9 layouts ("H3
 
 ## Storyboard first (before building new looks)
 
-When the person wants to compare looks, or you are about to use a look they have not seen on this footage, show **stills, not videos**: `python3 scripts/storyboard.py <reel-folder> --out <NEW folder> --option "A=H3,C2,L8" --option "B=C1,L4,L6" [--option "C=..."] [--at 8,26,42,60] [--content content.json] [--photos a.jpg,b.jpg]`. It makes a throw-away copy of the reel per option (the real master, captions and brand; the reel folder is never written to, and `--out` must be a new folder), takes stills at 3-4 moments with `hyperframes snapshot` and tiles them into one `storyboard.jpg` labelled "Option A: H3 + C2 + L8". About 25 s for 4 options, no video render. Write `--content` from what the person actually says at those moments, otherwise the cards carry stand-in words (see `references/style-menu.md`). Look at the image before you send it, and send it with the question "which one?". The script clears `GEMINI_API_KEY` for the snapshot so no frame goes to an outside service.
+When the person wants to compare looks or themes, or you are about to use a look they have not seen on this footage, show **stills, not videos**: `python3 scripts/storyboard.py <reel-folder> --out <NEW folder> --option "A=H3,C2,L8" --option "B=theme:bold"`. One image, about 25 s, no render, and the reel folder is never written to. Options, `--content` and what to check before sending it: `references/style-menu.md` ("Storyboard").
 
 ## Their brand rules win
 

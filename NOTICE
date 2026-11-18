@@ -145,3 +145,9 @@ Added by By Mel Ross in 0.5.0 (November 2026), in skills/3-editing/reel-editor u
   with what it sends off the computer; brand/examples/getgitgirl (the upstream author's own
   brand) is replaced by a made-up example, brand/examples/example-studio; the example brand's
   fonts now live once, in skills/3-editing/reel-editor/themes/_fonts/.
+- 0.9.0: rebuilding from the review page keeps touch-ups (scripts/touchups.py); the pages can
+  pick a theme, add pictures that circle the head and search GIPHY with the person's own key
+  (references/giphy.md); the 7 supplied sound recordings in the FavStash SFX pack are replaced
+  by original ones (scripts/make_curated_sfx.py); the Style Menu lists the 6 unbuilt looks
+  apart and tells the agent not to offer them; the install guide pins the HyperFrames skills to
+  the renderer's version; tests for the review step, with and without a browser.

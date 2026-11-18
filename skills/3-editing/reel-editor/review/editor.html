@@ -106,7 +106,9 @@ body.unbuilt > :not(nav):not(header):not(#unbuilt), body.unbuilt header button {
   <p class="help" style="margin-top:10px">Pictures stay on this Mac (copied into the reel folder). GIFs animate in the video.</p>
   <label class="sage" style="display:block"><input id="file" type="file" accept="image/gif,image/png,image/jpeg,image/webp,image/heic,image/heif,.heic,.heif,.gif,.png,.jpg,.jpeg,.webp" style="display:none" />
   <span style="display:flex;align-items:center;justify-content:center;min-height:44px;border-radius:12px;border:1.5px solid var(--sage-d);background:var(--sage);font-weight:600">+ Add a picture, graphic or GIF</span></label>
-  <div id="reuse"></div></div></details>
+  <div id="reuse"></div>
+  <button id="addOrbit" data-a="orbit-open" style="width:100%;margin-top:10px">+ Make pictures circle my head</button><div id="orbitPick"></div>
+  <hr style="border:0;border-top:1px solid var(--line);margin:14px 0"><div id="giphy"></div></div></details>
 <details id="s-sfx"><summary>Sound effects <small id="sfxn"></small></summary><div class="sec"><div id="sfx"></div><button id="addSfx" class="sage" style="width:100%;margin-top:8px">+ Add a sound at this point in the video</button></div></details>
 <details id="s-set"><summary>Settings</summary><div class="sec" id="settings"></div></details>
 <details id="s-ver"><summary>Versions <small id="vern"></small></summary><div class="sec" id="versions"></div></details>
@@ -239,11 +241,11 @@ function renderPieces() {
 }
 
 // ---- cards (pills / text / stickers)
-const TYPE_NAME = { tag: "Pill", title: "Title", cta: "Call to action", card: "List card", sticker: "Sticker", image: "Photos", shot: "Screenshot", block: "Colour block", page: "Page", motion: "Motion", follow: "Word-by-word", popup: "Popup" };
+const TYPE_NAME = { tag: "Pill", title: "Title", cta: "Call to action", card: "List card", sticker: "Sticker", image: "Photos", shot: "Screenshot", block: "Colour block", page: "Page", motion: "Motion", follow: "Word-by-word", popup: "Popup", orbit: "Circling my head" };
 const effLayer = (c) => c.layer || S.textDefault.layer || "front";
 function cardIndexes(pred) { return S.edit.cards.map((c, i) => [c, i]).filter(([c]) => pred(c)); }
 function renderCards() {
-  const list = cardIndexes((c) => c.type !== "popup");
+  const list = cardIndexes((c) => c.type !== "popup" && c.type !== "orbit");
   $("#txtn").textContent = `${list.length} items`;
   $("#cards").innerHTML = list.length ? list.map(([c, i]) => cardHtml(c, i)).join("") : `<p class="help">No text in this video yet.</p>`;
 }
@@ -281,9 +283,10 @@ function cardHtml(c, i) {
 
 // ---- popups
 function renderPopups() {
-  const list = cardIndexes((c) => c.type === "popup");
+  const list = cardIndexes((c) => c.type === "popup" || c.type === "orbit");
   $("#popn").textContent = `${list.length} items`;
-  $("#popups").innerHTML = list.length ? list.map(([c, i]) => popupHtml(c, i)).join("") : `<p class="help">No popups yet.</p>`;
+  $("#popups").innerHTML = list.length ? list.map(([c, i]) => (c.type === "orbit" ? orbitHtml(c, i) : popupHtml(c, i))).join("") : `<p class="help">No popups yet.</p>`;
+  renderOrbitPick(); renderGiphy();
   const spare = S.popups.filter((p) => !S.edit.cards.some((c) => c.src === p.src));
   $("#reuse").innerHTML = S.popups.length ? `<label class="f">Or use a picture you uploaded before</label><select id="reusePick"><option value="">Choose…</option>${S.popups.map((p) => `<option value="${esc(p.src)}">${esc(p.src.replace("popups/", ""))}${p.animated ? " (GIF)" : ""}</option>`).join("")}</select>` : "";
 }
@@ -317,10 +320,69 @@ function renderSfx() {
       <div class="row" style="margin-top:12px"><span class="grow"></span><button class="sm danger" data-a="sfx-del" data-i="${i}">Delete</button></div></div>` : ""}</div>`).join("") : `<p class="help">No extra sound effects in this video.</p>`;
 }
 
+// ---- pictures that circle your head (Added by By Mel Ross, 0.9.0)
+const thumb = (src) => `<img src="/files/${esc(src)}" style="width:44px;height:44px;object-fit:cover;border-radius:8px;background:#eee" alt="" />`;
+function orbitHtml(c, i) {
+  const open = openCard.has(cid(i)), n = c.src.length;
+  let h = `<div class="item${c.off ? " off" : ""}"><div class="hd"><label class="sw"><input type="checkbox" data-a="toggle" data-i="${i}" ${c.off ? "" : "checked"} ${running() ? "disabled" : ""}><i></i></label>
+    ${thumb(c.src[0])}
+    <div class="tt" data-a="open" data-i="${i}" style="cursor:pointer">Circling my head<small>${n} picture${n > 1 ? "s" : ""} · ${fmt(c.start)} – ${fmt(c.end)}</small></div>
+    <button class="sm" data-a="open" data-i="${i}">${open ? "Close" : "Edit"}</button></div>`;
+  if (open) {
+    const lv = c.level || "crown";
+    h += `<div class="edit">${times(c, i)}<label class="f">Where the ring goes</label><div class="seg"><button class="${lv === "crown" ? "on" : ""}" data-a="set" data-i="${i}" data-f="level" data-v="crown">Top of my head</button><button class="${lv === "chest" ? "on" : ""}" data-a="set" data-i="${i}" data-f="level" data-v="chest">Below my chin</button></div>
+      <label class="f">One lap every: ${c.period || 4} seconds</label><input type="range" min="2" max="8" step="0.5" value="${c.period || 4}" data-a="range" data-i="${i}" data-f="period" style="width:100%">
+      <label class="f">Size: ${c.size || "auto"}${c.size ? "px wide" : ""}</label><input type="range" min="100" max="300" step="10" value="${c.size || 170}" data-a="range" data-i="${i}" data-f="size" style="width:100%">
+      <p class="small">The pictures pass behind your head and in front of it. This needs the outline of you that only a Mac makes; without it they show in front only. You see it after a re-render.</p>
+      <div class="row" style="margin-top:12px"><button class="sm" data-a="seek" data-t="${c.start}">▶ Go to start</button><span class="grow"></span><button class="sm danger" data-a="del" data-i="${i}">Delete</button></div></div>`;
+  }
+  return h + `</div>`;
+}
+let orbitOpen = false; const orbitSel = new Set();
+function renderOrbitPick() {
+  const box = $("#orbitPick"); if (!box) return;
+  for (const s of [...orbitSel]) if (!S.popups.some((p) => p.src === s)) orbitSel.delete(s);
+  if (!orbitOpen) { box.innerHTML = ""; return; }
+  if (!S.popups.length) { box.innerHTML = `<p class="help">Add your pictures first with the button above. Then come back and pick up to 6.</p>`; return; }
+  box.innerHTML = `<label class="f">Pick 1 to 6 pictures</label><div class="grid3">${S.popups.map((p) => `<button class="${orbitSel.has(p.src) ? "on" : ""}" data-a="orbit-pick" data-v="${esc(p.src)}" style="padding:6px">${thumb(p.src)}</button>`).join("")}</div>
+    <div class="row" style="margin-top:10px"><button class="pri grow" data-a="orbit-add" ${orbitSel.size ? "" : "disabled"}>Add ${orbitSel.size || ""} at this point in the video</button><button class="grow" data-a="orbit-cancel">Cancel</button></div>`;
+}
+
+// ---- GIPHY search (Added by By Mel Ross, 0.9.0). The search goes from this page straight to GIPHY, with your own key.
+let giphy = { q: "", kind: "gifs", items: [], busy: false, note: "" };
+function renderGiphy() {
+  const box = $("#giphy"); if (!box) return;
+  if (!S.giphy) { box.innerHTML = `<p class="help"><b>Search GIPHY:</b> not set up yet. Get a free key at developers.giphy.com, then tell Claude "add my GIPHY key".</p>`; return; }
+  box.innerHTML = `<label class="f">Search GIPHY</label><div class="row"><input type="text" id="gq" value="${esc(giphy.q)}" placeholder="happy dance" autocapitalize="off" class="grow" /><button class="sm" data-a="giphy-go">Search</button></div>
+    <div class="seg" style="margin-top:8px"><button class="${giphy.kind === "gifs" ? "on" : ""}" data-a="giphy-kind" data-v="gifs">GIFs</button><button class="${giphy.kind === "stickers" ? "on" : ""}" data-a="giphy-kind" data-v="stickers">Stickers (see-through)</button></div>
+    ${giphy.note ? `<p class="small">${esc(giphy.note)}</p>` : ""}
+    ${giphy.items.length ? `<div class="grid3" style="margin-top:8px">${giphy.items.map((g) => `<button data-a="giphy-add" data-v="${esc(g.id)}" style="padding:4px" title="${esc(g.title)}"><img src="${esc(g.preview)}" alt="${esc(g.title)}" style="width:100%;border-radius:8px;display:block" /></button>`).join("")}</div>
+    <p class="small" style="text-align:right;font-weight:700;letter-spacing:.04em">POWERED BY GIPHY</p>` : ""}
+    <p class="small">Your search words go to GIPHY. Many GIFs are clips from films and TV: check you may use one before it goes in a reel for your business.</p>`;
+}
+async function giphySearch() {
+  const q = ($("#gq")?.value || "").trim(); giphy.q = q; if (!q) return;
+  giphy.busy = true; giphy.note = "Searching…"; renderGiphy();
+  try {
+    const { key } = await (await fetch("/api/giphy-key")).json();
+    const u = new URL(`https://api.giphy.com/v1/${giphy.kind}/search`); u.search = new URLSearchParams({ api_key: key, q, limit: "12", rating: "g", bundle: "messaging_non_clips" });
+    const r = await fetch(u); if (r.status === 429) throw new Error("GIPHY's hourly limit is used up for this key: try again later");
+    if (!r.ok) throw new Error(`GIPHY said no (${r.status}): check the key`);
+    const j = await r.json();
+    giphy.items = (j.data || []).map((d) => ({ id: d.id, title: d.title || "", preview: d.images?.fixed_width_small?.url || d.images?.fixed_width?.url || "" })).filter((g) => /^https:\/\/[\w-]+\.giphy\.com\//.test(g.preview));
+    giphy.note = giphy.items.length ? "Tap one to add it at this point in the video." : "Nothing found.";
+  } catch (er) { giphy.items = []; giphy.note = er.message; }
+  giphy.busy = false; renderGiphy();
+}
+
 // ---- settings, versions
 function renderSettings() {
   const L = S.textDefault.layer || "front";
-  $("#settings").innerHTML = `<label class="f">Where text goes by default (every reel)</label><div class="seg"><button class="${L === "front" ? "on" : ""}" data-a="default" data-v="front">In front of me</button><button class="${L === "behind" ? "on" : ""}" data-a="default" data-v="behind">Behind me</button></div>
+  const cur = S.theme?.reel ?? S.theme?.all ?? "", all = !S.theme?.reel;
+  const themeBox = (S.themes || []).length ? `<label class="f">Look (theme)</label><select id="themePick"><option value="">My brand as it is</option>${S.themes.map((t) => `<option value="${esc(t.id)}" ${t.id === cur ? "selected" : ""}>${esc(t.name)}</option>`).join("")}</select>
+    <div class="seg" style="margin-top:8px"><button class="${all ? "" : "on"}" data-a="theme-scope" data-v="reel">This reel only</button><button class="${all ? "on" : ""}" data-a="theme-scope" data-v="all">Every reel</button></div>
+    <p class="help" style="margin-top:8px">${esc((S.themes.find((t) => t.id === cur) || {}).summary || "A theme changes the fonts, captions, titles and card shapes together. Your colours and name stay.")} Re-render to see it.</p><hr style="border:0;border-top:1px solid var(--line);margin:14px 0">` : "";
+  $("#settings").innerHTML = themeBox + `<label class="f">Where text goes by default (every reel)</label><div class="seg"><button class="${L === "front" ? "on" : ""}" data-a="default" data-v="front">In front of me</button><button class="${L === "behind" ? "on" : ""}" data-a="default" data-v="behind">Behind me</button></div>
     <p class="help" style="margin-top:8px">Text sits in the top area above your head. This only sets the layer new text starts on; you can change any single piece of text. ${S.hasTextDefault ? "" : "(Not saved in the brand file yet: the built-in default is in front.)"}</p>`;
 }
 function renderVersions() {
@@ -370,6 +432,21 @@ document.addEventListener("click", async (e) => {
   else if (a === "sfx-stamp") { if (S.cutsStale) return toast("Re-render first: the video above has the old cuts.", true); op({ op: "sfx_set", i, set: { t: now() } }, `s${sid(i)}:t`, `At ${fmt(now())}`); }
   else if (a === "sfx-del") { if (confirm("Delete this sound?")) op({ op: "sfx_del", i }, null, "Deleted"); }
   else if (a === "default") { try { await post("/api/text-default", { layer: el.dataset.v, position: "above" }); toast("Default saved"); } catch (er) { toast(er.message, true); } }
+  else if (a === "orbit-open") { orbitOpen = !orbitOpen; renderOrbitPick(); }
+  else if (a === "orbit-cancel") { orbitOpen = false; orbitSel.clear(); renderOrbitPick(); }
+  else if (a === "orbit-pick") { const s = el.dataset.v; orbitSel.has(s) ? orbitSel.delete(s) : orbitSel.size < 6 ? orbitSel.add(s) : toast("6 pictures at most", true); renderOrbitPick(); }
+  else if (a === "orbit-add") {
+    const t = Math.min(now(), Math.max(S.total - 1, 0));
+    const j = await op({ op: "card_add", card: { type: "orbit", src: [...orbitSel], start: t, end: Math.min(t + 6, S.total) } }, null, "Added: re-render to see them circle");
+    if (j?.info?.index != null) { orbitOpen = false; orbitSel.clear(); const id = cid(j.info.index); openCard.add(id); selCard = id; render(); }
+  }
+  else if (a === "giphy-go") giphySearch();
+  else if (a === "giphy-kind") { giphy.kind = el.dataset.v; giphy.items = []; giphy.note = ""; renderGiphy(); if (giphy.q) giphySearch(); }
+  else if (a === "giphy-add") {
+    toast("Getting it from GIPHY…");
+    try { const j = await post("/api/giphy-add", { id: el.dataset.v, kind: giphy.kind }); await addPopup(j.upload.src); } catch (er) { toast(er.message, true); }
+  }
+  else if (a === "theme-scope") { try { await post("/api/theme", { name: $("#themePick").value, scope: el.dataset.v }); toast("Look saved: re-render to see it"); } catch (er) { toast(er.message, true); } }
   else if (a === "watch") { watch = +el.dataset.v; renderVideo(); v.scrollIntoView?.({ behavior: "smooth", block: "center" }); }
 });
 document.addEventListener("change", async (e) => {
@@ -386,7 +463,7 @@ document.addEventListener("change", async (e) => {
   else if (a === "range") op({ op: "card_set", i, set: { [el.dataset.f]: el.value } }, `c${cid(i)}:${el.dataset.f}`);
   else if (a === "sfx-set") op({ op: "sfx_set", i, set: { [el.dataset.f]: el.value } }, `s${sid(i)}:${el.dataset.f}`);
 });
-document.addEventListener("input", (e) => { const el = e.target; if (el.dataset?.a === "range") { const l = el.previousElementSibling; if (l) l.textContent = l.textContent.replace(/:.*$/, `: ${el.value}${el.dataset.f === "size" ? "px wide" : "°"}`); } });
+document.addEventListener("input", (e) => { const el = e.target; if (el.dataset?.a === "range") { const l = el.previousElementSibling; if (l) l.textContent = l.textContent.replace(/:.*$/, `: ${el.value}${el.dataset.f === "size" ? "px wide" : el.dataset.f === "period" ? " seconds" : "°"}`); } });
 document.addEventListener("keydown", (e) => { if (e.key === "Enter" && e.target.id === "wtext") document.querySelector('[data-a="word-save"]')?.click(); });
 
 $("#undo").addEventListener("click", async () => { try { const j = await post("/api/undo"); toast(`Undid: ${j.undid}`); } catch (e) { toast(e.message, true); } });
@@ -411,6 +488,11 @@ $("#file").addEventListener("change", async (e) => {
   catch (er) { toast(er.message, true); }
 });
 document.addEventListener("change", (e) => { if (e.target.id === "reusePick" && e.target.value) { addPopup(e.target.value); e.target.value = ""; } });
+document.addEventListener("change", async (e) => {
+  if (e.target.id !== "themePick") return;
+  try { await post("/api/theme", { name: e.target.value, scope: S.theme?.reel ? "reel" : "all" }); toast("Look saved: re-render to see it"); } catch (er) { toast(er.message, true); }
+});
+document.addEventListener("keydown", (e) => { if (e.key === "Enter" && e.target.id === "gq") giphySearch(); });
 
 // ------------------------------------------------------------------ job polling
 function startPoll() { clearInterval(pollT); pollT = setInterval(async () => {
