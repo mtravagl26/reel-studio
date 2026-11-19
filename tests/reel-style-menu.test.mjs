@@ -9,10 +9,10 @@ import { ff, haveFfmpeg, havePython, py, run, root, skill, skipReason, tmp } fro
 
 const read = (...p) => fs.readFileSync(path.join(skill, ...p), "utf8");
 const menu = JSON.parse(read("assets", "style-menu.json"));
-const IDS = ["H1", "H2", "H3", "H4", "H5", "C1", "C2", "C3", "C4", "C5", "L1", "L2", "L3", "L4", "L5", "L6", "L7", "L8", "L9"];
+const IDS = ["H1", "H2", "H3", "H4", "H5", "C1", "C2", "C3", "C4", "C5", "L1", "L2", "L3", "L4", "L5", "L6", "L7", "L8", "L9", "L10"];
 
 // ------------------------------------------------------------------------------------------------------ the menu itself
-test("style menu: all 19 IDs are in the JSON and in the Markdown table, with a known status", () => {
+test("style menu: all 20 IDs are in the JSON and in the Markdown table, with a known status", () => {
   assert.deepEqual(Object.keys(menu.looks).sort(), [...IDS].sort());
   const md = read("references", "style-menu.md");
   for (const id of IDS) {
@@ -28,8 +28,9 @@ test("style menu: the SKILL.md list of built looks matches the JSON", () => {
   const built = IDS.filter((id) => menu.looks[id].status === "built");
   const skillMd = read("SKILL.md");
   const line = skillMd.match(/Built: ([^;]+);/)?.[1] ?? "";
-  for (const id of built) assert.ok(line.includes(id), `${id} is built and named in SKILL.md`);
-  for (const id of IDS.filter((x) => !built.includes(x))) assert.ok(!line.includes(id), `${id} is not built and must not be named as built`);
+  const named = (id) => new RegExp(`\\b${id}\\b`).test(line);   // whole IDs: L1 is not "named" by L10
+  for (const id of built) assert.ok(named(id), `${id} is built and named in SKILL.md`);
+  for (const id of IDS.filter((x) => !built.includes(x))) assert.ok(!named(id), `${id} is not built and must not be named as built`);
 });
 
 test("style menu: every card recipe uses a card type that build_reel.py handles", () => {

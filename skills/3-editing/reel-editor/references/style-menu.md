@@ -1,6 +1,6 @@
 # Style Menu (looks by ID)
 
-Added by By Mel Ross (0.5.0). A menu of 19 looks seen in popular short-form reels (13 usable today, 6 not built yet), each with an ID: **H** = hook, **C** = captions, **L** = layout. When the person says "do H3 with C2 and L8", use the table below. The machine-readable version is `assets/style-menu.json` (what `scripts/storyboard.py` reads).
+Added by By Mel Ross (0.5.0). A menu of 20 looks seen in popular short-form reels (14 usable today, 6 not built yet), each with an ID: **H** = hook, **C** = captions, **L** = layout. When the person says "do H3 with C2 and L8", use the table below. The machine-readable version is `assets/style-menu.json` (what `scripts/storyboard.py` reads).
 
 Defaults for every look: the brand file's colors (`colors.pop` is the highlight; `SAGE_DEEP` in `build_reel.py` is a deeper tone blended from `colors.pop` and `colors.main`, used wherever a mark sits on cream paper), the brand fonts (`head`, `body`, `accent`) plus Caveat handwriting from `assets/fonts/` (SIL Open Font License 1.1, text in `assets/fonts/OFL-Caveat.txt`), no music, gentle zooms. When the speaker's face fills the frame their eyes sit near y 500-560 of 1920, so graphics go in the top corners (above y ~450) or the lower third (y 1050-1500, above the bottom 420 px Instagram covers), never on the eyes.
 
@@ -25,6 +25,7 @@ Defaults for every look: the brand file's colors (`colors.pop` is the highlight;
 | L7 | Step label top-center | built | `title` card with `overline_font` accent: `{"type":"title","text":"the offer","overline":"step #2:","overline_font":"accent","align":"center","y":95,"size":150,"color":"#FFFFFF"}` |
 | L8 | Stat card pop | built | card `stat` (below) |
 | L9 | Photo sticker beside your face | built | card `popup` with `caption` (below) |
+| L10 | Taped note | built | card `note`; uses the material kit's paper and tape when one is on (`references/material-kits.md`) |
 
 ### Not built yet (do not offer)
 
