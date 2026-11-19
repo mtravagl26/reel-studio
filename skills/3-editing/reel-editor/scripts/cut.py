@@ -24,6 +24,18 @@ import shutil
 # If that is not possible the clip is used as it is and the output says the color is only approximate.
 src, SRC_COLOR = hdr2sdr.working_source(src, reel)
 if SRC_COLOR.get("hdr") and not SRC_COLOR.get("converted"): print("WARNING:", SRC_COLOR["note"])
+# Added by By Mel Ross (0.10.3): say so, once per cut, when the clip is heavier than a 1080p reel needs. Never a failure.
+def filming_tip(w, h, fps, hdr):
+    heavy = [x for x in ("4K" if min(w, h) > 1100 else "", f"{fps:.0f} fps" if fps > 31 else "", "HDR" if hdr else "") if x]
+    return ("TIP (tell them once): this clip is " + ", ".join(heavy) + ". The reel is built at 1080p and 30 fps, so next time film in 1080p at 30 fps "
+            "with HDR off: same result, much faster edits. iPhone: Settings > Camera > Record Video.") if heavy else ""
+try:
+    _p = subprocess.run(["ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries", "stream=width,height,r_frame_rate", "-of", "csv=p=0", str(src)],
+                        capture_output=True, text=True).stdout.strip().split(",")
+    _n, _d = (_p[2].split("/") + ["1"])[:2]
+    _tip = filming_tip(int(_p[0]), int(_p[1]), float(_n) / (float(_d) or 1), bool(SRC_COLOR.get("hdr")))
+    if _tip: print(_tip)
+except (ValueError, IndexError, ZeroDivisionError, OSError): pass
 (reel / "master_sharp.mp4").unlink(missing_ok=True)     # a new cut makes the old background-softening and cutout obsolete
 shutil.rmtree(reel / "cutout", ignore_errors=True)
 speed = pacing(brand)["speed"]

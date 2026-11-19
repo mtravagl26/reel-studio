@@ -155,7 +155,9 @@ MP4. Keep the smoke test local and free of personal footage.
 
 Report briefly where the skills, workspace and brand file live, the dependency
 versions and the smoke-render result. Say plainly that nothing is connected to any
-social account and nothing will be posted. Then offer first prompts:
+social account and nothing will be posted. Tell them the camera settings for
+their phone: upright, 1080p at 30 fps, HDR video off (iPhone: Settings > Camera >
+Record Video). Then offer first prompts:
 
 ```text
 Edit this into a reel. [drag in a talking-head clip]

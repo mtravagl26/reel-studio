@@ -85,6 +85,7 @@ test("without avconvert an HDR clip is used as it is and the build says the colo
   const r = py("cut.py", [c.reel], { ...c.env, REEL_NO_AVCONVERT: "1" });
   assert.equal(r.status, 0, r.stdout + r.stderr);
   assert.match(r.stdout, /color is only approximate/);
+  assert.match(r.stdout, /TIP \(tell them once\): this clip is HDR\. .*film in 1080p at 30 fps with HDR off/, "0.10.3: the camera-settings tip");
   const info = JSON.parse(fs.readFileSync(path.join(c.reel, "enhance.json"), "utf8"));
   assert.match(info.source_colour, /only approximate/);
   assert.ok(!fs.existsSync(path.join(c.reel, "source_sdr.mp4")), "no converted copy was made");
@@ -97,6 +98,13 @@ test("cut.py labels the master BT.709 (a standard clip, nothing else changes)", 
   assert.equal(r.status, 0, r.stdout + r.stderr);
   expectBt709(path.join(c.reel, "master.mp4"));
   assert.doesNotMatch(r.stdout, /approximate/);
+  assert.doesNotMatch(r.stdout, /TIP \(tell them once\)/, "a small standard clip gets no camera tip");
+  // 0.10.3: a 4K 60 fps clip still cuts, and the tip names both
+  const big = path.join(d, "big.mp4");
+  ff(["-f", "lavfi", "-i", "testsrc2=s=2160x3840:r=60:d=2", "-f", "lavfi", "-i", "sine=f=220:d=2", "-c:v", "libx264", "-preset", "ultrafast", "-pix_fmt", "yuv420p", "-c:a", "aac", "-shortest", big]);
+  const c2 = reelWith(big, "big.mp4"), r2 = py("cut.py", [c2.reel], { ...c2.env, REEL_PREVIEW: "1" });
+  assert.equal(r2.status, 0, r2.stdout + r2.stderr);
+  assert.match(r2.stdout, /TIP \(tell them once\): this clip is 4K, 60 fps\./);
 });
 
 test("deliver.sh labels the full-quality copy and the phone copy BT.709", { skip: skipReason || process.platform === "win32" }, () => {
