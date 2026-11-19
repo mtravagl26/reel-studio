@@ -77,6 +77,10 @@ Cut only at the end of a sentence or in the quietest part of a natural pause, on
 
 The person can pick looks by ID: H1-H5 hooks, C1-C5 captions, L1-L10 layouts ("H3, C2, L8"). Read `references/style-menu.md`: it says, per ID, which `edit.json` / `brand.json` setting or card type produces it (`assets/style-menu.json` has the same table for scripts) and which are only *partial* or *not built*. Built: H3, C1, C2, C3, L2 (`polaroids`), L4 (`tiles`), L6 (`xlist`), L7, L8 (`stat`), L9 (`popup` + `caption`), L10; partial: H2, C5; not built: H1, H4, C4, L1, L3, L5; H5 is a cut choice. Say plainly when an ID is not built; never fake it. The eye rules apply to all of them: graphics go in the top corners or the lower third, never on the eyes, and captions step aside under lower-third cards.
 
+## Home page and framing check
+
+`node review/home-server.mjs` serves the first link a person gets (http://127.0.0.1:4790/): drop in a clip to check how it was filmed, pick the kind of reel, copy the request. Read `references/home-and-framing.md`. Run `python3 scripts/framing_check.py <clip>` yourself on every new clip before transcribing; on a retake verdict say why in one line and ask whether to edit anyway. "Simple talking head" in a request means few graphics; "talking head with graphics" means lots, plus the looks page link.
+
 ## Material kits
 
 `"kit": "<name>"` (brand.json, edit.json, a theme, or `--kit`) builds the list card, step label and the `note` card from real pictures of paper, tape, labels and stickers instead of drawn boxes. Read `references/material-kits.md`. The bundled `standin` kit is placeholder art: the build prints `NOTE (tell them)` when it is used, and you pass that on every time.
