@@ -97,6 +97,11 @@ function captions(f, r) {
 function card(f, c) {
   const kind = c.type;
   if (kind === "title") return title(f, c);
+  if (kind === "note") {
+    const n = el("div", "paper hand"); n.style.cssText = "left:22%;right:22%;top:9%;padding:5cqw 3cqw 4cqw;font-size:8.5cqw;font-weight:600;text-align:center;line-height:1.1;transform:rotate(-3deg);white-space:pre-line";
+    n.textContent = String(c.text || "").split("/").map((x) => x.trim()).join("\n");
+    const t = el("div"); t.style.cssText = "left:50%;top:-2.5cqw;width:36%;height:5cqw;margin-left:-18%;background:rgba(222,205,160,.9);transform:rotate(-2deg)"; n.append(t); f.append(n); return;
+  }
   if (kind === "polaroids") {
     [[6, 30, -7], [16, 38, 5], [9, 49, -3]].forEach(([l, t, rot]) => { const p = el("div", "photo"); p.style.cssText = `left:${l}%;top:${t}%;width:34%;height:21%;transform:rotate(${rot}deg)`; p.append(el("i")); f.append(p); });
     const s = el("div", "strip hand", c.label || "label"); s.style.cssText += "left:8%;top:73%"; f.append(s); return;

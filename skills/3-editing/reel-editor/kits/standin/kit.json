@@ -1,0 +1,25 @@
+{
+  "name": "Stand-in paper",
+  "summary": "Placeholder paper, tape, label and number stickers. Swap in your own materials.",
+  "placeholder": true,
+  "materials": {
+    "paper": {
+      "file": "paper.png"
+    },
+    "tape": {
+      "file": "tape.png",
+      "width": 260
+    },
+    "label": {
+      "file": "label.png"
+    },
+    "stickers": {
+      "1": "n1.png",
+      "2": "n2.png",
+      "3": "n3.png",
+      "4": "n4.png",
+      "5": "n5.png"
+    }
+  },
+  "ink": "#2b2b2b"
+}

@@ -191,7 +191,7 @@ export const expectedText = (transcript) => transcript.map((w) => w.text).join("
 // ---------------------------------------------------------------------------------------------------------------------------------------
 // ordinary edits: validated, whitelisted
 // ---------------------------------------------------------------------------------------------------------------------------------------
-const TEXT_TYPES = new Set(["tag", "title", "card", "cta"]);
+const TEXT_TYPES = new Set(["tag", "title", "card", "cta", "note"]);
 const LAYERS = new Set(["front", "behind", "both"]);
 const POS = new Set(["top-left", "top-center", "top-right", "middle-left", "middle-right", "center", "custom"]);
 const COMMON = ["start", "end", "off"];
@@ -199,6 +199,7 @@ const FIELDS = {
   tag: [...COMMON, "text", "y", "layer", "glass", "color"],
   title: [...COMMON, "text", "y", "size", "layer"],
   cta: [...COMMON, "text", "y", "layer"],
+  note: [...COMMON, "text", "y", "rotate", "size", "layer"],   // Added by By Mel Ross (0.11.0): taped paper note
   card: [...COMMON, "title", "rows", "layer", "glass"],
   popup: [...COMMON, "pos", "x", "y", "size", "rotate", "frame", "layer"],
   orbit: [...COMMON, "level", "size", "period", "frame"],   // Added by By Mel Ross (0.9.0): pictures that circle the head

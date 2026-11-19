@@ -29,7 +29,8 @@ Two free, open-source skill sets in one folder, plus one creator's way of workin
   - **A gentle voice clean-up.** Noise removal at a soft setting (DeepFilterNet 20 dB), no gate, no presence boost, and a loudness of -16 LUFS. Quiet recordings sounded distorted with a heavier chain, so the default adds as little gain and as few boosts as it can.
   - **An editor page** (added by By Mel Ross): a local page, usable from a phone on your Wi-Fi, to fix caption words, drop or keep pieces of the cut, switch pills and sounds on and off, add GIF/graphic/photo popups and put text in front of or behind you, then Re-render. See `references/editor-page.md`.
   - **A clip finder** (added by By Mel Ross): hand it one long recording and it ranks the best 30-60 second moments from the transcript, you pick, and each pick becomes its own reel folder. Nothing is cut or uploaded until you say yes. See `references/find-clips.md`.
-  - **A Style Menu** (added by By Mel Ross): 13 looks you can call by ID ("H3, C2, L8"): handwritten-overline hooks, caption styles, and layouts such as a tilted photo stack, an icon-tile grid, a hand-drawn check or X list, a stat card and a photo sticker with a caption. 6 more are planned; Claude won't offer those until they work. See `skills/3-editing/reel-editor/references/style-menu.md`.
+  - **A Style Menu** (added by By Mel Ross): 14 looks you can call by ID ("H3, C2, L8"): handwritten-overline hooks, caption styles, and layouts such as a tilted photo stack, an icon-tile grid, a hand-drawn check or X list, a stat card and a photo sticker with a caption. 6 more are planned; Claude won't offer those until they work. See `skills/3-editing/reel-editor/references/style-menu.md`.
+  - **Material kits** (added by By Mel Ross, 0.11.0): cards built from pictures of real paper, tape, labels and stickers, so a list is a taped sheet of paper and not a drawn box. Bring your own materials; the bundled kit is a marked placeholder. See `skills/3-editing/reel-editor/references/material-kits.md`.
   - **A looks page, a style card, labelled checks, and notes that become rules** (added by By Mel Ross, 0.10.0): pick looks by sight and copy the request; see the plan in 6 lines before anything renders; get a report that separates Measured, Looked at and Not checked; and a note you give twice becomes a rule for every reel. See `skills/3-editing/reel-editor/references/style-flow.md`.
   - **A storyboard before you build** (added by By Mel Ross): `scripts/storyboard.py` shows stills of two to four looks on your own reel, side by side in one image, with no video render, so you pick before anything is built.
   - **A word list for names** (added by By Mel Ross): add the names and brand words Whisper mishears to `"vocabulary"` in your brand file once, and every caption after that comes out spelled right.
@@ -76,7 +77,7 @@ When it finishes, scroll up to **Next steps**, copy the two or three lines under
 **4. Install the video tools:**
 
 ```bash
-brew install ffmpeg node git
+brew install ffmpeg node git yt-dlp
 ```
 
 You can close Terminal now.
@@ -163,7 +164,7 @@ Useful `brand.json` settings this version adds:
 | What you see | What to do |
 |---|---|
 | `command not found: brew` | Close Terminal, open it again. Still broken? Redo the Next steps lines from your own Terminal |
-| `command not found: ffmpeg` or `node` | Run `brew install ffmpeg node` again |
+| `command not found: ffmpeg` or `node` | Run `brew install ffmpeg node git yt-dlp` again |
 | A check line has ❌ | Paste the whole message into Claude Code and say "fix this" |
 | A render fails with `uv_os_setpriority EACCES` | Ask Claude to use `render-nonice.sh` (same render, without the low-priority setting some background runs refuse) |
 | The cover says no Chrome found | Install Google Chrome |

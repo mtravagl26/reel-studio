@@ -70,11 +70,14 @@ and tell the reel editor where they are:
 ```bash
 git clone --depth 1 --branch v0.8.145 https://github.com/heygen-com/hyperframes.git "<workspace>/.favstash-studio/hyperframes-source"
 cp -R "<workspace>/.favstash-studio/hyperframes-source/skills" "<workspace>/.favstash-studio/hyperframes-skills"
-export HYPERFRAMES_SKILLS_DIR="<workspace>/.favstash-studio/hyperframes-skills"
+rm -rf "<workspace>/.favstash-studio/hyperframes-source"
 ```
 
-`HYPERFRAMES_SKILLS_DIR` should hold a `hyperframes/` folder (with its sibling
-`hyperframes-*` skills); add the export to the user's shell profile with their OK.
+The reel editor's doctor finds `<workspace>/.favstash-studio/hyperframes-skills` on
+its own, so no shell setup is needed. Only if the skills live somewhere else, set
+`HYPERFRAMES_SKILLS_DIR` to a folder holding `hyperframes/` (with its sibling
+`hyperframes-*` skills) and, with the user's OK, add the export to their shell profile.
+The `rm` drops a 375 MB clone that was only needed for the copy.
 
 The tag matches the renderer the reel editor runs (`hyperframes@0.8.145` in
 `scripts/render.sh`), so the skills and the renderer stay the same version. Change

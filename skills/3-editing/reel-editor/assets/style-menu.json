@@ -50,6 +50,9 @@
       "recipe": {"slot": "layout", "card": {"type": "stat", "label": "the number", "value": "12,000", "delta": "+12%", "spark": [3, 4, 3.5, 6, 7, 9]}}},
     "L9": {"name": "Photo sticker beside your face", "group": "Layouts", "status": "built",
       "does": "card type \"popup\" with \"caption\" (extends the corner stickers): framed photo pops in top-left, handwritten caption on a torn strip across its lower edge, shrinks out",
-      "recipe": {"slot": "layout", "needs_photos": 1, "card": {"type": "popup", "pos": "top-left", "size": 330, "rotate": -5, "caption": "how is this real?!"}}}
+      "recipe": {"slot": "layout", "needs_photos": 1, "card": {"type": "popup", "pos": "top-left", "size": 330, "rotate": -5, "caption": "how is this real?!"}}},
+    "L10": {"name": "Taped note", "group": "Layouts", "status": "built",
+      "does": "card type \"note\" (added by By Mel Ross, 0.11.0): a short handwritten note on a scrap of paper, taped up above the head. With a material kit on it uses the kit's real paper and tape (references/material-kits.md); without one, a plain sheet",
+      "recipe": {"slot": "layout", "card": {"type": "note", "text": "the fix / is boring"}}}
   }
 }

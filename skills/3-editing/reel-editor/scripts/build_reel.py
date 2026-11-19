@@ -60,6 +60,8 @@ edit.json (written by auto_edit.py, then Claude marks accents and adds cards):
      edit.json "cutout": {"include_dark": [[x,y,w,h]], "include": [...], "exclude": [...], "matte": "my-matte.mp4"} fixes a matte for this footage
      (include_dark adds only the dark pixels in a box, e.g. a microphone in front of the speaker) or brings your own white-on-black matte video
      (any segmentation tool, same length as master.mp4). See references/look-and-layers.md.
+  {type:"note", text:"line / line", y?, rotate?, size?}   (Added by By Mel Ross, 0.11.0) a handwritten note on a taped scrap of paper
+  Material kits (kit.py): with "kit" set, card / tag / note are built from the kit's paper, tape, label and stickers. "kit": false on a card keeps it plain.
   Image paths: relative to the reel folder, or to ~/reels/assets/, or absolute.
 """
 import html, json, os, re, shutil, subprocess, sys
@@ -83,13 +85,16 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import theme as _theme                           # Added by By Mel Ross (themes): the look is laid over brand.json, see theme.py
 brand = _theme.load_brand(HOME, reel, sys.argv[sys.argv.index("--theme") + 1] if "--theme" in sys.argv[:-1] else None)
 if brand.get("_theme"): print(f'theme: {brand["_theme"]["name"]}')
+import kit as _kit                               # Added by By Mel Ross (material kits, 0.11.0): what cards are made of, see kit.py
+KIT = _kit.load(HOME, reel, brand, sys.argv[sys.argv.index("--kit") + 1] if "--kit" in sys.argv[:-1] else None)
+if KIT: print(f'kit: {KIT["id"]}')
 edit = json.load(open(reel / "edit.json"))
 # Added by By Mel Ross (editor page): "off" switches a card or effect off without deleting it; brand.json "text_default" gives text cards their layer
 edit["cards"] = [c for c in edit.get("cards", []) if not c.get("off")]
 edit["sfx_events"] = [e for e in edit.get("sfx_events", []) if not e.get("off")]
 _theme.apply_card_defaults(brand, edit["cards"])
 TEXT_DEFAULT = brand.get("text_default") or {}
-TEXT_TYPES = ("title", "tag", "card", "cta")
+TEXT_TYPES = ("title", "tag", "card", "cta", "note")
 for _c in edit["cards"]:
     if _c.get("type") in TEXT_TYPES and not _c.get("layer") and TEXT_DEFAULT.get("layer") in ("behind", "both"):
         _c["layer"] = TEXT_DEFAULT["layer"]
@@ -130,6 +135,15 @@ case = lambda s: s.lower() if CASE == "lower" else s
 proj = reel / "proj"
 if proj.exists(): shutil.rmtree(proj)
 (proj / "fonts").mkdir(parents=True); (proj / "sfx").mkdir(); (proj / "vendor").mkdir()
+def mat(key, sticker=None):
+    """Added by By Mel Ross (0.11.0). A kit material copied into the project: its path there, or "" when there is no kit or the kit lacks it."""
+    if not KIT: return ""
+    src = KIT["stickers"].get(str(sticker)) if sticker is not None else (KIT["materials"].get(key) or {}).get("path")
+    if not src: return ""
+    (proj / "kit").mkdir(exist_ok=True); dst = proj / "kit" / Path(src).name
+    if not dst.exists(): shutil.copy(src, dst)
+    return f"kit/{dst.name}"
+INK = (KIT or {}).get("ink") or None             # text color on kit paper; None = the brand's main color
 shutil.copy(ENGINE / "gsap.min.js", proj / "vendor/gsap.min.js")
 try: os.link(reel / "master.mp4", proj / "master.mp4")
 except OSError: shutil.copy(reel / "master.mp4", proj / "master.mp4")
@@ -348,8 +362,18 @@ for i, c in enumerate(edit.get("cards", [])):
     elif kind == "card":
         rows = c.get("rows", [])
         rt = c.get("row_times") or [a + 0.45 + 0.35 * j for j in range(len(rows))]
-        front.append(f'<div id="{cid}" class="card{" glass" if c.get("glass") else ""}"><div class="ch" style="background:{MAIN};{font("head", 40)}"><i></i>{esc(case(c.get("title", "")))}</div>'
-                     + "".join(f'<div class="cr" id="{cid}r{j}" style="{font("body", 50)};color:{MAIN}"><b style="background:{POP}"></b>{esc(case(r))}</div>' for j, r in enumerate(rows)) + "</div>")
+        paper = mat("paper")
+        if paper and not c.get("glass") and c.get("kit", True):
+            # Added by By Mel Ross (0.11.0): with a kit, the list is a sheet of real paper, taped at the top, rows numbered with stickers
+            tape = mat("tape"); tw = (KIT["materials"].get("tape") or {}).get("width") or 260
+            front.append(f'<div id="{cid}" class="card kcard" style="background-image:url({paper})">'
+                         + (f'<img class="ktape" src="{tape}" style="width:{tw}px;margin-left:{-tw // 2}px" />' if tape else "")
+                         + f'<div class="kh" style="{font("hand", fit(c.get("title", ""), 76))};color:{INK or MAIN}">{esc(case(c.get("title", "")))}</div>'
+                         + "".join(f'<div class="cr" id="{cid}r{j}" style="{font("body", 50)};color:{INK or MAIN}">'
+                                   + (f'<img class="kst" src="{mat("stickers", j + 1)}" />' if mat("stickers", j + 1) else f'<b style="background:{POP}"></b>') + f'{esc(case(r))}</div>' for j, r in enumerate(rows)) + "</div>")
+        else:
+            front.append(f'<div id="{cid}" class="card{" glass" if c.get("glass") else ""}"><div class="ch" style="background:{MAIN};{font("head", 40)}"><i></i>{esc(case(c.get("title", "")))}</div>'
+                         + "".join(f'<div class="cr" id="{cid}r{j}" style="{font("body", 50)};color:{MAIN}"><b style="background:{POP}"></b>{esc(case(r))}</div>' for j, r in enumerate(rows)) + "</div>")
         show(f"#{cid}", a, b)
         js.append(f'tl.fromTo("#{cid}",{{y:-160,scale:0.85,rotation:-3}},{{y:0,scale:1,rotation:-1.5,duration:0.5,ease:"back.out(1.6)"}},{q(a)});')
         for j, t in enumerate(rt):
@@ -357,10 +381,27 @@ for i, c in enumerate(edit.get("cards", [])):
             sfx("pop", t, -16, "lots")
         sfx("swish", a - 0.05, -13)
     elif kind == "tag":
-        front.append(f'<div id="{cid}" class="tagw" style="top:{c.get("y", 300)}px"><span class="tag{" glass" if c.get("glass") else ""}" style="background:{c.get("color", POP)};{font("head", 58)}">{esc(case(c["text"]))}</span></div>')
+        lab = mat("label") if not c.get("glass") and c.get("kit", True) else ""     # a theme's tag color does not block the kit; "kit": false does
+        if lab:   # Added by By Mel Ross (0.11.0): with a kit, the label is a real tag or sticker shape with the words on it
+            front.append(f'<div id="{cid}" class="tagw" style="top:{c.get("y", 300)}px"><span class="tag ktag" style="background-image:url({lab});color:{INK or MAIN};{font("head", 58)}">{esc(case(c["text"]))}</span></div>')
+        else:
+            front.append(f'<div id="{cid}" class="tagw" style="top:{c.get("y", 300)}px"><span class="tag{" glass" if c.get("glass") else ""}" style="background:{c.get("color", POP)};{font("head", 58)}">{esc(case(c["text"]))}</span></div>')
         show(f"#{cid}", a, b)
         js.append(f'tl.fromTo("#{cid} .tag",{{scale:0.4,y:30,opacity:0}},{{scale:1,y:0,opacity:1,duration:0.42,ease:"back.out(3)"}},{q(a)});')
         sfx("pop", a, -14)
+    elif kind == "note":
+        # Added by By Mel Ross (0.11.0): a short handwritten note on a scrap of paper, taped up above the head.
+        # {type:"note", text:"line one / line two", y?, rotate?, size?, start, end}. With a kit: its paper and tape. Without: a plain sheet.
+        lines = [l.strip() for l in str(c.get("text", "")).split("/") if l.strip()][:4] or [""]
+        px = min(int(c.get("size", 96)), fit(max(lines, key=len), 96, 70)); rot = float(c.get("rotate", -3))
+        paper = mat("paper") if c.get("kit", True) else ""; tape = mat("tape") if c.get("kit", True) else ""
+        tw = (((KIT or {}).get("materials") or {}).get("tape") or {}).get("width") or 260
+        front.append(f'<div id="{cid}" class="notew" style="top:{c.get("y", 210)}px"><div class="note{" knote" if paper else ""}" style="{f"background-image:url({paper});" if paper else f"background:{LIGHT};"}color:{(INK if paper else None) or MAIN};{font("hand", px)}">'
+                     + (f'<img class="ktape" src="{tape}" style="width:{tw}px;margin-left:{-tw // 2}px" />' if tape else '<i class="ptape"></i>')
+                     + "".join(f"<div>{esc(case(l))}</div>" for l in lines) + "</div></div>")
+        show(f"#{cid}", a, b)
+        js.append(f'tl.fromTo("#{cid} .note",{{y:-140,rotation:{rot - 9},scale:0.9}},{{y:0,rotation:{rot},scale:1,duration:0.5,ease:"back.out(1.7)"}},{q(a)});')
+        sfx("swish", a - 0.05, -13); sfx("pop", a + 0.3, -16, "lots")
     elif kind == "cta":
         quiet.append((a, b))
         words = c["text"].split()
@@ -734,6 +775,16 @@ html, body {{ margin: 0; background: #000; overflow: hidden; }}
 .frame video {{ width: 100%; height: 100%; object-fit: cover; display: block; }}
 .bl {{ position: absolute; left: 0; width: {W}px; padding: 0 90px; box-sizing: border-box; line-height: .82; letter-spacing: -.05em; white-space: nowrap; }}
 .card {{ position: absolute; left: 90px; top: 150px; width: 900px; background: #fff; border-radius: 40px; overflow: hidden; padding-bottom: 22px; box-shadow: 0 30px 70px rgba(0,0,0,.25); }}
+.kcard {{ background-color: transparent; background-size: 100% 100%; background-repeat: no-repeat; border-radius: 0; overflow: visible; box-shadow: none; padding: 70px 30px 60px; filter: drop-shadow(0 18px 28px rgba(0,0,0,.28)); }}
+.kcard .cr {{ border-bottom: 3px dashed rgba(0,0,0,.14); margin: 0 60px; }}
+.kh {{ padding: 6px 60px 18px; line-height: 1.05; }}
+.ktape {{ position: absolute; left: 50%; top: -34px; height: auto; transform: rotate(-2deg); }}
+.kst {{ width: 78px; height: 78px; flex: none; object-fit: contain; }}
+.ktag {{ background-color: transparent !important; background-size: 100% 100%; background-repeat: no-repeat; border-radius: 0 !important; box-shadow: none !important; padding: 34px 70px !important; filter: drop-shadow(0 12px 18px rgba(0,0,0,.26)); }}
+.notew {{ position: absolute; left: 0; width: 1080px; text-align: center; }}
+.note {{ position: relative; display: inline-block; max-width: 880px; padding: 54px 64px 44px; line-height: 1.08; border-radius: 6px; box-shadow: 0 20px 44px rgba(0,0,0,.28); }}
+.knote {{ background-size: 100% 100%; background-repeat: no-repeat; border-radius: 0; box-shadow: none; padding: 84px 96px 74px; filter: drop-shadow(0 18px 28px rgba(0,0,0,.28)); }}
+.ptape {{ position: absolute; left: 50%; top: -22px; width: 200px; height: 52px; margin-left: -100px; background: rgba(255,255,255,.55); box-shadow: 0 2px 6px rgba(0,0,0,.12); transform: rotate(-2deg); }}
 .ch {{ color: #fff; padding: 24px 36px; display: flex; align-items: center; gap: 18px; letter-spacing: -.02em; }}
 .ch i {{ width: 22px; height: 22px; border-radius: 50%; background: rgba(255,255,255,.7); display: inline-block; }}
 .cr {{ display: flex; align-items: center; gap: 24px; height: 110px; margin: 0 36px; border-bottom: 3px solid rgba(0,0,0,.06); letter-spacing: -.02em; }}

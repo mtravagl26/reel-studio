@@ -75,7 +75,11 @@ Cut only at the end of a sentence or in the quietest part of a natural pause, on
 
 ## Call a look by ID (Style Menu)
 
-The person can pick looks by ID: H1-H5 hooks, C1-C5 captions, L1-L9 layouts ("H3, C2, L8"). Read `references/style-menu.md`: it says, per ID, which `edit.json` / `brand.json` setting or card type produces it (`assets/style-menu.json` has the same table for scripts) and which are only *partial* or *not built*. Built: H3, C1, C2, C3, L2 (`polaroids`), L4 (`tiles`), L6 (`xlist`), L7, L8 (`stat`), L9 (`popup` + `caption`); partial: H2, C5; not built: H1, H4, C4, L1, L3, L5; H5 is a cut choice. Say plainly when an ID is not built; never fake it. The eye rules apply to all of them: graphics go in the top corners or the lower third, never on the eyes, and captions step aside under lower-third cards.
+The person can pick looks by ID: H1-H5 hooks, C1-C5 captions, L1-L10 layouts ("H3, C2, L8"). Read `references/style-menu.md`: it says, per ID, which `edit.json` / `brand.json` setting or card type produces it (`assets/style-menu.json` has the same table for scripts) and which are only *partial* or *not built*. Built: H3, C1, C2, C3, L2 (`polaroids`), L4 (`tiles`), L6 (`xlist`), L7, L8 (`stat`), L9 (`popup` + `caption`), L10; partial: H2, C5; not built: H1, H4, C4, L1, L3, L5; H5 is a cut choice. Say plainly when an ID is not built; never fake it. The eye rules apply to all of them: graphics go in the top corners or the lower third, never on the eyes, and captions step aside under lower-third cards.
+
+## Material kits
+
+`"kit": "<name>"` (brand.json, edit.json, a theme, or `--kit`) builds the list card, step label and the `note` card from real pictures of paper, tape, labels and stickers instead of drawn boxes. Read `references/material-kits.md`. The bundled `standin` kit is placeholder art: the build prints `NOTE (tell them)` when it is used, and you pass that on every time.
 
 ## Looks page, style card, labelled checks, standing notes
 
