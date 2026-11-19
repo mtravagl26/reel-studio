@@ -63,6 +63,9 @@ def card(reel, home, looks=None, theme=None):
              ("no sound effects" if brand.get("sfx") in (False, "off", "none") else "a sound as each card comes on") + (f", plus {len(sfx)} placed by hand" if sfx else "")]
     col = brand.get("colors") or {}; tname = (brand.get("_theme") or {}).get("name") if isinstance(brand.get("_theme"), dict) else brand.get("_theme")
     color = [f"{tname} theme" if tname else "your brand as it is", f'main {col.get("main", "?")}, highlight {col.get("pop", "?")}', f'grade: {brand.get("grade") or "none"}']
+    import kit as _kit
+    k = _kit.load(home, reel, brand, quiet=True)                # 0.11.0: what the cards are made of
+    if k: color.append(f'materials: {k["name"]}' + (" (stand-in art, swap before posting)" if k["placeholder"] else ""))
     rows = [("Hook", hook or ["not decided yet: opens on the first line, no title card"]), ("Captions", caps),
             ("Layout", layout or ["not decided yet: no cards picked"]), ("Motion", motion), ("Sound", sound), ("Color", color)]
     return [f"{k:<9} {'; '.join(v)}" for k, v in rows], notes
