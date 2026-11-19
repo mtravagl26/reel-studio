@@ -1,0 +1,194 @@
+<!doctype html>
+<!-- Added by By Mel Ross (0.12.0). The Reel Studio home page, served by home-server.mjs on this computer only.
+     1. Check a clip before editing (drop it in; scripts/framing_check.py does the looking).
+     2. Pick the kind of reel (assets/formats.json; only formats that are built are shown).
+     3. Copy the request to hand to Claude, which does the edit and gives the review link.
+     Loads nothing from the internet. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Reel Studio</title>
+<style>
+:root { --bg:#f5f2ec; --ink:#0d2b2d; --sage:#B9C8A5; --sage-d:#8da273; --card:#fff; --line:#e1dccf; --bad:#a32727; --note:#8a5a12; --mute:#5b6b69; }
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html { background: var(--bg); }
+body { margin: 0 auto; max-width: 860px; padding: 0 16px 80px; font: 16px/1.45 -apple-system, "Helvetica Neue", Arial, sans-serif; color: var(--ink); }
+header { padding: 22px 0 6px; } h1 { font-size: 26px; margin: 0; } header p { margin: 4px 0 0; color: var(--mute); }
+h2 { font-size: 19px; margin: 30px 0 4px; display: flex; gap: 10px; align-items: center; }
+h2 b { display: inline-grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; background: var(--ink); color: #fff; font-size: 14px; flex: none; }
+h2 + p { margin: 0 0 12px; color: var(--mute); }
+button, .btn { font: inherit; min-height: 44px; padding: 0 18px; border-radius: 12px; border: 1.5px solid var(--ink); background: #fff; color: var(--ink); font-weight: 600; cursor: pointer; }
+button.pri { background: var(--ink); color: #fff; } button:disabled { opacity: .4; cursor: default; }
+#drop { border: 2px dashed var(--sage-d); border-radius: 18px; background: var(--card); padding: 34px 18px; text-align: center; }
+#drop.over { background: #eef3e6; border-style: solid; } #drop p { margin: 0 0 12px; } #drop small { display: block; color: var(--mute); margin-top: 10px; }
+#result { display: grid; grid-template-columns: 220px 1fr; gap: 22px; margin-top: 18px; align-items: start; }
+@media (max-width: 620px) { #result { grid-template-columns: 1fr; } .phone { max-width: 220px; margin: 0 auto; } }
+.phone { position: relative; aspect-ratio: 9 / 16; border-radius: 18px; overflow: hidden; background: #c9cfc7; box-shadow: 0 10px 30px rgba(13,43,45,.18); }
+.phone img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.phone .zone { position: absolute; background: rgba(13,43,45,.42); } .phone .line { position: absolute; left: 0; right: 0; border-top: 2px dashed #fff; }
+.phone .head { position: absolute; border: 2px solid #fff; border-radius: 10px; box-shadow: 0 0 0 1px rgba(13,43,45,.5); }
+.key { font-size: 12px; color: var(--mute); margin: 8px 0 0; } .key i { display: inline-block; width: 12px; height: 12px; background: rgba(13,43,45,.42); border-radius: 3px; vertical-align: -1px; margin-right: 4px; }
+#verdict { font-size: 30px; font-weight: 800; margin: 0; line-height: 1.1; } #verdict.retake { color: var(--bad); } #verdict.good { color: #3e6b2b; }
+#headline { margin: 6px 0 14px; font-size: 17px; }
+.checks { list-style: none; margin: 0; padding: 0; background: var(--card); border: 1.5px solid var(--line); border-radius: 14px; }
+.checks li { display: grid; grid-template-columns: 26px 1fr; gap: 4px 8px; padding: 10px 14px; border-bottom: 1px solid var(--line); } .checks li:last-child { border: 0; }
+.checks .m { font-weight: 800; } .checks .pass .m { color: #3e6b2b; } .checks .note .m { color: var(--note); } .checks .retake .m { color: var(--bad); } .checks .skipped .m, .checks .wait .m { color: var(--mute); }
+.checks b { font-weight: 600; } .checks span { grid-column: 2; color: var(--mute); font-size: 14px; } .checks .fix { color: var(--ink); }
+.again { margin-top: 14px; display: flex; gap: 10px; flex-wrap: wrap; }
+#formats { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 14px; }
+.format { background: var(--card); border: 1.5px solid var(--line); border-radius: 16px; padding: 14px; }
+.format h3 { margin: 0 0 2px; font-size: 17px; } .format > p { margin: 0 0 10px; color: var(--mute); font-size: 14px; }
+.style { display: block; width: 100%; text-align: left; min-height: 0; padding: 10px 12px; margin-top: 8px; border-color: var(--line); font-weight: 400; }
+.style b { display: block; } .style span { color: var(--mute); font-size: 14px; } .style[aria-pressed="true"] { border-color: var(--sage-d); background: #eef3e6; box-shadow: 0 0 0 2px var(--sage); }
+#ask { background: var(--ink); color: #fff; border-radius: 16px; padding: 16px; } #ask code { display: block; font: 14px/1.5 ui-monospace, Menlo, monospace; background: rgba(255,255,255,.12); border-radius: 10px; padding: 10px 12px; margin: 8px 0 12px; white-space: pre-wrap; }
+#ask button { border-color: var(--sage); background: var(--sage); color: var(--ink); } #ask p { margin: 0; } #ask small { display: block; opacity: .8; margin-top: 10px; }
+#reels { list-style: none; padding: 0; margin: 0; } #reels li { background: var(--card); border: 1.5px solid var(--line); border-radius: 12px; padding: 10px 14px; margin-bottom: 8px; display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; } #reels span { color: var(--mute); font-size: 14px; }
+[hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Reel Studio</h1>
+  <p>Check your clip, pick the kind of reel, then hand the request to Claude.</p>
+</header>
+
+<section>
+  <h2><b>1</b>Check your clip</h2>
+  <p>Drop in the video you filmed. It is checked on this computer and goes nowhere else.</p>
+  <div id="drop">
+    <p><strong>Drop a video here</strong></p>
+    <button type="button" class="pri" id="pick">Choose a video</button>
+    <input type="file" id="file" accept="video/*,.mov,.mp4,.m4v" hidden>
+    <small id="dropnote">.mp4 or .mov, filmed upright.</small>
+  </div>
+  <div id="result" hidden>
+    <div>
+      <div class="phone" id="phone"></div>
+      <p class="key" id="key" hidden><i></i>Instagram covers the shaded parts. Keep the top of your head below the dashed line.</p>
+    </div>
+    <div>
+      <p id="verdict" role="status"></p>
+      <p id="headline"></p>
+      <ul class="checks" id="checks"></ul>
+      <div class="again"><button type="button" id="again">Check another clip</button></div>
+    </div>
+  </div>
+</section>
+
+<section id="step2" hidden>
+  <h2><b>2</b>What kind of reel?</h2>
+  <p id="step2note"></p>
+  <div id="formats"></div>
+</section>
+
+<section id="step3" hidden>
+  <h2><b>3</b>Hand it to Claude</h2>
+  <p>Paste this where you talk to Claude Code. It does the edit and gives you a link to review the cut.</p>
+  <div id="ask">
+    <p>Your request</p>
+    <code id="say"></code>
+    <button type="button" id="copy">Copy the request</button>
+    <small id="brandnote" hidden>First reel? Claude asks a few questions about your brand before it starts. About 5 minutes, once.</small>
+  </div>
+</section>
+
+<section id="mine" hidden>
+  <h2>Your reels</h2>
+  <p>To open one, ask Claude: "give me the Reel Studio link for" and its name.</p>
+  <ul id="reels"></ul>
+</section>
+
+<script>
+window.REEL_HOME = /*HOME*/null;
+</script>
+<script>
+"use strict";
+const D = window.REEL_HOME || { formats: [], reels: [] }, $ = (s) => document.querySelector(s);
+const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
+const MARK = { pass: "✓", note: "!", retake: "✕", skipped: "–", wait: "…" };
+const CHECKS = ["Upright, frame rate", "Length", "Movement", "Light", "Space above your head", "Safe zones", "Not cut off"];
+let saved = null, verdict = null, pickFormat = null, pickStyle = null;
+
+function listChecks(items) {
+  const ul = $("#checks"); ul.textContent = "";
+  for (const c of items) {
+    const li = el("li", c.state); li.append(el("div", "m", MARK[c.state]), el("b", "", c.label));
+    if (c.detail) li.append(el("span", "", c.detail));
+    if (c.fix) li.append(el("span", "fix", c.fix));
+    ul.append(li);
+  }
+}
+function drawPhone(frame, r) {
+  const ph = $("#phone"); ph.textContent = "";
+  if (frame) { const im = el("img"); im.src = frame; im.alt = "A frame from your clip"; ph.append(im); }
+  if (!r) return;
+  const z = r.zones, pct = (v) => (v * 100).toFixed(2) + "%", add = (cls, css) => { const d = el("div", cls); d.style.cssText = css; ph.append(d); };
+  add("zone", `left:0;right:0;top:0;height:${pct(z.ig_top)}`); add("zone", `left:0;right:0;bottom:0;height:${pct(z.ig_bottom)}`);
+  add("zone", `right:0;width:${pct(z.ig_right)};top:${pct(z.ig_top)};bottom:${pct(z.ig_bottom)}`);
+  add("line", `top:${pct(z.headroom_good)}`);
+  if (r.head) add("head", `left:${pct(r.head.cx - r.head.w / 2)};top:${pct(r.head.top)};width:${pct(r.head.w)};height:${pct(r.head.h)}`);
+  $("#key").hidden = false;
+}
+function ask() {
+  if (!pickStyle) return "";
+  const clip = saved ? `the clip ${saved}` : "my clip";
+  return `Edit ${clip} ${pickStyle.ask}. Give me the Reel Studio link to review the cut, and wait for my yes before you build.`;
+}
+function refresh() {
+  document.querySelectorAll(".style").forEach((b) => b.setAttribute("aria-pressed", String(pickStyle && b.dataset.id === pickFormat.id + "/" + pickStyle.id)));
+  $("#step3").hidden = !pickStyle; $("#say").textContent = ask(); $("#brandnote").hidden = !!D.brand;
+}
+function showFormats() {
+  $("#step2").hidden = false;
+  $("#step2note").textContent = verdict === "retake" ? "You can still edit this clip, but the problems above will show in the reel. Filming again is the better fix."
+    : saved ? "Pick one. More kinds appear here as they are built." : "Pick one. You can also check a clip first, above.";
+  if ($("#formats").childElementCount) return;
+  for (const f of D.formats) {
+    const card = el("div", "format"); card.append(el("h3", "", f.name), el("p", "", f.does));
+    for (const s of f.styles || []) {
+      const b = el("button", "style"); b.type = "button"; b.dataset.id = f.id + "/" + s.id; b.setAttribute("aria-pressed", "false"); b.append(el("b", "", s.name), el("span", "", s.does));
+      b.addEventListener("click", () => { pickFormat = f; pickStyle = s; refresh(); $("#step3").scrollIntoView({ behavior: "smooth", block: "nearest" }); });
+      card.append(b);
+    }
+    $("#formats").append(card);
+  }
+}
+async function check(file) {
+  if (!file) return;
+  $("#drop").hidden = true; $("#result").hidden = false; $("#key").hidden = true; drawPhone(null, null);
+  $("#verdict").className = ""; $("#verdict").textContent = "Checking your clip."; $("#headline").textContent = `${file.name} · ${(file.size / 1e6).toFixed(0)} MB. Big files take a moment.`;
+  listChecks(CHECKS.map((label) => ({ label, state: "wait" })));
+  try {
+    const r = await fetch("/api/check?name=" + encodeURIComponent(file.name), { method: "POST", body: file }), j = await r.json();
+    if (!j.ok) throw new Error(j.error || "The check didn't finish.");
+    saved = j.saved; verdict = j.result.verdict;
+    $("#verdict").className = verdict; $("#verdict").textContent = verdict === "retake" ? "Retake." : "Good to edit.";
+    $("#headline").textContent = j.result.headline; listChecks(j.result.checks); drawPhone(j.frame, j.result);
+    showFormats(); refresh();
+  } catch (e) {
+    $("#verdict").className = "retake"; $("#verdict").textContent = "That didn't work."; $("#headline").textContent = e.message; $("#checks").textContent = "";
+  }
+}
+$("#pick").addEventListener("click", () => $("#file").click());
+$("#file").addEventListener("change", () => check($("#file").files[0]));
+$("#again").addEventListener("click", () => { $("#result").hidden = true; $("#drop").hidden = false; $("#file").value = ""; });
+const drop = $("#drop");
+["dragenter", "dragover"].forEach((n) => drop.addEventListener(n, (e) => { e.preventDefault(); drop.classList.add("over"); }));
+["dragleave", "drop"].forEach((n) => drop.addEventListener(n, (e) => { e.preventDefault(); drop.classList.remove("over"); }));
+drop.addEventListener("drop", (e) => check(e.dataTransfer.files[0]));
+window.addEventListener("dragover", (e) => e.preventDefault()); window.addEventListener("drop", (e) => e.preventDefault());   // a missed drop must not open the video in the tab
+$("#copy").addEventListener("click", async () => {
+  const b = $("#copy");
+  try { await navigator.clipboard.writeText(ask()); b.textContent = "Copied"; }
+  catch { const r = document.createRange(); r.selectNodeContents($("#say")); const s = getSelection(); s.removeAllRanges(); s.addRange(r); b.textContent = "Select and copy the line"; }
+  setTimeout(() => { b.textContent = "Copy the request"; }, 1800);
+});
+showFormats();
+if ((D.reels || []).length) {
+  $("#mine").hidden = false;
+  for (const r of D.reels) { const li = el("li"); li.append(el("b", "", r.name), el("span", "", r.state)); $("#reels").append(li); }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,15 @@
+{
+  "_note": "Added by By Mel Ross (0.12.0). The kinds of reel the home page offers. Only formats with \"status\": \"ready\" are shown: a format appears on the page the day it is built, never as 'coming soon'. 'ask' is what the copied request says; SKILL.md says how each one is carried out.",
+  "formats": [
+    { "id": "talking-head", "name": "Talking head", "status": "ready",
+      "does": "You, talking to the camera. Pauses and filler cut, captions on, a title in the first seconds.",
+      "styles": [
+        { "id": "simple", "name": "Simple", "does": "Clean cuts, captions and a hook title. A few graphics at most.", "ask": "as a simple talking head: clean cuts, captions, a hook title, and only a few graphics" },
+        { "id": "full", "name": "With graphics", "does": "The same, plus a graphic for most ideas: lists, labels, numbers, your pictures and GIFs.", "ask": "as a talking head with graphics: lots of graphics, and show me the looks page so I can pick" }
+      ] },
+    { "id": "b-roll", "name": "Talking head with B-roll", "status": "not-built", "does": "Your own clips laid over your voice." },
+    { "id": "split", "name": "Split screen", "status": "not-built", "does": "Two clips at once, one above the other." },
+    { "id": "to-the-beat", "name": "Clips cut to music", "status": "not-built", "does": "Short clips cut on the beat of a song, with your lines on screen." },
+    { "id": "carousel", "name": "Carousel", "status": "not-built", "does": "Slides made from your photos and words." }
+  ]
+}
