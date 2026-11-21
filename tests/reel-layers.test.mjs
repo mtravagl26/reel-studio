@@ -193,3 +193,21 @@ test("a call-to-action's CAPS word stays readable: a highlight too close to the 
   assert.equal(build(c).status, 0);
   assert.match(html(c), /<span style="color:#C8102E">MOVE<\/span>/, "a strong highlight colour is used as before");
 });
+
+test("a popup can be a video clip: a silent 30 fps window that starts where asked, holds its last frame or loops", { skip }, () => {
+  const c = makeReel([], { matte: null });
+  fs.mkdirSync(path.join(c.reel, "popups"), { recursive: true });
+  ff(["-f", "lavfi", "-i", "testsrc2=s=300x650:r=60:d=2", "-f", "lavfi", "-i", "sine=f=330:d=2", "-c:v", "libx264", "-preset", "ultrafast", "-pix_fmt", "yuv420p", "-c:a", "aac", "-shortest", path.join(c.reel, "popups", "screen.mp4")]);
+  const edit = JSON.parse(fs.readFileSync(path.join(c.reel, "edit.json"), "utf8"));
+  edit.cards = [{ type: "popup", src: "popups/screen.mp4", start: 0.5, end: 3.5, from: 0.5 }, { type: "popup", src: "popups/screen.mp4", start: 0.5, end: 3.5, loop: true, pos: "top-right", size: 300 }];
+  fs.writeFileSync(path.join(c.reel, "edit.json"), JSON.stringify(edit));
+  const r = build(c); assert.equal(r.status, 0, r.stdout + r.stderr);
+  const h = html(c);
+  assert.match(h, /class="pop vclip" style="left:60px;top:150px;width:440px;height:953px"><video id="k0v" src="img\/0_screen\.mp4" muted playsinline data-start="0\.5" data-duration="3\.0"/, "top left, 440 wide by default");
+  assert.match(h, /class="pop vclip" style="left:720px;top:150px;width:300px/);
+  assert.doesNotMatch(h, /class="pop clip"/, "the name clip belongs to HyperFrames' own timed elements, which are never hidden at the start");
+  for (const f of ["0_screen.mp4", "1_screen.mp4"]) {
+    const info = run("ffprobe", ["-v", "error", "-show_entries", "stream=codec_type,r_frame_rate:format=duration", "-of", "csv=p=0", path.join(c.reel, "proj", "img", f)]).stdout.trim().split("\n");
+    assert.equal(info[0], "video,30/1", f + " is 30 fps with no sound"); assert.ok(Math.abs(Number(info.at(-1)) - 3.5) < 0.2, f + " lasts as long as it is on screen (3.5 s): " + info.at(-1));
+  }
+});

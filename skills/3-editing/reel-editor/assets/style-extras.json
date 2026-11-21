@@ -8,6 +8,7 @@
     { "id": "A5", "name": "Comment, message or notification", "draw": "social", "card": "motion yt-comment-card / chat-message / native-notification-pop", "needs": "what it should read" },
     { "id": "A6", "name": "GIFs that pop up", "draw": "gif", "card": "popup", "needs": "a free GIPHY key (references/giphy.md); you pick the GIFs on the touch-ups page" },
     { "id": "A7", "name": "Photos circling your head", "draw": "orbit", "card": "orbit", "needs": "1 to 6 pictures; Mac only" },
-    { "id": "A8", "name": "Website in a browser window", "draw": "shot", "card": "shot", "needs": "the web address" }
+    { "id": "A8", "name": "Website in a browser window", "draw": "shot", "card": "shot", "needs": "the web address" },
+    { "id": "A9", "name": "Video clip or screen recording in a window", "draw": "clip", "card": "popup (video src)", "needs": "your clip, uploaded on the review page" }
   ]
 }

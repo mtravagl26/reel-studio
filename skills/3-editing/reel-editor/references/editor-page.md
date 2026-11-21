@@ -60,3 +60,13 @@ Every change first copies `edit.json`, `edl.json`, `master_transcript.json`, `ex
 - Only pills and popups can be added; stickers, titles, list cards and the other card types can be switched on/off, retimed and given a layer, not created.
 - Not built: dragging on a timeline, brand-new cards of other types, restoring cuts removed before this page, music, color/look settings.
 - HEIC conversion needs macOS (`sips`). EXIF-rotated phone JPGs are untested.
+
+## Video clips that pop in (0.13.0)
+
+A popup can be a video clip: a screen recording, or b-roll from their phone. It plays in a rounded window, in front of the speaker or behind them (`"layer": "behind"`, Mac only), **without sound**.
+
+- **Where they add it.** Before the build: review page > Graphics > Add a graphic > "My video clip or screen recording", then the upload button on that request (or on any graphic set to Change). After the build: touch-ups page > Popups > "+ Add a picture, GIF or video clip".
+- **What the upload does.** `.mp4 .mov .m4v .webm` are accepted. The server keeps a small upright copy (`popups/<id>.clip.mp4`: 30 fps, at most 1080 px wide, no sound, at most 3 minutes) and moves the original to `popups/originals/`.
+- **The card.** `{ "type": "popup", "src": "popups/<id>.clip.mp4", "pos": "top-left", "size": 440, "start": 36.0, "end": 40.0, "from": 1.0, "loop": false }`. `from` = seconds into the clip to start at. A clip shorter than its time on screen holds its last frame, or starts again with `"loop": true`.
+- **Placement.** Defaults to top left at 440 px wide, a window beside the face. A tall phone recording at that size is about 950 px high, so check a frame: it must not cover the eyes or the captions. Use `size`, `pos` or `x`/`y` to move it.
+- **Not for:** the ring of pictures around the head (pictures and GIFs only), or anything that needs the clip's sound.

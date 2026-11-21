@@ -78,7 +78,7 @@ textarea{min-height:80px;resize:vertical}
 .giphy{flex-basis:100%;max-width:100%;min-width:0;box-sizing:border-box;border:2px solid var(--line);border-radius:14px;padding:10px;background:#fff}.giphy[hidden]{display:none}
 .giphy .ctl{display:flex;gap:6px;flex-wrap:wrap}.giphy input[type=search]{flex:1 1 120px;min-width:0;width:100%;box-sizing:border-box;font:inherit;padding:8px 10px;border:2px solid var(--line);border-radius:10px}.giphy select{font:inherit;padding:8px;border:2px solid var(--line);border-radius:10px;background:#fff}
 .ggrid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin:8px 0}.ggrid button{padding:0;border:2px solid var(--line);border-radius:8px;overflow:hidden;background:#eee;cursor:pointer;aspect-ratio:1}.ggrid img{width:100%;height:100%;object-fit:cover;display:block}
-.upchip{position:relative;display:inline-block}.upchip img{width:56px;height:56px;object-fit:cover;border-radius:8px;border:2px solid var(--line);display:block}
+.upchip{position:relative;display:inline-block}.upchip img,.upchip video{width:56px;height:56px;object-fit:cover;border-radius:8px;border:2px solid var(--line);display:block}
 .upchip button{position:absolute;top:-6px;right:-6px;width:22px;height:22px;border-radius:50%;border:0;background:var(--drop,#a32727);color:#fff;font-weight:700;line-height:1;cursor:pointer}
 .card.wanted .b{margin-top:8px}
 #addform[hidden],#addg[hidden]{display:none}
@@ -559,8 +559,8 @@ const box_ = g => box(g, false);
 function uploader(files, onChange) {
   const wrap = document.createElement("div"); wrap.className = "upl";
   if (!window.REEL_STUDIO_LINKS) return wrap;
-  const inp = document.createElement("input"); inp.type = "file"; inp.accept = "image/*,.gif,.heic,.heif"; inp.multiple = true; inp.hidden = true;
-  const btn = document.createElement("button"); btn.type = "button"; btn.className = "b quiet"; btn.textContent = files.length ? "Add another picture" : "Use my own picture or GIF";
+  const inp = document.createElement("input"); inp.type = "file"; inp.accept = "image/*,video/mp4,video/quicktime,.gif,.heic,.heif,.mp4,.mov,.m4v"; inp.multiple = true; inp.hidden = true;
+  const btn = document.createElement("button"); btn.type = "button"; btn.className = "b quiet"; btn.textContent = files.length ? "Add another" : "Use my own picture, GIF or video clip";
   const msg = document.createElement("span"); msg.className = "lede";
   btn.addEventListener("click", () => inp.click());
   inp.addEventListener("change", async () => {
@@ -615,7 +615,9 @@ function uploader(files, onChange) {
   wrap.append(btn, gbtn, inp, msg, gbox);
   files.forEach((src, k) => {
     const chip = document.createElement("span"); chip.className = "upchip";
-    const im = document.createElement("img"); im.src = "/files/" + src; im.alt = "";
+    const clip = /\.(mp4|mov|m4v|webm)$/i.test(src);                // 0.13.0: a video clip shows its first moment
+    const im = document.createElement(clip ? "video" : "img"); im.src = "/files/" + src + (clip ? "#t=0.5" : "");
+    if (clip) { im.muted = true; im.playsInline = true; im.preload = "metadata"; } else im.alt = "";
     const rm = document.createElement("button"); rm.type = "button"; rm.textContent = "×"; rm.title = "Remove this picture"; rm.setAttribute("aria-label", "Remove this picture");
     rm.addEventListener("click", () => onChange(files.filter((_, i) => i !== k)));
     chip.append(im, rm); wrap.append(chip);
@@ -635,6 +637,7 @@ const KINDS = [
   ["note", "Handwritten note on taped paper", ""],
   ["number", "Number or stat card", ""],
   ["photo", "My photo or screenshot", "Put the picture in the reel folder, or say which site to screenshot."],
+  ["clip", "My video clip or screen recording", "Upload it once the request is added, with the button on its card. It plays in a small window, without sound."],
   ["gif", "GIF", "Say what the GIF should be. You can also search and place GIFs yourself on the touch-ups page after the build."],
   ["carousel", "Animation: picture carousel", "Needs 3 or more pictures from you."],
   ["chart", "Animation: chart that draws itself", "Say the numbers."],

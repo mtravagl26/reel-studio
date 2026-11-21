@@ -109,6 +109,14 @@ test("edits are validated: caption words, card fields, times", () => {
   assert.equal(add.edit.cards[add.info.index].y, 130); assert.ok(add.edit.cards[add.info.index].id);
   assert.throws(() => core.applyOp(edit, { op: "card_add", card: { type: "popup", start: 1, src: "../../etc/passwd" } }, o), /upload/);
   assert.throws(() => core.applyOp(edit, { op: "card_add", card: { type: "block", start: 1 } }, o), /pills/);
+  // 0.13.0: a popup can be a video clip. It opens top left and wider; "from" and "loop" are its own settings; the head ring refuses it.
+  const clip = core.applyOp(edit, { op: "card_add", card: { type: "popup", start: 1, src: "popups/abc-screen.clip.mp4" } }, o);
+  const ci = clip.info.index, cc = clip.edit.cards[ci]; assert.equal(cc.pos, "top-left"); assert.equal(cc.size, 440);
+  const set = core.applyOp(clip.edit, { op: "card_set", i: ci, set: { from: "2.5", loop: true } }, o).edit.cards[ci];
+  assert.equal(set.from, 2.5); assert.equal(set.loop, true);
+  assert.throws(() => core.applyOp(clip.edit, { op: "card_set", i: ci, set: { from: -1 } }, o), /where the clip starts/);
+  assert.throws(() => core.applyOp(edit, { op: "card_add", card: { type: "orbit", start: 1, src: ["popups/a.png", "popups/b.clip.mp4"] } }, o), /pictures, not video clips/);
+  assert.equal(core.popupBox({ src: "popups/x.clip.mp4" }, 720, 1560).w, 440); assert.equal(core.popupBox({ src: "popups/x.png" }, 720, 1560).w, 360);
   const s = core.applyOp(edit, { op: "sfx_set", i: 0, set: { off: true, db: -10 } }, o).edit.sfx_events[0];
   assert.equal(s.off, true); assert.equal(s.db, -10);
   assert.equal(core.applyOp(edit, { op: "sfx_del", i: 0 }, o).edit.sfx_events.length, 2);
@@ -276,6 +284,16 @@ test("server: uploads a picture into popups/, refuses other files, serves reel f
     assert.equal(bad.ok, false);
     const notPic = await post("/api/upload?name=fake.png", null, Buffer.from("not a picture"));
     assert.equal(notPic.ok, false); assert.match(notPic.error, /not a picture/);
+    // 0.13.0: a video clip uploads too. The page gets a small silent copy; the original is kept aside.
+    const movFile = path.join(reel, "..", "take.mov");
+    ff(["-f", "lavfi", "-i", "testsrc2=s=320x568:r=60:d=2", "-f", "lavfi", "-i", "sine=f=330:d=2", "-c:v", "libx264", "-preset", "ultrafast", "-pix_fmt", "yuv420p", "-c:a", "aac", "-shortest", "-f", "mov", movFile]);
+    const vid = await post("/api/upload?name=My%20Screen.MOV", null, fs.readFileSync(movFile));
+    assert.equal(vid.ok, true, JSON.stringify(vid)); assert.match(vid.upload.src, /^popups\/[a-z0-9]+-My-Screen\.clip\.mp4$/); assert.equal(vid.upload.video, true);
+    assert.equal(fs.readdirSync(path.join(reel, "popups", "originals")).filter((n) => /My-Screen\.mov$/.test(n)).length, 1, "the original is kept");
+    const vinfo = run("ffprobe", ["-v", "error", "-show_entries", "stream=codec_type,r_frame_rate", "-of", "csv=p=0", path.join(reel, vid.upload.src)]).stdout.trim();
+    assert.equal(vinfo, "video,30/1", "30 fps and no sound: " + vinfo);
+    assert.equal(vid.state.popups.find((p) => p.src === vid.upload.src).video, true);
+    const notVid = await post("/api/upload?name=fake.mp4", null, Buffer.from("not a video")); assert.equal(notVid.ok, false); assert.match(notVid.error, /could not be read/);
     const add = await post("/api/op", { op: { op: "card_add", card: { type: "popup", src: up.upload.src, start: 2 } } });
     assert.equal(add.ok, true, JSON.stringify(add));
     assert.equal((await get("/files/" + up.upload.src)).status, 200);
