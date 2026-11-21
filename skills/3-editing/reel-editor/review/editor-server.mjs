@@ -218,7 +218,7 @@ function probeMedia(rel) {
   const c = mediaInfo.get(rel); if (c && c.m === st.mtimeMs) return c.info;
   const r = run("ffprobe", ["-v", "error", "-select_streams", "v:0", "-show_entries", "stream=width,height,nb_frames,codec_name", "-of", "json", f]);
   let info = null;
-  try { const s = JSON.parse(r.stdout).streams[0]; if (s.width > 0 && s.height > 0) info = { w: s.width, h: s.height, animated: /\.gif$/i.test(rel) && Number(s.nb_frames || 0) > 1 }; } catch { /* not an image */ }
+  try { const s = JSON.parse(r.stdout).streams[0]; if (s.width > 0 && s.height > 0) info = { w: s.width, h: s.height, animated: /\.gif$/i.test(rel) && Number(s.nb_frames || 0) > 1, video: /\.(mp4|mov|m4v|webm)$/i.test(rel) }; } catch { /* not an image */ }
   mediaInfo.set(rel, { m: st.mtimeMs, info });
   return info;
 }
@@ -226,9 +226,20 @@ function saveUpload(buf, rawName) {
   const ext = path.extname(rawName).toLowerCase();
   const base = path.basename(rawName, path.extname(rawName)).replace(/[^\w\- ]+/g, "").trim().replace(/\s+/g, "-").slice(0, 40) || "popup";
   const id = `${Date.now().toString(36)}-${base}`;
-  if (![".gif", ".png", ".jpg", ".jpeg", ".webp", ".heic", ".heif"].includes(ext)) throw new Error("use a gif, png, jpg, webp or heic picture");
+  const isVideo = [".mp4", ".mov", ".m4v", ".webm"].includes(ext);   // Added by By Mel Ross (0.13.0): a video clip or screen recording
+  if (!isVideo && ![".gif", ".png", ".jpg", ".jpeg", ".webp", ".heic", ".heif"].includes(ext)) throw new Error("use a picture (gif, png, jpg, webp, heic) or a video clip (mp4, mov)");
   let out = `${id}${ext === ".jpeg" ? ".jpg" : ext}`;
   fs.writeFileSync(path.join(P.popups, out), buf);
+  if (isVideo) {
+    // Keep a small upright copy for the page and the build: 30 fps, at most 1080 wide, no sound, at most 3 minutes. A phone clip
+    // filmed sideways is turned upright here, so its size is right everywhere after. The original stays in popups/originals.
+    const mp4 = `${id}.clip.mp4`;
+    const r = run("ffmpeg", ["-v", "error", "-y", "-i", path.join(P.popups, out), "-t", "180", "-vf", "fps=30,scale='min(1080,iw)':-2,format=yuv420p", "-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-g", "30", "-an", "-movflags", "+faststart", path.join(P.popups, mp4)]);
+    if (r.status !== 0 || !exists(path.join(P.popups, mp4))) { fs.rmSync(path.join(P.popups, out), { force: true }); fs.rmSync(path.join(P.popups, mp4), { force: true }); throw new Error("that video could not be read"); }
+    fs.mkdirSync(path.join(P.popups, "originals"), { recursive: true });
+    fs.renameSync(path.join(P.popups, out), path.join(P.popups, "originals", out));
+    out = mp4;
+  }
   if (ext === ".heic" || ext === ".heif") {   // iPhone photo: macOS sips makes a JPG; the original stays in popups/originals
     const jpg = `${id}.jpg`;
     const r = run("sips", ["-s", "format", "jpeg", "-s", "formatOptions", "92", path.join(P.popups, out), "--out", path.join(P.popups, jpg)]);
@@ -265,8 +276,8 @@ function view() {
   });
   const media = {};
   for (const c of edit.cards || []) if (c.type === "popup" || c.src) { const s = Array.isArray(c.src) ? c.src[0] : c.src; if (s) { const i = probeMedia(s); if (i) media[s] = i; } }
-  const files = exists(P.popups) ? fs.readdirSync(P.popups).filter((n) => /\.(gif|png|jpe?g|webp)$/i.test(n)).map((n) => ({ src: `popups/${n}`, ...(probeMedia(`popups/${n}`) || {}) })) : [];
-  for (const f of files) if (f.w) media[f.src] = { w: f.w, h: f.h, animated: f.animated };
+  const files = exists(P.popups) ? fs.readdirSync(P.popups).filter((n) => /\.(gif|png|jpe?g|webp|mp4|webm)$/i.test(n)).map((n) => ({ src: `popups/${n}`, ...(probeMedia(`popups/${n}`) || {}) })) : [];
+  for (const f of files) if (f.w) media[f.src] = { w: f.w, h: f.h, animated: f.animated, video: f.video };
   const renders = listRenders();
   const job = readJSON(P.job, { state: "idle" });
   const cutsStale = meta.cut_key !== cutKeyNow(st);
@@ -487,7 +498,7 @@ const server = http.createServer(async (req, res) => {
     }
     if (req.method === "POST" && p === "/api/review-upload") {   // Added by By Mel Ross (0.10.2): their own picture for a graphic, from the review page (works before the build)
       try {
-        const buf = await readBody(req, 60e6); if (!buf.length) throw new Error("empty file");
+        const buf = await readBody(req, 600e6); if (!buf.length) throw new Error("empty file");
         fs.mkdirSync(P.popups, { recursive: true });
         return json(res, 200, { ok: true, upload: saveUpload(buf, url.searchParams.get("name") || "picture.png") });
       } catch (e) { return json(res, 400, { ok: false, error: String(e.message || e) }); }
@@ -504,7 +515,7 @@ const server = http.createServer(async (req, res) => {
         if (p === "/api/giphy-add") { const b = JSON.parse((await readBody(req, 1e5)).toString() || "{}"); const up = await giphyAdd(b); return json(res, 200, { ok: true, upload: up, state: view() }); }
         if (p === "/api/text-default") { const b = JSON.parse((await readBody(req, 1e5)).toString() || "{}"); setTextDefault(b); return json(res, 200, { ok: true, state: view() }); }
         if (p === "/api/upload") {
-          const buf = await readBody(req, 60e6);
+          const buf = await readBody(req, 600e6);
           if (!buf.length) throw new Error("empty file");
           const up = saveUpload(buf, url.searchParams.get("name") || "popup.png");
           return json(res, 200, { ok: true, upload: up, state: view() });

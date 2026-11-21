@@ -30,6 +30,8 @@ edit.json (written by auto_edit.py, then Claude marks accents and adds cards):
                                                      or animated GIF that pops up. pos: top-left | top-center | top-right | middle-left | middle-right |
                                                      center | custom (then "x", "y" = centre in px). size = width in px. GIFs are converted to a looped
                                                      transparent video so they animate in the render. "frame": true = white photo border (default for jpg).
+                                                     (0.13.0) src may be a video clip (.mp4 .mov .m4v .webm): it plays in a rounded window, no sound.
+                                                     "from": seconds into the clip to start at; "loop": true starts it again if it is shorter than its time on screen.
      polaroids {src: ["a.jpg","b.jpg","c.jpg"], label: "Amazon storefront", side: "left", y: 120, size: 260}   (Style Menu L2, Added by By Mel Ross) 1-4 tilted
                                                      white photo cards that fan in, with a handwritten label on a torn paper strip. side: left | right | center (or x).
      popup also takes caption: "how is this real?!" (Style Menu L9): a handwritten label on a torn strip under the photo; add "exit": true for a soft shrink-out.
@@ -167,7 +169,9 @@ def img(src):
             return f"img/{dst.name}"
     print(f"warning: image not found: {src}"); return ""
 
-def popup_asset(src, secs):
+VIDEO_EXT = (".mp4", ".mov", ".m4v", ".webm")      # Added by By Mel Ross (0.13.0): a popup can be a video clip (a screen recording, b-roll)
+
+def popup_asset(src, secs, start=0.0, loop=False):
     """Added by By Mel Ross (editor page). Copy a popup picture into the project: returns (kind, project path, width, height).
     Pictures become PNG like img(). An animated GIF becomes a looped transparent video (VP9 with alpha, 30 fps, long enough for
     `secs`) because the render draws the page frame by frame and a plain <img> GIF would sit on its first frame."""
@@ -181,6 +185,22 @@ def popup_asset(src, secs):
     except ValueError: _cw = _ch = 0
     if _chk.returncode != 0 or _cw <= 0 or _ch <= 0:   # a damaged file (ffprobe reports 0x0); looping one would make ffmpeg spin forever, so look first
         print(f"warning: popup {src} is not a picture this machine can read: skipped"); return None
+    if cand.suffix.lower() in VIDEO_EXT:
+        # Added by By Mel Ross (0.13.0). A video clip: cut to the part that shows (from `start`, for `secs`), 30 fps, no sound, a keyframe
+        # every half second so the render can seek it frame by frame. A clip shorter than its time on screen holds its last frame,
+        # or starts again with "loop": true. Phone clips filmed sideways are turned upright (ffmpeg reads the rotation flag).
+        dst = proj / "img" / f"{n}_{cand.stem}.mp4"
+        try:
+            r = subprocess.run(["ffmpeg", "-v", "error", "-y", *(["-stream_loop", "-1"] if loop else []), "-ss", f"{max(float(start), 0):.2f}", "-i", str(cand), "-t", f"{secs + 0.5:.2f}",
+                                "-vf", f"fps=30,scale='min(720,iw)':-2:flags=lanczos,tpad=stop_mode=clone:stop_duration={secs + 1:.2f},format=yuv420p", "-t", f"{secs + 0.5:.2f}",
+                                "-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-g", "15", "-an", "-movflags", "+faststart", str(dst)], capture_output=True, text=True, timeout=300)
+        except subprocess.TimeoutExpired:
+            r = subprocess.CompletedProcess([], 1, "", "took too long")
+        if r.returncode != 0 or not dst.exists():
+            print(f"warning: video clip {src} could not be prepared ({r.stderr.strip()[:200]}): left out"); return None
+        wh = subprocess.run(["ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries", "stream=width,height", "-of", "csv=p=0", str(dst)],
+                            capture_output=True, text=True).stdout.strip().split(",")
+        return "clip", f"img/{dst.name}", int(wh[0]), int(wh[1])
     if cand.suffix.lower() == ".gif":
         dst = proj / "img" / f"{n}_{cand.stem}.webm"
         # looping: the loop filter repeats the first N decoded frames (N = the GIF's frame count, at most 900), which cycles at the GIF's own
@@ -437,12 +457,13 @@ for i, c in enumerate(edit.get("cards", [])):
         sfx("pop", a, -13)
     elif kind == "popup":
         # Added by By Mel Ross (editor page): a picture, graphic or animated GIF that pops up in a corner (default top right, clear of the face)
-        asset = popup_asset(c["src"], max(b - a, 0.5))
+        asset = popup_asset(c["src"], max(b - a, 0.5), c.get("from", 0), bool(c.get("loop")))
         if not asset: continue
         mkind, ppath, iw, ih = asset
-        pw = int(c.get("size", 360)); ph = max(int(round(pw * ih / max(iw, 1))), 1)
+        is_clip = mkind == "clip"; mkind = "video" if is_clip else mkind
+        pw = int(c.get("size", 440 if is_clip else 360)); ph = max(int(round(pw * ih / max(iw, 1))), 1)
         framed = c.get("frame", Path(str(c["src"])).suffix.lower() in (".jpg", ".jpeg", ".heic", ".heif"))
-        pos = c.get("pos", "top-right"); top0 = 110 if c.get("caption") else 150; mx = 60
+        pos = c.get("pos", "top-left" if is_clip else "top-right"); top0 = 110 if c.get("caption") else 150; mx = 60
         if pos == "custom" or ("x" in c and "y" in c and pos not in POPUP_POS):
             left, top = int(c.get("x", W / 2) - pw / 2), int(c.get("y", 400) - ph / 2)
         else:
@@ -455,9 +476,12 @@ for i, c in enumerate(edit.get("cards", [])):
         if c.get("caption"):                                          # Style Menu L9: a handwritten label on a torn strip across the photo's lower edge
             cap_html, tw_, th_ = tape(c["caption"], c.get("caption_size", 56), c.get("caption_bg", POP), c.get("caption_color", MAIN), seed=i + 3, rot=c.get("caption_rotate", -3), maxw=max(pw + 80, 320))
             cap_html = f'<div style="position:absolute;left:{(pw - tw_) // 2}px;top:{ph - 22}px;width:{tw_}px;height:{th_}px">{cap_html}</div>'
-        front.append(f'<div id="{cid}" class="pop{" framed" if framed else ""}" style="left:{left}px;top:{top}px;width:{pw}px;height:{ph}px">{media}{cap_html}</div>')
+        front.append(f'<div id="{cid}" class="pop{" framed" if framed else ""}{" vclip" if is_clip else ""}" style="left:{left}px;top:{top}px;width:{pw}px;height:{ph}px">{media}{cap_html}</div>')
         show(f"#{cid}", a, b, 0.15)
-        js.append(f'tl.fromTo("#{cid}",{{scale:0,rotation:{rot - 20}}},{{scale:1,rotation:{rot},duration:0.5,ease:"back.out(2.4)"}},{q(a)});')
+        if is_clip:   # a window of video slides up into place; it does not spin in like a sticker
+            js.append(f'tl.fromTo("#{cid}",{{scale:0.82,y:60,rotation:{rot}}},{{scale:1,y:0,rotation:{rot},duration:0.4,ease:"back.out(1.6)"}},{q(a)});')
+        else:
+            js.append(f'tl.fromTo("#{cid}",{{scale:0,rotation:{rot - 20}}},{{scale:1,rotation:{rot},duration:0.5,ease:"back.out(2.4)"}},{q(a)});')
         if c.get("exit") or c.get("caption"):
             js.append(f'tl.to("#{cid}",{{scale:0.86,rotation:{rot + 4},duration:0.2,ease:"power2.in"}},{q(max(b - 0.2, a + 0.6))});')
         if cap_html: js.append(f'tl.fromTo("#{cid} .tp",{{opacity:0,y:14}},{{opacity:1,y:0,duration:0.3,ease:"power2.out"}},{q(a + 0.35)});')
@@ -672,6 +696,7 @@ if ORBITS or any(c.get("layer") in ("behind", "both") for c in edit.get("cards",
         if ok and not head: ok, why = False, "the head was not found in the cutout"
         srcs = c.get("src") if isinstance(c.get("src"), list) else [c.get("src")]
         assets = [x for x in (popup_asset(s_, max(b_ - a_, 0.5)) for s_ in srcs[:6] if s_) if x]
+        assets = [x for x in assets if x[0] != "clip"]                   # the ring takes pictures and GIFs; a video clip is left out
         if not assets: print(f"warning: orbit card {i} has no pictures this machine can read: skipped"); continue
         hd = head or {"cx": W // 2, "top": 330, "w": 420, "h": 546}
         size = int(c.get("size") or min(max(hd["w"] * 0.4, 120), 200)); depth = float(c.get("depth", 0.16))
@@ -804,6 +829,8 @@ html, body {{ margin: 0; background: #000; overflow: hidden; }}
 .stk img {{ width: 100%; display: block; filter: drop-shadow(0 14px 22px rgba(0,0,0,.25)); }}
 .pop {{ position: absolute; }}
 .orb {{ position: absolute; inset: 0; transform-origin: 50% 30%; }}
+.pop.vclip {{ border-radius: 28px; overflow: hidden; box-shadow: 0 18px 44px rgba(0,0,0,.34); background: #000; }}
+.pop.vclip video {{ object-fit: cover; filter: none; }}
 .pop img, .pop video {{ width: 100%; height: 100%; object-fit: contain; display: block; filter: drop-shadow(0 12px 20px rgba(0,0,0,.28)); }}
 .pop.framed {{ box-sizing: border-box; border: 12px solid #fff; border-radius: 18px; background: #fff; box-shadow: 0 26px 60px rgba(0,0,0,.28); }}
 .pop.framed img, .pop.framed video {{ object-fit: cover; filter: none; border-radius: 6px; }}

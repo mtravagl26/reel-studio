@@ -164,7 +164,7 @@ def do_import(reel, review):
     AMT = {"few": "minimal (about 1 every 8-12 s)", "some": "balanced (about 1 every 4-6 s)", "lots": "busy (about 1 every 2-4 s)"}
     if d.get("amount") in AMT:
         print(f'GRAPHICS AMOUNT: {AMT[d["amount"]]} for this reel. Add or drop cards in edit.json to match, then export the review again so they can see the new plan.')
-    KIND = {"choose": "your choice of card", "title": "title card", "list": "card (rows)", "checks": "xlist", "label": "tag", "note": "note", "number": "stat", "photo": "image, shot or popup",
+    KIND = {"choose": "your choice of card", "title": "title card", "list": "card (rows)", "checks": "xlist", "label": "tag", "note": "note", "clip": "popup whose src is their video clip (plays in a rounded window, no sound; \"from\" = seconds in, \"loop\")", "number": "stat", "photo": "image, shot or popup",
             "gif": "popup with a GIF (references/giphy.md)", "carousel": "motion carousel-*", "chart": "motion chart (references/motions.md)", "counter": "motion count-up",
             "follow": "follow card", "social": "motion comment / chat / notification", "orbit": "orbit"}
     for w in d.get("wanted") or []:

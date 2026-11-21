@@ -201,7 +201,7 @@ const FIELDS = {
   cta: [...COMMON, "text", "y", "layer"],
   note: [...COMMON, "text", "y", "rotate", "size", "layer"],   // Added by By Mel Ross (0.11.0): taped paper note
   card: [...COMMON, "title", "rows", "layer", "glass"],
-  popup: [...COMMON, "pos", "x", "y", "size", "rotate", "frame", "layer"],
+  popup: [...COMMON, "pos", "x", "y", "size", "rotate", "frame", "layer", "from", "loop"],   // 0.13.0: "from" and "loop" are for video clips
   orbit: [...COMMON, "level", "size", "period", "frame"],   // Added by By Mel Ross (0.9.0): pictures that circle the head
   sticker: [...COMMON, "x", "y", "size", "rotate", "layer"],
   image: [...COMMON, "layer"], shot: [...COMMON, "label", "y", "layer"],
@@ -226,7 +226,8 @@ export function cleanCardFields(type, set, dur) {
   for (const [k, v] of Object.entries(set || {})) {
     if (!allowed.has(k)) throw new Error(`${k} can't be changed on a ${type} card`);
     if (k === "start" || k === "end") out[k] = r4(num(v, k, 0, dur));
-    else if (k === "off" || k === "glass" || k === "frame") out[k] = !!v;
+    else if (k === "off" || k === "glass" || k === "frame" || k === "loop") out[k] = !!v;
+    else if (k === "from") out[k] = num(v, "where the clip starts", 0, 900);
     else if (k === "text" || k === "title" || k === "label") out[k] = cleanText(v, k);
     else if (k === "layer") { if (!LAYERS.has(v)) throw new Error("layer must be front, behind or both"); out[k] = v; }
     else if (k === "pos") { if (!POS.has(v)) throw new Error("unknown position"); out[k] = v; }
@@ -283,12 +284,14 @@ export function applyOp(edit0, op, { dur }) {
       if (type === "tag") { card.text = card.text || "new pill"; card.y = card.y ?? 130; card.glass = card.glass ?? true; card.sfx = false; }
       if (type === "popup") {
         if (!/^popups\/[\w.\- ]+$/.test(String(src || ""))) throw new Error("popups come from the upload button");
-        card.src = src; card.pos = card.pos || "top-right"; card.size = card.size || 360;
+        card.src = src; const clip = IS_VIDEO.test(src);   // 0.13.0: a video clip opens bigger, top left, like a window beside the face
+        card.pos = card.pos || (clip ? "top-left" : "top-right"); card.size = card.size || (clip ? 440 : 360);
       }
       if (type === "orbit") {
         const list = Array.isArray(src) ? src.map(String) : [];
         if (list.length < 1 || list.length > 6) throw new Error("pick 1 to 6 pictures");
         if (!list.every((x) => /^popups\/[\w.\- ]+$/.test(x))) throw new Error("pictures come from the upload button");
+        if (list.some((x) => IS_VIDEO.test(x))) throw new Error("the ring takes pictures, not video clips");
         card.src = list; card.level = card.level || "crown"; card.period = card.period || 4;
       }
       edit.cards = [...(edit.cards || []), card].sort((x, y) => x.start - y.start);
@@ -321,10 +324,11 @@ export function applyOp(edit0, op, { dur }) {
 }
 
 /** Where a popup lands on the 1080x1920 frame: the same arithmetic as build_reel.py (left/top of the box, in px). */
+export const IS_VIDEO = /\.(mp4|mov|m4v|webm)$/i;
 export function popupBox(card, iw, ih) {
-  const W = 1080, H = 1920, pw = Number(card.size || 360), ph = Math.max(Math.round((pw * ih) / Math.max(iw, 1)), 1);
+  const W = 1080, H = 1920, pw = Number(card.size || (IS_VIDEO.test(String(card.src || "")) ? 440 : 360)), ph = Math.max(Math.round((pw * ih) / Math.max(iw, 1)), 1);
   const named = { "top-left": ["top", "left"], "top-center": ["top", "center"], "top-right": ["top", "right"], "middle-left": ["middle", "left"], "middle-right": ["middle", "right"], center: ["center", "center"] };
-  const pos = card.pos || "top-right";
+  const pos = card.pos || (IS_VIDEO.test(String(card.src || "")) ? "top-left" : "top-right");
   if (pos === "custom" || (card.x != null && card.y != null && !named[pos])) return { left: Math.trunc((card.x ?? W / 2) - pw / 2), top: Math.trunc((card.y ?? 400) - ph / 2), w: pw, h: ph };
   const [v, h] = named[pos] || named["top-right"];
   return {

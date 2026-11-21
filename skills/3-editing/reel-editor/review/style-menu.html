@@ -136,6 +136,7 @@ function extraSketch(x) {
   else if (d === "social") { const c = add("paper", "left:10%;right:10%;top:9%;padding:3cqw 4cqw;background:#fff;font-size:5cqw;font-weight:600;border-radius:5cqw"); c.textContent = "this changed my week"; }
   else if (d === "gif") { const p = add("photo", "right:6%;top:8%;width:36%;height:20%;transform:rotate(4deg);border-radius:2cqw"); p.append(el("i")); add("strip", "right:8%;top:25%;font-size:4.6cqw;font-weight:700;transform:none", "GIF"); }
   else if (d === "orbit") [[14, 22, -8], [40, 14, 0], [66, 22, 8]].forEach(([l, t, r]) => { const p = add("photo", `left:${l}%;top:${t}%;width:20%;height:11%;padding:1cqw;transform:rotate(${r}deg)`); p.append(el("i")); });
+  else if (d === "clip") { const c = add("", "left:6%;top:8%;width:38%;height:40%;border-radius:4cqw;background:#0d2b2d;box-shadow:0 2cqw 5cqw rgba(0,0,0,.3)"); const t = el("div"); t.style.cssText = "left:50%;top:50%;margin:-5cqw 0 0 -3.5cqw;border-left:8cqw solid #fff;border-top:5cqw solid transparent;border-bottom:5cqw solid transparent"; c.append(t); }
   else if (d === "shot") { const c = add("paper", "left:10%;right:10%;top:6%;height:22%;background:#fff;overflow:hidden"); const bar = el("div"); bar.style.cssText = "left:0;right:0;top:0;height:18%;background:#e1dccf"; c.append(bar); }
   return f;
 }
