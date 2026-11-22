@@ -35,9 +35,21 @@ label.f { display: block; font-size: 13px; color: #5b6b69; margin: 10px 0 4px; }
 .grow { flex: 1; }
 .vbar { display: flex; gap: 8px; align-items: center; margin: 8px auto 0; width: min(100%, 360px); font-variant-numeric: tabular-nums; }
 .vbar select { min-height: 36px; font-size: 14px; }
-#tl { position: relative; height: 70px; margin: 10px auto 0; width: min(100%, 360px); background: #fff; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; touch-action: manipulation; }
-#tl .mk { position: absolute; height: 12px; border-radius: 4px; opacity: .9; } #tl .ph { position: absolute; top: 0; bottom: 0; width: 2px; background: #c0392b; }
-#tl .lane { position: absolute; left: 0; right: 0; height: 1px; background: var(--line); }
+/* The timeline (Modified by By Mel Ross, 0.14.0): a strip that scrolls sideways, 56 px to a second. Top to bottom: seconds, frames
+   from the video, the sound of it, the caption lines, the graphics, the sound effects. Tap anywhere to jump there. */
+#tl { position: relative; margin: 10px 0 0; background: #fff; border: 1px solid var(--line); border-radius: 12px; overflow-x: auto; overflow-y: hidden; touch-action: pan-x; -webkit-overflow-scrolling: touch; }
+#tli { position: relative; height: 216px; }
+#tl .ruler { position: absolute; top: 0; height: 16px; left: 0; right: 0; font-size: 10px; color: #6b7a78; } #tl .ruler span { position: absolute; top: 2px; padding-left: 3px; border-left: 1px solid var(--line); height: 14px; }
+#tl .strip { position: absolute; top: 18px; left: 0; height: 64px; background: #e9e6df left top / auto 64px no-repeat; }
+#tl .wave { position: absolute; top: 84px; left: 0; height: 40px; background: left center / 100% 100% no-repeat; opacity: .8; }
+#tl .mk { position: absolute; height: 20px; border-radius: 5px; font-size: 11px; line-height: 20px; padding: 0 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; box-sizing: border-box; }
+#tl .mk.cap { top: 128px; background: #f3e9b8; color: #3a3206; border: 1px solid #dccf8f; } #tl .mk.cap.gone { opacity: .35; }
+#tl .mk.gfx { top: 152px; background: #0d2b2d; color: #fff; } #tl .mk.gfx.pop { background: #e7a23b; color: #2b1c02; } #tl .mk.gfx.g2 { top: 174px; } #tl .mk.off { background: #ddd !important; color: #777 !important; }
+#tl .mk.sfx { top: 198px; height: 12px; width: 12px; padding: 0; border-radius: 50%; background: #7a4fa3; margin-left: -6px; }
+#tl .cutmark { position: absolute; top: 18px; height: 106px; width: 0; border-left: 2px dashed #c0392b; opacity: .55; }
+#tl .ph { position: absolute; top: 0; bottom: 0; width: 2px; background: #c0392b; pointer-events: none; }
+.tlkey { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 11px; color: #6b7a78; margin: 4px 2px 0; } .tlkey i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; vertical-align: -1px; margin-right: 4px; }
+#receipt { margin: 10px 0 0; background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 10px 14px; } #receipt b { display: block; margin-bottom: 4px; } #receipt ul { margin: 0; padding: 0; list-style: none; } #receipt li { padding: 2px 0 2px 22px; position: relative; font-size: 14px; } #receipt li::before { content: "✓"; position: absolute; left: 0; color: #3e6b2b; font-weight: 800; }
 details { background: var(--card); border: 1px solid var(--line); border-radius: 14px; margin: 12px 0; }
 summary { list-style: none; cursor: pointer; padding: 14px 14px; font-weight: 700; font-size: 17px; display: flex; justify-content: space-between; align-items: center; }
 summary::-webkit-details-marker { display: none; } summary small { font-weight: 500; color: #5b6b69; font-size: 13px; }
@@ -96,8 +108,10 @@ body.unbuilt > :not(nav):not(header):not(#unbuilt), body.unbuilt header button {
 
 <div class="vwrap"><video id="v" playsinline controls preload="metadata"></video><div id="ov"></div></div>
 <div class="vbar"><span id="clock">0:00.0</span><span class="grow"></span><button id="nowBtn" class="sm" title="Use this time">Mark time</button><select id="ver" style="width:auto"></select></div>
-<div id="tl"></div>
+<div id="tl"><div id="tli"></div></div>
+<div class="tlkey"><span><i style="background:#f3e9b8;border:1px solid #dccf8f"></i>captions</span><span><i style="background:#0d2b2d"></i>text and cards</span><span><i style="background:#e7a23b"></i>pictures, GIFs, clips</span><span><i style="background:#7a4fa3;border-radius:50%"></i>sounds</span><span><i style="background:none;border-left:2px dashed #c0392b;width:0"></i>a cut</span></div>
 <div id="stale"></div>
+<div id="receipt" hidden><b>What was done to this reel</b><ul id="receiptList"></ul></div>
 
 <details open id="s-cap"><summary>Captions <small id="capn"></small></summary><div class="sec"><p class="help">Tap a word to fix it. The highlighted words are the sage ones in the video.</p><div id="caps"></div></div></details>
 <details open id="s-cut"><summary>Cuts <small id="cutn"></small></summary><div class="sec"><p class="help">Switch a piece off to drop it from the video. Captions, text and sounds after it move up to match. Turn it back on to bring it back.</p><div id="pieces"></div></div></details>
@@ -193,19 +207,34 @@ function renderVideo() {
   $("#ver").innerHTML = S.renders.slice().reverse().map((x) => `<option value="${x.v}" ${x === r ? "selected" : ""}>${x.baseline ? "before editing" : "render " + x.v}${x === S.renders[S.renders.length - 1] ? " (latest)" : ""}</option>`).join("");
   $("#ver").style.display = S.renders.length > 1 ? "" : "none";
 }
+const capLine = (c) => (c.words || []).map((w) => w.text).join(" ");
+const PX = 56;                                             // timeline pixels per second (the server draws the strip and wave to match)
 function renderTimeline() {
-  const T = Math.max(S.total, 1), pc = (t) => (t / T) * 100;
-  let h = `<div class="lane" style="top:22px"></div><div class="lane" style="top:44px"></div>`;
-  for (const p of S.pieces.filter((p) => p.kept)) h += `<div class="mk" style="top:4px;left:${pc(p.start)}%;width:${pc(p.dur)}%;background:${S.pieces.filter((q) => q.kept).indexOf(p) % 2 ? "#cfd9c1" : "#e9efe1"};border:1px solid #b6c5a3"></div>`;
-  for (const c of S.edit.cards) h += `<div class="mk" style="top:26px;left:${pc(c.start)}%;width:${Math.max(pc((c.end ?? c.start + 2) - c.start), 1.2)}%;background:${c.off ? "#ddd" : c.type === "popup" ? "#e7a23b" : "#0d2b2d"}" title="${esc(c.text || c.src || c.type)}"></div>`;
-  for (const s of S.edit.sfx_events) h += `<div class="mk" style="top:48px;left:${pc(s.t)}%;width:1.2%;background:${s.off ? "#ddd" : "#7a4fa3"}"></div>`;
-  h += `<div class="ph" id="ph" style="left:${pc(v.currentTime || 0)}%"></div>`;
-  $("#tl").innerHTML = h;
+  const T = Math.max(S.total, 1), x = (t) => Math.round(t * PX), r = S.renders.find((q) => q.v === (watch ?? S.renders[S.renders.length - 1]?.v)) || S.renders[S.renders.length - 1];
+  const W = x(T) + 24;
+  let h = `<div class="ruler">`;
+  for (let t = 0; t <= T; t += T > 90 ? 5 : 1) h += `<span style="left:${x(t)}px">${t % 5 === 0 || T <= 20 ? fmt(t).replace(/\.\d$/, "") : ""}</span>`;
+  h += `</div>`;
+  if (r) h += `<div class="strip" style="width:${x(T)}px;background-image:url(/api/strip.jpg?v=${r.v})"></div><div class="wave" style="width:${x(T)}px;background-image:url(/api/wave.png?v=${r.v})"></div>`;
+  else h += `<div class="strip" style="width:${x(T)}px"></div>`;
+  for (const p of S.pieces.filter((p) => p.kept).slice(1)) h += `<div class="cutmark" style="left:${x(p.start)}px" title="A cut"></div>`;
+  for (const c of S.edit.captions) { const a = c.start ?? c.words[0]?.t ?? 0, b = c.end ?? a + 1; h += `<div class="mk cap" style="left:${x(a)}px;width:${Math.max(x(b) - x(a) - 2, 14)}px" title="${esc(capLine(c))}">${esc(capLine(c))}</div>`; }
+  let lastEnd = -1;                                         // graphics that overlap in time drop to a second row
+  for (const c of S.edit.cards.slice().sort((a, b) => a.start - b.start)) {
+    const end = c.end ?? c.start + 2, low = c.start < lastEnd - 0.05; if (!low) lastEnd = end;
+    const label = c.text || c.title || c.label || (c.src ? String(Array.isArray(c.src) ? c.src[0] : c.src).replace(/^popups\/[^-]*-/, "").replace(/\.clip\.mp4$/, "") : c.type);
+    h += `<div class="mk gfx${c.type === "popup" || c.type === "orbit" ? " pop" : ""}${low ? " g2" : ""}${c.off ? " off" : ""}" style="left:${x(c.start)}px;width:${Math.max(x(end) - x(c.start) - 2, 16)}px" title="${esc(label)}">${esc(label)}</div>`;
+  }
+  for (const e of S.edit.sfx_events) h += `<div class="mk sfx${e.off ? " off" : ""}" style="left:${x(e.t)}px" title="${esc(e.name)}"></div>`;
+  h += `<div class="ph" id="ph" style="left:${x(v.currentTime || 0)}px"></div>`;
+  const inner = $("#tli"); inner.style.width = W + "px"; inner.innerHTML = h;
+  const rc = $("#receipt"); rc.hidden = !(S.receipt || []).length; $("#receiptList").innerHTML = (S.receipt || []).map((l) => `<li>${esc(l.text)}</li>`).join("");
 }
-$("#tl").addEventListener("click", (e) => { const r = $("#tl").getBoundingClientRect(); v.currentTime = ((e.clientX - r.left) / r.width) * (v.duration || S.total); });
+$("#tl").addEventListener("click", (e) => { const r = $("#tli").getBoundingClientRect(); v.currentTime = Math.max(0, Math.min((e.clientX - r.left) / PX, v.duration || S.total)); });
 v.addEventListener("timeupdate", () => {
   const t = v.currentTime; $("#clock").textContent = fmt(t);
-  const ph = $("#ph"); if (ph) ph.style.left = (t / Math.max(S.total, 1)) * 100 + "%";
+  const ph = $("#ph"); if (ph) { ph.style.left = t * PX + "px";      // keep the playhead in view while it plays
+    const box = $("#tl"), at = t * PX; if (!v.paused && (at < box.scrollLeft + 20 || at > box.scrollLeft + box.clientWidth - 40)) box.scrollLeft = Math.max(at - 40, 0); }
   document.querySelectorAll(".w.now").forEach((n) => n.classList.remove("now"));
   if (S && !S.cutsStale) { let best = null; for (const [ci, c] of S.edit.captions.entries()) for (const [wi, w] of c.words.entries()) if (w.t <= t) best = [ci, wi];
     if (best) { const n = document.querySelector(`.w[data-ci="${best[0]}"][data-wi="${best[1]}"]`); if (n) n.classList.add("now"); } }

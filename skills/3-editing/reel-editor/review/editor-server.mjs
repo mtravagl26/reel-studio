@@ -77,6 +77,18 @@ function masterDuration() {
   return masterDur.dur;
 }
 
+// The clip as filmed, for the receipt (0.14.0). edl.json names it; its length is read once per file.
+let srcDur = { key: "", dur: null };
+function sourceDuration() {
+  try {
+    const src = path.resolve(REEL, String(readJSON(P.edl, {}).source || "")), key = src + fs.statSync(src).mtimeMs;
+    if (key !== srcDur.key) srcDur = { key, dur: durOf(src) };
+  } catch { srcDur = { key: "", dur: null }; }
+  return srcDur.dur;
+}
+const receiptNow = (st, edit, brand) => core.receipt({ state: st, edit, srcDur: sourceDuration(),
+  themeName: (listThemes().find((t) => t.id === (edit.theme || brand.theme)) || {}).name || null });
+
 let notes = [];   // things the page should say once (state rebuilt, etc.)
 function loadState() {
   const edl = readJSON(P.edl, {}), brand = brandJSON();
@@ -283,7 +295,7 @@ function view() {
   const cutsStale = meta.cut_key !== cutKeyNow(st);
   const out = {
     reel: path.basename(REEL), speed: st.speed, total, masterDur: masterDuration(), edit: { captions: edit.captions || [], cards: edit.cards || [], sfx_events: edit.sfx_events || [], punch: edit.punch || [] },
-    pieces, media, popups: files, sfxNames: sfxNames(), notes, renders, job,
+    pieces, media, popups: files, sfxNames: sfxNames(), notes, renders, job, receipt: receiptNow(st, edit, brand),
     textDefault: brand.text_default || { layer: "front", position: "above" }, hasTextDefault: !!brand.text_default,
     themes: listThemes(), theme: { reel: edit.theme || null, all: brand.theme || null }, giphy: !!giphyKey(),
     cutsStale, dirty: meta.edit_hash !== editHash(), canUndo: history().length > 0, undoLabel: history().slice(-1)[0]?.replace(/^[\d_-]+?-(?=[A-Za-z])/, "") || null,
@@ -528,6 +540,24 @@ const server = http.createServer(async (req, res) => {
       if (!/^[a-z0-9][a-z0-9-]{0,40}$/.test(name)) { res.writeHead(404).end(); return; }
       const engine = process.env.REEL_ENGINE || path.join(SKILL, "engine");
       return sendFile(req, res, path.join(engine, "sfx", name + ".wav"));
+    }
+    if (p === "/api/strip.jpg" || p === "/api/wave.png") {   // Added by By Mel Ross (0.14.0): the timeline's film strip and waveform
+      // Made from the render the page is watching (v=<number>), once, and kept in editor/timeline/. px = pixels per second.
+      const r = listRenders().find((x) => String(x.v) === url.searchParams.get("v")) || listRenders().slice(-1)[0];
+      const src = r && path.join(REEL, r.phone);
+      if (!src || !exists(src)) { res.writeHead(404).end(); return; }
+      const px = 56, dur = Math.min(durOf(src) || 0, 600), dir = path.join(P.dir, "timeline"), strip = p.endsWith(".jpg");
+      if (dur <= 0) { res.writeHead(404).end(); return; }
+      const out = path.join(dir, `v${r.v}-${strip ? "strip.jpg" : "wave.png"}`);
+      if (!exists(out) || fs.statSync(out).mtimeMs < fs.statSync(src).mtimeMs) {
+        fs.mkdirSync(dir, { recursive: true });
+        const n = Math.max(Math.ceil((dur * px) / 36), 1);            // one 36 x 64 frame every 36 px
+        const args = strip
+          ? ["-v", "error", "-y", "-i", src, "-vf", `fps=${px}/36,scale=36:64:force_original_aspect_ratio=increase,crop=36:64,tile=${n}x1`, "-frames:v", "1", "-q:v", "5", out]
+          : ["-v", "error", "-y", "-i", src, "-filter_complex", `aformat=channel_layouts=mono,showwavespic=s=${Math.max(Math.round(dur * px), 2)}x48:colors=0x0d2b2d`, "-frames:v", "1", out];
+        if (run("ffmpeg", args).status !== 0 || !exists(out)) { res.writeHead(404).end(); return; }
+      }
+      return sendFile(req, res, out);
     }
     if (p.startsWith("/files/")) {
       const file = path.resolve(REEL, "." + p.slice(6));

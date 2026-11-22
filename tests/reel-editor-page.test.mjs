@@ -239,6 +239,28 @@ async function withServer(fn) {
   try { await fn({ base, key, reel, home, dir, get, post }); } finally { p.kill(); }
 }
 
+// Added by By Mel Ross (0.14.0): the receipt and the timeline.
+test("receipt: counts cuts, speed, captions, each kind of graphic and sounds from the reel's own data", () => {
+  const state = { speed: 1.1, xfade: 0, pieces: [{ id: "p1", a: 0.5, b: 4, kept: true }, { id: "p2", a: 5, b: 9, kept: false }, { id: "p3", a: 9.5, b: 12, kept: true }] };
+  const edit = { captions: [{ words: [{ text: "a", t: 0 }, { text: "b", t: 1, accent: true }] }, { words: [{ text: "c", t: 2 }] }], punch: [1],
+    cards: [{ type: "title", start: 0 }, { type: "card", start: 1 }, { type: "card", start: 2 }, { type: "tag", start: 3, off: true },
+            { type: "popup", src: "popups/a.gif", start: 1 }, { type: "popup", src: "popups/b.clip.mp4", start: 2 }, { type: "popup", src: "popups/c.png", start: 3 }],
+    sfx_events: [{ name: "pop", t: 1 }, { name: "pop", t: 2, off: true }] };
+  const r = Object.fromEntries(core.receipt({ state, edit, srcDur: 14, themeName: "Bold" }).map((l) => [l.id, l.text]));
+  assert.equal(r.cuts, "Cut 3 stretches, 8 seconds removed (14 s filmed, 5.5 s in the reel)", "the start, the dropped middle and the end");
+  assert.equal(r.dropped, "1 piece switched off on this page"); assert.equal(r.speed, "Voice sped up to 1.1x");
+  assert.equal(r.captions, "Captions on: 3 words in 2 lines, 1 highlighted");
+  assert.equal(r.graphics, "6 graphics: 1 title, 2 lists, 1 GIF, 1 video clip, 1 picture popup", "switched-off graphics are not counted");
+  assert.equal(r.sounds, "1 sound effect"); assert.equal(r.zooms, "1 slow zoom"); assert.equal(r.look, "Bold theme");
+  const plain = Object.fromEntries(core.receipt({ state: { speed: 1, pieces: [{ id: "p1", a: 0, b: 12, kept: true }] }, edit: {}, srcDur: null }).map((l) => [l.id, l.text]));
+  assert.deepEqual(plain, { cuts: "Nothing cut (12 seconds)", speed: "Voice at normal speed", captions: "No captions", graphics: "No graphics", sounds: "No sound effects" });
+});
+
+test("timeline: the page has the strip, the lanes and the receipt panel", () => {
+  const html = fs.readFileSync(path.join(review, "editor.html"), "utf8");
+  for (const need of ['id="tli"', 'id="receipt"', "/api/strip.jpg?v=", "/api/wave.png?v=", 'class="mk cap"', "cutmark", "const PX = 56"]) assert.ok(html.includes(need), need);
+});
+
 test("server: needs the key, saves edits with a backup, undo restores, drop retimes edl.json", { skip: skipReason }, async () => {
   await withServer(async ({ base, reel, home, get, post }) => {
     assert.equal((await fetch(base + "/api/state")).status, 403, "no key, no page");
@@ -284,6 +306,18 @@ test("server: uploads a picture into popups/, refuses other files, serves reel f
     assert.equal(bad.ok, false);
     const notPic = await post("/api/upload?name=fake.png", null, Buffer.from("not a picture"));
     assert.equal(notPic.ok, false); assert.match(notPic.error, /not a picture/);
+    // 0.14.0: the state carries the receipt; the timeline's pictures are 404 until there is a render to draw them from.
+    const st14 = await (await get("/api/state")).json();
+    assert.ok(Array.isArray(st14.receipt) && st14.receipt.some((l) => l.id === "cuts"), JSON.stringify(st14.receipt));
+    if (!st14.renders.length) { assert.equal((await get("/api/strip.jpg?v=0")).status, 404); assert.equal((await get("/api/wave.png?v=0")).status, 404); }
+    fs.mkdirSync(path.join(reel, "renders"), { recursive: true });       // a 3 s render to draw from
+    ff(["-f", "lavfi", "-i", "testsrc2=s=270x480:r=30:d=3", "-f", "lavfi", "-i", "sine=f=330:d=3", "-c:v", "libx264", "-preset", "ultrafast", "-pix_fmt", "yuv420p", "-c:a", "aac", "-shortest", path.join(reel, "renders", "v009-phone.mp4")]);
+    fs.writeFileSync(path.join(reel, "renders", "v009.json"), JSON.stringify({ v: 9, phone: "renders/v009-phone.mp4", full: "renders/v009-phone.mp4" }));
+    const strip = await get("/api/strip.jpg?v=9"), wave = await get("/api/wave.png?v=9");
+    assert.equal(strip.status, 200); assert.equal(strip.headers.get("content-type"), "image/jpeg"); assert.equal(wave.status, 200); assert.equal(wave.headers.get("content-type"), "image/png");
+    const dims = (f) => run("ffprobe", ["-v", "error", "-show_entries", "stream=width,height", "-of", "csv=p=0", path.join(reel, "editor", "timeline", f)]).stdout.trim();
+    assert.equal(dims("v9-strip.jpg"), "180,64", "5 frames of 36 x 64 for 3 seconds at 56 px a second"); assert.equal(dims("v9-wave.png"), "168,48");
+    fs.rmSync(path.join(reel, "renders", "v009.json")); fs.rmSync(path.join(reel, "renders", "v009-phone.mp4"));
     // 0.13.0: a video clip uploads too. The page gets a small silent copy; the original is kept aside.
     const movFile = path.join(reel, "..", "take.mov");
     ff(["-f", "lavfi", "-i", "testsrc2=s=320x568:r=60:d=2", "-f", "lavfi", "-i", "sine=f=330:d=2", "-c:v", "libx264", "-preset", "ultrafast", "-pix_fmt", "yuv420p", "-c:a", "aac", "-shortest", "-f", "mov", movFile]);
