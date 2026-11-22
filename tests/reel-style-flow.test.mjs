@@ -75,6 +75,24 @@ test("notes: once is a note, twice is a rule in brand.md, the same sitting count
   assert.match(fs.readFileSync(path.join(c3.home, "brand.md"), "utf8"), /^# Brand\nwarm and plain\n\n## Rules\n\n- two <!-- note: k -->\n$/);
 });
 
+// audit 3
+test("notes and style card survive damaged files: nothing is lost without a word, nothing ends in a traceback", { skip: skipReason }, () => {
+  const c = mkHome(), env = { REELS_HOME: c.home };
+  fs.writeFileSync(path.join(c.home, "notes.json"), "{ this is not json");
+  const out = py("notes.py", ["add", "fewer-zooms", "too many <!-- zooms -->", "--reel", "a"], env);
+  assert.match(out, /NOTE \(tell them\): notes\.json could not be read and was set aside as notes\.broken-\d{8}-\d{6}\.json/);
+  assert.equal(fs.readdirSync(c.home).filter((n) => /^notes\.broken-/.test(n)).length, 1, "the damaged file is kept");
+  py("notes.py", ["add", "fewer-zooms", "too many <!-- zooms -->", "--reel", "b"], env);
+  assert.match(fs.readFileSync(path.join(c.home, "brand.md"), "utf8"), /^- too many  zooms <!-- note: fewer-zooms -->$/m, "the note's own text can't forge a marker");
+  fs.writeFileSync(path.join(c.reel, "style-picks.json"), "[1, 2]"); fs.writeFileSync(path.join(c.reel, "edit.json"), "{ broken");
+  assert.match(py("style_card.py", [c.reel], env), /^Hook\s+not decided yet/);
+  fs.writeFileSync(path.join(c.reel, "style-picks.json"), JSON.stringify({ ids: "H3", extras: [{ a: 1 }, "A1"], theme: 5 }));
+  fs.writeFileSync(path.join(c.reel, "edit.json"), JSON.stringify({ cards: "x", captions: null, sfx_events: [1, { off: true }] }));
+  assert.match(py("style_card.py", [c.reel], env), /Layout\s+A1 Picture carousel/);
+  fs.rmSync(path.join(c.home, "brand.json"));
+  const r = pyRun("style_card.py", [c.reel], env); assert.notEqual(r.status, 0); assert.match(r.stderr, /No brand yet/); assert.doesNotMatch(r.stderr, /Traceback/);
+});
+
 test("studio server: /styles serves the looks for this reel and saves picks, refusing looks that are not built", { skip: skipReason }, async () => {
   const c = mkHome(); fs.mkdirSync(path.join(c.reel, "review_db", "reel"), { recursive: true });
   fs.writeFileSync(path.join(c.reel, "review_db", "reel", "current.json"), JSON.stringify({ title: "t", words: [] }));

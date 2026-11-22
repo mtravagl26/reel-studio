@@ -61,6 +61,7 @@ button.pri { background: var(--ink); color: #fff; } button:disabled { opacity: .
     <button type="button" class="pri" id="pick">Choose a video</button>
     <input type="file" id="file" accept="video/*,.mov,.mp4,.m4v" hidden>
     <small id="dropnote">.mp4 or .mov, filmed upright.</small>
+    <small id="keptnote" hidden></small>
   </div>
   <div id="result" hidden>
     <div>
@@ -184,6 +185,10 @@ $("#copy").addEventListener("click", async () => {
   catch { const r = document.createRange(); r.selectNodeContents($("#say")); const s = getSelection(); s.removeAllRanges(); s.addRange(r); b.textContent = "Select and copy the line"; }
   setTimeout(() => { b.textContent = "Copy the request"; }, 1800);
 });
+if (D.kept && D.kept.count) {   // clips checked here stay on disk until the person deletes them
+  const gb = D.kept.bytes / 1e9, n = $("#keptnote"); n.hidden = false;
+  n.textContent = `${D.kept.count} checked ${D.kept.count === 1 ? "clip is" : "clips are"} kept in ${D.inbox} (${gb >= 1 ? gb.toFixed(1) + " GB" : Math.max(Math.round(D.kept.bytes / 1e6), 1) + " MB"}). Delete the ones you've finished editing.`;
+}
 showFormats();
 if ((D.reels || []).length) {
   $("#mine").hidden = false;

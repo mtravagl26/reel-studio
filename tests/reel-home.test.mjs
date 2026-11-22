@@ -79,6 +79,12 @@ test("home server: checks an uploaded clip, keeps it in the inbox, lists reels, 
     assert.equal((await fetch(base + j.frame)).headers.get("content-type"), "image/jpeg");
     const again = await (await fetch(base + "/api/check?name=" + encodeURIComponent("My take (1).MOV"), { method: "POST", body })).json();
     assert.match(again.saved, /My-take-1-2\.mov$/, "a second clip with the same name does not overwrite the first");
+    // audit 3: two uploads of one name at the same moment both land, under different names, and the page counts what is kept
+    const pair = await Promise.all([1, 2].map(() => fetch(base + "/api/check?name=twin.mp4", { method: "POST", body }).then((r) => r.json())));
+    assert.deepEqual(pair.map((x) => x.ok), [true, true], JSON.stringify(pair)); assert.notEqual(pair[0].saved, pair[1].saved);
+    assert.deepEqual(fs.readdirSync(path.join(home, "inbox")).filter((n) => n.endsWith(".part")), [], "no half-written files left");
+    const after = JSON.parse(/window\.REEL_HOME = (.*);\n/.exec(await (await fetch(base + "/")).text())[1]);
+    assert.equal(after.kept.count, 4); assert.ok(after.kept.bytes > 0);
     assert.equal((await fetch(base + "/api/check?name=notes.txt", { method: "POST", body: "hi" })).status, 400);
     const junk = await fetch(base + "/api/check?name=junk.mp4", { method: "POST", body: "not a video" });
     assert.equal(junk.status, 400); assert.match((await junk.json()).error, /couldn't be read as a video/);

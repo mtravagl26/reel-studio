@@ -139,7 +139,7 @@ def do_import(reel, review):
     for g in P["graphics"]:
         if g.get("gone") or g["state"] == "d": continue
         note = ((d.get("board") or {}).get(g["id"]) or {}).get("note")
-        mine = [f for f in ((d.get("board") or {}).get(g["id"]) or {}).get("files") or [] if isinstance(f, str) and f.startswith("popups/")]   # 0.10.2: their own pictures
+        mine = [f for f in ((d.get("board") or {}).get(g["id"]) or {}).get("files") or [] if isinstance(f, str) and re.fullmatch(r"popups/[\w.\- ]+", f)]   # 0.10.2: their own pictures
         if g["state"] == "c": changes.append(f"{g['id']} @ cut {g['start']:.1f}s: {note or '(no note)'}" + (f". Use their own picture(s), already in the reel folder: {', '.join(mine)}" if mine else ""))
         spec = {k: v for k, v in g.items() if k not in ("id", "kind", "what", "w0", "w1", "state", "place", "moved", "gone")}
         spec.update(start=round(g["start"], 3), end=round(g["end"], 3), id=g["id"])
@@ -167,8 +167,9 @@ def do_import(reel, review):
     KIND = {"choose": "your choice of card", "title": "title card", "list": "card (rows)", "checks": "xlist", "label": "tag", "note": "note", "clip": "popup whose src is their video clip (plays in a rounded window, no sound; \"from\" = seconds in, \"loop\")", "number": "stat", "photo": "image, shot or popup",
             "gif": "popup with a GIF (references/giphy.md)", "carousel": "motion carousel-*", "chart": "motion chart (references/motions.md)", "counter": "motion count-up",
             "follow": "follow card", "social": "motion comment / chat / notification", "orbit": "orbit"}
-    for w in d.get("wanted") or []:
-        print(f'GRAPHIC WANTED: {KIND.get(w.get("kind"), "your choice of card")} at the line "{w.get("line", "")}"' + (f': {w["note"]}' if w.get("note") else "") + (f' Use their own picture(s), already in the reel folder: {", ".join(f for f in w["files"] if isinstance(f, str) and f.startswith("popups/"))}' if w.get("files") else "") +
+    for w in d.get("wanted") if isinstance(d.get("wanted"), list) else []:
+        if not isinstance(w, dict): continue                             # audit 3: a damaged decisions file must not stop the import
+        print(f'GRAPHIC WANTED: {KIND.get(w.get("kind"), "your choice of card")} at the line "{w.get("line", "")}"' + (f': {w["note"]}' if w.get("note") else "") + (f' Use their own picture(s), already in the reel folder: {", ".join(f for f in w["files"] if isinstance(f, str) and re.fullmatch(r"popups/[\w.\- ]+", f))}' if w.get("files") else "") +
               ". Add it to edit.json. If it needs pictures or numbers you don't have, ask them before the render.")
     for k, n in (d.get("notes") or {}).items():
         if n.strip(): print(f"NOTE ({k}):", n.strip())

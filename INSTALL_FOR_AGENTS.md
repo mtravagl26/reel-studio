@@ -160,6 +160,13 @@ their phone: upright, 1080p at 30 fps, HDR video off (iPhone: Settings > Camera 
 Record Video). Then offer first prompts:
 
 ```text
+Open Reel Studio.
+```
+
+That one gives them a page to drop a clip into: it checks how the clip was filmed,
+lets them pick the kind of reel, and writes the request for them.
+
+```text
 Edit this into a reel. [drag in a talking-head clip]
 ```
 

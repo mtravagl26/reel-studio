@@ -211,3 +211,19 @@ test("a popup can be a video clip: a silent 30 fps window that starts where aske
     assert.equal(info[0], "video,30/1", f + " is 30 fps with no sound"); assert.ok(Math.abs(Number(info.at(-1)) - 3.5) < 0.2, f + " lasts as long as it is on screen (3.5 s): " + info.at(-1));
   }
 });
+
+// audit 3: values a person or an assistant can leave in edit.json by hand must not crash a build.
+test("a video clip or note with a missing, empty or impossible number still builds", { skip }, () => {
+  const c = makeReel([], { matte: null });
+  fs.mkdirSync(path.join(c.reel, "popups"), { recursive: true });
+  ff(["-f", "lavfi", "-i", "testsrc2=s=300x650:r=30:d=2", "-c:v", "libx264", "-preset", "ultrafast", "-pix_fmt", "yuv420p", path.join(c.reel, "popups", "s.mp4")]);
+  ff(["-f", "lavfi", "-i", "sine=f=330:d=1", "-c:a", "aac", path.join(c.reel, "popups", "soundonly.mp4")]);
+  const edit = JSON.parse(fs.readFileSync(path.join(c.reel, "edit.json"), "utf8"));
+  edit.cards = [{ type: "popup", src: "popups/s.mp4", start: 0.5, end: 2, from: null }, { type: "popup", src: "popups/s.mp4", start: 0.5, end: 2, from: "abc", size: "big" },
+                { type: "popup", src: "popups/s.mp4", start: 0.5, end: 2, from: 99 }, { type: "popup", src: "popups/soundonly.mp4", start: 0.5, end: 2 },
+                { type: "note", text: "hi", size: "abc", rotate: null, y: "top", start: 2.2, end: 3.2 }, { type: "note", start: 2.2, end: 3.2 }];
+  fs.writeFileSync(path.join(c.reel, "edit.json"), JSON.stringify(edit));
+  const r = build(c); assert.equal(r.status, 0, r.stdout + r.stderr);
+  assert.match(r.stdout, /is 2\.0s long, so it can't start 99\.0s in: starting it at 0/); assert.match(r.stdout, /soundonly\.mp4 is not a picture or video this machine can read/);
+  const h = html(c); assert.equal((h.match(/class="pop vclip"/g) || []).length, 3, "three clips built, the sound-only file left out"); assert.equal((h.match(/class="notew" style="top:210px"/g) || []).length, 2);
+});
