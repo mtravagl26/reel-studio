@@ -357,3 +357,45 @@ export function syncCheck(captions, heard) {
   const q = (p) => diffs[Math.min(diffs.length - 1, Math.floor(p * diffs.length))];
   return { n: diffs.length, of: n, median: r4(q(0.5)), p90: r4(q(0.9)), max: r4(diffs[diffs.length - 1]) };
 }
+
+
+// ---- the receipt (Added by By Mel Ross, 0.14.0): what was done to this reel, in plain lines ------------------------------------
+// One place that says it: how much was cut, the speed, the captions, each kind of graphic, the sounds. Counted from the reel's
+// own files, never estimated. `srcDur` is the length of the clip as filmed (null when it can't be read: the cut line then
+// leaves out the before/after). Used by the touch-ups page and by `node review/receipt.mjs <reel>` at delivery.
+const KIND_NAME = { title: ["title", "titles"], card: ["list", "lists"], tag: ["label", "labels"], xlist: ["check list", "check lists"], stat: ["number card", "number cards"],
+  note: ["taped note", "taped notes"], cta: ["closing button", "closing buttons"], image: ["picture", "pictures"], shot: ["website shot", "website shots"],
+  polaroids: ["photo stack", "photo stacks"], tiles: ["tile row", "tile rows"], orbit: ["ring of pictures", "rings of pictures"], motion: ["animation", "animations"],
+  follow: ["written-out line", "written-out lines"], split: ["split screen", "split screens"] };
+const secs = (n) => (Math.round(n * 10) / 10).toString();
+export function receipt({ state, edit, srcDur = null, themeName = null, kitName = null }) {
+  const lines = [], kept = state.pieces.filter((p) => p.kept), keptSrc = kept.reduce((n, p) => n + (p.b - p.a), 0);
+  const final = reelLength(state), speed = Number(state.speed || 1);
+  // cuts: every gap between kept stretches, plus a trimmed start or end when the clip's length is known
+  let cuts = 0;
+  for (let i = 1; i < kept.length; i++) if (kept[i].a - kept[i - 1].b > 0.02) cuts++;
+  if (kept.length && kept[0].a > 0.05) cuts++;
+  if (srcDur != null && kept.length && srcDur - kept[kept.length - 1].b > 0.05) cuts++;
+  const dropped = state.pieces.length - kept.length;
+  if (srcDur != null) {
+    const gone = Math.max(srcDur - keptSrc, 0);
+    lines.push({ id: "cuts", text: cuts ? `Cut ${cuts} ${cuts === 1 ? "stretch" : "stretches"}, ${secs(gone)} seconds removed (${secs(srcDur)} s filmed, ${secs(final)} s in the reel)` : `Nothing cut (${secs(final)} seconds)` });
+  } else lines.push({ id: "cuts", text: cuts ? `Cut ${cuts} ${cuts === 1 ? "stretch" : "stretches"} (${secs(final)} seconds in the reel)` : `Nothing cut (${secs(final)} seconds)` });
+  if (dropped) lines.push({ id: "dropped", text: `${dropped} ${dropped === 1 ? "piece" : "pieces"} switched off on this page` });
+  lines.push({ id: "speed", text: Math.abs(speed - 1) < 0.005 ? "Voice at normal speed" : `Voice ${speed > 1 ? "sped up" : "slowed"} to ${speed}x` });
+  const caps = edit.captions || [], words = caps.reduce((n, c) => n + (c.words || []).length, 0), accents = caps.reduce((n, c) => n + (c.words || []).filter((w) => w.accent).length, 0);
+  lines.push({ id: "captions", text: caps.length ? `Captions on: ${words} words in ${caps.length} lines` + (accents ? `, ${accents} highlighted` : "") : "No captions" });
+  const on = (edit.cards || []).filter((c) => !c.off), counts = new Map();
+  for (const c of on) {
+    let k = c.type;
+    if (c.type === "popup") k = IS_VIDEO.test(String(c.src || "")) ? "_clip" : /\.gif$/i.test(String(c.src || "")) ? "_gif" : "_pic";
+    counts.set(k, (counts.get(k) || 0) + 1);
+  }
+  const name = (k, n) => k === "_clip" ? (n === 1 ? "video clip" : "video clips") : k === "_gif" ? (n === 1 ? "GIF" : "GIFs") : k === "_pic" ? (n === 1 ? "picture popup" : "picture popups") : (KIND_NAME[k] || [k, k + "s"])[n === 1 ? 0 : 1];
+  lines.push({ id: "graphics", text: on.length ? `${on.length} ${on.length === 1 ? "graphic" : "graphics"}: ` + [...counts].map(([k, n]) => `${n} ${name(k, n)}`).join(", ") : "No graphics" });
+  const sfx = (edit.sfx_events || []).filter((e) => !e.off).length, zooms = (edit.punch || []).length;
+  lines.push({ id: "sounds", text: sfx ? `${sfx} sound ${sfx === 1 ? "effect" : "effects"}` : "No sound effects" });
+  if (zooms) lines.push({ id: "zooms", text: `${zooms} slow ${zooms === 1 ? "zoom" : "zooms"}` });
+  if (themeName || kitName) lines.push({ id: "look", text: [themeName ? `${themeName} theme` : "", kitName ? `${kitName} materials` : ""].filter(Boolean).join(", ") });
+  return lines;
+}

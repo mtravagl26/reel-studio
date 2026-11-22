@@ -70,3 +70,9 @@ A popup can be a video clip: a screen recording, or b-roll from their phone. It 
 - **The card.** `{ "type": "popup", "src": "popups/<id>.clip.mp4", "pos": "top-left", "size": 440, "start": 36.0, "end": 40.0, "from": 1.0, "loop": false }`. `from` = seconds into the clip to start at. A clip shorter than its time on screen holds its last frame, or starts again with `"loop": true`.
 - **Placement.** Defaults to top left at 440 px wide, a window beside the face. A tall phone recording at that size is about 950 px high, so check a frame: it must not cover the eyes or the captions. Use `size`, `pos` or `x`/`y` to move it.
 - **Not for:** the ring of pictures around the head (pictures and GIFs only), or anything that needs the clip's sound.
+
+## The timeline and the receipt (0.14.0)
+
+**Timeline.** Under the video, a strip that scrolls sideways at 56 px a second. Top to bottom: seconds, frames from the render, its waveform, the caption lines, the graphics (a second row when two overlap), and a dot for each sound effect. A dashed red line marks each cut. Tapping anywhere jumps the video there, and the red playhead follows while it plays. The frames and waveform are drawn once per render by the page server (`/api/strip.jpg`, `/api/wave.png`) and kept in `editor/timeline/`. After an edit that changes the cuts, the frames still show the old render until Re-render; the page says so.
+
+**Receipt.** "What was done to this reel", under the timeline: stretches cut and seconds removed, the speed, caption words and lines, each kind of graphic, sound effects, zooms, and the theme. It is counted from `edl.json`, `edit.json` and the page's own state by `receipt()` in `editor-core.mjs`, and updates with every edit. `node review/receipt.mjs <reel>` prints the same lines for the chat.

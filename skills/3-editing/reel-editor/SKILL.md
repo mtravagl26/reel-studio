@@ -52,6 +52,7 @@ Each reel gets its own folder: `~/reels/<yyyy-mm-dd>-<short-name>/`. Copy the ra
    Do **not** hand-write composition HTML or use other HyperFrames workflows here: they are slower and ignore the brand template. Only if they explicitly ask for an effect the template lacks (e.g. text behind their head), say it's slower, then use the `hyperframes` skill for that one effect.
 6. **QA** - write the approved script (the kept lines) to `<folder>/expected.txt` so the missing-words check runs, then `python3 scripts/qa.py <folder>` (on a 4K brand: `REEL_PREVIEW=1` for the draft, plain again after `--final`) (loudness, size, length, missing words). Then grab a frame at every card and look: text inside the frame, readable over the background, on brand. Fix `edit.json` and re-run render.sh until it passes.
 7. **Cover (every reel, no exceptions)** - `python3 scripts/cover.py <folder> candidates` makes a sheet of stills from the first and last 4 s. Look at it and pick one where they're smiling, eyes open, not mid-word. Then `python3 scripts/cover.py <folder> --at <seconds> --title "short / topic title"` → `cover.jpg`, 1080x1920, a 2-3 line title of a few words in the brand's head font, inside the area the profile grid shows. Look at the cover before delivering.
+   - **Say what was done.** `node review/receipt.mjs <folder>` prints the receipt: how much was cut, the speed, captions, each kind of graphic, sounds. Paste its lines when you show the preview and again at delivery. They are counted from the reel's files, so don't reword the numbers.
 8. **Deliver** - `bash scripts/deliver.sh <final.mp4> "<clear name>"` → three files in their delivery folder: `<name>.mp4` (full quality), `<name> (phone).mp4` (small copy for a phone) and `<name> cover.jpg`. `"deliver_dir": "footage"` sends them back to the folder the clip came from; `--to <folder>` overrides. Tell them where the files are; they post it themselves.
 9. **CapCut (only if `brand.json` has `"capcut": true`)** - build the editable CapCut draft and give them the link. `references/capcut.md`.
 
@@ -76,6 +77,10 @@ Cut only at the end of a sentence or in the quietest part of a natural pause, on
 ## Call a look by ID (Style Menu)
 
 The person can pick looks by ID: H1-H5 hooks, C1-C5 captions, L1-L10 layouts ("H3, C2, L8"). Read `references/style-menu.md`: it says, per ID, which `edit.json` / `brand.json` setting or card type produces it (`assets/style-menu.json` has the same table for scripts) and which are only *partial* or *not built*. Built: H3, C1, C2, C3, L2 (`polaroids`), L4 (`tiles`), L6 (`xlist`), L7, L8 (`stat`), L9 (`popup` + `caption`), L10; partial: H2, C5; not built: H1, H4, C4, L1, L3, L5; H5 is a cut choice. Say plainly when an ID is not built; never fake it. The eye rules apply to all of them: graphics go in the top corners or the lower third, never on the eyes, and captions step aside under lower-third cards.
+
+## A clip with no talking
+
+A reel can be footage with music and no speech: someone walking, a screen clip in a window, a title and a closing button. The steps run with an empty transcript, with 3 changes: (1) clean the audio with `CLEAN=light bash scripts/clean_audio.sh ...`, because the full clean-up is built for a voice and damages music; (2) skip `tighten.py`, there are no pauses to find; (3) there are no captions and nothing to tap on the review page's Cuts tab, so agree the title, the clips and the length in chat, then build and use the touch-ups page. `qa.py` reports words as not checked. Say all of this once, plainly.
 
 ## Home page and framing check
 
