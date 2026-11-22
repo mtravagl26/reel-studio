@@ -9,7 +9,7 @@ talking to camera always goes to `reel-editor`** (it has the themes, the review 
 touch-ups pages and the cover). Use `edit-video` and its styles only when the user
 asks for one of those styles by name or the reel is not a talking head. For a user-requested
 installation, follow [INSTALL_FOR_AGENTS.md](INSTALL_FOR_AGENTS.md). Which skill to
-use when: [skills/README.md](skills/README.md).
+use when: [skills/README.md](skills/README.md). "Open Reel Studio", "check my clip" and "check my framing" also go to `reel-editor`: it serves a home page with a framing check (`review/home-server.mjs`).
 
 | Stage | Skill | Use it to |
 | --- | --- | --- |

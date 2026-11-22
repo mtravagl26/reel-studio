@@ -10,7 +10,7 @@ export HYPERFRAMES_NO_TELEMETRY=1 DO_NOT_TRACK=1
 node <skill>/review/editor-server.mjs <reel folder> --lan --port 4792
 ```
 
-The three pages (review, cover, touch-ups) share one step bar. Review and Touch-ups link to each other on their own. Add `--cover-url <thumbnail studio link>` for the Cover step (greyed out without it), and `--review-url <link>` only when the review page lives on claude.ai instead of this server. The cover link is only shown on this computer, because the thumbnail studio does not answer over Wi-Fi.
+The three per-reel pages (review, cover, touch-ups) share one step bar. The home page (`references/home-and-framing.md`) and the looks page (`/styles`) sit outside it. Review and Touch-ups link to each other on their own. Add `--cover-url <thumbnail studio link>` for the Cover step (greyed out without it), and `--review-url <link>` only when the review page lives on claude.ai instead of this server. The cover link is only shown on this computer, because the thumbnail studio does not answer over Wi-Fi.
 
 `review/studio-server.mjs` is the same server under the name the other docs use: one link for the whole reel. Before the reel is built (no `edit.json` / `edl.json`) the link opens the review page (`/review`, same data files as `references/review-local.md`) and the touch-ups page says the reel is not built yet; once it is built the link opens touch-ups (`/touchups`), and the review page shows a note that the reel is already built.
 

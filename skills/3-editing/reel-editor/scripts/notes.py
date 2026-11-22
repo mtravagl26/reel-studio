@@ -23,14 +23,21 @@ KEY_OK = re.compile(r"^[a-z0-9]+(-[a-z0-9]+){0,7}$")
 
 def home(): return Path(os.environ.get("REELS_HOME", "~/reels")).expanduser()
 def load(h):
-    try: d = json.load(open(h / "notes.json"))
-    except (OSError, ValueError): d = {}
-    return {"notes": d.get("notes") or {}, "rules": d.get("rules") or {}}
+    f = h / "notes.json"
+    try: d = json.load(open(f))
+    except OSError: d = {}
+    except ValueError:      # audit 3: a damaged file used to be read as empty and then overwritten. Keep it, and say so.
+        keep = h / f"notes.broken-{datetime.datetime.now():%Y%m%d-%H%M%S}.json"; f.replace(keep)
+        print(f"NOTE (tell them): notes.json could not be read and was set aside as {keep.name}. Starting a fresh notes file; the rules already in brand.md are untouched.")
+        d = {}
+    if not isinstance(d, dict): d = {}
+    notes = d.get("notes") if isinstance(d.get("notes"), dict) else {}
+    return {"notes": {k: v for k, v in notes.items() if isinstance(v, list)}, "rules": d.get("rules") if isinstance(d.get("rules"), dict) else {}}
 def save(h, d):
     h.mkdir(parents=True, exist_ok=True); tmp = h / "notes.json.tmp"
     tmp.write_text(json.dumps(d, indent=1, ensure_ascii=False) + "\n"); tmp.replace(h / "notes.json")
 
-def _rule_line(key, text): return f"- {text.strip()} <!-- note: {key} -->"
+def _rule_line(key, text): return f"- {text.replace('<!--', '').replace('-->', '').strip()} <!-- note: {key} -->"   # the note's own text can't open or close the marker
 
 def write_rule(h, key, text):
     """Add (or replace) this key's line under "## Rules" in brand.md. The marker comment is how forget() finds it again."""

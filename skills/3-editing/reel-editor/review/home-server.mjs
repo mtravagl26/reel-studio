@@ -60,7 +60,10 @@ function reels() {
 
 function page() {
   const formats = (readJSON(path.join(SKILL, "assets", "formats.json"), {}).formats || []).filter((f) => f.status === "ready");
-  const data = { formats, reels: reels(), inbox: INBOX.replace(os.homedir(), "~"), brand: fs.existsSync(path.join(HOME, "brand.json")) };
+  // audit 3: every checked clip is kept, and nothing ever removed them. The page now says how much is there.
+  let kept = { count: 0, bytes: 0 };
+  try { for (const n of fs.readdirSync(INBOX)) if (VIDEO.has(path.extname(n).toLowerCase())) { kept.count++; kept.bytes += fs.statSync(path.join(INBOX, n)).size; } } catch {}
+  const data = { formats, reels: reels(), inbox: INBOX.replace(os.homedir(), "~"), kept, brand: fs.existsSync(path.join(HOME, "brand.json")) };
   return fs.readFileSync(path.join(HERE, "home.html"), "utf8").replace("/*HOME*/null", () => JSON.stringify(data).replace(/</g, "\\u003c"));
 }
 
@@ -82,11 +85,14 @@ const server = http.createServer(async (req, res) => {
       try { name = inboxName(url.searchParams.get("name")); } catch (e) { return json(res, 400, { ok: false, error: e.message }); }
       if (Number(req.headers["content-length"] || 0) > MAX_BYTES) return json(res, 413, { ok: false, error: "That file is too big to check here." });
       fs.mkdirSync(path.join(INBOX, ".frames"), { recursive: true });
-      const file = path.join(INBOX, name), tmp = file + ".part";
+      // audit 3: two uploads of the same name at once used to share one .part file, and one of them failed. Each upload now
+      // writes to its own temporary file, and the final name is chosen when the file is complete.
+      const tmp = path.join(INBOX, `.upload-${process.pid}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.part`);
       try {
         let seen = 0; req.on("data", (c) => { seen += c.length; if (seen > MAX_BYTES) req.destroy(new Error("too big")); });
         await pipeline(req, fs.createWriteStream(tmp));              // straight to disk: a 4K clip never sits in memory
         if (!fs.statSync(tmp).size) throw new Error("The file arrived empty. Try again.");
+        name = inboxName(url.searchParams.get("name")); const file = path.join(INBOX, name);
         fs.renameSync(tmp, file);
         const frame = path.basename(name, path.extname(name)) + ".jpg";
         const result = await runCheck(file, path.join(INBOX, ".frames", frame));

@@ -28,8 +28,12 @@ def _load(p):
 
 def card(reel, home, looks=None, theme=None):
     reel = Path(reel); menu = json.load(open(SKILL / "assets" / "style-menu.json"))["looks"]
-    picks = _load(reel / "style-picks.json") or {}
-    ids = [i.strip().upper() for i in (looks.split(",") if looks else picks.get("ids") or []) if i.strip()]
+    picks = _load(reel / "style-picks.json")
+    if not isinstance(picks, dict): picks = {}
+    if not isinstance(picks.get("ids"), list): picks["ids"] = []
+    if not isinstance(picks.get("extras"), list): picks["extras"] = []
+    if not isinstance(picks.get("theme"), str): picks["theme"] = None
+    ids = [str(i).strip().upper() for i in (looks.split(",") if looks else picks["ids"]) if str(i).strip()]
     theme = theme or picks.get("theme") or None
     notes = [f"{i} is not in the Style Menu" for i in ids if i not in menu] + \
             [f"{i} ({menu[i]['name']}) is not built yet" for i in ids if i in menu and menu[i]["status"] not in USABLE]
@@ -38,8 +42,10 @@ def card(reel, home, looks=None, theme=None):
     for i in ids:                                                  # a captions look carries its own brand settings
         over = (menu[i].get("recipe") or {}).get("brand")
         if over: brand = _theme.merge(brand, over)
-    edit = _load(reel / "edit.json") or {}
-    cards = [c for c in edit.get("cards") or [] if not c.get("off")]
+    edit = _load(reel / "edit.json")
+    if not isinstance(edit, dict): edit = {}
+    cards = [c for c in (edit.get("cards") if isinstance(edit.get("cards"), list) else []) if isinstance(c, dict) and not c.get("off")]
+    if not isinstance(edit.get("sfx_events"), list): edit["sfx_events"] = []
     by = lambda g: [f"{i} {menu[i]['name']}" for i in ids if menu[i]["group"].lower().startswith(g)]
     named = lambda c: " ".join((c.get("text") or c.get("label") or c.get("name") or "").replace("/", " ").split())
 
@@ -53,12 +59,12 @@ def card(reel, home, looks=None, theme=None):
     for c in cards:
         if c is not first: kinds[c.get("type", "card")] = kinds.get(c.get("type", "card"), 0) + 1
     extras = {x["id"]: x for x in json.load(open(SKILL / "assets" / "style-extras.json"))["extras"]}
-    layout += [f'{i} {extras[i]["name"]}' + (f' (needs {extras[i]["needs"]})' if extras[i].get("needs") else "") for i in picks.get("extras") or [] if i in extras]
+    layout += [f'{i} {extras[i]["name"]}' + (f' (needs {extras[i]["needs"]})' if extras[i].get("needs") else "") for i in picks["extras"] if isinstance(i, str) and i in extras]
     if kinds: layout.append("in the edit now: " + ", ".join(f"{n} {k}" for k, n in sorted(kinds.items())))
     zoom = brand.get("zoom") or {}; pace = _pacing.pacing(brand)
     motion = [f'zoom to {zoom.get("scale", 1.04)}x over {zoom.get("seconds", 2.5)} s, about every {zoom.get("every", 6.0):g} s',
               f'{brand.get("pacing", "natural")} pacing' + (f', {pace["speed"]:g}x speed' if pace["speed"] != 1 else "")]
-    music = edit.get("music") or brand.get("music"); sfx = [e for e in edit.get("sfx_events") or [] if not e.get("off")]
+    music = edit.get("music") or brand.get("music"); sfx = [e for e in edit["sfx_events"] if isinstance(e, dict) and not e.get("off")]
     sound = [f"music: {Path(str(music)).name}" if music else "no music bed",
              ("no sound effects" if brand.get("sfx") in (False, "off", "none") else "a sound as each card comes on") + (f", plus {len(sfx)} placed by hand" if sfx else "")]
     col = brand.get("colors") or {}; tname = (brand.get("_theme") or {}).get("name") if isinstance(brand.get("_theme"), dict) else brand.get("_theme")
@@ -73,6 +79,8 @@ def card(reel, home, looks=None, theme=None):
 if __name__ == "__main__":
     ap = argparse.ArgumentParser(); ap.add_argument("reel"); ap.add_argument("--looks"); ap.add_argument("--theme"); a = ap.parse_args()
     home = Path(os.environ.get("REELS_HOME", "~/reels")).expanduser()
+    if not (home / "brand.json").exists():
+        sys.exit(f"No brand yet: {home / 'brand.json'} is missing. Run the brand setup first (references/setup-interview.md), then the style card.")
     lines, notes = card(Path(a.reel).expanduser(), home, a.looks, a.theme)
     print("\n".join(lines))
     for n in notes: print("NOTE (tell them):", n)

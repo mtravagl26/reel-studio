@@ -1,6 +1,6 @@
 ---
 name: reel-editor
-description: "Use when someone drops a raw talking-head video (phone clip, selfie video, webcam recording) and wants it edited into a short-form reel, TikTok or YouTube Short in their own brand style - 'edit this', 'make this a reel', 'cut this down', 'add captions and graphics', 'send it to CapCut'. Delivers the full-quality MP4, a phone-size copy and a Reel cover. Also use when they hand over one long recording and want short reels from it ('find my best clips', 'cut this into reels'), the first time someone installs this skill or says 'set up my brand', and when they want a cover or thumbnail for a reel ('open my thumbnail studio', 'make a cover')."
+description: "Use when someone drops a raw talking-head video (phone clip, selfie video, webcam recording) and wants it edited into a short-form reel, TikTok or YouTube Short in their own brand style - 'edit this', 'make this a reel', 'cut this down', 'add captions and graphics', 'send it to CapCut'. Delivers the full-quality MP4, a phone-size copy and a Reel cover. Also use when they hand over one long recording and want short reels from it ('find my best clips', 'cut this into reels'), the first time someone installs this skill or says 'set up my brand', when they want a cover or thumbnail for a reel ('open my thumbnail studio', 'make a cover'), when they say 'open Reel Studio' or ask whether a clip is filmed well ('check my clip', 'check my framing'), and when they want a reel with no talking (footage with music, a title and a screen clip)."
 ---
 
 # Reel editor

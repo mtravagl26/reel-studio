@@ -169,6 +169,11 @@ def img(src):
             return f"img/{dst.name}"
     print(f"warning: image not found: {src}"); return ""
 
+def numf(v, dflt):
+    """A number from edit.json, or the default when it is missing, null or not a number (audit 3: 'from': null crashed the build)."""
+    try: return float(v) if v is not None and not isinstance(v, bool) else float(dflt)
+    except (TypeError, ValueError): return float(dflt)
+
 VIDEO_EXT = (".mp4", ".mov", ".m4v", ".webm")      # Added by By Mel Ross (0.13.0): a popup can be a video clip (a screen recording, b-roll)
 
 def popup_asset(src, secs, start=0.0, loop=False):
@@ -184,12 +189,18 @@ def popup_asset(src, secs, start=0.0, loop=False):
     try: _cw, _ch = [int(x) for x in _chk.stdout.strip().split(",")[:2]]
     except ValueError: _cw = _ch = 0
     if _chk.returncode != 0 or _cw <= 0 or _ch <= 0:   # a damaged file (ffprobe reports 0x0); looping one would make ffmpeg spin forever, so look first
-        print(f"warning: popup {src} is not a picture this machine can read: skipped"); return None
+        print(f"warning: popup {src} is not a picture or video this machine can read: skipped"); return None
     if cand.suffix.lower() in VIDEO_EXT:
         # Added by By Mel Ross (0.13.0). A video clip: cut to the part that shows (from `start`, for `secs`), 30 fps, no sound, a keyframe
         # every half second so the render can seek it frame by frame. A clip shorter than its time on screen holds its last frame,
         # or starts again with "loop": true. Phone clips filmed sideways are turned upright (ffmpeg reads the rotation flag).
         dst = proj / "img" / f"{n}_{cand.stem}.mp4"
+        try:   # audit 3: a start point past the end of the clip made an empty file and crashed the build; start inside the clip instead
+            clip_len = float(subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", str(cand)], capture_output=True, text=True).stdout.strip() or 0)
+        except ValueError: clip_len = 0.0
+        start = numf(start, 0)
+        if clip_len and start > clip_len - 0.5:
+            print(f"note: video clip {src} is {clip_len:.1f}s long, so it can't start {start:.1f}s in: starting it at 0"); start = 0.0
         try:
             r = subprocess.run(["ffmpeg", "-v", "error", "-y", *(["-stream_loop", "-1"] if loop else []), "-ss", f"{max(float(start), 0):.2f}", "-i", str(cand), "-t", f"{secs + 0.5:.2f}",
                                 "-vf", f"fps=30,scale='min(720,iw)':-2:flags=lanczos,tpad=stop_mode=clone:stop_duration={secs + 1:.2f},format=yuv420p", "-t", f"{secs + 0.5:.2f}",
@@ -200,6 +211,8 @@ def popup_asset(src, secs, start=0.0, loop=False):
             print(f"warning: video clip {src} could not be prepared ({r.stderr.strip()[:200]}): left out"); return None
         wh = subprocess.run(["ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries", "stream=width,height", "-of", "csv=p=0", str(dst)],
                             capture_output=True, text=True).stdout.strip().split(",")
+        if len(wh) < 2 or not wh[0].isdigit() or not wh[1].isdigit():
+            print(f"warning: video clip {src} has no picture in it: left out"); return None
         return "clip", f"img/{dst.name}", int(wh[0]), int(wh[1])
     if cand.suffix.lower() == ".gif":
         dst = proj / "img" / f"{n}_{cand.stem}.webm"
@@ -227,7 +240,7 @@ def popup_asset(src, secs, start=0.0, loop=False):
                             capture_output=True, text=True, check=True).stdout.strip().split(",")
         return "img", path, int(wh[0]), int(wh[1])
     except (subprocess.CalledProcessError, ValueError, IndexError):
-        print(f"warning: popup {src} is not a picture this machine can read: skipped"); return None
+        print(f"warning: popup {src} is not a picture or video this machine can read: skipped"); return None
 
 # fonts: brand.json "fonts": {"head": {...}, "body": {...}, "accent": {...}}, each {family, file?, weight?, style?}
 FALLBACK = "'Helvetica Neue', Helvetica, Arial, sans-serif"   # single quotes: these go inside style="..." attributes
@@ -413,10 +426,10 @@ for i, c in enumerate(edit.get("cards", [])):
         # Added by By Mel Ross (0.11.0): a short handwritten note on a scrap of paper, taped up above the head.
         # {type:"note", text:"line one / line two", y?, rotate?, size?, start, end}. With a kit: its paper and tape. Without: a plain sheet.
         lines = [l.strip() for l in str(c.get("text", "")).split("/") if l.strip()][:4] or [""]
-        px = min(int(c.get("size", 96)), fit(max(lines, key=len), 96, 70)); rot = float(c.get("rotate", -3))
+        px = min(max(int(numf(c.get("size"), 96)), 30), fit(max(lines, key=len), 96, 70)); rot = numf(c.get("rotate"), -3)
         paper = mat("paper") if c.get("kit", True) else ""; tape = mat("tape") if c.get("kit", True) else ""
         tw = (((KIT or {}).get("materials") or {}).get("tape") or {}).get("width") or 260
-        front.append(f'<div id="{cid}" class="notew" style="top:{c.get("y", 210)}px"><div class="note{" knote" if paper else ""}" style="{f"background-image:url({paper});" if paper else f"background:{LIGHT};"}color:{(INK if paper else None) or MAIN};{font("hand", px)}">'
+        front.append(f'<div id="{cid}" class="notew" style="top:{int(numf(c.get("y"), 210))}px"><div class="note{" knote" if paper else ""}" style="{f"background-image:url({paper});" if paper else f"background:{LIGHT};"}color:{(INK if paper else None) or MAIN};{font("hand", px)}">'
                      + (f'<img class="ktape" src="{tape}" style="width:{tw}px;margin-left:{-tw // 2}px" />' if tape else '<i class="ptape"></i>')
                      + "".join(f"<div>{esc(case(l))}</div>" for l in lines) + "</div></div>")
         show(f"#{cid}", a, b)
@@ -461,7 +474,7 @@ for i, c in enumerate(edit.get("cards", [])):
         if not asset: continue
         mkind, ppath, iw, ih = asset
         is_clip = mkind == "clip"; mkind = "video" if is_clip else mkind
-        pw = int(c.get("size", 440 if is_clip else 360)); ph = max(int(round(pw * ih / max(iw, 1))), 1)
+        pw = max(int(numf(c.get("size"), 440 if is_clip else 360)), 40); ph = max(int(round(pw * ih / max(iw, 1))), 1)
         framed = c.get("frame", Path(str(c["src"])).suffix.lower() in (".jpg", ".jpeg", ".heic", ".heif"))
         pos = c.get("pos", "top-left" if is_clip else "top-right"); top0 = 110 if c.get("caption") else 150; mx = 60
         if pos == "custom" or ("x" in c and "y" in c and pos not in POPUP_POS):

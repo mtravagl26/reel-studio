@@ -672,14 +672,16 @@ $("#addkind").addEventListener("change", () => { $("#addhint").textContent = (KI
 $("#addg").addEventListener("click", () => {
   const sel = $("#addwhen"); sel.textContent = "";
   for (const c of CAPS.filter(c => !c.gone)) sel.append(new Option(`${fmt(c.start)}  ${capText(c)}`.slice(0, 70), String(c.ci)));
+  if (!sel.options.length) sel.append(new Option("At the start of the reel", "start"));   // audit 3: a clip with no spoken lines had an empty list, and Add it did nothing
   $("#addform").hidden = false; $("#addg").hidden = true; $("#addnote").value = ""; $("#addkind").value = "choose"; $("#addhint").textContent = ""; sel.focus();
 });
 const closeAdd = () => { $("#addform").hidden = true; $("#addg").hidden = false; };
 $("#addcancel").addEventListener("click", closeAdd);
 $("#addform").addEventListener("submit", e => {
   e.preventDefault();
-  const c = CAPS.find(c => String(c.ci) === $("#addwhen").value); if (!c) return closeAdd();
-  const w = { id: "w" + Date.now().toString(36), kind: $("#addkind").value, ci: c.ci, word: c.words[0].i ?? null, line: capText(c).slice(0, 80), note: $("#addnote").value.trim().slice(0, 300) };
+  const c = CAPS.find(c => String(c.ci) === $("#addwhen").value);
+  if (!c && $("#addwhen").value !== "start") return closeAdd();
+  const w = { id: "w" + Date.now().toString(36), kind: $("#addkind").value, ci: c ? c.ci : null, word: c ? (c.words[0].i ?? null) : null, line: c ? capText(c).slice(0, 80) : "the start of the reel", note: $("#addnote").value.trim().slice(0, 300) };
   mutate(() => { S.wanted = [...(S.wanted || []), w]; }); closeAdd();
 });
 

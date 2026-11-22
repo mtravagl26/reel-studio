@@ -246,7 +246,7 @@ function saveUpload(buf, rawName) {
     // Keep a small upright copy for the page and the build: 30 fps, at most 1080 wide, no sound, at most 3 minutes. A phone clip
     // filmed sideways is turned upright here, so its size is right everywhere after. The original stays in popups/originals.
     const mp4 = `${id}.clip.mp4`;
-    const r = run("ffmpeg", ["-v", "error", "-y", "-i", path.join(P.popups, out), "-t", "180", "-vf", "fps=30,scale='min(1080,iw)':-2,format=yuv420p", "-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-g", "30", "-an", "-movflags", "+faststart", path.join(P.popups, mp4)]);
+    const r = run("ffmpeg", ["-v", "error", "-y", "-i", path.join(P.popups, out), "-t", "180", "-vf", "fps=30,scale='min(1080,iw)':-2,format=yuv420p", "-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-g", "30", "-an", "-movflags", "+faststart", path.join(P.popups, mp4)], { timeout: 240000 });   // audit 3: 4 minutes at most
     if (r.status !== 0 || !exists(path.join(P.popups, mp4))) { fs.rmSync(path.join(P.popups, out), { force: true }); fs.rmSync(path.join(P.popups, mp4), { force: true }); throw new Error("that video could not be read"); }
     fs.mkdirSync(path.join(P.popups, "originals"), { recursive: true });
     fs.renameSync(path.join(P.popups, out), path.join(P.popups, "originals", out));
