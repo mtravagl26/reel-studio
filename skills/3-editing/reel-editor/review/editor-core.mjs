@@ -193,7 +193,7 @@ export const expectedText = (transcript) => transcript.map((w) => w.text).join("
 // ---------------------------------------------------------------------------------------------------------------------------------------
 const TEXT_TYPES = new Set(["tag", "title", "card", "cta", "note"]);
 const LAYERS = new Set(["front", "behind", "both"]);
-const POS = new Set(["top-left", "top-center", "top-right", "middle-left", "middle-right", "center", "custom"]);
+const POS = new Set(["top-left", "top-center", "top-right", "middle-left", "middle-right", "center", "side-left", "side-right", "custom"]);   // 0.16.0: side-left / side-right = 2 pictures side by side in the middle
 const COMMON = ["start", "end", "off"];
 const FIELDS = {
   tag: [...COMMON, "text", "y", "layer", "glass", "color"],
@@ -201,7 +201,7 @@ const FIELDS = {
   cta: [...COMMON, "text", "y", "layer"],
   note: [...COMMON, "text", "y", "rotate", "size", "layer"],   // Added by By Mel Ross (0.11.0): taped paper note
   card: [...COMMON, "title", "rows", "layer", "glass"],
-  popup: [...COMMON, "pos", "x", "y", "size", "rotate", "frame", "layer", "from", "loop"],   // 0.13.0: "from" and "loop" are for video clips
+  popup: [...COMMON, "pos", "x", "y", "size", "rotate", "frame", "layer", "from", "loop", "caption"],   // 0.13.0: "from" and "loop" are for video clips
   orbit: [...COMMON, "level", "size", "period", "frame"],   // Added by By Mel Ross (0.9.0): pictures that circle the head
   sticker: [...COMMON, "x", "y", "size", "rotate", "layer"],
   image: [...COMMON, "layer"], shot: [...COMMON, "label", "y", "layer"],
@@ -229,6 +229,7 @@ export function cleanCardFields(type, set, dur) {
     else if (k === "off" || k === "glass" || k === "frame" || k === "loop") out[k] = !!v;
     else if (k === "from") out[k] = num(v, "where the clip starts", 0, 900);
     else if (k === "text" || k === "title" || k === "label") out[k] = cleanText(v, k);
+    else if (k === "caption") out[k] = String(v ?? "").trim() ? cleanText(v, "label", 40) : "";   // 0.16.0: the handwritten label under a popup; empty takes it off
     else if (k === "layer") { if (!LAYERS.has(v)) throw new Error("layer must be front, behind or both"); out[k] = v; }
     else if (k === "pos") { if (!POS.has(v)) throw new Error("unknown position"); out[k] = v; }
     else if (k === "level") { if (!["crown", "chest"].includes(v)) throw new Error("the ring goes round the top of your head (crown) or below your chin (chest)"); out[k] = v; }
@@ -238,7 +239,7 @@ export function cleanCardFields(type, set, dur) {
     else if (k === "y") out[k] = Math.round(num(v, k, 0, 1920));
     else if (k === "size") out[k] = Math.round(num(v, k, type === "popup" ? 80 : 40, type === "popup" ? 1000 : 900));
     else if (k === "rotate") out[k] = num(v, k, -45, 45);
-    else if (k === "rows") out[k] = (Array.isArray(v) ? v : []).map((x) => cleanText(x, "row", 40)).slice(0, 6);
+    else if (k === "rows") { out[k] = (Array.isArray(v) ? v : []).map((x) => String(x ?? "").trim()).filter(Boolean).map((x) => cleanText(x, "row", 40)).slice(0, 6); if (!out[k].length) throw new Error("a list needs at least 1 row"); }
     else if (k === "color") { if (!/^#[0-9a-fA-F]{6}$/.test(v)) throw new Error("color must look like #B9C8A5"); out[k] = v; }
   }
   if (out.start != null && out.end != null && out.end < out.start + 0.3) throw new Error("a card must stay on screen for at least 0.3 s");
@@ -270,22 +271,30 @@ export function applyOp(edit0, op, { dur }) {
       const start = fields.start ?? c.start, end = fields.end ?? c.end;
       if (end != null && end < start + 0.3 && ("start" in fields || "end" in fields)) throw new Error("a card must stay on screen for at least 0.3 s");
       Object.assign(c, fields);
+      if (c.caption === "") delete c.caption;
       if ("layer" in fields && fields.layer === "front" && !isTextType(c.type)) delete c.layer;
       break;
     }
     case "card_add": {
       const type = op.card?.type;
-      if (!["tag", "popup", "orbit"].includes(type)) throw new Error("this page adds pills (tag), popups and pictures that circle your head (orbit)");
+      if (!["tag", "popup", "orbit", "card"].includes(type)) throw new Error("this page adds pills (tag), lists (card), popups and pictures that circle your head (orbit)");
       const { type: _t, src, ...rest } = op.card;
       const fields = cleanCardFields(type, rest, dur);
       if (fields.start == null) throw new Error("start time needed");
-      if (fields.end == null) fields.end = r4(Math.min(fields.start + (type === "popup" ? 3 : type === "orbit" ? 6 : 2.5), dur));
+      if (fields.end == null) fields.end = r4(Math.min(fields.start + (type === "popup" ? 3 : type === "orbit" ? 6 : type === "card" ? 4 : 2.5), dur));
       const card = { id: genId(), type, ...fields };
+      if (type === "card") { card.title = card.title || "my list"; card.rows = card.rows || ["first", "second", "third"]; }   // 0.16.0: a list card
       if (type === "tag") { card.text = card.text || "new pill"; card.y = card.y ?? 130; card.glass = card.glass ?? true; card.sfx = false; }
       if (type === "popup") {
         if (!/^popups\/[\w.\- ]+$/.test(String(src || ""))) throw new Error("popups come from the upload button");
         card.src = src; const clip = IS_VIDEO.test(src);   // 0.13.0: a video clip opens bigger, top left, like a window beside the face
-        card.pos = card.pos || (clip ? "top-left" : "top-right"); card.size = card.size || (clip ? 440 : 360);
+        card.size = card.size || (clip ? 440 : 360);
+        if (!card.pos && clip) card.pos = "top-left";
+        if (!card.pos) {
+          // 0.16.0: one picture goes in the middle. A second picture on screen at the same time puts the two side by side.
+          const mate = (edit.cards || []).filter((x) => x.type === "popup" && !x.off && !IS_VIDEO.test(String(x.src || "")) && (!x.pos || x.pos === "center") && x.start < card.end && (x.end ?? x.start + 3) > card.start);
+          if (mate.length === 1) { mate[0].pos = "side-left"; card.pos = "side-right"; info.paired = true; } else card.pos = "center";
+        }
       }
       if (type === "orbit") {
         const list = Array.isArray(src) ? src.map(String) : [];
@@ -326,11 +335,13 @@ export function applyOp(edit0, op, { dur }) {
 /** Where a popup lands on the 1080x1920 frame: the same arithmetic as build_reel.py (left/top of the box, in px). */
 export const IS_VIDEO = /\.(mp4|mov|m4v|webm)$/i;
 export function popupBox(card, iw, ih) {
-  const W = 1080, H = 1920, pw = Number(card.size || (IS_VIDEO.test(String(card.src || "")) ? 440 : 360)), ph = Math.max(Math.round((pw * ih) / Math.max(iw, 1)), 1);
+  const W = 1080, H = 1920, side = card.pos === "side-left" || card.pos === "side-right";
+  const pw = Math.min(Number(card.size || (IS_VIDEO.test(String(card.src || "")) ? 440 : 360)), side ? 500 : Infinity), ph = Math.max(Math.round((pw * ih) / Math.max(iw, 1)), 1);
   const named = { "top-left": ["top", "left"], "top-center": ["top", "center"], "top-right": ["top", "right"], "middle-left": ["middle", "left"], "middle-right": ["middle", "right"], center: ["center", "center"] };
-  const pos = card.pos || (IS_VIDEO.test(String(card.src || "")) ? "top-left" : "top-right");
+  const pos = card.pos || (IS_VIDEO.test(String(card.src || "")) ? "top-left" : "center");   // 0.16.0: a picture with no place set sits in the middle
+  if (side) return { left: pos === "side-left" ? W / 2 - 12 - pw : W / 2 + 12, top: Math.floor((H - ph) / 2), w: pw, h: ph };
   if (pos === "custom" || (card.x != null && card.y != null && !named[pos])) return { left: Math.trunc((card.x ?? W / 2) - pw / 2), top: Math.trunc((card.y ?? 400) - ph / 2), w: pw, h: ph };
-  const [v, h] = named[pos] || named["top-right"];
+  const [v, h] = named[pos] || named.center;
   return {
     left: { left: 60, center: Math.floor((W - pw) / 2), right: W - 60 - pw }[h],
     top: { top: 150, middle: Math.floor((H - ph) / 2) - 260, center: Math.floor((H - ph) / 2) }[v],

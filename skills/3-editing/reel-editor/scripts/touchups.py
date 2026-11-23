@@ -186,8 +186,21 @@ def apply(touch, edit, keep, speed):
     if sounds: edit["sfx_events"] = sorted(sounds, key=lambda x: x.get("t") or 0)
     now = _words(edit, tl); fixed = 0
     for f in touch["words"]:
-        w = next((w for s, w in now if abs(s - f["src"]) <= EPS * speed + 1e-6), None)
-        if w is None: continue                                  # that word is cut now: nothing to fix
+        near = [(abs(s - f["src"]), w) for s, w in now if abs(s - f["src"]) <= EPS * speed + 1e-6]
+        was = f.get("was")
+        if was is not None:
+            # 0.16.0: a fix goes on the word it was made on, never on a neighbour. When the word at that moment is a different
+            # word now (timing moved by a re-cut or a caption edit on the review page), look a little either side for the
+            # same word; if it is not there, say so instead of changing another word.
+            same = lambda w: w.get("text") in (was, f["text"])
+            hit = [x for x in near if same(x[1])] or sorted(((abs(s - f["src"]), w) for s, w in now if abs(s - f["src"]) <= 0.75 * speed and same(w)), key=lambda x: x[0])
+            if not hit:
+                if near: lost.append(f'the caption fix "{was}" to "{f["text"]}": the word at that moment is "{near[0][1].get("text")}" now, so it was left alone. Check that caption')
+                continue                                        # no word there at all: it is cut now, nothing to fix
+            w = hit[0][1]
+        else:
+            if not near: continue                               # that word is cut now: nothing to fix
+            w = min(near, key=lambda x: x[0])[1]
         w["text"] = f["text"]; w["accent"] = f["accent"]; fixed += 1
     if fixed: kept.append(f"{fixed} caption word fix{'es' if fixed != 1 else ''}")
     for k, v in touch["extra"].items(): edit[k] = v; kept.append(f'the "{k}" setting added by hand')

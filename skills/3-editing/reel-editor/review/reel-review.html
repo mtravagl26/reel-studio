@@ -76,7 +76,8 @@ textarea{min-height:80px;resize:vertical}
 .card>div{min-width:0}
 .upl{min-width:0}
 .giphy{flex-basis:100%;max-width:100%;min-width:0;box-sizing:border-box;border:2px solid var(--line);border-radius:14px;padding:10px;background:#fff}.giphy[hidden]{display:none}
-.giphy .ctl{display:flex;gap:6px;flex-wrap:wrap}.giphy .gkey{margin-bottom:8px}.giphy input[type=password]{flex:1 1 160px;min-width:0;box-sizing:border-box;font:inherit;padding:8px 10px;border:2px solid var(--line);border-radius:10px}.giphy input[type=search]{flex:1 1 120px;min-width:0;width:100%;box-sizing:border-box;font:inherit;padding:8px 10px;border:2px solid var(--line);border-radius:10px}.giphy select{font:inherit;padding:8px;border:2px solid var(--line);border-radius:10px;background:#fff}
+.giphy .ctl{display:flex;gap:6px;flex-wrap:wrap}.placer{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}.placer select{flex:1 1 200px;min-width:0;font:inherit;padding:8px;border:2px solid var(--line);border-radius:10px;background:#fff}
+.giphy .gkey{margin-bottom:8px}.giphy input[type=password]{flex:1 1 160px;min-width:0;box-sizing:border-box;font:inherit;padding:8px 10px;border:2px solid var(--line);border-radius:10px}.giphy input[type=search]{flex:1 1 120px;min-width:0;width:100%;box-sizing:border-box;font:inherit;padding:8px 10px;border:2px solid var(--line);border-radius:10px}.giphy select{font:inherit;padding:8px;border:2px solid var(--line);border-radius:10px;background:#fff}
 .ggrid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin:8px 0}.ggrid button{padding:0;border:2px solid var(--line);border-radius:8px;overflow:hidden;background:#eee;cursor:pointer;aspect-ratio:1}.ggrid img{width:100%;height:100%;object-fit:cover;display:block}
 .upchip{position:relative;display:inline-block}.upchip img,.upchip video{width:56px;height:56px;object-fit:cover;border-radius:8px;border:2px solid var(--line);display:block}
 .upchip button{position:absolute;top:-6px;right:-6px;width:22px;height:22px;border-radius:50%;border:0;background:var(--drop,#a32727);color:#fff;font-weight:700;line-height:1;cursor:pointer}
@@ -202,7 +203,7 @@ code{font:500 13px var(--f-mono);background:var(--accent-soft);border-radius:6px
     </section>
 
     <section data-p="graphics" hidden>
-      <p class="lede">These are the graphics planned for this reel. Each picture shows roughly where the graphic will sit. It's a sketch, so the finished one moves and looks better. Keep it, drop it, or ask for a change and say what you want.</p>
+      <p class="lede">These are the graphics planned for this reel. Each picture shows roughly where the graphic will sit. It's a sketch, so the finished one moves and looks better. Keep it, drop it, or ask for a change and say what you want. The 2 menus under each graphic move it: where on screen, and in front of your face or behind your head.</p>
       <div class="amount"><span id="amountlabel">How many graphics?</span>
         <div class="seg" id="amount" role="group" aria-labelledby="amountlabel">
           <button type="button" class="k" data-amt="few">A few</button><button type="button" class="k" data-amt="some">Some</button><button type="button" class="k" data-amt="lots">Lots</button>
@@ -546,6 +547,7 @@ function renderGraphics() {
       seg.appendChild(b);
     }
     body.append(kind, what, meta, seg);
+    if (st !== "d" && !g.gone) body.appendChild(placer(S.board[g.id] || {}, (k, v) => mutate(() => { const cur = { ...(S.board[g.id] || {}) }; if (v) cur[k] = v; else delete cur[k]; S.board[g.id] = cur; })));
     if (st === "c") {
       const inp = document.createElement("input"); inp.type = "text"; inp.id = "note-" + g.id; inp.placeholder = "What should change?"; inp.value = (S.board[g.id] || {}).note || "";
       inp.addEventListener("input", () => { S.board[g.id] = { ...(S.board[g.id] || { state: "c" }), note: inp.value }; queueSave(); });
@@ -557,6 +559,16 @@ function renderGraphics() {
   $("#gtally").innerHTML = `<span><b>${GFX.length}</b> graphics</span><span><b>${n.k}</b> keep</span><span><b>${n.c}</b> change</span><span><b>${n.d}</b> drop</span>`;
 }
 const box_ = g => box(g, false);
+// Where a graphic goes (Added by By Mel Ross, 0.16.0): chosen here, before the build. "As planned" leaves it to the plan.
+const WHERE = [["", "Where: as planned"], ["center", "Middle (covers part of my face)"], ["top-center", "Top, above my head"], ["top-left", "Top left"], ["top-right", "Top right"], ["middle-left", "Left of my face"], ["middle-right", "Right of my face"], ["lower", "Lower, above the captions"]];
+const LAYER = [["", "Layer: as planned"], ["front", "In front of my face"], ["behind", "Behind my head (Mac only)"]];
+function placer(cur, set) {
+  const row = document.createElement("div"); row.className = "placer";
+  const w = document.createElement("select"); w.setAttribute("aria-label", "Where on screen"); w.append(...WHERE.map(([v, t]) => new Option(t, v))); w.value = cur.where || "";
+  const l = document.createElement("select"); l.setAttribute("aria-label", "In front of my face or behind my head"); l.append(...LAYER.map(([v, t]) => new Option(t, v))); l.value = cur.layer || "";
+  w.addEventListener("change", () => set("where", w.value)); l.addEventListener("change", () => set("layer", l.value));
+  row.append(w, l); return row;
+}
 
 // Their own pictures for a graphic (Added by By Mel Ross, 0.10.2). Only at the local Reel Studio link: the picture is saved in the
 // reel folder (popups/) and its path travels with the decision, so Claude uses that file when it builds the graphic.
@@ -690,7 +702,8 @@ function renderWanted() {
     const line = document.createElement("span"); line.textContent = `At "${w.line}"`; meta.append(line);
     const rm = document.createElement("button"); rm.type = "button"; rm.className = "b quiet"; rm.textContent = "Remove";
     rm.addEventListener("click", () => mutate(() => { S.wanted = S.wanted.filter(x => x.id !== w.id); }));
-    body.append(kind, what, meta, uploader(w.files || [], files => mutate(() => { S.wanted = S.wanted.map(x => x.id === w.id ? { ...x, files } : x); })), rm); el.append(body); box.appendChild(el);
+    body.append(kind, what, meta, placer(w, (k, v) => mutate(() => { S.wanted = S.wanted.map(x => { if (x.id !== w.id) return x; const y = { ...x }; if (v) y[k] = v; else delete y[k]; return y; }); })),
+      uploader(w.files || [], files => mutate(() => { S.wanted = S.wanted.map(x => x.id === w.id ? { ...x, files } : x); })), rm); el.append(body); box.appendChild(el);
   }
   if ((S.wanted || []).length) $("#gtally").insertAdjacentHTML("beforeend", `<span><b>${S.wanted.length}</b> asked for</span>`);
 }

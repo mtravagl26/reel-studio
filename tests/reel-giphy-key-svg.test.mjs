@@ -1,10 +1,11 @@
 // Added by By Mel Ross (0.15.0). The pages save the GIPHY key themselves, and an SVG file can be a graphic.
 import assert from "node:assert/strict";
-import { spawn } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
-import { skill, skipReason, tmp } from "./reel-helpers.mjs";
+import { py, skill, skipReason, tmp } from "./reel-helpers.mjs";
+const core = await import(new URL("../skills/3-editing/reel-editor/review/editor-core.mjs", import.meta.url));
 
 const review = path.join(skill, "review");
 
@@ -76,4 +77,55 @@ test("the pages explain themselves: tips beside the terms, the cover step last, 
   for (const [n, h] of [["review", rv], ["touch-ups", ed], ["cover", th]]) assert.match(h, /1 Review<\/a>\s*<a[^>]*data-step="touchups"[^>]*>2 Touch-ups<\/a>\s*<a[^>]*data-step="cover"[^>]*>3 Cover<\/a>/, n + ": the cover is the last step");
   assert.match(ed, /First pause the video at the moment you want it/); assert.match(ed, /From this computer/); assert.match(ed, /Pick a file to use it again/); assert.match(ed, /Special effect/);
   assert.match(fs.readFileSync(path.join(skill, "SKILL.md"), "utf8"), /Before step 1: they choose the kind of reel/);
+});
+
+// 0.16.0
+test("touch-ups: a new picture goes in the middle, a second one pairs up, lists and popup labels can be changed", () => {
+  const o = { dur: 20 };
+  let edit = { captions: [], cards: [], sfx_events: [] };
+  let r = core.applyOp(edit, { op: "card_add", card: { type: "popup", start: 2, src: "popups/a.png" } }, o); edit = r.edit;
+  assert.equal(edit.cards[0].pos, "center"); assert.ok(!r.info.paired);
+  r = core.applyOp(edit, { op: "card_add", card: { type: "popup", start: 3, src: "popups/b.png" } }, o); edit = r.edit;
+  assert.deepEqual(edit.cards.map((c) => c.pos), ["side-left", "side-right"]); assert.equal(r.info.paired, true);
+  r = core.applyOp(edit, { op: "card_add", card: { type: "popup", start: 12, src: "popups/c.png" } }, o); edit = r.edit;
+  assert.equal(edit.cards[2].pos, "center", "not on screen with the others");
+  assert.equal(core.applyOp(edit, { op: "card_add", card: { type: "popup", start: 2, src: "popups/v.clip.mp4" } }, o).edit.cards.find((c) => /clip/.test(c.src)).pos, "top-left", "video clips keep their own spot");
+  assert.deepEqual(core.popupBox({ src: "popups/a.png" }, 400, 200), { left: 360, top: 870, w: 360, h: 180 }, "no place set = the middle");
+  assert.deepEqual(core.popupBox({ src: "popups/a.png", pos: "side-left", size: 700 }, 400, 200), { left: 28, top: 835, w: 500, h: 250 });
+  assert.deepEqual(core.popupBox({ src: "popups/a.png", pos: "side-right" }, 400, 200), { left: 552, top: 870, w: 360, h: 180 });
+  edit = core.applyOp(edit, { op: "card_set", i: 0, set: { layer: "behind", caption: " post it " } }, o).edit;
+  assert.equal(edit.cards[0].layer, "behind"); assert.equal(edit.cards[0].caption, "post it");
+  edit = core.applyOp(edit, { op: "card_set", i: 0, set: { caption: "", layer: "front" } }, o).edit;
+  assert.ok(!("caption" in edit.cards[0])); assert.ok(!("layer" in edit.cards[0]));
+  r = core.applyOp(edit, { op: "card_add", card: { type: "card", start: 5 } }, o); edit = r.edit; const li = r.info.index;
+  assert.equal(edit.cards[li].type, "card"); assert.equal(edit.cards[li].end, 9); assert.ok(edit.cards[li].rows.length >= 1);
+  edit = core.applyOp(edit, { op: "card_set", i: li, set: { title: "my AI team", rows: ["Claude", "", "  Wispr Flow ", "Canva"] } }, o).edit;
+  assert.deepEqual(edit.cards[li].rows, ["Claude", "Wispr Flow", "Canva"]); assert.equal(edit.cards[li].title, "my AI team");
+  assert.throws(() => core.applyOp(edit, { op: "card_set", i: li, set: { rows: ["", " "] } }, o), /at least 1 row/);
+  const ed = fs.readFileSync(path.join(review, "editor.html"), "utf8"), rv = fs.readFileSync(path.join(review, "reel-review.html"), "utf8");
+  for (const t of ["In front of my face", "Behind my head", "Handwritten label under it", "List title", "+ Add a list at this point", "Left of a pair"]) assert.ok(ed.includes(t), t);
+  for (const t of ["Middle (covers part of my face)", "Behind my head (Mac only)", "function placer"]) assert.ok(rv.includes(t), t);
+});
+
+test("a caption fix stays on the word it was made on when timing moves, and says so when that word is gone", { skip: skipReason }, () => {
+  const code = `
+import json, sys
+sys.path.insert(0, sys.argv[1])
+import touchups
+keep = [[0, 10]]
+def edit(words): return {"captions": [{"start": 0, "end": 5, "words": [{"text": t, "t": at, "accent": False} for t, at in words]}], "cards": [], "hash": "h"}
+touch = {"speed": 1.0, "dropped": [], "words": [{"src": 1.0, "text": "to", "accent": False, "was": "too"}], "cards": {"added": [], "changed": [], "deleted": []}, "sounds": {"added": [], "changed": [], "deleted": []}, "extra": {}}
+out = {}
+for name, words in (("same", [("it", 0.5), ("too", 1.0), ("a", 1.5)]), ("moved", [("it", 0.5), ("a", 1.01), ("too", 1.4)]), ("gone", [("it", 0.5), ("a", 1.0), ("friend", 1.5)])):
+    e = edit(words); kept, lost = touchups.apply(touch, e, keep, 1.0)
+    out[name] = {"words": [w["text"] for w in e["captions"][0]["words"]], "kept": kept, "lost": lost}
+print(json.dumps(out))
+`;
+  const f = path.join(tmp("capfix"), "t.py"); fs.writeFileSync(f, code);
+  const r = spawnSync("python3", [f, path.join(skill, "scripts")], { encoding: "utf8" });
+  assert.equal(r.status, 0, r.stderr); const o = JSON.parse(r.stdout);
+  assert.deepEqual(o.same.words, ["it", "to", "a"]);
+  assert.deepEqual(o.moved.words, ["it", "a", "to"], "the fix follows its word; the neighbour is left alone");
+  assert.deepEqual(o.gone.words, ["it", "a", "friend"], "no word is changed when the fixed word is not there");
+  assert.match(o.gone.lost.join(" "), /caption fix "too" to "to".*left alone/);
 });

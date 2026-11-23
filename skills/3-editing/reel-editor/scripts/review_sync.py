@@ -135,7 +135,9 @@ def do_import(reel, review):
     caps = [{"start": round(c["start"], 3), "end": round(c["end"], 3),
              "words": [{"text": re.sub(r"[.,!?;:]+$", "", w["text"]), "t": round(w["t"], 3), "accent": w["accent"]} for w in c["words"]]}
             for c in P["captions"] if not c.get("gone")]
-    cards, changes = [], []
+    cards, changes, places = [], [], []
+    WHERE = {"center": "the middle of the screen, even where it covers part of the face", "top-center": "the top, above the head", "top-left": "the top left", "top-right": "the top right",
+             "middle-left": "left of the face", "middle-right": "right of the face", "lower": "lower, just above the captions"}
     for g in P["graphics"]:
         if g.get("gone") or g["state"] == "d": continue
         note = ((d.get("board") or {}).get(g["id"]) or {}).get("note")
@@ -144,6 +146,14 @@ def do_import(reel, review):
         spec = {k: v for k, v in g.items() if k not in ("id", "kind", "what", "w0", "w1", "state", "place", "moved", "gone")}
         spec.update(start=round(g["start"], 3), end=round(g["end"], 3), id=g["id"])
         if g["id"] in (d.get("sfxOff") or {}) and d["sfxOff"][g["id"]]: spec["sfx"] = False
+        # Added by By Mel Ross (0.16.0): where they put it on the review page. A layer applies to any card; a place is written
+        # straight onto a popup, and passed to you in words for the other kinds (their place is set by different fields).
+        _b = (d.get("board") or {}).get(g["id"]) or {}
+        _where, _layer = _b.get("where") if _b.get("where") in WHERE else None, _b.get("layer") if _b.get("layer") in ("front", "behind") else None
+        if _layer == "behind": spec["layer"] = "behind"
+        elif _layer == "front": spec.pop("layer", None); spec["layer"] = "front"
+        if _where and spec.get("type") == "popup" and _where != "lower": spec["pos"] = _where; spec.pop("x", None); spec.pop("y", None)
+        elif _where: places.append(f"{g['id']} ({spec.get('type', 'card')}) @ cut {g['start']:.1f}s: {WHERE[_where]}")
         cards.append(spec)
     punch, last = [], -9.0   # punch-ins on sentence starts in the cut, at most every ~6 s (emphasis, not every line)
     for c in caps:
@@ -160,6 +170,7 @@ def do_import(reel, review):
     for k in kept: print("TOUCH-UP KEPT:", k)
     for k in lost: print("TOUCH-UP NOT KEPT (tell them):", k)
     for c in changes: print("CHANGE REQUESTED:", c)
+    for c in places: print("PLACE IT (set this card's position in edit.json before the render):", c)
     # Added by By Mel Ross (0.10.1): graphics asked for on the Graphics tab. The page can't build them; you do, in edit.json, before the render.
     AMT = {"few": "minimal (about 1 every 8-12 s)", "some": "balanced (about 1 every 4-6 s)", "lots": "busy (about 1 every 2-4 s)"}
     if d.get("amount") in AMT:
@@ -170,6 +181,7 @@ def do_import(reel, review):
     for w in d.get("wanted") if isinstance(d.get("wanted"), list) else []:
         if not isinstance(w, dict): continue                             # audit 3: a damaged decisions file must not stop the import
         print(f'GRAPHIC WANTED: {KIND.get(w.get("kind"), "your choice of card")} at the line "{w.get("line", "")}"' + (f': {w["note"]}' if w.get("note") else "") + (f' Use their own picture(s), already in the reel folder: {", ".join(f for f in w["files"] if isinstance(f, str) and re.fullmatch(r"popups/[\w.\- ]+", f))}' if w.get("files") else "") +
+              (f' Put it in {WHERE[w["where"]]}.' if w.get("where") in WHERE else "") + (f' Layer: {"behind the speaker" if w["layer"] == "behind" else "in front"}.' if w.get("layer") in ("front", "behind") else "") +
               ". Add it to edit.json. If it needs pictures or numbers you don't have, ask them before the render.")
     for k, n in (d.get("notes") or {}).items():
         if n.strip(): print(f"NOTE ({k}):", n.strip())

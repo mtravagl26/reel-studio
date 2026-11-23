@@ -474,16 +474,28 @@ function startRender() {
   runRender();
 }
 
-// the video the page shows before any render: a phone copy of the existing final.mp4, made once
+// the video the page shows before any render: a phone copy of the existing final.mp4, made once.
+// 0.16.0: also when final.mp4 was rendered outside this page (from the command line) after the last render the page knows:
+// the player used to stay empty, or show an older video. The page checks each time it loads the reel.
 function prepareBaseline() {
-  if (listRenders().length || !exists(P.final)) return;
+  if (prepping || child || job.state === "running" || job.state === "queued" || !exists(P.final)) return;
+  const all = listRenders(); let version = 0, extra = { baseline: true, what: "the video as it was when this page first opened" };
+  const fm = fs.statSync(P.final).mtimeMs;
+  if (Date.now() - fm < 8000) return;   // still being written
+  if (all.length) {
+    const newest = Math.max(...fs.readdirSync(P.renders).filter((n) => /^v\d+\.json$/.test(n)).map((n) => fs.statSync(path.join(P.renders, n)).mtimeMs));
+    if (fm <= newest + 5000) return;
+    version = Math.max(...all.map((r) => r.v)) + 1; extra = { outside: true, what: "rendered outside this page (from Claude or the command line)" };
+  }
   prepping = true;
-  const phone = path.join(P.renders, "v000-phone.mp4"), tag = ["-colorspace", "bt709", "-color_primaries", "bt709", "-color_trc", "bt709", "-color_range", "tv"];
+  const v = String(version).padStart(3, "0");
+  const phone = path.join(P.renders, `v${v}-phone.mp4`), tag = ["-colorspace", "bt709", "-color_primaries", "bt709", "-color_trc", "bt709", "-color_range", "tv"];
+  fs.mkdirSync(P.renders, { recursive: true });
   const c = spawn("ffmpeg", ["-hide_banner", "-loglevel", "error", "-y", "-i", P.final, "-vf", "scale='min(1080,iw)':-2", "-c:v", "libx264", "-preset", "veryfast", "-crf", "26", "-pix_fmt", "yuv420p", ...tag,
     "-c:a", "aac", "-b:a", "128k", "-movflags", "+faststart", phone], { env: childEnv() });
   c.on("close", (code) => {
     prepping = false;
-    if (code === 0) writeJSON(path.join(P.renders, "v000.json"), { v: 0, at: new Date().toISOString(), phone: "renders/v000-phone.mp4", full: "final.mp4", baseline: true, what: "the video as it was when this page first opened" });
+    if (code === 0) writeJSON(path.join(P.renders, `v${v}.json`), { v: version, at: new Date().toISOString(), phone: `renders/v${v}-phone.mp4`, full: "final.mp4", ...extra });
   });
 }
 
@@ -558,6 +570,7 @@ const server = http.createServer(async (req, res) => {
       fs.mkdirSync(path.dirname(file), { recursive: true }); writeText(file, body);
       res.writeHead(204).end(); return;
     }
+    if (p === "/api/state" && req.method === "GET" && built()) { try { prepareBaseline(); } catch { /* the player just stays as it is */ } }
     if (p === "/api/state" && req.method === "GET") return json(res, 200, built() ? view() : { built: false, reel: path.basename(REEL), review: hasReview(), links: LINKS });
     if (req.method === "GET" && p === "/api/review-giphy-key") return json(res, 200, { key: giphyKey() || null });   // 0.10.2: GIPHY on the review page, before the build
     if (req.method === "POST" && p === "/api/giphy-key-save") {   // 0.15.0: both pages can save the key (works before the build)

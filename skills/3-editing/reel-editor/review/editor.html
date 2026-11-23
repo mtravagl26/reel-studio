@@ -120,9 +120,9 @@ summary .tipb{margin-right:auto}
 
 <details open id="s-cap"><summary>Captions <small id="capn"></small></summary><div class="sec"><p class="help">Tap a word to fix it. The highlighted words are the sage ones in the video.</p><div id="caps"></div></div></details>
 <details open id="s-cut"><summary>Cuts <small id="cutn"></small></summary><div class="sec"><p class="help">Switch a piece off to drop it from the video. Captions, text and sounds after it move up to match. Turn it back on to bring it back.</p><div id="pieces"></div></div></details>
-<details open id="s-txt"><summary>Text on screen <small id="txtn"></small></summary><div class="sec"><div id="cards"></div><button id="addPill" class="sage" style="width:100%;margin-top:8px">+ Add text at this point in the video</button></div></details>
+<details open id="s-txt"><summary>Text on screen <small id="txtn"></small></summary><div class="sec"><div id="cards"></div><button id="addPill" class="sage" style="width:100%;margin-top:8px">+ Add text at this point in the video</button><button id="addList" style="width:100%;margin-top:8px">+ Add a list at this point in the video</button></div></details>
 <details open id="s-pop"><summary>Popups: GIFs, graphics, photos <small id="popn"></small></summary><div class="sec"><div id="popups"></div>
-  <p class="help" style="margin-top:10px"><b>Add something that pops up on screen.</b> First pause the video at the moment you want it. Then pick one of the ways below. It shows for 3 seconds in the top right corner, and you can change where and how long after you add it.</p>
+  <p class="help" style="margin-top:10px"><b>Add something that pops up on screen.</b> First pause the video at the moment you want it. Then pick one of the ways below. It shows for 3 seconds in the middle of the screen. Add a second one at the same moment and the 2 sit side by side. You can change where and how long after you add it.</p>
   <label class="f">From this computer</label>
   <label class="sage" style="display:block"><input id="file" type="file" accept="image/gif,image/png,image/jpeg,image/webp,image/heic,image/heif,image/svg+xml,video/mp4,video/quicktime,.heic,.heif,.gif,.png,.jpg,.jpeg,.webp,.svg,.mp4,.mov,.m4v" style="display:none" />
   <span style="display:flex;align-items:center;justify-content:center;min-height:44px;border-radius:12px;border:1.5px solid var(--sage-d);background:var(--sage);font-weight:600">+ Upload a picture, GIF, SVG or video clip</span></label>
@@ -302,6 +302,10 @@ function cardHtml(c, i) {
       h += `<label class="f">Text</label><input type="text" data-a="set" data-i="${i}" data-f="text" value="${esc(c.text)}" />`;
       if (c.type === "tag" && (c.text || "").length > 24) h += `<p class="warnt">Long text can run off the edge of the screen.</p>`;
     }
+    if (c.type === "card") {   // 0.16.0: a list's title and rows can be changed here
+      h += `<label class="f">List title</label><input type="text" data-a="set" data-i="${i}" data-f="title" value="${esc(c.title || "")}" />
+        <label class="f">Rows (one per line, up to 6)</label><textarea rows="${Math.max((c.rows || []).length, 3)}" data-a="rows" data-i="${i}" style="width:100%;box-sizing:border-box;font:inherit;padding:10px;border:1.5px solid var(--line);border-radius:12px">${esc((c.rows || []).map((r) => typeof r === "string" ? r : r?.text ?? "").join("\n"))}</textarea>`;
+    }
     h += times(c, i);
     if (isTextType(c.type)) {
       const L = effLayer(c);
@@ -332,13 +336,17 @@ function popupHtml(c, i) {
   const open = openCard.has(cid(i)), m = S.media[c.src] || { w: 1, h: 1 };
   let h = `<div class="item${c.off ? " off" : ""}"><div class="hd"><label class="sw"><input type="checkbox" data-a="toggle" data-i="${i}" ${c.off ? "" : "checked"} ${running() ? "disabled" : ""}><i></i></label>
     ${thumb(c.src)}
-    <div class="tt" data-a="open" data-i="${i}" style="cursor:pointer">${esc(c.src.replace(/^popups\/[^-]*-/, "").replace(/\.clip\.mp4$/, ""))}<small>${isClip(c.src) ? "Video clip · " : m.animated ? "GIF · " : ""}${fmt(c.start)} – ${fmt(c.end)} · ${esc(c.pos || (isClip(c.src) ? "top-left" : "top-right"))}</small></div>
+    <div class="tt" data-a="open" data-i="${i}" style="cursor:pointer">${esc(c.src.replace(/^popups\/[^-]*-/, "").replace(/\.clip\.mp4$/, ""))}<small>${isClip(c.src) ? "Video clip · " : m.animated ? "GIF · " : ""}${fmt(c.start)} – ${fmt(c.end)} · ${esc(({ center: "middle", "side-left": "left of a pair", "side-right": "right of a pair" })[c.pos || (isClip(c.src) ? "top-left" : "center")] || c.pos || "top-left")}${c.layer === "behind" ? " · behind my head" : ""}</small></div>
     <button class="sm" data-a="open" data-i="${i}">${open ? "Close" : "Edit"}</button></div>`;
   if (open) {
-    const P = [["top-left", "Top left"], ["top-center", "Top, above head"], ["top-right", "Top right"], ["middle-left", "Left"], ["center", "Center"], ["middle-right", "Right"]];
-    h += `<div class="edit">${times(c, i)}<label class="f">Where</label><div class="grid3">${P.map(([k, n]) => `<button class="${(c.pos || "top-right") === k ? "on" : ""}" data-a="set" data-i="${i}" data-f="pos" data-v="${k}">${n}</button>`).join("")}
+    const P = [["top-left", "Top left"], ["top-center", "Top, above head"], ["top-right", "Top right"], ["middle-left", "Left"], ["center", "Middle"], ["middle-right", "Right"], ["side-left", "Left of a pair"], ["side-right", "Right of a pair"]];
+    const here = c.pos || (isClip(c.src) ? "top-left" : "center"), L = c.layer === "behind" ? "behind" : "front";
+    h += `<div class="edit">${times(c, i)}<label class="f">Where</label><div class="grid3">${P.map(([k, n]) => `<button class="${here === k ? "on" : ""}" data-a="set" data-i="${i}" data-f="pos" data-v="${k}">${n}</button>`).join("")}
       <button class="${(c.pos === "custom") ? "on" : ""}" data-a="place" data-i="${i}">Tap on video</button></div>
-      <p class="small">The top corners keep it clear of your face.</p>
+      <p class="small">Middle covers part of your face. The top corners keep it clear of your face. The pair spots put 2 pictures side by side.</p>
+      <label class="f">In front or behind</label><div class="seg"><button class="${L === "front" ? "on" : ""}" data-a="layer" data-i="${i}" data-v="front">In front of my face</button><button class="${L === "behind" ? "on" : ""}" data-a="layer" data-i="${i}" data-v="behind">Behind my head</button></div>
+      ${L === "behind" ? `<p class="warnt">Behind your head needs the outline of you that only a Mac makes. If the outline isn't clean in this part, it goes in front and the page tells you after the render.</p>` : ""}
+      <label class="f">Handwritten label under it (optional)</label><input type="text" maxlength="40" data-a="set" data-i="${i}" data-f="caption" value="${esc(c.caption || "")}" placeholder="e.g. post it" />
       <label class="f">Size: ${c.size || (isClip(c.src) ? 440 : 360)}px wide</label><input type="range" min="120" max="800" step="10" value="${c.size || (isClip(c.src) ? 440 : 360)}" data-a="range" data-i="${i}" data-f="size" style="width:100%">
       <label class="f">Tilt: ${c.rotate || 0}°</label><input type="range" min="-30" max="30" step="1" value="${c.rotate || 0}" data-a="range" data-i="${i}" data-f="rotate" style="width:100%">
       ${isClip(c.src) ? `<label class="f">Start the clip at: ${c.from || 0} seconds in</label><input type="range" min="0" max="120" step="0.5" value="${c.from || 0}" data-a="range" data-i="${i}" data-f="from" style="width:100%">
@@ -398,7 +406,7 @@ function renderGiphy() {
   if (!S.giphy) {   // 0.15.0: the page takes the key and saves it on this computer
     if (box.querySelector("#gkey")) return;   // keep what they are typing
     box.innerHTML = `<label class="f">From GIPHY, a free library of GIFs</label><p class="help">GIPHY is not set up yet. It needs a free key, once. <a href="https://developers.giphy.com/dashboard/" target="_blank" rel="noopener">Get one at developers.giphy.com</a>. Choose API (not SDK), copy the key, and paste it here.</p>
-      <div class="row"><input type="password" id="gkey" placeholder="Paste your GIPHY key" autocomplete="off" aria-label="Your GIPHY key" class="grow" /><button class="sm" data-a="giphy-key">Save key</button></div><p class="small" id="gkeymsg"></p>`;
+      <div class="row"><input type="password" id="gkey" placeholder="Paste your GIPHY key" autocomplete="off" aria-label="Your GIPHY key" class="grow" style="font:inherit;padding:10px 12px;border:1.5px solid var(--line);border-radius:12px;min-width:0" /><button class="sm" data-a="giphy-key">Save key</button></div><p class="small" id="gkeymsg"></p>`;
     return;
   }
   box.innerHTML = `<label class="f">From GIPHY, a free library of GIFs</label><div class="row"><input type="text" id="gq" value="${esc(giphy.q)}" placeholder="Type what you want, e.g. thumbs up" autocapitalize="off" class="grow" /><button class="sm" data-a="giphy-go">Search</button></div>
@@ -523,6 +531,7 @@ document.addEventListener("change", async (e) => {
   } else if (a === "toggle") op({ op: "card_set", i, set: { off: !el.checked } }, null, el.checked ? "On" : "Off");
   else if (a === "sfx-toggle") op({ op: "sfx_set", i, set: { off: !el.checked } }, null, el.checked ? "On" : "Off");
   else if (a === "frame") op({ op: "card_set", i, set: { frame: el.checked } }, null);
+  else if (a === "rows") op({ op: "card_set", i, set: { rows: el.value.split("\n") } }, null, "List saved: re-render to see it");
   else if (a === "loop") op({ op: "card_set", i, set: { loop: el.checked } }, null);
   else if (a === "set") op({ op: "card_set", i, set: { [el.dataset.f]: el.value } }, `c${cid(i)}:${el.dataset.f}`);
   else if (a === "range") op({ op: "card_set", i, set: { [el.dataset.f]: el.value } }, `c${cid(i)}:${el.dataset.f}`);
@@ -536,13 +545,19 @@ $("#render").addEventListener("click", async () => {
   if (!confirm("Re-render the video now? It takes a few minutes and pauses editing until it's done. Your earlier renders are kept.")) return;
   try { await post("/api/render"); startPoll(); await load(); } catch (e) { toast(e.message, true); }
 });
+$("#addList").addEventListener("click", async () => {   // 0.16.0
+  const t = Math.min(now(), Math.max(S.total - 0.5, 0));
+  const j = await op({ op: "card_add", card: { type: "card", start: t, end: Math.min(t + 4, S.total) } }, null, "List added: change its title and rows, then re-render");
+  if (j?.info?.index != null) { openCard.add(cid(j.info.index)); render(); }
+});
 $("#addPill").addEventListener("click", () => {
   const t = Math.min(now(), Math.max(S.total - 0.5, 0)); op({ op: "card_add", card: { type: "tag", text: "new pill", start: t, end: Math.min(t + 2.5, S.total) } }, null, "Pill added").then((j) => { if (j?.info?.index != null) { const id = cid(j.info.index); openCard.add(id); selCard = id; render(); } });
 });
 $("#addSfx").addEventListener("click", () => { const t = now(); op({ op: "sfx_add", event: { name: "pop-soft", t, db: -16 } }, null, "Sound added").then((j) => { if (j?.info?.index != null) { openSfx.add(sid(j.info.index)); renderSfx(); } }); });
 async function addPopup(src) {
   const t = Math.min(now(), Math.max(S.total - 0.5, 0));
-  const j = await op({ op: "card_add", card: { type: "popup", src, start: t, end: Math.min(t + (isClip(src) ? 5 : 3), S.total), ...(isClip(src) ? {} : { pos: "top-right", size: 360 }) } }, null, isClip(src) ? "Clip added: pick where, when and how long, then re-render" : "Popup added: pick where and how long, then re-render");
+  const j = await op({ op: "card_add", card: { type: "popup", src, start: t, end: Math.min(t + (isClip(src) ? 5 : 3), S.total), ...(isClip(src) ? {} : { size: 360 }) } }, null, isClip(src) ? "Clip added: pick where, when and how long, then re-render" : null);
+  if (j && !isClip(src)) toast(j.info?.paired ? "Added beside the picture already there: the 2 sit side by side. Re-render to see it." : "Added in the middle of the screen. Change where under Edit, then re-render.");
   if (j?.info?.index != null) { const id = cid(j.info.index); openCard.add(id); selCard = id; render(); $("#s-pop").open = true; }
 }
 $("#file").addEventListener("change", async (e) => {
@@ -639,6 +654,26 @@ const TIPS = [
   "label.f",
   "Where text goes",
   "The layer new text starts on, in every reel. You can still change any single piece of text."
+ ],
+ [
+  "label.f",
+  "In front or behind",
+  "In front puts the picture over your face. Behind puts it between you and your background, so your head covers part of it."
+ ],
+ [
+  "label.f",
+  "Handwritten label",
+  "A short note on a strip of tape across the bottom of the picture. Leave it empty for no label."
+ ],
+ [
+  "label.f",
+  "List title",
+  "The heading at the top of the list card."
+ ],
+ [
+  "label.f",
+  "Rows",
+  "Each line is one row of the list. Rows appear one after the other."
  ],
  [
   "label.f",
