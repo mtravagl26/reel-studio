@@ -1,58 +1,991 @@
 {
-  "_note": "Style Menu (Added by By Mel Ross, 0.5.0): the 19 looks, what each one maps to in this editor, and the recipe scripts/storyboard.py uses to preview it. status: built = rendered and checked on talking-head footage; partial = the closest thing we have, differences listed; cut-choice = an edit decision, no setting; not-built = nothing yet. Card recipes carry stand-in content; pass real content with storyboard.py --content.",
-  "version": "0.5.0",
-  "looks": {
-    "H1": {"name": "Logo-swap title", "group": "Hooks", "status": "not-built", "needs": "two logo images (none are bundled; supply your own)", "recipe": null},
-    "H2": {"name": "Cold open + big number", "group": "Hooks", "status": "partial",
-      "does": "title card with one huge white number (card: title, text \"12,000\", color #fff, size 240, y 90; size caps by text length: about 900 / (characters x 0.6)) over the opening line",
-      "missing": "starting mid-motion on b-roll and the small sparkle",
-      "recipe": {"slot": "hook", "card": {"type": "title", "text": "12,000", "color": "#FFFFFF", "size": 240, "y": 90, "align": "left"}}},
-    "H3": {"name": "Handwritten overline + bold caps headline", "group": "Hooks", "status": "built",
-      "does": "title card with \"overline\" (Caveat handwriting) above a heavy caps headline, left aligned, held for the first sentence (y 100 keeps both above the speaker's eyes)",
-      "recipe": {"slot": "hook", "card": {"type": "title", "text": "ACME / OFFER", "overline": "my news this week", "align": "left", "y": 95, "size": 150, "color": "#FFFFFF"}}},
-    "H4": {"name": "Series title with phone-in-frame", "group": "Hooks", "status": "not-built", "needs": "logo asset; phone-card layout", "recipe": null},
-    "H5": {"name": "Reaction cold open", "group": "Hooks", "status": "cut-choice",
-      "does": "no graphic: pick a 1-2 s reaction span and put it first in edl.json \"keep\", then the story; an emoji sticker can land on the first caption", "recipe": null},
-    "C1": {"name": "Small serif, one script word", "group": "Captions", "status": "built",
-      "does": "brand.json captions size 56, y 150 (above the head), case lower; fonts.body = Lora, fonts.accent = Caveat in sage; one accent word per caption",
-      "recipe": {"accent": "auto", "brand": {"captions": {"size": 56, "y": 150, "case": "lower", "tracking": 0, "mode": "phrase"}, "fonts": {"body": {"family": "Lora", "file": "{reels}/fonts/Lora.ttf", "weight": 500}, "accent": {"family": "Caveat", "file": "{skill}/assets/fonts/Caveat-700-latin.woff2", "weight": 700, "style": "normal"}}}}},
-    "C2": {"name": "Bold sans + italic serif accent", "group": "Captions", "status": "built",
-      "does": "the current default: Inter bold in the lower third (captions size 92, y 1250), one accent word per caption in Lora italic, sage #B9C8A5 (set \"accent\": true on the word in edit.json captions)",
-      "missing": "the thin script CTA line underneath (use a cta card)",
-      "recipe": {"accent": "auto", "brand": {"captions": {"size": 92, "y": 1250, "case": "sentence", "mode": "phrase"}}}},
-    "C3": {"name": "One word at a time", "group": "Captions", "status": "built",
-      "does": "brand.json captions mode word (one caption per word, auto_edit.py does this; the storyboard re-chunks the reel's own captions), caption colour sage, size 120 at y 1250",
-      "recipe": {"mode": "word", "brand": {"colors": {"caption": "#B9C8A5"}, "captions": {"size": 120, "y": 1250, "case": "sentence", "mode": "word"}}}},
-    "C4": {"name": "Black on white for screen recordings", "group": "Captions", "status": "not-built", "needs": "screen-recording footage", "recipe": null},
-    "C5": {"name": "Tiny thin caption under a big label", "group": "Captions", "status": "partial",
-      "does": "tiny caption (captions size 44, y 1440, light weight not available) while a title card carries the big label",
-      "missing": "bottom-left alignment and a thin weight (captions are centred, Inter 600)",
-      "recipe": {"brand": {"captions": {"size": 44, "y": 1440, "case": "lower", "mode": "phrase"}}}},
-    "L1": {"name": "Screen recording + small face cam", "group": "Layouts", "status": "not-built", "needs": "screen-recording footage", "recipe": null},
-    "L2": {"name": "Tilted polaroid stack", "group": "Layouts", "status": "built",
-      "does": "card type \"polaroids\": 1-4 tilted white photo cards fan in, handwritten label on a torn sage strip; small stack in a top corner so it stays off the speaker's eyes",
-      "recipe": {"slot": "layout", "needs_photos": 3, "card": {"type": "polaroids", "label": "here is the proof", "side": "left"}}},
-    "L3": {"name": "Beige dotted paper card, one word", "group": "Layouts", "status": "not-built",
-      "does": "nothing in this editor; the paper-grid skill (edit-video pipeline) is the nearest paper look", "recipe": null},
-    "L4": {"name": "Icon tile grid on a torn label", "group": "Layouts", "status": "built",
-      "does": "card type \"tiles\": torn cream label above a grid of soft icon tiles (built-in line icons, your own images or a glyph); lower third, captions step aside",
-      "recipe": {"slot": "layout", "card": {"type": "tiles", "label": "three things", "tiles": [{"label": "one", "icon": "star"}, {"label": "two", "icon": "chart"}, {"label": "three", "icon": "people"}]}}},
-    "L5": {"name": "Caps label + parenthetical + big number", "group": "Layouts", "status": "not-built",
-      "does": "nothing as one card; nearest is the count-up motion card (references/motions.md)", "recipe": null},
-    "L6": {"name": "Red X list", "group": "Layouts", "status": "built",
-      "does": "card type \"xlist\": paper card, hand-drawn marks drawn on one by one, handwritten phrases; \"mark\": \"check\" (sage, default) or \"x\" (red)",
-      "recipe": {"slot": "layout", "card": {"type": "xlist", "mark": "x", "items": ["no coach", "no paid ads", "no sales funnel"]}}},
-    "L7": {"name": "Step label top-center", "group": "Layouts", "status": "built",
-      "does": "title card with \"overline\": \"step #2:\" in Lora italic (overline_font accent), centred, and a one-line title under it, both above the speaker's eyes (y 95)",
-      "recipe": {"slot": "hook", "card": {"type": "title", "text": "the offer", "overline": "step #2:", "overline_font": "accent", "align": "center", "y": 95, "size": 150, "color": "#FFFFFF"}}},
-    "L8": {"name": "Stat card pop", "group": "Layouts", "status": "built",
-      "does": "card type \"stat\": white dashboard card with the real number (label, value, optional delta pill and sparkline) pops over the lower half; captions step aside",
-      "recipe": {"slot": "layout", "card": {"type": "stat", "label": "the number", "value": "12,000", "delta": "+12%", "spark": [3, 4, 3.5, 6, 7, 9]}}},
-    "L9": {"name": "Photo sticker beside your face", "group": "Layouts", "status": "built",
-      "does": "card type \"popup\" with \"caption\" (extends the corner stickers): framed photo pops in top-left, handwritten caption on a torn strip across its lower edge, shrinks out",
-      "recipe": {"slot": "layout", "needs_photos": 1, "card": {"type": "popup", "pos": "top-left", "size": 330, "rotate": -5, "caption": "how is this real?!"}}},
-    "L10": {"name": "Taped note", "group": "Layouts", "status": "built",
-      "does": "card type \"note\" (added by By Mel Ross, 0.11.0): a short handwritten note on a scrap of paper, taped up above the head. With a material kit on it uses the kit's real paper and tape (references/material-kits.md); without one, a plain sheet",
-      "recipe": {"slot": "layout", "card": {"type": "note", "text": "the fix / is boring"}}}
+ "_note": "Style Menu v0 (Melissa, 2026-11-13): the 19 looks, what each one maps to in this editor, and the recipe scripts/storyboard.py uses to preview it. status: built = rendered and checked on her footage; partial = the closest thing we have, differences listed; cut-choice = an edit decision, no setting; not-built = nothing yet. Card recipes carry stand-in content; pass real content with storyboard.py --content.",
+ "version": "2026-11-13",
+ "looks": {
+  "H1": {
+   "name": "Logo-swap title",
+   "group": "Hooks",
+   "status": "not-built",
+   "needs": "two logo images (she has not supplied them)",
+   "recipe": null
+  },
+  "H2": {
+   "name": "Cold open + big number",
+   "group": "Hooks",
+   "status": "partial",
+   "does": "title card with one huge white number (card: title, text \"80,000\", color #fff, size 240, y 90; size caps by text length: about 900 / (characters x 0.6)) over the opening line",
+   "missing": "starting mid-motion on b-roll and the small sparkle",
+   "recipe": {
+    "slot": "hook",
+    "card": {
+     "type": "title",
+     "text": "80,000",
+     "color": "#FFFFFF",
+     "size": 240,
+     "y": 90,
+     "align": "left"
+    }
+   }
+  },
+  "H3": {
+   "name": "Handwritten overline + bold caps headline",
+   "group": "Hooks",
+   "status": "built",
+   "does": "title card with \"overline\" (Caveat handwriting) above a heavy caps headline, left aligned, held for the first sentence (y 100 keeps both above her eyes)",
+   "recipe": {
+    "slot": "hook",
+    "card": {
+     "type": "title",
+     "text": "SALESFORCE / OFFER",
+     "overline": "my news this week",
+     "align": "left",
+     "y": 95,
+     "size": 150,
+     "color": "#FFFFFF"
+    }
+   }
+  },
+  "H4": {
+   "name": "Series title with phone-in-frame",
+   "group": "Hooks",
+   "status": "not-built",
+   "needs": "logo asset; phone-card layout",
+   "recipe": null
+  },
+  "H5": {
+   "name": "Reaction cold open",
+   "group": "Hooks",
+   "status": "cut-choice",
+   "does": "no graphic: pick a 1-2 s reaction span and put it first in edl.json \"keep\", then the story; an emoji sticker can land on the first caption",
+   "recipe": null
+  },
+  "C1": {
+   "name": "Small serif, one script word",
+   "group": "Captions",
+   "status": "built",
+   "does": "brand.json captions size 56, y 150 (above her head), case lower; fonts.body = Lora, fonts.accent = Caveat in sage; one accent word per caption",
+   "recipe": {
+    "accent": "auto",
+    "brand": {
+     "captions": {
+      "size": 56,
+      "y": 150,
+      "case": "lower",
+      "tracking": 0,
+      "mode": "phrase"
+     },
+     "fonts": {
+      "body": {
+       "family": "Lora",
+       "file": "{reels}/fonts/Lora.ttf",
+       "weight": 500
+      },
+      "accent": {
+       "family": "Caveat",
+       "file": "{skill}/assets/fonts/Caveat-700-latin.woff2",
+       "weight": 700,
+       "style": "normal"
+      }
+     }
+    }
+   }
+  },
+  "C2": {
+   "name": "Bold sans + italic serif accent",
+   "group": "Captions",
+   "status": "built",
+   "does": "the current default: Inter bold in the lower third (captions size 92, y 1250), one accent word per caption in Lora italic, sage #B9C8A5 (set \"accent\": true on the word in edit.json captions)",
+   "missing": "the thin script CTA line underneath (use a cta card)",
+   "recipe": {
+    "accent": "auto",
+    "brand": {
+     "captions": {
+      "size": 92,
+      "y": 1250,
+      "case": "sentence",
+      "mode": "phrase"
+     }
+    }
+   }
+  },
+  "C3": {
+   "name": "One word at a time",
+   "group": "Captions",
+   "status": "built",
+   "does": "brand.json captions mode word (one caption per word, auto_edit.py does this; the storyboard re-chunks the reel's own captions), caption colour sage, size 120 at y 1250",
+   "recipe": {
+    "mode": "word",
+    "brand": {
+     "colors": {
+      "caption": "#B9C8A5"
+     },
+     "captions": {
+      "size": 120,
+      "y": 1250,
+      "case": "sentence",
+      "mode": "word"
+     }
+    }
+   }
+  },
+  "C4": {
+   "name": "Black on white for screen recordings",
+   "group": "Captions",
+   "status": "not-built",
+   "needs": "screen-recording footage",
+   "recipe": null
+  },
+  "C5": {
+   "name": "Tiny thin caption under a big label",
+   "group": "Captions",
+   "status": "partial",
+   "does": "tiny caption (captions size 44, y 1440, light weight not available) while a title card carries the big label",
+   "missing": "bottom-left alignment and a thin weight (captions are centred, Inter 600)",
+   "recipe": {
+    "brand": {
+     "captions": {
+      "size": 44,
+      "y": 1440,
+      "case": "lower",
+      "mode": "phrase"
+     }
+    }
+   }
+  },
+  "L1": {
+   "name": "Screen recording + small face cam",
+   "group": "Layouts",
+   "status": "not-built",
+   "needs": "screen-recording footage",
+   "recipe": null
+  },
+  "L2": {
+   "name": "Tilted polaroid stack",
+   "group": "Layouts",
+   "status": "built",
+   "does": "card type \"polaroids\": 1-4 tilted white photo cards fan in, handwritten label on a torn sage strip; small stack in a top corner so it stays off her eyes",
+   "recipe": {
+    "slot": "layout",
+    "needs_photos": 3,
+    "card": {
+     "type": "polaroids",
+     "label": "here is the proof",
+     "side": "left"
+    }
+   }
+  },
+  "L3": {
+   "name": "Beige dotted paper card, one word",
+   "group": "Layouts",
+   "status": "not-built",
+   "does": "nothing in this editor; the paper-grid skill (edit-video pipeline) is the nearest paper look",
+   "recipe": null
+  },
+  "L4": {
+   "name": "Icon tile grid on a torn label",
+   "group": "Layouts",
+   "status": "built",
+   "does": "card type \"tiles\": torn cream label above a grid of soft icon tiles (built-in line icons, your own images or a glyph); lower third, captions step aside",
+   "recipe": {
+    "slot": "layout",
+    "card": {
+     "type": "tiles",
+     "label": "three things",
+     "tiles": [
+      {
+       "label": "one",
+       "icon": "star"
+      },
+      {
+       "label": "two",
+       "icon": "chart"
+      },
+      {
+       "label": "three",
+       "icon": "people"
+      }
+     ]
+    }
+   }
+  },
+  "L5": {
+   "name": "Caps label + parenthetical + big number",
+   "group": "Layouts",
+   "status": "not-built",
+   "does": "nothing as one card; nearest is the count-up motion card (references/motions.md)",
+   "recipe": null
+  },
+  "L6": {
+   "name": "Red X list",
+   "group": "Layouts",
+   "status": "built",
+   "does": "card type \"xlist\": paper card, hand-drawn marks drawn on one by one, handwritten phrases; \"mark\": \"check\" (sage, default) or \"x\" (red)",
+   "recipe": {
+    "slot": "layout",
+    "card": {
+     "type": "xlist",
+     "mark": "x",
+     "items": [
+      "no coach",
+      "no paid ads",
+      "no sales funnel"
+     ]
+    }
+   }
+  },
+  "L7": {
+   "name": "Step label top-center",
+   "group": "Layouts",
+   "status": "built",
+   "does": "title card with \"overline\": \"step #2:\" in Lora italic (overline_font accent), centred, and a one-line title under it, both above her eyes (y 95)",
+   "recipe": {
+    "slot": "hook",
+    "card": {
+     "type": "title",
+     "text": "the offer",
+     "overline": "step #2:",
+     "overline_font": "accent",
+     "align": "center",
+     "y": 95,
+     "size": 150,
+     "color": "#FFFFFF"
+    }
+   }
+  },
+  "L8": {
+   "name": "Stat card pop",
+   "group": "Layouts",
+   "status": "built",
+   "does": "card type \"stat\": white dashboard card with the real number (label, value, optional delta pill and sparkline) pops over the lower half; captions step aside",
+   "recipe": {
+    "slot": "layout",
+    "card": {
+     "type": "stat",
+     "label": "the number",
+     "value": "80,000",
+     "delta": "+12%",
+     "spark": [
+      3,
+      4,
+      3.5,
+      6,
+      7,
+      9
+     ]
+    }
+   }
+  },
+  "L9": {
+   "name": "Photo sticker beside your face",
+   "group": "Layouts",
+   "status": "built",
+   "does": "card type \"popup\" with \"caption\" (extends the CALMA corner stickers): framed photo pops in top-left, handwritten caption on a torn strip across its lower edge, shrinks out",
+   "recipe": {
+    "slot": "layout",
+    "needs_photos": 1,
+    "card": {
+     "type": "popup",
+     "pos": "top-left",
+     "size": 330,
+     "rotate": -5,
+     "caption": "how is this real?!"
+    }
+   }
+  },
+  "H6": {
+   "name": "Time-stamped number opener",
+   "group": "Hooks",
+   "status": "planned",
+   "version": "v1",
+   "trend_2026_11": true,
+   "build": "now",
+   "fit_for_melissa": 4,
+   "fit_note": "Concise and factual. Only use true figures; leave out the dramatic quit-my-job framing.",
+   "does": "Opening line is a counter plus a stat: \"161 days ago, quitting my $350K corporate job\" on the opening second, number in the accent colour.",
+   "when": "Story or results reels where you have a real number and a real date (days since, dollars, hours). Real numbers only.",
+   "build_note": "`title` card with `overline` (\"X days ago\") and the number as headline, left-aligned; same family as H2/H3.",
+   "recipe": null,
+   "evidence": [
+    "https://www.instagram.com/reel/DfnEESHNBTP/"
+   ]
+  },
+  "H7": {
+   "name": "Ranked serif headline + context line",
+   "group": "Hooks",
+   "status": "planned",
+   "version": "v1",
+   "trend_2026_11": true,
+   "build": "now",
+   "fit_for_melissa": 5,
+   "fit_note": "Calm, editorial, no hype. Serif and cream are close to her brand already.",
+   "does": "Big cream serif headline (\"10/10 AI tools I use\") with a tiny sans parenthetical under it (\"working 9-9 in NYC\"); a number or rating is the hook.",
+   "when": "Tool, tip or habit round-ups. Swap the parenthetical for who it is for: (as a solo business owner).",
+   "build_note": "`title` card, Lora headline in `#F4EFE0`, `overline`/second line for the parenthetical.",
+   "recipe": null,
+   "evidence": [
+    "https://www.instagram.com/reel/DfA_PjVyPON/",
+    "https://www.instagram.com/reel/De9roZQMgAF/"
+   ]
+  },
+  "H8": {
+   "name": "Built-it lockup: I BUILT MY OWN ___ IN [logo]",
+   "group": "Hooks",
+   "status": "planned",
+   "version": "v1",
+   "trend_2026_11": true,
+   "build": "assets",
+   "fit_for_melissa": 4,
+   "fit_note": "Close to her pitch (\"you speak, it edits\"). Keep claims plain: skip \"killed agencies\" phrasing.",
+   "does": "Tiny spaced caps line, big italic serif cream headline, then \"IN\" + app logo. Reads like a title card; strong for tool demos.",
+   "when": "Demoing a system you built (her HQ, reel editor, a Claude setup). Needs the logo image.",
+   "build_note": "`title` card + `sticker` for the logo (she supplies the image). Close to H1 but one-logo.",
+   "needs": "`title` card + `sticker` for the logo (she supplies the image). Close to H1 but one-logo.",
+   "recipe": null,
+   "evidence": [
+    "https://www.instagram.com/reel/De9roZQMgAF/"
+   ]
+  },
+  "H9": {
+   "name": "Contrarian count line",
+   "group": "Hooks",
+   "status": "planned",
+   "version": "v1",
+   "trend_2026_11": true,
+   "build": "cut",
+   "fit_for_melissa": 5,
+   "fit_note": "Exactly her unmess angle. Zero graphics needed; the edit is a clean first cut.",
+   "does": "Spoken hook is the whole graphic: \"You don't need 50 AI tools. You need like... 5.\" Plain desk shot, no title card.",
+   "when": "Opening any tidy-up / simplify message. The first sentence carries it.",
+   "build_note": "Cut choice: start on that sentence with no wind-up (like H5, but no reaction).",
+   "recipe": null,
+   "evidence": [
+    "https://www.instagram.com/reel/DXcTz4XjfeO/"
+   ]
+  },
+  "H10": {
+   "name": "Two-label contrast title (messy | mapped)",
+   "group": "Hooks",
+   "status": "planned",
+   "version": "v1",
+   "trend_2026_11": true,
+   "build": "now",
+   "fit_for_melissa": 4,
+   "fit_note": "Original is two people; hers works with the labels over one speaker.",
+   "does": "A serif title, then two small labels left and right of a centre mark (\"Paid | Free\" in the original). Hers: \"Messy | Mapped\".",
+   "when": "Before/after or this-vs-that explainers.",
+   "build_note": "`title` card + two `tag` cards; or `tiles` with two tiles.",
+   "recipe": null,
+   "evidence": [
+    "https://www.instagram.com/reel/DafrdobMFBG/"
+   ]
+  },
+  "H11": {
+   "name": "Community prompt: \"tell me what you're building\"",
+   "group": "Hooks",
+   "status": "planned",
+   "version": "v1",
+   "trend_2026_11": true,
+   "build": "now",
+   "fit_for_melissa": 5,
+   "fit_note": "Warm, community, no selling. Fits her voice best of the engagement hooks.",
+   "does": "Large centred serif over street or desk b-roll: \"female founder to female founder, tell me what you're building so I can follow along\".",
+   "when": "Warm comment-driver at the start or end. Her audience is women business owners.",
+   "build_note": "`title` card, centred, Lora, two lines; add to the first 3 s or as an end card.",
+   "recipe": null,
+   "evidence": [
+    "https://www.instagram.com/p/DdzjETNSMyo/",
+    "https://www.instagram.com/p/Dd1IVRjsrbq/",
+    "https://www.instagram.com/explore/search/keyword/?q=%23femalefounder"
+   ]
+  },
+  "H12": {
+   "name": "Quote-in-a-box hook",
+   "group": "Hooks",
+   "status": "planned",
+   "version": "v1",
+   "trend_2026_11": true,
+   "build": "small",
+   "fit_for_melissa": 5,
+   "fit_note": "Her best fit: it names the viewer's problem in their words. Static, so no pop-up pill feeling.",
+   "does": "A white rounded box with the viewer's own words in bold red: \"I want to promote my business on social media, but it's becoming another full-time job.\"",
+   "when": "Opening on the exact sentence a client says. Pairs with a plain face-to-camera answer.",
+   "build_note": "Needs a `quote` card (white box, bold coloured text, held 3 s); closest now is a `card` with one row.",
+   "recipe": null,
+   "evidence": [
+    "https://www.instagram.com/explore/search/keyword/?q=%23aiforsmallbusiness"
+   ]
+  },
+  "H13": {
+   "name": "POV / relatable line + reaction GIF",
+   "group": "Hooks",
+   "status": "planned",
+   "version": "v1",
+   "trend_2026_11": true,
+   "build": "now",
+   "fit_for_melissa": 3,
+   "fit_note": "Warm but jokey; use only if it sounds like her. Her Giphy popups already exist.",
+   "does": "A white text box with a relatable line (\"How I expect my clients to react when I deliver streamlined systems...\") and a meme or GIF reaction popped in.",
+   "when": "Light humour on a serious topic. Use sparingly; one per reel.",
+   "build_note": "`title`/`tag` for the line + `popup` with a GIF (already supported, GIFs loop).",
+   "recipe": null,
+   "evidence": [
+    "https://www.instagram.com/p/DOqrNlxkjZA/",
+    "https://www.instagram.com/reel/DeLGD3xgI-u/"
+   ]
+  },
+  "H14": {
+   "name": "Day-N series label (quiet version)",
+   "group": "Hooks",
+   "status": "planned",
+   "version": "v1",
+   "trend_2026_11": true,
+   "build": "now",
+   "fit_for_melissa": 4,
+   "fit_note": "Series framing builds return viewers. Use the quiet type only; the stacked chunky version is flagged (C14).",
+   "does": "\"Day 5 of building ... with AI\" as a series opener. The original stacks mixed-size loud type; the quiet version is a small serif \"day 12:\" over the headline.",
+   "when": "Build-in-public or a running series (HQ build, reel editor, 30-day unmess).",
+   "build_note": "`title` with `overline` \"day 12:\" in the accent font (same as L7).",
+   "recipe": null,
+   "evidence": [
+    "https://www.instagram.com/reel/DXaui8eilfM/"
+   ]
+  },
+  "H15": {
+   "name": "Quoted myth on screen",
+   "group": "Hooks",
+   "status": "planned",
+   "version": "v1",
+   "trend_2026_11": true,
+   "build": "now",
+   "fit_for_melissa": 4,
+   "fit_note": "Gentle if the myth is one her audience says about themselves.",
+   "does": "A quoted line floats over a calm shot: \"women are too emotional to run businesses\". The speaker then answers it.",
+   "when": "Myth-busting. Hers: \"I'll get organised when things slow down.\"",
+   "build_note": "`title`, small, with quote marks; hold 3 s; captions below.",
+   "recipe": null,
+   "evidence": [
+    "https://www.instagram.com/explore/search/keyword/?q=%23femalefounder"
+   ]
+  },
+  "H16": {
+   "name": "Time or money handed back",
+   "group": "Hooks",
+   "status": "planned",
+   "version": "v1",
+   "trend_2026_11": true,
+   "build": "now",
+   "fit_for_melissa": 4,
+   "fit_note": "Strong only if real; hours are safer than dollars. Never invent.",
+   "does": "Top-of-frame serif line stating a result: \"I save $10,000 per month\". Plain face shot under it.",
+   "when": "Only with a true number from her own work (hours saved, a client result she may share).",
+   "build_note": "`title` card; or `stat` (L8) for the number.",
+   "recipe": null,
+   "evidence": [
+    "https://www.instagram.com/explore/search/keyword/?q=%23aiforsmallbusiness"
+   ]
+  },
+  "H17": {
+   "name": "List promise with the number in colour",
+   "group": "Hooks",
+   "status": "planned",
+   "version": "v1",
+   "trend_2026_11": true,
+   "build": "now",
+   "fit_for_melissa": 5,
+   "fit_note": "Concise and practical. The simplest trend to adopt.",
+   "does": "\"The top 9 AI tools\" / \"the 5 I'd give anyone\" / \"5 ... that's it\": a number-led promise, number in the accent colour, then the list on screen.",
+   "when": "Any tips or tools list. Tell them how many up front.",
+   "build_note": "`title` card with the number coloured; list as L6/L16/L4.",
+   "recipe": null,
+   "evidence": [
+    "https://www.instagram.com/p/DW6uzJAjQPz/",
+    "https://www.instagram.com/p/Dfx179lPmmQ/",
+    "https://www.instagram.com/reel/DXcTz4XjfeO/",
+    "https://www.instagram.com/explore/search/keyword/?q=%23aitools"
+   ]
+  },
+  "H18": {
+   "name": "Hype claim hook (\"X just killed Y\")",
+   "group": "Hooks",
+   "status": "planned",
+   "version": "v1",
+   "trend_2026_11": true,
+   "build": "no",
+   "fit_for_melissa": 1,
+   "fit_note": "Flagged: hype and overclaim, the opposite of her calm, practical voice. Included so she can see it and skip it.",
+   "does": "\"Claude just killed marketing agencies\" in a white box. Very common and very high comment counts.",
+   "when": "Not recommended.",
+   "build_note": "Do not build.",
+   "recipe": null,
+   "evidence": [
+    "https://www.instagram.com/p/DZDWtDyhP3l/",
+    "https://www.instagram.com/p/DYFV5ElKG_b/"
+   ]
+  },
+  "H19": {
+   "name": "Question label above the head",
+   "group": "Hooks",
+   "status": "planned",
+   "version": "v1",
+   "trend_2026_11": true,
+   "build": "now",
+   "fit_for_melissa": 3,
+   "fit_note": "Works if the question is honest; keep the emoji off.",
+   "does": "A small label across the top as a question: \"What most AI consultants do\" with an emoji; the answer starts in the first sentence.",
+   "when": "Comparing the common approach to hers.",
+   "build_note": "`title` card, small, left-aligned; or a `tag`.",
+   "recipe": null,
+   "evidence": [
+    "https://www.instagram.com/explore/search/keyword/?q=%23aiforsmallbusiness"
+   ]
+  },
+  "C6": {
+   "name": "White label-box single word",
+   "group": "Captions",
+   "status": "planned",
+   "version": "v1",
+   "trend_2026_11": true,
+   "build": "small",
+   "fit_for_melissa": 4,
+   "fit_note": "Clear and neutral; sage version of the box is an option. Box padding must stay tight so it is not a pill.",
+   "does": "One word at a time in black on a white rectangle, centred in the lower middle; the box hugs the word.",
+   "when": "Direct-to-camera talking head, calm pace; reads as clean and businesslike.",
+   "build_note": "Caption style `box` (background on the word). Closest now: C3 with `colors.caption` black on a card.",
+   "recipe": null,
+   "evidence": [
+    "https://www.instagram.com/reel/DXcTz4XjfeO/",
+    "https://www.instagram.com/p/DZDWtDyhP3l/"
+   ]
+  },
+  "C7": {
+   "name": "Quiet mid-lower white phrase",
+   "group": "Captions",
+   "status": "planned",
+   "version": "v1",
+   "trend_2026_11": true,
+   "build": "now",
+   "fit_for_melissa": 5,
+   "fit_note": "Closest to her voice. Pairs with every hook and layout.",
+   "does": "Small clean white sans, 2-4 words at a time, sentence case, centred at about 60% height, no highlight. The face stays the star.",
+   "when": "Her default for calm explainers and personal reels. Easy to read, easy to live with.",
+   "build_note": "brand.json `captions` `{\"size\":54,\"y\":1130,\"case\":\"sentence\",\"mode\":\"phrase\"}`, no accent.",
+   "recipe": null,
+   "evidence": [
+    "https://www.instagram.com/reel/DfA_PjVyPON/",
+    "https://www.instagram.com/reel/DcGMu_zgvc8/"
+   ]
+  },
+  "C8": {
+   "name": "Bold word with soft shadow",
+   "group": "Captions",
+   "status": "planned",
+   "version": "v1",
+   "trend_2026_11": true,
+   "build": "now",
+   "fit_for_melissa": 3,
+   "fit_note": "Pleasant but louder than her usual; use for punch moments only.",
+   "does": "One heavy white word, large, soft drop shadow, centre-lower. High energy without a colour.",
+   "when": "Fast talkers or a list rhythm.",
+   "build_note": "C3 with `colors.caption` `#FFFFFF` and size 120; shadow already in the build.",
+   "recipe": null,
+   "evidence": [
+    "https://www.instagram.com/reel/DeLGD3xgI-u/"
+   ]
+  },
+  "C9": {
+   "name": "Highlighter italic punch (sage version)",
+   "group": "Captions",
+   "status": "planned",
+   "version": "v1",
+   "trend_2026_11": true,
+   "build": "now",
+   "fit_for_melissa": 3,
+   "fit_note": "Lime is not her colour; in sage italic it is a pleasant hook-only caption.",
+   "does": "Heavy italic caps-and-lower line in a pale yellow-green on the hook line, white after.",
+   "when": "The first sentence only.",
+   "build_note": "C2 accent colour sage, `\"accent\": true` on the whole first phrase.",
+   "recipe": null,
+   "evidence": [
+    "https://www.instagram.com/reel/DfnEESHNBTP/"
+   ]
+  },
+  "C10": {
+   "name": "Dark translucent phrase bar",
+   "group": "Captions",
+   "status": "planned",
+   "version": "v1",
+   "trend_2026_11": true,
+   "build": "small",
+   "fit_for_melissa": 3,
+   "fit_note": "Reads as a subtitle; fine on bright footage, a bit heavy otherwise.",
+   "does": "Two lines of white sans on a dark semi-opaque rounded bar across the lower middle.",
+   "when": "Busy backgrounds or when a face is partly dark; extra legibility.",
+   "build_note": "Caption style `bar` (background behind the phrase).",
+   "recipe": null,
+   "evidence": [
+    "https://www.instagram.com/explore/search/keyword/?q=%23businesssystems"
+   ]
+  },
+  "C11": {
+   "name": "Keyword colour highlight",
+   "group": "Captions",
+   "status": "planned",
+   "version": "v1",
+   "trend_2026_11": true,
+   "build": "now",
+   "fit_for_melissa": 5,
+   "fit_note": "Same idea as C2 without the italic; already her house style.",
+   "does": "White phrase with one key word in the accent colour (yellow in the originals, sage for her).",
+   "when": "Any explainer; the accent word is the one idea of the sentence.",
+   "build_note": "C2 recipe, `\"accent\": true` on one word per caption.",
+   "recipe": null,
+   "evidence": [
+    "https://www.instagram.com/p/DH4-Vd_TFEV/"
+   ]
+  },
+  "C12": {
+   "name": "Tiny centred serif over b-roll",
+   "group": "Captions",
+   "status": "planned",
+   "version": "v1",
+   "trend_2026_11": true,
+   "build": "now",
+   "fit_for_melissa": 5,
+   "fit_note": "Quiet, warm, editorial. Best for reels where her face is not on screen.",
+   "does": "Two-line tiny serif, centred, over aesthetic desk or street b-roll; voiceover feel, no face.",
+   "when": "Voiceover reels, quote reels, \"day in the work\" b-roll.",
+   "build_note": "C1 centred: captions `{\"size\":44,\"y\":900}` with Lora body font.",
+   "recipe": null,
+   "evidence": [
+    "https://www.instagram.com/explore/search/keyword/?q=%23femalefounder"
+   ]
+  },
+  "C13": {
+   "name": "Pinned topic label + quiet captions",
+   "group": "Captions",
+   "status": "planned",
+   "version": "v1",
+   "trend_2026_11": true,
+   "build": "now",
+   "fit_for_melissa": 5,
+   "fit_note": "Calm and practical; the topic label does the explaining. Pairs with L15.",
+   "does": "A translucent label holds the topic at the top for the whole point (\"Operations & Systems\"), small white captions stay low.",
+   "when": "Teaching one topic for 20-40 s; gives a new viewer instant context.",
+   "build_note": "`title` card held with `end`, small, + C7 captions.",
+   "recipe": null,
+   "evidence": [
+    "https://www.instagram.com/reel/DcGMu_zgvc8/"
+   ]
+  },
+  "C14": {
+   "name": "Chunky playful stacked type",
+   "group": "Captions",
+   "status": "planned",
+   "version": "v1",
+   "trend_2026_11": true,
+   "build": "no",
+   "fit_for_melissa": 1,
+   "fit_note": "Flagged: loud, kinetic, tech-bro energy. The wrong mood for 'unmess'.",
+   "does": "Rounded chunky mixed-size words stacked down the frame (DAY 5 / building my / is / AI).",
+   "when": "Not recommended.",
+   "build_note": "Do not build.",
+   "recipe": null,
+   "evidence": [
+    "https://www.instagram.com/reel/DXaui8eilfM/"
+   ]
+  },
+  "C15": {
+   "name": "One bold white word, no highlight",
+   "group": "Captions",
+   "status": "planned",
+   "version": "v1",
+   "trend_2026_11": true,
+   "build": "now",
+   "fit_for_melissa": 4,
+   "fit_note": "Simple and neutral. Fine for demos.",
+   "does": "A single bold white word under the speaker's chin, mid-lower, small. No colour, no box.",
+   "when": "Hold-up demos (laptop, object) where the picture is busy.",
+   "build_note": "C3 with white caption colour, size ~96, y 1180.",
+   "recipe": null,
+   "evidence": [
+    "https://www.instagram.com/reel/De9roZQMgAF/"
+   ]
+  },
+  "C16": {
+   "name": "Caption doubles as counter",
+   "group": "Captions",
+   "status": "planned",
+   "version": "v1",
+   "trend_2026_11": true,
+   "build": "now",
+   "fit_for_melissa": 4,
+   "fit_note": "Helpful and concrete. Good for 'unmess in 5 steps'.",
+   "does": "The running caption carries the count: \"10 out of 10\", \"1 of 5\", so the rhythm of a list is built into the words.",
+   "when": "Rated lists and step lists; viewers stay for the next number.",
+   "build_note": "Write the count into `edit.json` captions text at each item; plain C7 styling.",
+   "recipe": null,
+   "evidence": [
+    "https://www.instagram.com/reel/DfA_PjVyPON/"
+   ]
+  },
+  "L10": {
+   "name": "Inset card over a blurred, enlarged self",
+   "group": "Layouts",
+   "status": "planned",
+   "version": "v1",
+   "trend_2026_11": true,
+   "build": "small",
+   "fit_for_melissa": 4,
+   "fit_note": "Calm, tidy, easy on the eyes. Good for a quote or a story moment.",
+   "does": "Her clip sits as a smaller rounded card in the middle; the frame behind is the same clip enlarged and blurred. Caption under the card.",
+   "when": "Hand-held or off-centre footage you want to dress up; story and diary reels.",
+   "build_note": "`page` card has the clip framed with a background; needs a `bg: \"blur\"` option (blurred copy of the same clip).",
+   "recipe": null,
+   "evidence": [
+    "https://www.instagram.com/reel/DfnEESHNBTP/"
+   ]
+  },
+  "L11": {
+   "name": "Top asset panel + face below",
+   "group": "Layouts",
+   "status": "planned",
+   "version": "v1",
+   "trend_2026_11": true,
+   "build": "assets",
+   "fit_for_melissa": 4,
+   "fit_note": "Good for her Claude / HQ explainers. Not a pill pop-up: it holds.",
+   "does": "Top half is a rounded panel holding the app icon or screen; her face fills the bottom half; a small mono tag labels the panel (\"INSTAGRAM\").",
+   "when": "Explaining a tool in one line each. Keeps her face on screen the whole time.",
+   "build_note": "`page` card (bg image + clip framed) with her screenshot or logo; small mono label added.",
+   "needs": "`page` card (bg image + clip framed) with her screenshot or logo; small mono label added.",
+   "recipe": null,
+   "evidence": [
+    "https://www.instagram.com/reel/DerFZ3CuwUH/"
+   ]
+  },
+  "L12": {
+   "name": "Photo-card cloud above the head",
+   "group": "Layouts",
+   "status": "planned",
+   "version": "v1",
+   "trend_2026_11": true,
+   "build": "small",
+   "fit_for_melissa": 4,
+   "fit_note": "Gentle and proud. Use her own work only.",
+   "does": "6-8 tilted vertical frames of finished work fan above the speaker; one word of caption below.",
+   "when": "\"Here are the reels I made\" proof. More dramatic than L2.",
+   "build_note": "`polaroids` allows 4 cards; raise to 8 with a cloud placement.",
+   "recipe": null,
+   "evidence": [
+    "https://www.instagram.com/reel/De9roZQMgAF/"
+   ]
+  },
+  "L13": {
+   "name": "Logo chips either side of the face",
+   "group": "Layouts",
+   "status": "planned",
+   "version": "v1",
+   "trend_2026_11": true,
+   "build": "assets",
+   "fit_for_melissa": 3,
+   "fit_note": "Works if her tool list is short; needs logo images.",
+   "does": "Two app-logo chips sit left and right of the speaker with a one-word label under each task (\"writing\").",
+   "when": "\"Which tool for which job\" lists, one pair at a time.",
+   "build_note": "Two `sticker` cards per pair (logos supplied).",
+   "needs": "Two `sticker` cards per pair (logos supplied).",
+   "recipe": null,
+   "evidence": [
+    "https://www.instagram.com/p/DczJy0Jjw1Y/"
+   ]
+  },
+  "L14": {
+   "name": "Vertical icon list beside the face",
+   "group": "Layouts",
+   "status": "planned",
+   "version": "v1",
+   "trend_2026_11": true,
+   "build": "small",
+   "fit_for_melissa": 3,
+   "fit_note": "Handy, a little busy; keep to 3-4 rows.",
+   "does": "Four app icons with names stack down the left side, her face on the right.",
+   "when": "Showing a stack (tools, platforms, client types) in one glance.",
+   "build_note": "`tiles` laid out in one column at the left.",
+   "recipe": null,
+   "evidence": [
+    "https://www.instagram.com/p/DdJd5DdjbnO/",
+    "https://www.instagram.com/explore/search/keyword/?q=%23aitools"
+   ]
+  },
+  "L15": {
+   "name": "Whiteboard columns above the head",
+   "group": "Layouts",
+   "status": "planned",
+   "version": "v1",
+   "trend_2026_11": true,
+   "build": "small",
+   "fit_for_melissa": 5,
+   "fit_note": "Best fit of all the layouts: it shows sorting. Real hand-lettering fits her handwriting accent.",
+   "does": "Three hand-lettered columns sorted on a whiteboard-style chart (\"matters / doesn't matter / hurtful\") above the speaker; ink colours green, orange, red (hers: sage, ink, soft red).",
+   "when": "Sorting a messy thing into keep / drop / fix. Perfect for \"unmess\" explanations.",
+   "build_note": "New card `columns` (like `xlist`, 2-3 columns of items drawn in turn). Hand font already bundled.",
+   "recipe": null,
+   "evidence": [
+    "https://www.instagram.com/reel/DcGMu_zgvc8/"
+   ]
+  },
+  "L16": {
+   "name": "Numbered steps card",
+   "group": "Layouts",
+   "status": "planned",
+   "version": "v1",
+   "trend_2026_11": true,
+   "build": "now",
+   "fit_for_melissa": 4,
+   "fit_note": "Plain, practical, easy to follow; sage numbers.",
+   "does": "A white card with numbered rows that appear one by one, left of centre, speaker on the right.",
+   "when": "Step-by-step processes (\"how I set up a week\").",
+   "build_note": "`card` with `rows` (1. 2. 3.) in the lower third; quiet, not a pop-up.",
+   "recipe": null,
+   "evidence": [
+    "https://www.instagram.com/p/DekUNwSkoqR/",
+    "https://www.instagram.com/explore/search/keyword/?q=%23businesssystems"
+   ]
+  },
+  "L17": {
+   "name": "Number chips 1-5 under a caps title",
+   "group": "Layouts",
+   "status": "planned",
+   "version": "v1",
+   "trend_2026_11": true,
+   "build": "small",
+   "fit_for_melissa": 3,
+   "fit_note": "Original uses loud multi-colour chips and a blue label; her version is sage chips only.",
+   "does": "A bold caps title (\"5 systems to hold teams accountable\") with five numbered chips in a row.",
+   "when": "Five-item frameworks; the chips light up as each is spoken.",
+   "build_note": "New `chips` card (sage numbers) or `tiles` with number glyphs.",
+   "recipe": null,
+   "evidence": [
+    "https://www.instagram.com/p/Dfw_AzXAXyY/"
+   ]
+  },
+  "L18": {
+   "name": "Two-person split (Paid vs Free)",
+   "group": "Layouts",
+   "status": "planned",
+   "version": "v1",
+   "trend_2026_11": true,
+   "build": "no",
+   "fit_for_melissa": 2,
+   "fit_note": "She films alone. A solo before/after is possible, but this layout needs a second person.",
+   "does": "Two people side by side with a logo and price between them; labels top-left and top-right.",
+   "when": "Only with two people on camera.",
+   "build_note": "Skip unless she films with a second person.",
+   "recipe": null,
+   "evidence": [
+    "https://www.instagram.com/reel/DafrdobMFBG/"
+   ]
+  },
+  "L19": {
+   "name": "Reaction GIF at chest height",
+   "group": "Layouts",
+   "status": "planned",
+   "version": "v1",
+   "trend_2026_11": true,
+   "build": "now",
+   "fit_for_melissa": 3,
+   "fit_note": "Warm if the GIF is a good one. Never more than once.",
+   "does": "A small meme/GIF reaction sits across the chest area for a beat to land a joke, then leaves.",
+   "when": "One light moment per reel.",
+   "build_note": "`popup` with a GIF (already works; her Giphy backups exist).",
+   "recipe": null,
+   "evidence": [
+    "https://www.instagram.com/reel/DeLGD3xgI-u/"
+   ]
+  },
+  "L20": {
+   "name": "Carousel slide as opening or closing frame",
+   "group": "Layouts",
+   "status": "planned",
+   "version": "v1",
+   "trend_2026_11": true,
+   "build": "now",
+   "fit_for_melissa": 4,
+   "fit_note": "She already makes carousels (Canva). One asset, two posts.",
+   "does": "A designed slide (dark card, big headline, \"swipe\") shown full-screen at the start or end of the reel; carousels are being recycled as reels.",
+   "when": "You already built a carousel; reuse its cover or last slide as the reel opener or CTA.",
+   "build_note": "`page` or full-frame `image` card with her carousel slide PNG for 1.5-3 s.",
+   "recipe": null,
+   "evidence": [
+    "https://www.instagram.com/p/DfWR5BWiGct/",
+    "https://www.instagram.com/p/DfPau_UE8eA/",
+    "https://www.instagram.com/explore/search/keyword/?q=%23aiforsmallbusiness"
+   ]
+  },
+  "L21": {
+   "name": "Comment-keyword end line",
+   "group": "Layouts",
+   "status": "planned",
+   "version": "v1",
+   "trend_2026_11": true,
+   "build": "now",
+   "fit_for_melissa": 5,
+   "fit_note": "Highest-impact structural trend. Use a plain line, not the pill; keep the wording gentle.",
+   "does": "Last 3-4 seconds: \"Comment SYSTEM and I'll send you the guide\". Almost every top creator closes this way; comments are the metric.",
+   "when": "Whenever she has a freebie. Her comment-to-DM tool is built for it.",
+   "build_note": "`cta` card (CAPS word pops) or `title` card at the end; the keyword matches the comment-DM rule.",
+   "recipe": null,
+   "evidence": [
+    "https://www.instagram.com/p/DZDWtDyhP3l/",
+    "https://www.instagram.com/p/DYFV5ElKG_b/",
+    "https://www.instagram.com/reel/DerFZ3CuwUH/",
+    "https://www.instagram.com/reel/De9roZQMgAF/",
+    "https://www.instagram.com/p/De7V3pbTWX6/"
+   ]
+  },
+  "L22": {
+   "name": "Small top-left statement block",
+   "group": "Layouts",
+   "status": "planned",
+   "version": "v1",
+   "trend_2026_11": true,
+   "build": "now",
+   "fit_for_melissa": 4,
+   "fit_note": "Quiet; works above her eyes (top-left is her safe corner).",
+   "does": "A small 2-3 line statement stays in the top-left corner for the whole reel as a running subtitle of the idea.",
+   "when": "A single thesis you want held on screen (\"you bought an AI tool, so why is your team still...\").",
+   "build_note": "`title` card, left-aligned, small, long `end`.",
+   "recipe": null,
+   "evidence": [
+    "https://www.instagram.com/explore/search/keyword/?q=%23aiforsmallbusiness",
+    "https://www.instagram.com/p/DfznIkptiMZ/"
+   ]
+  },
+  "L23": {
+   "name": "Two-line caps title, second line in accent",
+   "group": "Layouts",
+   "status": "planned",
+   "version": "v1",
+   "trend_2026_11": true,
+   "build": "small",
+   "fit_for_melissa": 4,
+   "fit_note": "Bold but not hype if the line is quiet. Sage on line 2.",
+   "does": "Heavy caps title in two lines; the second line sits in colour: \"BEFORE YOU SCALE / FIX YOUR SYSTEM\".",
+   "when": "A strong opening thesis; also a section title mid-reel.",
+   "build_note": "`title` with a second-line colour option (today one colour per card).",
+   "recipe": null,
+   "evidence": [
+    "https://www.instagram.com/p/DH4-Vd_TFEV/",
+    "https://www.instagram.com/explore/search/keyword/?q=%23businesssystems"
+   ]
+  },
+  "L24": {
+   "name": "Taped note",
+   "group": "Layouts",
+   "status": "built",
+   "does": "card type \"note\" (added by By Mel Ross, 0.11.0): a short handwritten note on a scrap of paper, taped up above the head. With a material kit on it uses the kit's real paper and tape (references/material-kits.md); without one, a plain sheet",
+   "id_note": "Called L10 in the repo until the 58-look Style Menu took L10 for 'Inset card over a blurred, enlarged self'; moved to L24.",
+   "recipe": {"slot": "layout", "card": {"type": "note", "text": "the fix / is boring"}}
   }
+ },
+ "v1_added": "2026-11-16: H6-H19, C6-C16, L10-L23 added as status 'planned' (recipe null so storyboard.py skips them until built). Source: projects/style-menu-v1 in the Control Room workspace."
 }

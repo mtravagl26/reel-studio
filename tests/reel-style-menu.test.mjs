@@ -9,16 +9,17 @@ import { ff, haveFfmpeg, havePython, py, run, root, skill, skipReason, tmp } fro
 
 const read = (...p) => fs.readFileSync(path.join(skill, ...p), "utf8");
 const menu = JSON.parse(read("assets", "style-menu.json"));
-const IDS = ["H1", "H2", "H3", "H4", "H5", "C1", "C2", "C3", "C4", "C5", "L1", "L2", "L3", "L4", "L5", "L6", "L7", "L8", "L9", "L10"];
+const IDS = Object.keys(menu.looks);   // the menu decides which IDs exist (59 looks: H1-H19, C1-C16, L1-L24)
 
 // ------------------------------------------------------------------------------------------------------ the menu itself
-test("style menu: all 20 IDs are in the JSON and in the Markdown table, with a known status", () => {
-  assert.deepEqual(Object.keys(menu.looks).sort(), [...IDS].sort());
+test("style menu: every ID is in the JSON and in the Markdown table, with a known status", () => {
+  assert.equal(IDS.length, 59);
+  for (const id of IDS) assert.match(id, /^[HCL]\d+$/, `${id} is a hook, caption or layout ID`);
   const md = read("references", "style-menu.md");
   for (const id of IDS) {
     assert.match(md, new RegExp(`^\\| ${id} \\|`, "m"), `${id} has a row in references/style-menu.md`);
     const look = menu.looks[id];
-    assert.ok(["built", "partial", "not-built", "cut-choice"].includes(look.status), `${id}: status ${look.status}`);
+    assert.ok(["built", "partial", "not-built", "cut-choice", "planned"].includes(look.status), `${id}: status ${look.status}`);
     assert.ok(look.name && look.group, `${id}: name and group`);
     if (look.status === "built" || look.status === "partial") assert.ok(look.recipe, `${id}: a built or partial look has a recipe`);
   }
