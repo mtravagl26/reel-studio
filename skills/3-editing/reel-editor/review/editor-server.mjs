@@ -366,7 +366,7 @@ function view() {
     textDefault: brand.text_default || { layer: "front", position: "above" }, hasTextDefault: !!brand.text_default,
     themes: listThemes(), theme: { reel: edit.theme || null, all: brand.theme || null }, giphy: !!giphyKey(),
     colors: { reel: edit.colors || null, all: { main: brand.colors?.main || "#141414", pop: brand.colors?.pop || "#B9C8A5", light: brand.colors?.light || "#FFFFFF" } },
-    cutsStale, dirty: meta.edit_hash !== editHash(), canUndo: history().length > 0, undoLabel: history().slice(-1)[0]?.replace(/^[\d_-]+?-(?=[A-Za-z])/, "") || null,
+    hasMaster: exists(P.master), cutsStale, dirty: meta.edit_hash !== editHash(), canUndo: history().length > 0, undoLabel: history().slice(-1)[0]?.replace(/^[\d_-]+?-(?=[A-Za-z])/, "") || null,
     video: renders.length ? renders[renders.length - 1].phone : null, prepping, links: LINKS, built: true,
   };
   notes = [];
@@ -487,6 +487,56 @@ function startRender() {
   setJob({ state: "queued", step: "queued", steps: [], error: null });
   runRender();
 }
+
+// ---- live preview (Added by By Mel Ross, 0.17.0) -----------------------------------------------------------------------------------------
+// The reel is a web page before it is a video. build_reel.py writes that page in seconds; a render takes minutes. The touch-ups
+// page shows the built page over its player, in step with it, so a change to a graphic is seen right away with the real fonts,
+// colors and motion. It is built into <reel>/proj_live (never the folder a render reads), then swapped in whole.
+const LIVE = path.join(REEL, "proj_live");
+let live = { state: exists(path.join(LIVE, "index.html")) ? "ready" : "none", n: 0, at: null, secs: 0, error: null, notes: [], key: null };
+let liveChild = null, liveAgain = false;
+const liveKey = () => { try { return crypto.createHash("sha1").update(fs.readFileSync(P.edit)).update(fs.readFileSync(P.brand)).update(String(fs.statSync(P.master).mtimeMs)).digest("hex"); } catch { return null; } };
+function startLive(force) {
+  if (!built()) throw new Error("This reel is not built yet.");
+  if (!exists(P.master)) throw new Error("The live preview needs the cut video, and this reel has none yet. Press Re-render once.");
+  if (job.state === "running" || job.state === "queued") throw new Error("A render is running. The live preview comes back when it finishes.");
+  const key = liveKey();
+  if (!force && live.state === "ready" && live.key && live.key === key) return live;
+  if (liveChild) { liveAgain = true; return live; }
+  const tmpDir = LIVE + ".new"; fs.rmSync(tmpDir, { recursive: true, force: true });
+  live = { ...live, state: "building", error: null };
+  const t0 = Date.now(), out = [];
+  liveChild = spawn("python3", [path.join(SCRIPTS, "build_reel.py"), REEL], { cwd: REEL, env: { ...childEnv(), REEL_PROJ_DIR: tmpDir } });
+  const eat = (d) => { out.push(d.toString()); if (out.length > 400) out.splice(0, 200); };
+  liveChild.stdout.on("data", eat); liveChild.stderr.on("data", eat);
+  const done = (code) => {
+    if (!liveChild) return; liveChild = null;
+    const text = out.join("");
+    if (code === 0 && exists(path.join(tmpDir, "index.html"))) {
+      fs.rmSync(LIVE, { recursive: true, force: true }); fs.renameSync(tmpDir, LIVE);
+      live = { state: "ready", n: live.n + 1, at: new Date().toISOString(), secs: Math.round((Date.now() - t0) / 100) / 10, error: null, key,
+        notes: text.split(/\r?\n/).filter((l) => /^(note|warning):/.test(l)).map((l) => l.replace(/^(note|warning):\s*/, "")).slice(0, 8) };
+    } else { fs.rmSync(tmpDir, { recursive: true, force: true }); live = { ...live, state: "failed", error: tailReason(text) || "the preview could not be built" }; }
+    if (liveAgain) { liveAgain = false; try { startLive(); } catch { /* a render started meanwhile */ } }
+  };
+  liveChild.on("error", () => done(1)); liveChild.on("close", done);
+  return live;
+}
+// What the preview page gets added to it: nothing plays by itself. The touch-ups page calls reelLive.sync(time, playing) on
+// every frame and this moves the animation and every video to that moment. The page's own player stays the clock and the sound.
+const LIVE_DRIVER = `<style>html,body{background:transparent!important}</style><script>(function(){
+  var tl=function(){return window.__timelines&&window.__timelines.main},vids=function(){return [].slice.call(document.querySelectorAll("video"))};
+  vids().forEach(function(v){v.muted=true;v.preload="auto"});
+  window.reelLive={ready:function(){return !!tl()},sync:function(t,playing){
+    var m=tl();if(!m)return;m.seek(Math.max(0,t),false);
+    vids().forEach(function(v){
+      var s=+(v.dataset.start||0),d=+(v.dataset.duration||1e9),ms=+(v.dataset.mediaStart||0),on=t>=s-0.05&&t<s+d;
+      if(!on){if(!v.paused)v.pause();return}
+      var want=ms+Math.max(0,t-s);
+      if(Math.abs(v.currentTime-want)>(playing?0.3:0.04)){try{v.currentTime=want}catch(e){}}
+      if(playing&&v.paused){var p=v.play();if(p&&p.catch)p.catch(function(){})}else if(!playing&&!v.paused)v.pause();
+    });}};
+})();</script>`;
 
 // the video the page shows before any render: a phone copy of the existing final.mp4, made once.
 // 0.16.0: also when final.mp4 was rendered outside this page (from the command line) after the last render the page knows:
@@ -612,6 +662,7 @@ const server = http.createServer(async (req, res) => {
         if (p === "/api/op") { const b = JSON.parse((await readBody(req, 2e6)).toString() || "{}"); return json(res, 200, { ok: true, ...doOp(b), state: view() }); }
         if (p === "/api/undo") { requireIdle(); const what = undo(); return json(res, 200, { ok: true, undid: what, state: view() }); }
         if (p === "/api/render") { startRender(); return json(res, 200, { ok: true, job }); }
+        if (p === "/api/live") { const b = JSON.parse((await readBody(req, 1e4)).toString() || "{}"); return json(res, 200, { ok: true, live: startLive(!!b.force) }); }
         if (p === "/api/colors") { const b = JSON.parse((await readBody(req, 1e5)).toString() || "{}"); setColors(b); return json(res, 200, { ok: true, state: view() }); }
         if (p === "/api/theme") { const b = JSON.parse((await readBody(req, 1e5)).toString() || "{}"); setTheme(b); return json(res, 200, { ok: true, state: view() }); }
         if (p === "/api/giphy-add") { const b = JSON.parse((await readBody(req, 1e5)).toString() || "{}"); const up = await giphyAdd(b); return json(res, 200, { ok: true, upload: up, state: view() }); }
@@ -624,6 +675,17 @@ const server = http.createServer(async (req, res) => {
         }
       } catch (e) { return json(res, 400, { ok: false, error: String(e.message || e) }); }
       res.writeHead(404).end(); return;
+    }
+    if (p === "/api/live" && req.method === "GET") return json(res, 200, { ok: true, live });
+    if (p.startsWith("/live/")) {   // the built page and its files, for the live preview
+      const file = path.resolve(LIVE, "." + p.slice(5)), rel = path.relative(LIVE, file);
+      if (rel.startsWith("..") || path.isAbsolute(rel)) { res.writeHead(403).end(); return; }
+      if (rel === "index.html") {
+        let html; try { html = fs.readFileSync(file, "utf8"); } catch { res.writeHead(404).end(); return; }
+        html = html.includes("</body>") ? html.replace("</body>", LIVE_DRIVER + "</body>") : html + LIVE_DRIVER;
+        res.writeHead(200, { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store" }); res.end(html); return;
+      }
+      return sendFile(req, res, file);
     }
     if (p.startsWith("/sfx/")) {   // Added by By Mel Ross (0.10.2): sound previews for both pages, straight from the effects library
       const name = decodeURIComponent(p.slice(5)).replace(/\.wav$/, "");

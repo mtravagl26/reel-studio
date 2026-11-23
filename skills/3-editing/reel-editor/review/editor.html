@@ -26,6 +26,9 @@ label.f { display: block; font-size: 13px; color: #5b6b69; margin: 10px 0 4px; }
 .vwrap { position: relative; margin: 10px auto 0; width: min(100%, 360px); aspect-ratio: 9 / 16; background: #000; border-radius: 14px; overflow: hidden; }
 .vwrap video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
 #ov { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+#live { position: absolute; left: 0; top: 0; width: 1080px; height: 1920px; border: 0; transform-origin: 0 0; pointer-events: none; background: transparent; }
+.livebar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; width: min(100%, 360px); margin: 6px auto 0; }
+.livebar #livemsg { flex: 1 1 140px; }
 #ov.place { pointer-events: auto; cursor: crosshair; outline: 3px solid var(--sage); outline-offset: -3px; }
 #ov .box { position: absolute; border: 2px dashed #fff; background: rgba(185,200,165,.25); display: flex; align-items: center; justify-content: center; overflow: hidden; }
 #ov .box img { width: 100%; height: 100%; object-fit: contain; display: block; }
@@ -106,12 +109,13 @@ summary .tipb{margin-right:auto}
   <button id="undo" class="sm" disabled title="Takes back your last change on this page">Undo</button>
   <button id="render" class="pri" title="Builds the video again with your changes. It takes a few minutes and keeps the earlier version.">Re-render</button>
 </header>
-<p class="lede">For a reel that is already built. Fix a word, drop a piece, add text, pictures or sounds, then tap <b>Re-render</b>. To redo the cut from the start, go back to <b>1 Review</b>.</p>
+<p class="lede">For a reel that is already built. Fix a word, drop a piece, add text, pictures or sounds. The live preview shows each change within seconds. Tap <b>Re-render</b> once at the end to make the finished video. To redo the cut from the start, go back to <b>1 Review</b>.</p>
 <div id="unbuilt" class="banner info" hidden>This reel is not built yet. Finish <a href="/review"><b>1 Review</b></a>, then tell Claude <b>build preview</b>. This page fills in when the video is ready.</div>
 <div id="status"></div>
 <div id="notes"></div>
 
-<div class="vwrap"><video id="v" playsinline controls preload="metadata"></video><div id="ov"></div></div>
+<div class="vwrap"><video id="v" playsinline controls preload="metadata"></video><iframe id="live" title="Live preview of your changes" tabindex="-1" aria-hidden="true" style="display:none"></iframe><div id="ov"></div></div>
+<div class="livebar"><label class="row" style="gap:8px"><span class="sw"><input type="checkbox" id="liveOn" checked><i></i></span><b>Live preview</b></label><span id="livemsg" class="small"></span></div>
 <div class="vbar"><span id="clock">0:00.0</span><span class="grow"></span><button id="nowBtn" class="sm" title="Copies the moment the video is paused at into the start time of the item you have open">Mark time</button><select id="ver" style="width:auto"></select></div>
 <div id="tl"><div id="tli"></div></div>
 <div class="tlkey"><span><i style="background:#f3e9b8;border:1px solid #dccf8f"></i>captions</span><span><i style="background:#0d2b2d"></i>text and cards</span><span><i style="background:#e7a23b"></i>pictures, GIFs, clips</span><span><i style="background:#7a4fa3;border-radius:50%"></i>sounds</span><span><i style="background:none;border-left:2px dashed #c0392b;width:0"></i>a cut</span></div>
@@ -161,7 +165,7 @@ async function post(url, body, raw) {
   const r = await fetch(url, { method: "POST", headers: raw ? {} : { "Content-Type": "application/json" }, body: raw ?? JSON.stringify(body || {}) });
   const j = await r.json().catch(() => ({ ok: false, error: "the editor did not answer" }));
   if (!j.ok) throw new Error(j.error || "failed");
-  if (j.state) { S = j.state; render(); }
+  if (j.state) { S = j.state; render(); if (!/\/api\/render$/.test(url)) liveSoon(); }
   return j;
 }
 async function op(o, key, msg) { try { const j = await post("/api/op", { op: o, key }); if (msg) toast(msg); return j; } catch (e) { toast(e.message, true); render(); } }
@@ -199,7 +203,9 @@ function renderStatus() {
       + (r.notes?.length ? `<ul>${r.notes.map((n) => `<li>${esc(n)}</li>`).join("")}</ul>` : "")
       + (r.recut && r.sync?.n ? `<div class="small">Caption timing vs a fresh transcript of this video: median off by ${r.sync.median.toFixed(2)} s, 90% within ${r.sync.p90.toFixed(2)} s, worst ${r.sync.max.toFixed(2)} s (${r.sync.n} words).</div>` : "") + `</div>`;
   } else if (S.dirty || S.cutsStale) {
-    h = `<div class="banner">Saved. The video below is still the old version. <b>Tap Re-render</b> to see your changes.</div>`;
+    h = liveOn && !S.cutsStale && liveState.state !== "failed"
+      ? `<div class="banner info">Saved. The live preview below shows your changes. <b>Tap Re-render</b> when you're done, to make the finished video.</div>`
+      : `<div class="banner">Saved. The video below is still the old version. <b>Tap Re-render</b> to see your changes.</div>`;
   } else {
     h = `<div class="banner ok">The video below matches your edits.</div>`;
   }
@@ -208,7 +214,7 @@ function renderStatus() {
 function renderVideo() {
   const r = S.renders.find((x) => x.v === (watch ?? S.renders[S.renders.length - 1]?.v)) || S.renders[S.renders.length - 1];
   if (watch == null && S.job.state === "done" && S.job.result && S.renders.length) watch = null;
-  const src = r ? "/files/" + r.phone : null;
+  const src = r ? "/files/" + r.phone : (S.hasMaster && !S.cutsStale ? "/files/master.mp4" : null);   // 0.17.0: no render yet? The cut video keeps time for the live preview
   if (src && v.getAttribute("data-src") !== src) { const t = v.currentTime || 0, was = !v.paused; v.setAttribute("data-src", src); v.src = src; v.onloadedmetadata = () => { try { v.currentTime = Math.min(t, v.duration || t); } catch {} if (was) v.play(); }; }
   if (!src && S.prepping) $("#stale").innerHTML = `<div class="banner info">Preparing a phone copy of the current video…</div>`;
   else if (!src) $("#stale").innerHTML = `<div class="banner">No video yet: tap Re-render.</div>`;
@@ -587,14 +593,68 @@ document.addEventListener("keydown", (e) => { if (e.key === "Enter" && e.target.
 // ------------------------------------------------------------------ job polling
 function startPoll() { clearInterval(pollT); pollT = setInterval(async () => {
   try { const j = await (await fetch("/api/job")).json(); const was = S.job.state; S.job = j.job;
-    if (j.job.state === "done" || j.job.state === "failed") { clearInterval(pollT); pollT = null; watch = null; await load(); toast(j.job.state === "done" ? "New video ready" : "Render failed", j.job.state !== "done"); }
-    else { renderStatus(); $("#render").textContent = "Rendering…"; }
+    if (j.job.state === "done" || j.job.state === "failed") { clearInterval(pollT); pollT = null; watch = null; await load(); liveBuild(); toast(j.job.state === "done" ? "New video ready" : "Render failed", j.job.state !== "done"); }
+    else { renderStatus(); renderLive(); $("#render").textContent = "Rendering…"; }
   } catch {} }, 2000); }
+// ---- Live preview (Added by By Mel Ross, 0.17.0). The reel is built as a web page in a few seconds; that page is laid over the
+// player and kept in step with it, so a change shows with the real fonts, colors and motion without a re-render. The player
+// underneath is still the last render: it keeps the time and the sound.
+let liveOn = true, liveState = { state: "none" }, liveT = null, livePollT = null;
+try { liveOn = localStorage.getItem("reel-live") !== "off"; } catch { /* private mode */ }
+$("#liveOn").checked = liveOn;
+const liveFrame = $("#live");
+function renderLive() {
+  const L = liveState || { state: "none" }, msg = $("#livemsg");
+  const can = liveOn && S && S.built !== false && !S.cutsStale && (S.renders.length > 0 || S.hasMaster) && !running();
+  if (can && L.state === "ready" && liveFrame.dataset.at !== String(L.at)) { liveFrame.dataset.at = String(L.at); liveFrame.src = "/live/index.html?at=" + encodeURIComponent(L.at); }
+  const show = can && !!liveFrame.dataset.at && L.state !== "none";
+  liveFrame.style.display = show ? "" : "none";
+  msg.className = "small" + (L.state === "failed" && liveOn ? " warnt" : "");
+  msg.textContent = !liveOn ? "Off: the player shows your last render."
+    : running() ? "Paused while the video renders."
+    : S && S.cutsStale ? "Your cuts changed. Re-render once, then the live preview is back."
+    : S && !S.renders.length && !S.hasMaster ? "Starts after the first render."
+    : L.state === "building" ? "Updating…"
+    : L.state === "failed" ? "Couldn't update: " + (L.error || "unknown reason")
+    : L.state === "ready" ? `Shows your changes now (updated in ${L.secs} s). Sounds and the final polish come with Re-render.`
+    : "";
+}
+async function liveBuild(force) {
+  if (!liveOn || !S || S.built === false || running() || S.cutsStale) return renderLive();
+  try {
+    const r = await fetch("/api/live", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ force: !!force }) }), j = await r.json();
+    if (!j.ok) throw new Error(j.error || "failed");
+    liveState = j.live;
+  } catch (e) { liveState = { ...liveState, state: "failed", error: e.message }; }
+  renderLive();
+  clearTimeout(livePollT); if (liveState.state === "building") livePollT = setTimeout(livePoll, 600);
+}
+async function livePoll() {
+  try { liveState = (await (await fetch("/api/live")).json()).live; } catch { /* try again */ }
+  renderLive();
+  if (liveState.state === "building") livePollT = setTimeout(livePoll, 600);
+}
+function liveSoon() { clearTimeout(liveT); liveT = setTimeout(() => liveBuild(), 350); }
+$("#liveOn").addEventListener("change", (e) => { liveOn = e.target.checked; try { localStorage.setItem("reel-live", liveOn ? "on" : "off"); } catch { /* fine */ } if (liveOn) liveBuild(); else renderLive(); });
+(function liveLoop() {
+  if (liveFrame.style.display !== "none") {
+    const k = liveFrame.parentElement.clientWidth / 1080;
+    liveFrame.style.transform = `scale(${k})`; liveFrame.style.clipPath = `inset(0 0 ${Math.round(46 / k)}px 0)`;   // the player's own buttons stay visible along the bottom
+    try { const w = liveFrame.contentWindow; if (w && w.reelLive && w.reelLive.ready()) w.reelLive.sync(v.currentTime || 0, !v.paused && !v.seeking && !v.ended); } catch { /* the frame is loading */ }
+  }
+  requestAnimationFrame(liveLoop);
+})();
 await load();
 if (running()) startPoll();
+liveBuild();
 // ---- Tips (Added by By Mel Ross, 0.15.0): a small ? beside the terms that need explaining. Tap it (or hover on a computer) for one
 // plain sentence. The list is matched by the label's own words, so a re-drawn section gets its ? back on its own.
 const TIPS = [
+ [
+  ".livebar b",
+  "Live preview",
+  "Shows your changes on the video within seconds, with your real fonts and colors. Sound effects and the final polish still need Re-render."
+ ],
  [
   "summary",
   "Captions",

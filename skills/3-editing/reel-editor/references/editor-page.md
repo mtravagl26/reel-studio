@@ -85,3 +85,14 @@ A popup can be a video clip: a screen recording, or b-roll from their phone. It 
 - **Lists.** A list card's title and rows can be edited (one row per line, up to 6), and "+ Add a list at this point in the video" adds a new one.
 - **A render made outside the page.** When `final.mp4` is newer than the last render the page knows (Claude or the command line rendered it), the page makes a phone copy and shows it as the latest version. The player no longer stays empty.
 - **Colors.** Settings has a color box: 3 colors (main, pop, light), saved for this reel (`edit.json` `"colors"`) or for every reel (`brand.json` `"colors"`). Every theme takes its colors from these 3, so this is how a look's colors change. The review page has the same box for this reel only; its choice comes back in the decisions and the import writes it to `edit.json`. A color change shows after the next render or preview build.
+
+## Live preview (0.17.0)
+
+The touch-ups page shows changes without a render. After each change the server runs `build_reel.py` into `<reel>/proj_live` (a few seconds; under 1 second once GIFs and clips are converted, they are kept in `<reel>/.asset-cache`) and the page lays that built page over its player, in step with it. The person sees the real graphic, fonts, colors, theme and motion right away. The player underneath keeps the time and the sound.
+
+- It shows: every card and popup, captions, zooms, colors, the theme, the layer order where the speaker cutout exists.
+- It does not show: sound effects (they are mixed in at the render), HyperFrames catalog motions (carousels, charts), and the final encode. Say so if they ask why a sound or a carousel is missing in the preview.
+- It is off while a render runs and when the cuts changed since the last cut video (dropping a piece): one Re-render brings it back.
+- A switch above the timeline turns it off; the player then shows the last render.
+- `proj_live` and `.asset-cache` are working folders. Never deliver from them. A render still uses `proj`.
+- Re-render is still the last step before delivery. The live preview is not the finished video.
