@@ -142,6 +142,19 @@ function stylePage() {
   const data = { reel: path.basename(REEL), looks: menuLooks(), extras: menuExtras(), themes: listThemes(), picks: stylePicks(), canSave: true };
   return fs.readFileSync(path.join(HERE, "style-menu.html"), "utf8").replace("/*MENU*/null", () => JSON.stringify(data).replace(/</g, "\\u003c"));
 }
+// Added by By Mel Ross (0.16.0): the color box. 3 colors (main, pop, light) for this reel only (edit.json "colors") or for every
+// reel (brand.json "colors"). An empty set for this reel goes back to the brand's colors.
+const HEX = /^#[0-9a-fA-F]{6}$/;
+function setColors(body) {
+  requireIdle();
+  const scope = body.scope === "all" ? "all" : "reel", got = {};
+  for (const k of ["main", "pop", "light"]) { const v = body.colors?.[k]; if (v == null || v === "") continue; if (!HEX.test(String(v))) throw new Error("a color must look like #B9C8A5"); got[k] = String(v).toUpperCase(); }
+  snapshot("colors", null, true);
+  const edit = readJSON(P.edit, {}), brand = brandJSON();
+  if (scope === "reel") { if (Object.keys(got).length) edit.colors = got; else delete edit.colors; }
+  else { if (!Object.keys(got).length) throw new Error("pick at least 1 color"); brand.colors = { ...(brand.colors || {}), ...got }; delete edit.colors; writeJSON(P.brand, brand); }
+  writeJSON(P.edit, edit);
+}
 function setTheme(body) {
   requireIdle();
   const name = String(body.name || ""), scope = body.scope === "reel" ? "reel" : "all";
@@ -352,6 +365,7 @@ function view() {
     pieces, media, popups: files, sfxNames: sfxNames(), notes, renders, job, receipt: receiptNow(st, edit, brand),
     textDefault: brand.text_default || { layer: "front", position: "above" }, hasTextDefault: !!brand.text_default,
     themes: listThemes(), theme: { reel: edit.theme || null, all: brand.theme || null }, giphy: !!giphyKey(),
+    colors: { reel: edit.colors || null, all: { main: brand.colors?.main || "#141414", pop: brand.colors?.pop || "#B9C8A5", light: brand.colors?.light || "#FFFFFF" } },
     cutsStale, dirty: meta.edit_hash !== editHash(), canUndo: history().length > 0, undoLabel: history().slice(-1)[0]?.replace(/^[\d_-]+?-(?=[A-Za-z])/, "") || null,
     video: renders.length ? renders[renders.length - 1].phone : null, prepping, links: LINKS, built: true,
   };
@@ -474,16 +488,28 @@ function startRender() {
   runRender();
 }
 
-// the video the page shows before any render: a phone copy of the existing final.mp4, made once
+// the video the page shows before any render: a phone copy of the existing final.mp4, made once.
+// 0.16.0: also when final.mp4 was rendered outside this page (from the command line) after the last render the page knows:
+// the player used to stay empty, or show an older video. The page checks each time it loads the reel.
 function prepareBaseline() {
-  if (listRenders().length || !exists(P.final)) return;
+  if (prepping || child || job.state === "running" || job.state === "queued" || !exists(P.final)) return;
+  const all = listRenders(); let version = 0, extra = { baseline: true, what: "the video as it was when this page first opened" };
+  const fm = fs.statSync(P.final).mtimeMs;
+  if (Date.now() - fm < 8000) return;   // still being written
+  if (all.length) {
+    const newest = Math.max(...fs.readdirSync(P.renders).filter((n) => /^v\d+\.json$/.test(n)).map((n) => fs.statSync(path.join(P.renders, n)).mtimeMs));
+    if (fm <= newest + 5000) return;
+    version = Math.max(...all.map((r) => r.v)) + 1; extra = { outside: true, what: "rendered outside this page (from Claude or the command line)" };
+  }
   prepping = true;
-  const phone = path.join(P.renders, "v000-phone.mp4"), tag = ["-colorspace", "bt709", "-color_primaries", "bt709", "-color_trc", "bt709", "-color_range", "tv"];
+  const v = String(version).padStart(3, "0");
+  const phone = path.join(P.renders, `v${v}-phone.mp4`), tag = ["-colorspace", "bt709", "-color_primaries", "bt709", "-color_trc", "bt709", "-color_range", "tv"];
+  fs.mkdirSync(P.renders, { recursive: true });
   const c = spawn("ffmpeg", ["-hide_banner", "-loglevel", "error", "-y", "-i", P.final, "-vf", "scale='min(1080,iw)':-2", "-c:v", "libx264", "-preset", "veryfast", "-crf", "26", "-pix_fmt", "yuv420p", ...tag,
     "-c:a", "aac", "-b:a", "128k", "-movflags", "+faststart", phone], { env: childEnv() });
   c.on("close", (code) => {
     prepping = false;
-    if (code === 0) writeJSON(path.join(P.renders, "v000.json"), { v: 0, at: new Date().toISOString(), phone: "renders/v000-phone.mp4", full: "final.mp4", baseline: true, what: "the video as it was when this page first opened" });
+    if (code === 0) writeJSON(path.join(P.renders, `v${v}.json`), { v: version, at: new Date().toISOString(), phone: `renders/v${v}-phone.mp4`, full: "final.mp4", ...extra });
   });
 }
 
@@ -558,6 +584,7 @@ const server = http.createServer(async (req, res) => {
       fs.mkdirSync(path.dirname(file), { recursive: true }); writeText(file, body);
       res.writeHead(204).end(); return;
     }
+    if (p === "/api/state" && req.method === "GET" && built()) { try { prepareBaseline(); } catch { /* the player just stays as it is */ } }
     if (p === "/api/state" && req.method === "GET") return json(res, 200, built() ? view() : { built: false, reel: path.basename(REEL), review: hasReview(), links: LINKS });
     if (req.method === "GET" && p === "/api/review-giphy-key") return json(res, 200, { key: giphyKey() || null });   // 0.10.2: GIPHY on the review page, before the build
     if (req.method === "POST" && p === "/api/giphy-key-save") {   // 0.15.0: both pages can save the key (works before the build)
@@ -585,6 +612,7 @@ const server = http.createServer(async (req, res) => {
         if (p === "/api/op") { const b = JSON.parse((await readBody(req, 2e6)).toString() || "{}"); return json(res, 200, { ok: true, ...doOp(b), state: view() }); }
         if (p === "/api/undo") { requireIdle(); const what = undo(); return json(res, 200, { ok: true, undid: what, state: view() }); }
         if (p === "/api/render") { startRender(); return json(res, 200, { ok: true, job }); }
+        if (p === "/api/colors") { const b = JSON.parse((await readBody(req, 1e5)).toString() || "{}"); setColors(b); return json(res, 200, { ok: true, state: view() }); }
         if (p === "/api/theme") { const b = JSON.parse((await readBody(req, 1e5)).toString() || "{}"); setTheme(b); return json(res, 200, { ok: true, state: view() }); }
         if (p === "/api/giphy-add") { const b = JSON.parse((await readBody(req, 1e5)).toString() || "{}"); const up = await giphyAdd(b); return json(res, 200, { ok: true, upload: up, state: view() }); }
         if (p === "/api/text-default") { const b = JSON.parse((await readBody(req, 1e5)).toString() || "{}"); setTextDefault(b); return json(res, 200, { ok: true, state: view() }); }

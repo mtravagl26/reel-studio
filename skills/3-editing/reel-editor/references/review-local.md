@@ -30,3 +30,11 @@ The Graphics tab has two ways to ask for more than the plan shows. Neither one d
 The looks page (`/styles`) also lists animations and moving extras (`assets/style-extras.json`). Picks land in `style-picks.json` under `"extras"`.
 
 **These pages only exist at the Reel Studio link** (`http://localhost:<port>/...` from `studio-server.mjs`). Never hand the person an HTML file to open from disk: a file has no looks page, no saving and no touch-ups.
+
+## Moving a graphic on the review page (0.16.0)
+
+Each planned graphic, and each graphic they asked for, has 2 menus on the Graphics tab: where on screen (middle, top, top left, top right, left or right of the face, lower) and in front of the face or behind the head. The import applies what it can: the layer goes on any card, and the place goes straight onto a popup. For other card types it prints `PLACE IT (set this card's position in edit.json before the render): <id> (<type>) @ cut <time>: <where>`. Set that card's position fields (`y`, `x`, `box`, see the card list in `scripts/build_reel.py`) before the render. `GRAPHIC WANTED:` lines carry the place and layer in words.
+
+A caption word fixed on the touch-ups page stays on that word through a re-import. If the word at that moment is a different word now, the import leaves it alone and prints `TOUCH-UP NOT KEPT (tell them): the caption fix ...`. Read that caption against what was said before you render.
+
+**After you add a graphic they asked for (0.16.0).** Add the card to `proposal.json` as well as `edit.json`, run `review_sync.py export` again, then `python3 scripts/review_sync.py wanted-done <reel> <id>` (or `all`). The page loads the new plan by itself, the graphic shows in the list with the others, and the next import does not ask for it again. Without this the Graphics tab keeps showing the old plan.

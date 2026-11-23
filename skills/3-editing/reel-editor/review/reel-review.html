@@ -76,7 +76,9 @@ textarea{min-height:80px;resize:vertical}
 .card>div{min-width:0}
 .upl{min-width:0}
 .giphy{flex-basis:100%;max-width:100%;min-width:0;box-sizing:border-box;border:2px solid var(--line);border-radius:14px;padding:10px;background:#fff}.giphy[hidden]{display:none}
-.giphy .ctl{display:flex;gap:6px;flex-wrap:wrap}.giphy .gkey{margin-bottom:8px}.giphy input[type=password]{flex:1 1 160px;min-width:0;box-sizing:border-box;font:inherit;padding:8px 10px;border:2px solid var(--line);border-radius:10px}.giphy input[type=search]{flex:1 1 120px;min-width:0;width:100%;box-sizing:border-box;font:inherit;padding:8px 10px;border:2px solid var(--line);border-radius:10px}.giphy select{font:inherit;padding:8px;border:2px solid var(--line);border-radius:10px;background:#fff}
+.giphy .ctl{display:flex;gap:6px;flex-wrap:wrap}.colorrow{display:flex;gap:10px;flex-wrap:wrap;margin:6px 0}.colorrow label{flex:1 1 120px;display:block}.colorrow input[type=color]{width:100%;height:44px;padding:0;border:2px solid var(--line);border-radius:10px;background:#fff}.colorrow .lede{display:block;margin:4px 0 0}
+.placer{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}.placer select{flex:1 1 200px;min-width:0;font:inherit;padding:8px;border:2px solid var(--line);border-radius:10px;background:#fff}
+.giphy .gkey{margin-bottom:8px}.giphy input[type=password]{flex:1 1 160px;min-width:0;box-sizing:border-box;font:inherit;padding:8px 10px;border:2px solid var(--line);border-radius:10px}.giphy input[type=search]{flex:1 1 120px;min-width:0;width:100%;box-sizing:border-box;font:inherit;padding:8px 10px;border:2px solid var(--line);border-radius:10px}.giphy select{font:inherit;padding:8px;border:2px solid var(--line);border-radius:10px;background:#fff}
 .ggrid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin:8px 0}.ggrid button{padding:0;border:2px solid var(--line);border-radius:8px;overflow:hidden;background:#eee;cursor:pointer;aspect-ratio:1}.ggrid img{width:100%;height:100%;object-fit:cover;display:block}
 .upchip{position:relative;display:inline-block}.upchip img,.upchip video{width:56px;height:56px;object-fit:cover;border-radius:8px;border:2px solid var(--line);display:block}
 .upchip button{position:absolute;top:-6px;right:-6px;width:22px;height:22px;border-radius:50%;border:0;background:var(--drop,#a32727);color:#fff;font-weight:700;line-height:1;cursor:pointer}
@@ -202,7 +204,7 @@ code{font:500 13px var(--f-mono);background:var(--accent-soft);border-radius:6px
     </section>
 
     <section data-p="graphics" hidden>
-      <p class="lede">These are the graphics planned for this reel. Each picture shows roughly where the graphic will sit. It's a sketch, so the finished one moves and looks better. Keep it, drop it, or ask for a change and say what you want.</p>
+      <p class="lede">These are the graphics planned for this reel. Each picture shows roughly where the graphic will sit. It's a sketch, so the finished one moves and looks better. Keep it, drop it, or ask for a change and say what you want. The 2 menus under each graphic move it: where on screen, and in front of your face or behind your head.</p>
       <div class="amount"><span id="amountlabel">How many graphics?</span>
         <div class="seg" id="amount" role="group" aria-labelledby="amountlabel">
           <button type="button" class="k" data-amt="few">A few</button><button type="button" class="k" data-amt="some">Some</button><button type="button" class="k" data-amt="lots">Lots</button>
@@ -266,6 +268,12 @@ code{font:500 13px var(--f-mono);background:var(--accent-soft);border-radius:6px
         <p class="lede" id="themenote"></p>
         <p class="lede" id="lookslink" hidden><a href="/styles">See every look you can add</a></p>
       </div>
+      <div class="look" id="colorbox" hidden>
+        <label>Colors for this reel</label>
+        <div class="colorrow" id="colorrow"></div>
+        <div class="ctl"><button class="b quiet" id="colorreset" type="button" hidden>Back to my brand colors</button></div>
+        <p class="lede" id="colornote"></p>
+      </div>
       <details>
         <summary>Change my brand defaults (every future reel)</summary>
         <p class="lede">Use this only for a change you want on every reel from now on, like "captions one size smaller". The notes above stay with this reel.</p>
@@ -295,7 +303,7 @@ const v = $("#v"), ov = $("#ov");
 const fmt = t => `${Math.floor(t / 60)}:${(Math.max(0, t) % 60).toFixed(1).padStart(4, "0")}`;
 let R = null, B = null, S = blank(), P = null, CAPS = [], GFX = [];
 let tab = "cuts", ref = null, saving = Promise.resolve(), timer = null, undo = [], mode = "idle", loop = null;
-function blank() { return { theme: null, cut: null, restoredFillers: [], restoredPauses: [], trimmedPauses: [], captions: null, board: {}, wanted: [], amount: null, sfxOff: {}, notes: {}, brandRequest: "", revisions: [], buildRequest: null }; }
+function blank() { return { theme: null, colors: null, cut: null, restoredFillers: [], restoredPauses: [], trimmedPauses: [], captions: null, board: {}, wanted: [], amount: null, sfxOff: {}, notes: {}, brandRequest: "", revisions: [], buildRequest: null }; }
 
 // ---------- saving, undo ----------
 const pill = (t, err) => { $("#save").textContent = t; $("#save").classList.toggle("err", !!err); $("#retry").hidden = !err; };
@@ -343,6 +351,7 @@ $("#notes").addEventListener("input", e => { S.notes[tab] = e.target.value; queu
 $("#brand").addEventListener("input", e => { S.brandRequest = e.target.value; queueSave(); });
 // Added by By Mel Ross (0.9.0): pick the theme for this reel. The page keeps showing your captions as they are; the theme shows in the preview build.
 function renderLook() {
+  renderColors();
   const list = Array.isArray(R.themes) ? R.themes : [], sel = $("#theme");
   $("#lookbox").hidden = !list.length; if (!list.length) return;
   const cur = S.theme ?? R.theme ?? "";
@@ -352,6 +361,20 @@ function renderLook() {
   $("#themenote").textContent = (t ? t.summary + " " : "A theme changes the fonts, captions, titles and card shapes together. Your colors and name stay. ") + "You'll see it in the preview build.";
 }
 $("#theme").addEventListener("change", e => { mutate(() => { S.theme = e.target.value; }); renderLook(); });
+// Added by By Mel Ross (0.16.0): the color box. 3 colors for this reel; every look uses them. They show in the preview build.
+function renderColors() {
+  const base = R.colors; $("#colorbox").hidden = !base; if (!base) return;
+  const cur = { ...base, ...(S.colors || {}) }, row = $("#colorrow"); row.textContent = "";
+  for (const [k, n, what] of [["main", "Main", "text and dark shapes"], ["pop", "Pop", "highlighted words and accents"], ["light", "Light", "card backgrounds"]]) {
+    const lab = document.createElement("label"); const inp = document.createElement("input"); inp.type = "color"; inp.value = cur[k]; inp.setAttribute("aria-label", n + " color");
+    const cap = document.createElement("span"); cap.className = "lede"; cap.innerHTML = `<b>${n}</b>: ${what}`;
+    inp.addEventListener("change", () => mutate(() => { S.colors = { ...base, ...(S.colors || {}), [k]: inp.value.toUpperCase() }; }));
+    lab.append(inp, cap); row.append(lab);
+  }
+  $("#colorreset").hidden = !S.colors;
+  $("#colornote").textContent = (S.colors ? "This reel has its own colors. " : "This reel uses your brand colors. ") + "Every look uses these 3 colors, so changing them changes any look. You'll see them in the preview build. To change them for every reel, use Settings on the Touch-ups page.";
+}
+$("#colorreset").addEventListener("click", () => mutate(() => { S.colors = null; }));
 $("#reset").addEventListener("click", () => {
   const box = $("#resetbox"); box.textContent = "";
   const msg = document.createElement("span"); msg.className = "confirm"; msg.textContent = "Reset this section to my proposal? ";
@@ -546,6 +569,7 @@ function renderGraphics() {
       seg.appendChild(b);
     }
     body.append(kind, what, meta, seg);
+    if (st !== "d" && !g.gone) body.appendChild(placer(S.board[g.id] || {}, (k, v) => mutate(() => { const cur = { ...(S.board[g.id] || {}) }; if (v) cur[k] = v; else delete cur[k]; S.board[g.id] = cur; })));
     if (st === "c") {
       const inp = document.createElement("input"); inp.type = "text"; inp.id = "note-" + g.id; inp.placeholder = "What should change?"; inp.value = (S.board[g.id] || {}).note || "";
       inp.addEventListener("input", () => { S.board[g.id] = { ...(S.board[g.id] || { state: "c" }), note: inp.value }; queueSave(); });
@@ -557,6 +581,16 @@ function renderGraphics() {
   $("#gtally").innerHTML = `<span><b>${GFX.length}</b> graphics</span><span><b>${n.k}</b> keep</span><span><b>${n.c}</b> change</span><span><b>${n.d}</b> drop</span>`;
 }
 const box_ = g => box(g, false);
+// Where a graphic goes (Added by By Mel Ross, 0.16.0): chosen here, before the build. "As planned" leaves it to the plan.
+const WHERE = [["", "Where: as planned"], ["center", "Middle (covers part of my face)"], ["top-center", "Top, above my head"], ["top-left", "Top left"], ["top-right", "Top right"], ["middle-left", "Left of my face"], ["middle-right", "Right of my face"], ["lower", "Lower, above the captions"]];
+const LAYER = [["", "Layer: as planned"], ["front", "In front of my face"], ["behind", "Behind my head (Mac only)"]];
+function placer(cur, set) {
+  const row = document.createElement("div"); row.className = "placer";
+  const w = document.createElement("select"); w.setAttribute("aria-label", "Where on screen"); w.append(...WHERE.map(([v, t]) => new Option(t, v))); w.value = cur.where || "";
+  const l = document.createElement("select"); l.setAttribute("aria-label", "In front of my face or behind my head"); l.append(...LAYER.map(([v, t]) => new Option(t, v))); l.value = cur.layer || "";
+  w.addEventListener("change", () => set("where", w.value)); l.addEventListener("change", () => set("layer", l.value));
+  row.append(w, l); return row;
+}
 
 // Their own pictures for a graphic (Added by By Mel Ross, 0.10.2). Only at the local Reel Studio link: the picture is saved in the
 // reel folder (popups/) and its path travels with the decision, so Claude uses that file when it builds the graphic.
@@ -682,6 +716,7 @@ function renderWanted() {
   $("#amountnote").textContent = AMOUNT[cur] + (S.amount && S.amount !== (R.graphicsAmount || "some") ? " Claude re-plans the graphics when you send this, so the list below is the old plan." : "");
   const box = $("#wanted"); box.textContent = "";
   for (const w of S.wanted || []) {
+    if (w.done) continue;   // 0.16.0: Claude added it to the plan, so it shows in the list below now
     const el = document.createElement("div"); el.className = "card wanted";
     const body = document.createElement("div");
     const kind = document.createElement("div"); kind.className = "kind"; kind.textContent = "You asked for: " + (KINDS.find(k => k[0] === w.kind) || KINDS[0])[1];
@@ -690,9 +725,10 @@ function renderWanted() {
     const line = document.createElement("span"); line.textContent = `At "${w.line}"`; meta.append(line);
     const rm = document.createElement("button"); rm.type = "button"; rm.className = "b quiet"; rm.textContent = "Remove";
     rm.addEventListener("click", () => mutate(() => { S.wanted = S.wanted.filter(x => x.id !== w.id); }));
-    body.append(kind, what, meta, uploader(w.files || [], files => mutate(() => { S.wanted = S.wanted.map(x => x.id === w.id ? { ...x, files } : x); })), rm); el.append(body); box.appendChild(el);
+    body.append(kind, what, meta, placer(w, (k, v) => mutate(() => { S.wanted = S.wanted.map(x => { if (x.id !== w.id) return x; const y = { ...x }; if (v) y[k] = v; else delete y[k]; return y; }); })),
+      uploader(w.files || [], files => mutate(() => { S.wanted = S.wanted.map(x => x.id === w.id ? { ...x, files } : x); })), rm); el.append(body); box.appendChild(el);
   }
-  if ((S.wanted || []).length) $("#gtally").insertAdjacentHTML("beforeend", `<span><b>${S.wanted.length}</b> asked for</span>`);
+  if ((S.wanted || []).some(w => !w.done)) $("#gtally").insertAdjacentHTML("beforeend", `<span><b>${S.wanted.filter(w => !w.done).length}</b> asked for</span>`);
 }
 $$("#amount button").forEach(b => b.addEventListener("click", () => mutate(() => { S.amount = b.dataset.amt === (R.graphicsAmount || "some") ? null : b.dataset.amt; })));
 $("#addkind").append(...KINDS.map(([v, t]) => new Option(t, v)));
@@ -775,6 +811,9 @@ function renderSound() {
   $("#audio").replaceChildren(...(A.audioOriginal ? [fig("Original", au(A.audioOriginal)), fig("Cleaned", au(A.audioCleaned))] : [Object.assign(document.createElement("div"), { className: "empty", textContent: "No audio comparison for this reel yet." })]));
   $("#colour").replaceChildren(...(A.colourBefore && R.grade ? [fig("Original", im(A.colourBefore, "Frame before grading")), fig("Graded", im(A.colourAfter, "Same frame after grading"))] : [Object.assign(document.createElement("div"), { className: "empty", textContent: "No color grade is set for this brand, so the reel keeps its original color." })]));
   const cues = $("#cues"); cues.textContent = "";
+  if (!GFX.some(g => g.sfx && !g.gone && g.state !== "d")) {   // 0.16.0: say why the list is empty
+    cues.append(Object.assign(document.createElement("div"), { className: "empty", textContent: GFX.length ? "No sounds are set for this reel's graphics. Sounds are switched off in your brand settings, or this review was made before sounds were listed here. Tell Claude: \"turn sound effects on and refresh the review\"." : "Sounds come with graphics, and this reel has no graphics planned yet." }));
+  }
   for (const g of GFX.filter(g => g.sfx && !g.gone && g.state !== "d")) {
     const off = !!S.sfxOff[g.id];
     const row = document.createElement("div"); row.className = "cue" + (off ? " off" : "");
@@ -870,7 +909,9 @@ function renderAll() {
       recompute(); renderAll(); renderLook(); setPos(pos); pill("Updated by Claude");
     }, () => {});
     let firstReel = true;
-    db.doc("reel/current").onSnapshot(() => { if (firstReel) { firstReel = false; return; } pill("Claude loaded new footage: reload the page", true); }, () => {});
+    // 0.16.0: when Claude changes the plan (new graphics after an import, a new export), the page loads it by itself. It used to
+    // keep showing the old plan until someone reloaded. Unsaved taps are saved first.
+    db.doc("reel/current").onSnapshot(() => { if (firstReel) { firstReel = false; return; } pill("Claude updated the plan: loading it…"); setTimeout(() => { if (dirty) pill("Claude updated the plan: reload the page to see it", true); else location.reload(); }, 1500); }, () => {});
     db.doc("builds/latest").onSnapshot(s => { B = s.exists ? s.data() : null; if (R) renderPreview(); if (tab === "preview") showTab("preview"); }, () => {});
     recompute();
     $("#reelname").textContent = `${R.title} · raw ${fmt(R.srcDur)} → reel ${fmt(P.cutDur)}`; setPos(0);
@@ -915,6 +956,11 @@ const TIPS = [
   "h2",
   "Notes on the draft",
   "After a preview is built, pause where something looks wrong and write what to change. Claude reads these notes and fixes them in the next build."
+ ],
+ [
+  "label",
+  "Colors for this reel",
+  "Your 3 brand colors. Main is for text and dark shapes, Pop is for highlights, Light is for card backgrounds. A change here applies to this reel only."
  ],
  [
   "label",

@@ -83,10 +83,18 @@ def export(reel, proposal, out):
             caps.append({"w": cur, "acc": [k for k in cur if norm(words[k]["text"]) in acc]}); cur = []
     if cur: caps.append({"w": cur, "acc": [k for k in cur if norm(words[k]["text"]) in acc]})
     board = []
+    ENTRANCE_SFX = {"title": ("snap", -11), "block": ("swish", -12), "card": ("swish", -13), "tag": ("pop", -14), "note": ("swish", -13), "cta": ("coin", -12),
+                    "shot": ("swish", -12), "image": ("swish", -13), "sticker": ("pop", -13), "popup": ("pop", -13), "orbit": ("whoosh", -15), "polaroids": ("swish", -13),
+                    "xlist": ("swish", -13), "stat": ("pop", -13), "tiles": ("swish", -13), "page": ("swish", -12), "motion": ("swish", -12), "follow": ("sparkle", -12)}   # the first sound each card type plays in build_reel.py
     for c in proposal["cards"]:
         hits = [i for i, w in enumerate(words) if norm(w["text"]) == norm(c["anchor"]) and w["s"] >= c.get("after", 0)]
         if not hits: print("warning: anchor not found:", c["id"], c["anchor"]); continue
         g = {k: v for k, v in c.items() if k not in ("anchor", "after", "end_anchor")}
+        # Added by By Mel Ross (0.16.0): the build gives each graphic an entrance sound by its type even when the plan names none,
+        # but the review page only listed sounds the plan named, so its Sound effects list could be empty for a reel that has
+        # sounds. The page now shows the sound the build will use (same name and level), so it can be heard and switched off.
+        if "sfx" not in g and brand.get("sfx", "subtle") != "none" and g.get("type") in ENTRANCE_SFX:
+            g["sfx"] = {"name": ENTRANCE_SFX[g["type"]][0], "db": ENTRANCE_SFX[g["type"]][1]}
         g["w0"] = hits[0]
         if c.get("end_anchor"):
             e = [i for i, w in enumerate(words) if norm(w["text"]) == norm(c["end_anchor"]) and i >= hits[0]]
@@ -96,6 +104,7 @@ def export(reel, proposal, out):
                  "format=duration", "-of", "csv=p=0", str(raw_clip(reel))], capture_output=True, text=True).stdout),
                  "speed": pacing(brand)["speed"], "pacing": pacing(brand), "words": words, "proposedCut": proposed_cut, "keepPauses": keep_pauses,
                  "captions": caps, "board": board,
+                 "colors": {k: brand.get("colors", {}).get(k, d_) for k, d_ in (("main", "#141414"), ("pop", "#B9C8A5"), ("light", "#FFFFFF"))},   # 0.16.0: the color box starts from these
                  "style": {"capSize": brand["captions"].get("size", 104), "capY": brand["captions"].get("y", 1250),
                            "mode": mode, "editorial": brand["captions"].get("style") == "editorial",
                            "cap": brand["colors"].get("caption", "#FFFFFF"), "acc": brand["colors"].get("caption_accent", "#FF7DB8"),
@@ -135,7 +144,9 @@ def do_import(reel, review):
     caps = [{"start": round(c["start"], 3), "end": round(c["end"], 3),
              "words": [{"text": re.sub(r"[.,!?;:]+$", "", w["text"]), "t": round(w["t"], 3), "accent": w["accent"]} for w in c["words"]]}
             for c in P["captions"] if not c.get("gone")]
-    cards, changes = [], []
+    cards, changes, places = [], [], []
+    WHERE = {"center": "the middle of the screen, even where it covers part of the face", "top-center": "the top, above the head", "top-left": "the top left", "top-right": "the top right",
+             "middle-left": "left of the face", "middle-right": "right of the face", "lower": "lower, just above the captions"}
     for g in P["graphics"]:
         if g.get("gone") or g["state"] == "d": continue
         note = ((d.get("board") or {}).get(g["id"]) or {}).get("note")
@@ -144,12 +155,23 @@ def do_import(reel, review):
         spec = {k: v for k, v in g.items() if k not in ("id", "kind", "what", "w0", "w1", "state", "place", "moved", "gone")}
         spec.update(start=round(g["start"], 3), end=round(g["end"], 3), id=g["id"])
         if g["id"] in (d.get("sfxOff") or {}) and d["sfxOff"][g["id"]]: spec["sfx"] = False
+        # Added by By Mel Ross (0.16.0): where they put it on the review page. A layer applies to any card; a place is written
+        # straight onto a popup, and passed to you in words for the other kinds (their place is set by different fields).
+        _b = (d.get("board") or {}).get(g["id"]) or {}
+        _where, _layer = _b.get("where") if _b.get("where") in WHERE else None, _b.get("layer") if _b.get("layer") in ("front", "behind") else None
+        if _layer == "behind": spec["layer"] = "behind"
+        elif _layer == "front": spec.pop("layer", None); spec["layer"] = "front"
+        if _where and spec.get("type") == "popup" and _where != "lower": spec["pos"] = _where; spec.pop("x", None); spec.pop("y", None)
+        elif _where: places.append(f"{g['id']} ({spec.get('type', 'card')}) @ cut {g['start']:.1f}s: {WHERE[_where]}")
         cards.append(spec)
     punch, last = [], -9.0   # punch-ins on sentence starts in the cut, at most every ~6 s (emphasis, not every line)
     for c in caps:
         if c["start"] - last > 6: punch.append(c["start"]); last = c["start"]
     out = {"captions": caps, "punch": punch, "cards": cards, "hash": P["hash"]}
     if d.get("theme") is not None: out["theme"] = d["theme"] or "none"       # picked on the review page ("" = my brand as it is)
+    if isinstance(d.get("colors"), dict):                                    # 0.16.0: colors for this reel, picked on the review page
+        _col = {k: v for k, v in d["colors"].items() if k in ("main", "pop", "light") and isinstance(v, str) and re.fullmatch(r"#[0-9a-fA-F]{6}", v)}
+        if _col: out["colors"] = _col
     keep = [[round(a, 3), round(b, 3)] for a, b in P["spans"]]
     touchups.ensure_ids(out)
     touchups.save_base(reel, out, keep, reel_json.get("speed") or 1.0)       # what this import wrote, before touch-ups: the next import compares with it
@@ -160,6 +182,7 @@ def do_import(reel, review):
     for k in kept: print("TOUCH-UP KEPT:", k)
     for k in lost: print("TOUCH-UP NOT KEPT (tell them):", k)
     for c in changes: print("CHANGE REQUESTED:", c)
+    for c in places: print("PLACE IT (set this card's position in edit.json before the render):", c)
     # Added by By Mel Ross (0.10.1): graphics asked for on the Graphics tab. The page can't build them; you do, in edit.json, before the render.
     AMT = {"few": "minimal (about 1 every 8-12 s)", "some": "balanced (about 1 every 4-6 s)", "lots": "busy (about 1 every 2-4 s)"}
     if d.get("amount") in AMT:
@@ -168,9 +191,10 @@ def do_import(reel, review):
             "gif": "popup with a GIF (references/giphy.md)", "carousel": "motion carousel-*", "chart": "motion chart (references/motions.md)", "counter": "motion count-up",
             "follow": "follow card", "social": "motion comment / chat / notification", "orbit": "orbit"}
     for w in d.get("wanted") if isinstance(d.get("wanted"), list) else []:
-        if not isinstance(w, dict): continue                             # audit 3: a damaged decisions file must not stop the import
+        if not isinstance(w, dict) or w.get("done"): continue            # audit 3: a damaged decisions file must not stop the import; 0.16.0: done = already in the plan
         print(f'GRAPHIC WANTED: {KIND.get(w.get("kind"), "your choice of card")} at the line "{w.get("line", "")}"' + (f': {w["note"]}' if w.get("note") else "") + (f' Use their own picture(s), already in the reel folder: {", ".join(f for f in w["files"] if isinstance(f, str) and re.fullmatch(r"popups/[\w.\- ]+", f))}' if w.get("files") else "") +
-              ". Add it to edit.json. If it needs pictures or numbers you don't have, ask them before the render.")
+              (f' Put it in {WHERE[w["where"]]}.' if w.get("where") in WHERE else "") + (f' Layer: {"behind the speaker" if w["layer"] == "behind" else "in front"}.' if w.get("layer") in ("front", "behind") else "") +
+              f". Add it to edit.json. If it needs pictures or numbers you don't have, ask them before the render. So the review page shows it: add the same card to proposal.json, run export again, then run `review_sync.py wanted-done <reel> {w.get('id', 'all')}`.")
     for k, n in (d.get("notes") or {}).items():
         if n.strip(): print(f"NOTE ({k}):", n.strip())
     if (d.get("brandRequest") or "").strip(): print("BRAND CHANGE REQUESTED (only apply if confirmed):", d["brandRequest"].strip())
@@ -182,4 +206,13 @@ if __name__ == "__main__":
         r = export(reel, json.load(open(sys.argv[3])), Path(sys.argv[4]))
         json.dump(r, open(reel / "review_reel.json", "w"))
     elif cmd == "import": do_import(reel, sys.argv[3])
+    elif cmd == "wanted-done":
+        # Added by By Mel Ross (0.16.0): mark graphics they asked for as added to the plan, so the page stops listing them as
+        # "You asked for" and the next import does not ask for them again. usage: wanted-done <reel> <id>|all
+        f = reel / "review_db" / "review" / "current.json"
+        d = json.load(open(f)); which = sys.argv[3] if len(sys.argv) > 3 else "all"; n = 0
+        for w in d.get("wanted") if isinstance(d.get("wanted"), list) else []:
+            if isinstance(w, dict) and not w.get("done") and which in ("all", str(w.get("id"))): w["done"] = True; n += 1
+        d["updatedAt"] = f"wanted-done-{n}-{which}"
+        json.dump(d, open(f, "w")); print(f"{n} asked-for graphic(s) marked as added to the plan")
     else: sys.exit(__doc__)

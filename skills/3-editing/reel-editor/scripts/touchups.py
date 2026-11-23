@@ -15,7 +15,7 @@ The edit as it was before the import is kept in editor/pre-import/.
 import copy, json, secrets, shutil
 from pathlib import Path
 
-BUILT_KEYS = {"captions", "punch", "cards", "hash", "theme", "sfx_events"}   # what an import writes; any other key in edit.json was added by hand
+BUILT_KEYS = {"captions", "punch", "cards", "hash", "theme", "colors", "sfx_events"}   # what an import writes; any other key in edit.json was added by hand
 TIME_KEYS = ("start", "end")
 EPS = 0.03
 
@@ -111,7 +111,8 @@ def collect(reel):
          "cards": _items(base["edit"].get("cards") or [], cur.get("cards") or [], tl_base, tl_cur, TIME_KEYS),
          "sounds": _items(base["edit"].get("sfx_events") or [], cur.get("sfx_events") or [], tl_base, tl_cur, ("t",)),
          "extra": {k: copy.deepcopy(v) for k, v in cur.items() if k not in BUILT_KEYS and base["edit"].get(k) != v},
-         "theme": cur.get("theme") if cur.get("theme") != base["edit"].get("theme") else None}
+         "theme": cur.get("theme") if cur.get("theme") != base["edit"].get("theme") else None,
+         "colors": cur.get("colors") if cur.get("colors") != base["edit"].get("colors") else None}   # 0.16.0: this reel's own colors
     # a card that only disappeared because its piece was dropped is not a deliberate delete
     in_drop = lambda src: src is not None and any(a - 1e-6 <= src <= b + 1e-6 for a, b in dropped)
     by_id = {c["id"]: c for c in base["edit"].get("cards") or [] if c.get("id")}
@@ -186,11 +187,25 @@ def apply(touch, edit, keep, speed):
     if sounds: edit["sfx_events"] = sorted(sounds, key=lambda x: x.get("t") or 0)
     now = _words(edit, tl); fixed = 0
     for f in touch["words"]:
-        w = next((w for s, w in now if abs(s - f["src"]) <= EPS * speed + 1e-6), None)
-        if w is None: continue                                  # that word is cut now: nothing to fix
+        near = [(abs(s - f["src"]), w) for s, w in now if abs(s - f["src"]) <= EPS * speed + 1e-6]
+        was = f.get("was")
+        if was is not None:
+            # 0.16.0: a fix goes on the word it was made on, never on a neighbour. When the word at that moment is a different
+            # word now (timing moved by a re-cut or a caption edit on the review page), look a little either side for the
+            # same word; if it is not there, say so instead of changing another word.
+            same = lambda w: w.get("text") in (was, f["text"])
+            hit = [x for x in near if same(x[1])] or sorted(((abs(s - f["src"]), w) for s, w in now if abs(s - f["src"]) <= 0.75 * speed and same(w)), key=lambda x: x[0])
+            if not hit:
+                if near: lost.append(f'the caption fix "{was}" to "{f["text"]}": the word at that moment is "{near[0][1].get("text")}" now, so it was left alone. Check that caption')
+                continue                                        # no word there at all: it is cut now, nothing to fix
+            w = hit[0][1]
+        else:
+            if not near: continue                               # that word is cut now: nothing to fix
+            w = min(near, key=lambda x: x[0])[1]
         w["text"] = f["text"]; w["accent"] = f["accent"]; fixed += 1
     if fixed: kept.append(f"{fixed} caption word fix{'es' if fixed != 1 else ''}")
     for k, v in touch["extra"].items(): edit[k] = v; kept.append(f'the "{k}" setting added by hand')
     if touch.get("theme") and "theme" not in edit: edit["theme"] = touch["theme"]; kept.append(f'the {touch["theme"]} theme')
+    if touch.get("colors") and "colors" not in edit: edit["colors"] = touch["colors"]; kept.append("this reel's colors")
     if touch["dropped"]: kept.append(f'{len(touch["dropped"])} dropped piece{"s" if len(touch["dropped"]) != 1 else ""} (now shown as cut words on the review page)')
     return kept, lost

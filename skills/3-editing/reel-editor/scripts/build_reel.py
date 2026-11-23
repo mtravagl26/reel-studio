@@ -28,7 +28,7 @@ edit.json (written by auto_edit.py, then Claude marks accents and adds cards):
                                                      written word by word across a camera that pulls back (hook moments)
      popup  {src: "popups/hello.gif", pos: "top-right", size: 360, rotate: 0, frame?: true}   (Added by By Mel Ross, reel editor page) a picture, graphic
                                                      or animated GIF that pops up. pos: top-left | top-center | top-right | middle-left | middle-right |
-                                                     center | custom (then "x", "y" = centre in px). size = width in px. GIFs are converted to a looped
+                                                     center | side-left | side-right | custom (then "x", "y" = centre in px). (0.16.0) No pos = center, and 2 pictures on screen together sit side by side. size = width in px. GIFs are converted to a looped
                                                      transparent video so they animate in the render. "frame": true = white photo border (default for jpg).
                                                      (0.13.0) src may be a video clip (.mp4 .mov .m4v .webm): it plays in a rounded window, no sound.
                                                      "from": seconds into the clip to start at; "loop": true starts it again if it is shorter than its time on screen.
@@ -388,6 +388,18 @@ def phrase_end(t):
 
 POPUP_POS = {"top-left": ("top", "left"), "top-center": ("top", "center"), "top-right": ("top", "right"), "middle-left": ("middle", "left"),
              "middle-right": ("middle", "right"), "center": ("center", "center")}
+# Added by By Mel Ross (0.16.0): a picture popup with no place set goes in the middle of the screen. Two of them on screen at the
+# same time sit side by side ("side-left" / "side-right", each at most 500 px wide). Video clips follow the same rule.
+def _plain_pic(c):
+    return isinstance(c, dict) and c.get("type") == "popup" and not c.get("off") and not c.get("pos") and not ("x" in c and "y" in c)
+def _span(c):
+    a_ = numf(c.get("start"), 0); return a_, numf(c.get("end"), a_ + 3)
+_pics = sorted((c for c in edit.get("cards", []) if _plain_pic(c)), key=lambda c: _span(c)[0])
+for _k, _c in enumerate(_pics):
+    if _c.get("pos"): continue
+    for _d in _pics[_k + 1:]:
+        if not _d.get("pos") and _span(_d)[0] < _span(_c)[1] and _span(_d)[1] > _span(_c)[0]:
+            _c["pos"], _d["pos"] = "side-left", "side-right"; break
 quiet = []                                      # spans where a card carries its own words, so captions step aside
 ORBITS = []                                     # orbit cards (i, card, start, end), drawn once the speaker's cutout is known
 for i, c in enumerate(edit.get("cards", [])):
@@ -503,14 +515,18 @@ for i, c in enumerate(edit.get("cards", [])):
         if not asset: continue
         mkind, ppath, iw, ih = asset
         is_clip = mkind == "clip"; mkind = "video" if is_clip else mkind
-        pw = max(int(numf(c.get("size"), 440 if is_clip else 360)), 40); ph = max(int(round(pw * ih / max(iw, 1))), 1)
+        pw = max(int(numf(c.get("size"), 440 if is_clip else 360)), 40)
+        if c.get("pos") in ("side-left", "side-right"): pw = min(pw, 500)
+        ph = max(int(round(pw * ih / max(iw, 1))), 1)
         framed = c.get("frame", Path(str(c["src"])).suffix.lower() in (".jpg", ".jpeg", ".heic", ".heif"))
-        pos = c.get("pos", "top-left" if is_clip else "top-right"); top0 = 110 if c.get("caption") else 150; mx = 60
-        if pos == "custom" or ("x" in c and "y" in c and pos not in POPUP_POS):
+        pos = c.get("pos") or "center"; top0 = 110 if c.get("caption") else 150; mx = 60
+        if pos in ("side-left", "side-right"):
+            left, top = (W // 2 - 12 - pw if pos == "side-left" else W // 2 + 12), (H - ph) // 2
+        elif pos == "custom" or ("x" in c and "y" in c and pos not in POPUP_POS):
             left, top = int(c.get("x", W / 2) - pw / 2), int(c.get("y", 400) - ph / 2)
         else:
-            left = {"left": mx, "center": (W - pw) // 2, "right": W - mx - pw}[POPUP_POS.get(pos, ("top", "right"))[1]]
-            top = {"top": top0, "middle": (H - ph) // 2 - 260, "center": (H - ph) // 2}[POPUP_POS.get(pos, ("top", "right"))[0]]
+            left = {"left": mx, "center": (W - pw) // 2, "right": W - mx - pw}[POPUP_POS.get(pos, ("center", "center"))[1]]
+            top = {"top": top0, "middle": (H - ph) // 2 - 260, "center": (H - ph) // 2}[POPUP_POS.get(pos, ("center", "center"))[0]]
         rot = c.get("rotate", 0)
         media = (f'<video id="{cid}v" src="{ppath}" muted playsinline data-start="{q(a)}" data-duration="{q(b - a)}" data-track-index="{60 + i}"></video>'
                  if mkind == "video" else f'<img src="{ppath}" />')

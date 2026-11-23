@@ -203,7 +203,7 @@ test("a popup can be a video clip: a silent 30 fps window that starts where aske
   fs.writeFileSync(path.join(c.reel, "edit.json"), JSON.stringify(edit));
   const r = build(c); assert.equal(r.status, 0, r.stdout + r.stderr);
   const h = html(c);
-  assert.match(h, /class="pop vclip" style="left:60px;top:150px;width:440px;height:953px"><video id="k0v" src="img\/0_screen\.mp4" muted playsinline data-start="0\.5" data-duration="3\.0"/, "top left, 440 wide by default");
+  assert.match(h, /class="pop vclip" style="left:320px;top:483px;width:440px;height:953px"><video id="k0v" src="img\/0_screen\.mp4" muted playsinline data-start="0\.5" data-duration="3\.0"/, "0.16.0: in the middle, 440 wide by default");
   assert.match(h, /class="pop vclip" style="left:720px;top:150px;width:300px/);
   assert.doesNotMatch(h, /class="pop clip"/, "the name clip belongs to HyperFrames' own timed elements, which are never hidden at the start");
   for (const f of ["0_screen.mp4", "1_screen.mp4"]) {
@@ -219,14 +219,32 @@ test("a popup or sticker can be an SVG file", { skip }, () => {
   fs.writeFileSync(path.join(c.reel, "popups", "logo.svg"), '<?xml version="1.0"?>\n<!-- <svg width="9"> -->\n<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 100"><rect width="200" height="100" fill="#0d2b2d"/></svg>');
   fs.writeFileSync(path.join(c.reel, "popups", "notsvg.svg"), "hello");
   const edit = JSON.parse(fs.readFileSync(path.join(c.reel, "edit.json"), "utf8"));
-  edit.cards = [{ type: "popup", src: "popups/logo.svg", start: 0.5, end: 2 }, { type: "sticker", src: "popups/logo.svg", start: 0.5, end: 2 }, { type: "popup", src: "popups/notsvg.svg", start: 0.5, end: 2 }];
+  edit.cards = [{ type: "popup", src: "popups/logo.svg", start: 0.5, end: 2 }, { type: "sticker", src: "popups/logo.svg", start: 0.5, end: 2 }, { type: "popup", src: "popups/notsvg.svg", start: 2.5, end: 3.5 }];
   fs.writeFileSync(path.join(c.reel, "edit.json"), JSON.stringify(edit));
   const r = build(c); assert.equal(r.status, 0, r.stdout + r.stderr);
   const h = html(c);
-  assert.match(h, /class="pop" style="left:660px;top:150px;width:360px;height:180px"><img src="img\/0_logo\.svg" \/>/, "2 to 1, from the viewBox, with no photo border");
+  assert.match(h, /class="pop" style="left:360px;top:870px;width:360px;height:180px"><img src="img\/0_logo\.svg" \/>/, "2 to 1, from the viewBox, with no photo border, in the middle");
   assert.match(h, /class="stk"[^>]*><img src="img\/1_logo\.svg" \/>/);
   assert.match(r.stdout, /notsvg\.svg is not an SVG picture: skipped/);
   assert.equal(fs.readFileSync(path.join(c.reel, "proj", "img", "0_logo.svg"), "utf8"), fs.readFileSync(path.join(c.reel, "popups", "logo.svg"), "utf8"));
+});
+
+// 0.16.0: where a picture goes when nobody said. One sits in the middle; two on screen together sit side by side.
+test("one picture popup sits in the middle, two at the same time sit side by side, and a place that was chosen is kept", { skip }, () => {
+  const c = makeReel([], { matte: null });
+  fs.mkdirSync(path.join(c.reel, "popups"), { recursive: true });
+  ff(["-f", "lavfi", "-i", "color=c=red:s=400x200", "-frames:v", "1", path.join(c.reel, "popups", "a.png")]);
+  const edit = JSON.parse(fs.readFileSync(path.join(c.reel, "edit.json"), "utf8"));
+  edit.cards = [{ type: "popup", src: "popups/a.png", start: 0.5, end: 1.4 },
+                { type: "popup", src: "popups/a.png", start: 1.5, end: 3, size: 700 }, { type: "popup", src: "popups/a.png", start: 2, end: 3.4 },
+                { type: "popup", src: "popups/a.png", start: 2, end: 3, pos: "top-right" }];
+  fs.writeFileSync(path.join(c.reel, "edit.json"), JSON.stringify(edit));
+  const r = build(c); assert.equal(r.status, 0, r.stdout + r.stderr);
+  const h = html(c);
+  assert.match(h, /id="k0" class="pop" style="left:360px;top:870px;width:360px;height:180px"/, "alone: the middle of the screen");
+  assert.match(h, /id="k1" class="pop" style="left:28px;top:835px;width:500px;height:250px"/, "left of the pair, held to 500 wide");
+  assert.match(h, /id="k2" class="pop" style="left:552px;top:870px;width:360px;height:180px"/, "right of the pair");
+  assert.match(h, /id="k3" class="pop" style="left:660px;top:150px;width:360px;height:180px"/, "a chosen place is not moved");
 });
 
 // audit 3: values a person or an assistant can leave in edit.json by hand must not crash a build.
