@@ -102,10 +102,10 @@ try {
   mkdirSync(join(reel, "popups"), { recursive: true });
   for (const n of ["a", "b"]) ff(["-f", "lavfi", "-i", "color=c=red:s=80x100", "-frames:v", "1", join(reel, "popups", `${n}.png`)]);
 
-  // ---- 3 Touch-ups
+  // ---- 2 Touch-ups
   await open("/");
   await until(`document.querySelector("h1")?.textContent === "Touch-ups" && document.querySelector("#caps .w")`, "the touch-ups page");
-  assert.equal(await text('.steps [aria-current="step"]'), "3 Touch-ups");
+  assert.equal(await text('.steps [aria-current="step"]'), "2 Touch-ups");
   assert.equal(await js(`document.querySelector('.steps [data-step="review"]').getAttribute("href")`), "/review");
   await js(`document.querySelectorAll("details").forEach((d) => (d.open = true))`);
   assert.equal(await js(`document.querySelector("#themePick").value`), "editorial", "the theme picked in review shows here");

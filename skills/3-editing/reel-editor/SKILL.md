@@ -29,6 +29,8 @@ If the footage is one long recording (a talk, an interview, a long ramble) and t
 
 ## The edit, in order
 
+**Before step 1: they choose the kind of reel (0.15.0).** When someone drops in a clip or says "edit this" and the request does not already name the kind of reel, don't start cutting and don't jump to a review or touch-ups page. Start the home page (`node review/home-server.mjs`, see "Home page and framing check") and give them its link, or ask in chat: **Simple talking head** (captions, zooms, few graphics) or **Talking head with graphics** (titles, lists, pictures, GIFs; then give them the looks page link too). Carry on once they have chosen. A request that already says the kind ("as a simple talking head", a request copied from the home page) skips this.
+
 Each reel gets its own folder: `~/reels/<yyyy-mm-dd>-<short-name>/`. Copy the raw clip in as `raw.<ext>` (e.g. `raw.mov`), never edit the original (the thumbnail studio only finds footage named `raw.*`; iPhone HDR clips are converted to standard color automatically at the cut, see `references/look-and-layers.md`, and the build tells you if that was not possible), and write the folder the clip came from into `source_dir.txt` in the reel folder (one line, absolute path): with `"deliver_dir": "footage"` the finished files go back there.
 
 1. **Transcribe** - `python3 scripts/transcribe.py <clip> transcript.json`. Uses ElevenLabs Scribe when `ELEVENLABS_API_KEY` is in `~/.config/reels/.env` (tight word timing; captions land on the word), else local Whisper (free, timing can drift ~0.3 s).
@@ -64,7 +66,7 @@ The review page's **Cover** tab links to the thumbnail studio, a local page for 
 
 ## Editing a finished reel by tapping (the touch-ups page)
 
-When the person wants to change a reel that is already built (fix a caption word, drop a piece, switch text or sounds on and off, add a GIF, graphic or photo, make pictures circle their head, change the theme), don't rewrite `edit.json` by hand: send them the Reel Studio link (`node <skill>/review/studio-server.mjs <reel folder> --lan --port 4792`; if the review link is still running it is the same server). They tap, every change is saved with an Undo, and **Re-render** runs the usual cut/render/QA and keeps earlier renders. It never delivers. Read `references/editor-page.md` before starting it; GIPHY search is `references/giphy.md`.
+When the person wants to change a reel that is already built (fix a caption word, drop a piece, switch text or sounds on and off, add a GIF, graphic or photo, make pictures circle their head, change the theme), don't rewrite `edit.json` by hand: send them the Reel Studio link (`node <skill>/review/studio-server.mjs <reel folder> --lan --port 4792`; if the review link is still running it is the same server). They tap, every change is saved with an Undo, and **Re-render** runs the usual cut/render/QA and keeps earlier renders. It never delivers. Read `references/editor-page.md` before starting it; GIPHY search is `references/giphy.md`: the pages take the person's GIPHY key in a box and save it, so never walk them through editing a file or Terminal for it. Pictures can be gif, png, jpg, webp, heic or svg.
 
 ## Word list (permanent vocabulary)
 

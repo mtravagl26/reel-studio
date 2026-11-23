@@ -10,7 +10,7 @@ export HYPERFRAMES_NO_TELEMETRY=1 DO_NOT_TRACK=1
 node <skill>/review/editor-server.mjs <reel folder> --lan --port 4792
 ```
 
-The three per-reel pages (review, cover, touch-ups) share one step bar. The home page (`references/home-and-framing.md`) and the looks page (`/styles`) sit outside it. Review and Touch-ups link to each other on their own. Add `--cover-url <thumbnail studio link>` for the Cover step (greyed out without it), and `--review-url <link>` only when the review page lives on claude.ai instead of this server. The cover link is only shown on this computer, because the thumbnail studio does not answer over Wi-Fi.
+The three per-reel pages share one step bar, in this order: 1 Review, 2 Touch-ups, 3 Cover (0.15.0: the cover is last, so it is picked from the finished reel). The home page (`references/home-and-framing.md`) and the looks page (`/styles`) sit outside it. Review and Touch-ups link to each other on their own. Add `--cover-url <thumbnail studio link>` for the Cover step (greyed out without it), and `--review-url <link>` only when the review page lives on claude.ai instead of this server. The cover link is only shown on this computer, because the thumbnail studio does not answer over Wi-Fi.
 
 `review/studio-server.mjs` is the same server under the name the other docs use: one link for the whole reel. Before the reel is built (no `edit.json` / `edl.json`) the link opens the review page (`/review`, same data files as `references/review-local.md`) and the touch-ups page says the reel is not built yet; once it is built the link opens touch-ups (`/touchups`), and the review page shows a note that the reel is already built.
 
@@ -34,7 +34,7 @@ This is separate from the Reel Review page (`serve.mjs`, the "which words to cut
 
 ## Popups
 
-Upload from the phone (gif, png, jpg, webp; HEIC from an iPhone is converted to JPG with macOS `sips`, the original is kept in `popups/originals/`). Choose start, end, where (top left / top right / top, above the head / left / right / centre, or tap the video for an exact spot), size and tilt. Default: top right, 360 px wide, 3 s, clear of the face. Photos get a white border (switchable). `build_reel.py` makes an animated GIF into a looped transparent video (`ffmpeg`, VP9 with alpha) because the render draws the page frame by frame and a plain GIF would freeze on its first frame.
+Upload from the phone (gif, png, jpg, webp, svg; an SVG stays an SVG so it is sharp at any size, and anything in it that could run a script or load from the internet is removed when it is uploaded (0.15.0); HEIC from an iPhone is converted to JPG with macOS `sips`, the original is kept in `popups/originals/`). Choose start, end, where (top left / top right / top, above the head / left / right / centre, or tap the video for an exact spot), size and tilt. Default: top right, 360 px wide, 3 s, clear of the face. Photos get a white border (switchable). `build_reel.py` makes an animated GIF into a looped transparent video (`ffmpeg`, VP9 with alpha) because the render draws the page frame by frame and a plain GIF would freeze on its first frame.
 
 ## Text above or behind the speaker
 
@@ -65,7 +65,7 @@ Every change first copies `edit.json`, `edl.json`, `master_transcript.json`, `ex
 
 A popup can be a video clip: a screen recording, or b-roll from their phone. It plays in a rounded window, in front of the speaker or behind them (`"layer": "behind"`, Mac only), **without sound**.
 
-- **Where they add it.** Before the build: review page > Graphics > Add a graphic > "My video clip or screen recording", then the upload button on that request (or on any graphic set to Change). After the build: touch-ups page > Popups > "+ Add a picture, GIF or video clip".
+- **Where they add it.** Before the build: review page > Graphics > Add a graphic > "My video clip or screen recording", then the upload button on that request (or on any graphic set to Change). After the build: touch-ups page > Popups > "+ Upload a picture, GIF, SVG or video clip".
 - **What the upload does.** `.mp4 .mov .m4v .webm` are accepted. The server keeps a small upright copy (`popups/<id>.clip.mp4`: 30 fps, at most 1080 px wide, no sound, at most 3 minutes) and moves the original to `popups/originals/`.
 - **The card.** `{ "type": "popup", "src": "popups/<id>.clip.mp4", "pos": "top-left", "size": 440, "start": 36.0, "end": 40.0, "from": 1.0, "loop": false }`. `from` = seconds into the clip to start at. A clip shorter than its time on screen holds its last frame, or starts again with `"loop": true`.
 - **Placement.** Defaults to top left at 440 px wide, a window beside the face. A tall phone recording at that size is about 950 px high, so check a frame: it must not cover the eyes or the captions. Use `size`, `pos` or `x`/`y` to move it.
