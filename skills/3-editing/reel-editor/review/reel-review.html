@@ -77,6 +77,7 @@ textarea{min-height:80px;resize:vertical}
 .upl{min-width:0}
 .giphy{flex-basis:100%;max-width:100%;min-width:0;box-sizing:border-box;border:2px solid var(--line);border-radius:14px;padding:10px;background:#fff}.giphy[hidden]{display:none}
 .giphy .ctl{display:flex;gap:6px;flex-wrap:wrap}.colorrow{display:flex;gap:10px;flex-wrap:wrap;margin:6px 0}.colorrow label{flex:1 1 120px;display:block}.colorrow input[type=color]{width:100%;height:44px;padding:0;border:2px solid var(--line);border-radius:10px;background:#fff}.colorrow .lede{display:block;margin:4px 0 0}
+.toldlist{margin:4px 0 0 18px;padding:0;font-size:14px}#needbox,#told{margin-top:10px}
 .placer{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}.placer select{flex:1 1 200px;min-width:0;font:inherit;padding:8px;border:2px solid var(--line);border-radius:10px;background:#fff}
 .giphy .gkey{margin-bottom:8px}.giphy input[type=password]{flex:1 1 160px;min-width:0;box-sizing:border-box;font:inherit;padding:8px 10px;border:2px solid var(--line);border-radius:10px}.giphy input[type=search]{flex:1 1 120px;min-width:0;width:100%;box-sizing:border-box;font:inherit;padding:8px 10px;border:2px solid var(--line);border-radius:10px}.giphy select{font:inherit;padding:8px;border:2px solid var(--line);border-radius:10px;background:#fff}
 .ggrid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin:8px 0}.ggrid button{padding:0;border:2px solid var(--line);border-radius:8px;overflow:hidden;background:#eee;cursor:pointer;aspect-ratio:1}.ggrid img{width:100%;height:100%;object-fit:cover;display:block}
@@ -245,9 +246,10 @@ code{font:500 13px var(--f-mono);background:var(--accent-soft);border-radius:6px
     </section>
 
     <section data-p="preview" hidden>
-      <p class="lede">Build preview makes a draft from your choices. It takes about 3 minutes. Watch it, pause where something is off, and add a note.</p>
+      <p class="lede">Build preview makes a draft from your choices. It takes about 3 minutes, and you can leave this page open while it works. Watch it, pause where something is off, and add a note.</p>
       <div class="state" id="bstate">No preview built yet.</div>
-      <div class="ctl"><button class="b primary" id="build" type="button" title="Saves your choices as a request. Then tell Claude: build preview.">Build preview</button></div>
+      <div class="ctl"><button class="b primary" id="build" type="button" title="Builds a draft video from your choices">Build preview</button></div>
+      <div id="needbox"></div><div id="told"></div>
       <h2>Notes on the draft</h2>
       <div class="ctl"><input type="text" id="revtext" placeholder="What to change at this moment"><button class="b" id="revadd" type="button">Add note at current time</button></div>
       <div id="revs"></div>
@@ -842,8 +844,19 @@ function renderPreview() {
   st.className = "state";
   if (B?.url && B.hash === h) { st.textContent = `Preview is up to date (built ${new Date(B.at).toLocaleString()}). Press play on the video.`; st.classList.add("ok"); }
   else if (B?.url) { st.textContent = "Preview is outdated: you've changed decisions since it was built. Build again to see them."; st.classList.add("out"); }
-  else if (S.buildRequest?.hash === h) st.textContent = "Build requested. Tell Claude \"build preview\" in chat; the page can't start a render on its own.";
+  else if (pageBuild.busy) st.textContent = pageBuild.text;
+  else if (pageBuild.error) { st.textContent = pageBuild.error; st.classList.add("out"); }
+  else if (S.buildRequest?.hash === h && !LOCAL) st.textContent = "Build requested. Tell Claude \"build preview\" in chat; the page can't start a render on its own.";
   else st.textContent = "No preview built yet. Build one when your decisions look right.";
+  $("#build").disabled = pageBuild.busy; $("#build").textContent = pageBuild.busy ? "Building…" : "Build preview";
+  const tb = $("#told"); tb.textContent = "";
+  if (pageBuild.told.length && !pageBuild.busy) {
+    const hd = document.createElement("p"); hd.className = "lede"; hd.innerHTML = "<b>Not in this preview.</b> These need Claude. Tell Claude: \"build preview\".";
+    const ul = document.createElement("ul"); ul.className = "toldlist"; const PLAIN = [[/^CHANGE REQUESTED:\s*\S+\s*/, "A graphic you set to Change, "], [/^GRAPHIC WANTED:\s*/, "A graphic you asked for: "], [/^GRAPHICS AMOUNT:\s*/, "How many graphics: "], [/^NOTE\s*/, "Your note "], [/^REVISION\s*/, "Your note on the draft, "],
+      [/^PLACE IT[^:]*:\s*\S+\s*/, "A graphic you moved, "], [/^BRAND CHANGE REQUESTED[^:]*:\s*/, "A change to your brand: "], [/^TOUCH-UP NOT KEPT[^:]*:\s*/, "A touch-up that did not carry over: "]];
+    for (const t of pageBuild.told) { const li = document.createElement("li"); const m = PLAIN.find(([re]) => re.test(t)); li.textContent = (m ? t.replace(m[0], m[1]) : t).replace(/\. (Add it to edit\.json|So the review page shows it)[\s\S]*$/, ".").replace(/\(set this card's position[^)]*\)/, ""); ul.append(li); }
+    tb.append(hd, ul);
+  }
   const revs = $("#revs"); revs.textContent = "";
   S.revisions.forEach((r, k) => {
     const row = document.createElement("div"); row.className = "rev";
@@ -856,7 +869,56 @@ function renderPreview() {
   });
   if (!S.revisions.length) revs.innerHTML = `<div class="empty">No notes yet. Write what should change and add the note. With a draft built, pause it at the moment first.</div>`;
 }
-$("#build").addEventListener("click", () => mutate(() => { S.buildRequest = { hash: ReelCore.hash(decisions()), at: new Date().toISOString() }; }));
+// Added by By Mel Ross (0.18.0): at the local Reel Studio link the page starts the build itself. It lists first what only Claude
+// can do (a graphic to change or add, typed notes), so nobody waits 3 minutes for a preview that is missing what they asked for.
+const LOCAL = !!window.REEL_STUDIO_LINKS;
+let pageBuild = { busy: false, text: "", error: "", told: [] };
+const STEP_TEXT = { queued: "Starting…", cut: "Step 1 of 4: cutting your clip…", render: "Step 2 of 4: building the video. This is the long step, about 3 minutes…", checks: "Step 3 of 4: checking sound, length and captions…", copies: "Step 4 of 4: making the copy for this page…", "phone copy": "Step 4 of 4: making the copy for this page…", qa: "Step 3 of 4: checking sound, length and captions…" };
+function needsClaude() {
+  const out = [], b = S.board || {};
+  const ch = GFX.filter(g => !g.gone && g.state === "c").length; if (ch) out.push(`${ch} graphic${ch > 1 ? "s" : ""} set to Change`);
+  const w = (S.wanted || []).filter(x => !x.done).length; if (w) out.push(`${w} graphic${w > 1 ? "s" : ""} you asked for with "Add a graphic"`);
+  if (S.amount) out.push("a new answer to \"How many graphics?\"");
+  const mv = GFX.filter(g => !g.gone && g.state !== "d" && g.type !== "popup" && (b[g.id] || {}).where).length; if (mv) out.push(`${mv} graphic${mv > 1 ? "s" : ""} moved to a new place`);
+  const n = Object.values(S.notes || {}).filter(x => String(x || "").trim()).length; if (n) out.push(`${n} typed note${n > 1 ? "s" : ""}`);
+  if ((S.revisions || []).length) out.push(`${S.revisions.length} note${S.revisions.length > 1 ? "s" : ""} on the draft`);
+  if (String(S.brandRequest || "").trim()) out.push("a change to your brand");
+  return out;
+}
+async function pollBuild() {
+  try {
+    const j = await (await fetch("/api/review-build")).json(), st = j.build.state;
+    if (st === "importing") pageBuild = { ...pageBuild, busy: true, text: "Reading your choices…" };
+    else if (st === "rendering") pageBuild = { ...pageBuild, busy: true, text: STEP_TEXT[j.job.step] || "Building…" };
+    else if (st === "failed") pageBuild = { busy: false, text: "", error: "The build stopped: " + (j.build.error || "unknown reason") + " Tell Claude \"the preview build failed\" and it will look.", told: j.build.told || [] };
+    else if (st === "done") pageBuild = { busy: false, text: "", error: "", told: (j.build.told || []) };
+    else pageBuild = { ...pageBuild, busy: false };
+  } catch { /* the server is busy: ask again */ }
+  if (R) renderPreview();
+  if (pageBuild.busy) setTimeout(pollBuild, 2000);
+}
+async function buildHere() {
+  clearTimeout(timer); if (dirty) saveNow(); await saving;   // the server reads the saved choices, so they go first
+  pageBuild = { busy: true, text: "Reading your choices…", error: "", told: [] }; renderPreview();
+  try {
+    const j = await (await fetch("/api/review-build", { method: "POST" })).json();
+    if (!j.ok) throw new Error(j.error || "the build did not start");
+  } catch (e) { pageBuild = { busy: false, text: "", error: "The build did not start: " + e.message, told: [] }; renderPreview(); return; }
+  setTimeout(pollBuild, 1200);
+}
+$("#build").addEventListener("click", () => {
+  mutate(() => { S.buildRequest = { hash: ReelCore.hash(decisions()), at: new Date().toISOString() }; });
+  if (!LOCAL) return;
+  const need = needsClaude(), box = $("#needbox"); box.textContent = "";
+  if (!need.length) return buildHere();
+  const p1 = document.createElement("p"); p1.className = "lede"; p1.innerHTML = "<b>Some of what you asked for needs Claude:</b> " + need.map(x => x.replace(/</g, "&lt;")).join(", ") + ".";
+  const p2 = document.createElement("p"); p2.className = "lede"; p2.textContent = "To get all of it, tell Claude \"build preview\" in chat. Or build now and see the rest (cuts, captions, sounds, colors, kept graphics) in about 3 minutes.";
+  const go = document.createElement("button"); go.type = "button"; go.className = "b"; go.textContent = "Build now without those";
+  const no = document.createElement("button"); no.type = "button"; no.className = "b quiet"; no.textContent = "I'll tell Claude";
+  go.addEventListener("click", () => { box.textContent = ""; buildHere(); }); no.addEventListener("click", () => { box.textContent = ""; });
+  const row = document.createElement("div"); row.className = "ctl"; row.append(go, no); box.append(p1, p2, row);
+});
+if (LOCAL) pollBuild();
 $("#revadd").addEventListener("click", () => {
   const text = $("#revtext").value.trim(); if (!text) { $("#revtext").focus(); return; }
   // Modified by By Mel Ross (0.10.2): this refused every note until a preview was built, with a message that vanished. A note

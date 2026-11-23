@@ -38,3 +38,14 @@ Each planned graphic, and each graphic they asked for, has 2 menus on the Graphi
 A caption word fixed on the touch-ups page stays on that word through a re-import. If the word at that moment is a different word now, the import leaves it alone and prints `TOUCH-UP NOT KEPT (tell them): the caption fix ...`. Read that caption against what was said before you render.
 
 **After you add a graphic they asked for (0.16.0).** Add the card to `proposal.json` as well as `edit.json`, run `review_sync.py export` again, then `python3 scripts/review_sync.py wanted-done <reel> <id>` (or `all`). The page loads the new plan by itself, the graphic shows in the list with the others, and the next import does not ask for it again. Without this the Graphics tab keeps showing the old plan.
+
+## The page builds the preview itself (0.18.0)
+
+At the local link, **Build preview** starts the build from the page: the server runs `review_sync.py import` on their saved choices, then the same cut, render and checks as Re-render on the touch-ups page, and writes `review_db/builds/latest.json`. The page shows the step it is on and plays the preview when it is done. Nobody has to come back to chat for a plain build.
+
+What this changes for you:
+
+- **Requests only you can act on.** A graphic set to Change, a graphic they asked for, a new "How many graphics?", a moved graphic that is not a popup, typed notes, and notes on the draft are not applied by the page's build. The page says so before it starts and lists them again under the preview. When they then say "build preview" in chat, do the full flow from `references/review.md` ("When they say build preview"): import, act on every line, render, look at the frames.
+- **You did not look at this preview.** The page's build runs the automatic checks (`qa.py`) only. Before delivery, look at the frames yourself as usual.
+- **If the page says the build stopped**, read `<reel>/editor/render.log`, fix the cause, and tell them to press Build preview again.
+- On the claude.ai review page (no local server) the button still saves a request and they tell you "build preview".
