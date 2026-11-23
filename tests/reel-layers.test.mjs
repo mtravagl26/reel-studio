@@ -212,6 +212,23 @@ test("a popup can be a video clip: a silent 30 fps window that starts where aske
   }
 });
 
+// 0.15.0: an SVG is a graphic too. It is copied as it is (sharp at any size) and sized from its own width, height or viewBox.
+test("a popup or sticker can be an SVG file", { skip }, () => {
+  const c = makeReel([], { matte: null });
+  fs.mkdirSync(path.join(c.reel, "popups"), { recursive: true });
+  fs.writeFileSync(path.join(c.reel, "popups", "logo.svg"), '<?xml version="1.0"?>\n<!-- <svg width="9"> -->\n<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 100"><rect width="200" height="100" fill="#0d2b2d"/></svg>');
+  fs.writeFileSync(path.join(c.reel, "popups", "notsvg.svg"), "hello");
+  const edit = JSON.parse(fs.readFileSync(path.join(c.reel, "edit.json"), "utf8"));
+  edit.cards = [{ type: "popup", src: "popups/logo.svg", start: 0.5, end: 2 }, { type: "sticker", src: "popups/logo.svg", start: 0.5, end: 2 }, { type: "popup", src: "popups/notsvg.svg", start: 0.5, end: 2 }];
+  fs.writeFileSync(path.join(c.reel, "edit.json"), JSON.stringify(edit));
+  const r = build(c); assert.equal(r.status, 0, r.stdout + r.stderr);
+  const h = html(c);
+  assert.match(h, /class="pop" style="left:660px;top:150px;width:360px;height:180px"><img src="img\/0_logo\.svg" \/>/, "2 to 1, from the viewBox, with no photo border");
+  assert.match(h, /class="stk"[^>]*><img src="img\/1_logo\.svg" \/>/);
+  assert.match(r.stdout, /notsvg\.svg is not an SVG picture: skipped/);
+  assert.equal(fs.readFileSync(path.join(c.reel, "proj", "img", "0_logo.svg"), "utf8"), fs.readFileSync(path.join(c.reel, "popups", "logo.svg"), "utf8"));
+});
+
 // audit 3: values a person or an assistant can leave in edit.json by hand must not crash a build.
 test("a video clip or note with a missing, empty or impossible number still builds", { skip }, () => {
   const c = makeReel([], { matte: null });

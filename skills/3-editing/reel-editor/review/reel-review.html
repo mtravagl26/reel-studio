@@ -76,7 +76,7 @@ textarea{min-height:80px;resize:vertical}
 .card>div{min-width:0}
 .upl{min-width:0}
 .giphy{flex-basis:100%;max-width:100%;min-width:0;box-sizing:border-box;border:2px solid var(--line);border-radius:14px;padding:10px;background:#fff}.giphy[hidden]{display:none}
-.giphy .ctl{display:flex;gap:6px;flex-wrap:wrap}.giphy input[type=search]{flex:1 1 120px;min-width:0;width:100%;box-sizing:border-box;font:inherit;padding:8px 10px;border:2px solid var(--line);border-radius:10px}.giphy select{font:inherit;padding:8px;border:2px solid var(--line);border-radius:10px;background:#fff}
+.giphy .ctl{display:flex;gap:6px;flex-wrap:wrap}.giphy .gkey{margin-bottom:8px}.giphy input[type=password]{flex:1 1 160px;min-width:0;box-sizing:border-box;font:inherit;padding:8px 10px;border:2px solid var(--line);border-radius:10px}.giphy input[type=search]{flex:1 1 120px;min-width:0;width:100%;box-sizing:border-box;font:inherit;padding:8px 10px;border:2px solid var(--line);border-radius:10px}.giphy select{font:inherit;padding:8px;border:2px solid var(--line);border-radius:10px;background:#fff}
 .ggrid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin:8px 0}.ggrid button{padding:0;border:2px solid var(--line);border-radius:8px;overflow:hidden;background:#eee;cursor:pointer;aspect-ratio:1}.ggrid img{width:100%;height:100%;object-fit:cover;display:block}
 .upchip{position:relative;display:inline-block}.upchip img,.upchip video{width:56px;height:56px;object-fit:cover;border-radius:8px;border:2px solid var(--line);display:block}
 .upchip button{position:absolute;top:-6px;right:-6px;width:22px;height:22px;border-radius:50%;border:0;background:var(--drop,#a32727);color:#fff;font-weight:700;line-height:1;cursor:pointer}
@@ -154,10 +154,10 @@ code{font:500 13px var(--f-mono);background:var(--accent-soft);border-radius:6px
 <nav class="steps" aria-label="Reel Studio steps">
   <span class="brand">Reel Studio</span>
   <a class="step off" data-step="review" title="Ask Claude to open the review page">1 Review</a>
-  <a class="step off" data-step="cover" title="Ask Claude to open my thumbnail studio">2 Cover</a>
-  <a class="step off" data-step="touchups" title="Ask Claude to open the editor page">3 Touch-ups</a>
+  <a class="step off" data-step="touchups" title="Ask Claude to open the editor page">2 Touch-ups</a>
+  <a class="step off" data-step="cover" title="Ask Claude to open my thumbnail studio">3 Cover</a>
 </nav>
-<p class="builtnote" id="builtnote" hidden>This reel is already built. To change it, use <a href="/touchups">3 Touch-ups</a>. You can still redo the cut here: when it's built again, your touch-ups come along wherever their moment is still in the reel.</p>
+<p class="builtnote" id="builtnote" hidden>This reel is already built. To change it, use <a href="/touchups">2 Touch-ups</a>. You can still redo the cut here: when it's built again, your touch-ups come along wherever their moment is still in the reel.</p>
 <div class="wrap">
   <aside class="side">
     <h1>Review the cut</h1>
@@ -559,7 +559,7 @@ const box_ = g => box(g, false);
 function uploader(files, onChange) {
   const wrap = document.createElement("div"); wrap.className = "upl";
   if (!window.REEL_STUDIO_LINKS) return wrap;
-  const inp = document.createElement("input"); inp.type = "file"; inp.accept = "image/*,video/mp4,video/quicktime,.gif,.heic,.heif,.mp4,.mov,.m4v"; inp.multiple = true; inp.hidden = true;
+  const inp = document.createElement("input"); inp.type = "file"; inp.accept = "image/*,video/mp4,video/quicktime,.gif,.heic,.heif,.svg,.mp4,.mov,.m4v"; inp.multiple = true; inp.hidden = true;
   const btn = document.createElement("button"); btn.type = "button"; btn.className = "b quiet"; btn.textContent = files.length ? "Add another" : "Use my own picture, GIF or video clip";
   const msg = document.createElement("span"); msg.className = "lede";
   btn.addEventListener("click", () => inp.click());
@@ -589,7 +589,7 @@ function uploader(files, onChange) {
     gnote.textContent = "Searching…"; grid.textContent = "";
     try {
       const { key } = await (await fetch("/api/review-giphy-key")).json();
-      if (!key) throw new Error("GIPHY isn't set up on this computer yet. Tell Claude: \"set up GIPHY for the reel editor\". It takes a free key and about 2 minutes.");
+      if (!key) { gnote.textContent = ""; keyForm(); return; }
       const u = new URL(`https://api.giphy.com/v1/${kind.value}/search`); u.search = new URLSearchParams({ api_key: key, q, limit: "12", rating: "g", bundle: "messaging_non_clips" });
       const r = await fetch(u); if (r.status === 429) throw new Error("GIPHY's hourly limit is used up for this key. Try again later.");
       if (!r.ok) throw new Error(`GIPHY said no (${r.status}). Ask Claude to check the key.`);
@@ -609,8 +609,32 @@ function uploader(files, onChange) {
       }
     } catch (e) { gnote.textContent = e.message; }
   };
+  // 0.15.0: no key yet? The page takes it here and saves it on this computer. Nobody opens a hidden file.
+  const keyForm = () => {
+    if (gbox.querySelector(".gkey")) return gbox.querySelector(".gkey input").focus();
+    const box = document.createElement("div"); box.className = "gkey";
+    const say = document.createElement("p"); say.className = "lede"; say.append("GIPHY needs a free key, once. ");
+    const a = document.createElement("a"); a.href = "https://developers.giphy.com/dashboard/"; a.target = "_blank"; a.rel = "noopener"; a.textContent = "Get one at developers.giphy.com";
+    say.append(a, ". Choose API (not SDK), copy the key, and paste it here.");
+    const kin = document.createElement("input"); kin.type = "password"; kin.placeholder = "Paste your GIPHY key"; kin.autocomplete = "off"; kin.setAttribute("aria-label", "Your GIPHY key");
+    const save = document.createElement("button"); save.type = "button"; save.className = "b"; save.textContent = "Save key";
+    const out = document.createElement("p"); out.className = "lede";
+    const doSave = async () => {
+      out.classList.remove("warnline"); out.textContent = "Checking the key…";
+      try {
+        const j = await (await fetch("/api/giphy-key-save", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ key: kin.value }) })).json();
+        if (!j.ok) throw new Error(j.error || "couldn't save it");
+        box.remove(); gnote.textContent = j.tested ? "GIPHY is connected." : "Key saved. This computer couldn't reach GIPHY to test it yet."; if (gq.value.trim()) search(); else gq.focus();
+      } catch (e) { out.textContent = e.message; out.classList.add("warnline"); }
+    };
+    save.addEventListener("click", doSave); kin.addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); doSave(); } });
+    const krow = document.createElement("div"); krow.className = "ctl"; krow.append(kin, save); box.append(say, krow, out); gbox.insertBefore(box, gbox.firstChild); kin.focus();
+  };
   go.addEventListener("click", search); gq.addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); search(); } });
-  gbtn.addEventListener("click", () => { gbox.hidden = !gbox.hidden; if (!gbox.hidden) gq.focus(); });
+  gbtn.addEventListener("click", async () => {
+    gbox.hidden = !gbox.hidden; if (gbox.hidden) return; gq.focus();
+    try { const { key } = await (await fetch("/api/review-giphy-key")).json(); if (!key) keyForm(); } catch { /* the search will say what's wrong */ }
+  });
   const row = document.createElement("div"); row.className = "ctl"; row.append(gq, kind, go); gbox.append(row, gnote, grid, credit);
   wrap.append(btn, gbtn, inp, msg, gbox);
   files.forEach((src, k) => {

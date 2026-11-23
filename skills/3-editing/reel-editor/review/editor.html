@@ -93,8 +93,8 @@ body.unbuilt > :not(nav):not(header):not(#unbuilt), body.unbuilt header button {
 <nav class="steps" aria-label="Reel Studio steps">
   <span class="brand">Reel Studio</span>
   <a class="step off" data-step="review" title="Ask Claude to open the review page">1 Review</a>
-  <a class="step off" data-step="cover" title="Ask Claude to open my thumbnail studio">2 Cover</a>
-  <a class="step off" data-step="touchups" title="Ask Claude to open the editor page">3 Touch-ups</a>
+  <a class="step off" data-step="touchups" title="Ask Claude to open the editor page">2 Touch-ups</a>
+  <a class="step off" data-step="cover" title="Ask Claude to open my thumbnail studio">3 Cover</a>
 </nav>
 <header>
   <div class="t"><h1>Touch-ups</h1><small id="sub"></small></div>
@@ -118,7 +118,7 @@ body.unbuilt > :not(nav):not(header):not(#unbuilt), body.unbuilt header button {
 <details open id="s-txt"><summary>Text on screen <small id="txtn"></small></summary><div class="sec"><div id="cards"></div><button id="addPill" class="sage" style="width:100%;margin-top:8px">+ Add text at this point in the video</button></div></details>
 <details open id="s-pop"><summary>Popups: GIFs, graphics, photos <small id="popn"></small></summary><div class="sec"><div id="popups"></div>
   <p class="help" style="margin-top:10px">Pictures stay on this Mac (copied into the reel folder). GIFs animate in the video.</p>
-  <label class="sage" style="display:block"><input id="file" type="file" accept="image/gif,image/png,image/jpeg,image/webp,image/heic,image/heif,video/mp4,video/quicktime,.heic,.heif,.gif,.png,.jpg,.jpeg,.webp,.mp4,.mov,.m4v" style="display:none" />
+  <label class="sage" style="display:block"><input id="file" type="file" accept="image/gif,image/png,image/jpeg,image/webp,image/heic,image/heif,image/svg+xml,video/mp4,video/quicktime,.heic,.heif,.gif,.png,.jpg,.jpeg,.webp,.svg,.mp4,.mov,.m4v" style="display:none" />
   <span style="display:flex;align-items:center;justify-content:center;min-height:44px;border-radius:12px;border:1.5px solid var(--sage-d);background:var(--sage);font-weight:600">+ Add a picture, GIF or video clip</span></label>
   <div id="reuse"></div>
   <button id="addOrbit" data-a="orbit-open" style="width:100%;margin-top:10px">+ Make pictures circle my head</button><div id="orbitPick"></div>
@@ -386,13 +386,27 @@ function renderOrbitPick() {
 let giphy = { q: "", kind: "gifs", items: [], busy: false, note: "" };
 function renderGiphy() {
   const box = $("#giphy"); if (!box) return;
-  if (!S.giphy) { box.innerHTML = `<p class="help"><b>Search GIPHY:</b> not set up yet. Get a free key at developers.giphy.com, then tell Claude "add my GIPHY key".</p>`; return; }
+  if (!S.giphy) {   // 0.15.0: the page takes the key and saves it on this computer
+    if (box.querySelector("#gkey")) return;   // keep what they are typing
+    box.innerHTML = `<p class="help"><b>Search GIPHY:</b> not set up yet. It needs a free key, once. <a href="https://developers.giphy.com/dashboard/" target="_blank" rel="noopener">Get one at developers.giphy.com</a>. Choose API (not SDK), copy the key, and paste it here.</p>
+      <div class="row"><input type="password" id="gkey" placeholder="Paste your GIPHY key" autocomplete="off" aria-label="Your GIPHY key" class="grow" /><button class="sm" data-a="giphy-key">Save key</button></div><p class="small" id="gkeymsg"></p>`;
+    return;
+  }
   box.innerHTML = `<label class="f">Search GIPHY</label><div class="row"><input type="text" id="gq" value="${esc(giphy.q)}" placeholder="happy dance" autocapitalize="off" class="grow" /><button class="sm" data-a="giphy-go">Search</button></div>
     <div class="seg" style="margin-top:8px"><button class="${giphy.kind === "gifs" ? "on" : ""}" data-a="giphy-kind" data-v="gifs">GIFs</button><button class="${giphy.kind === "stickers" ? "on" : ""}" data-a="giphy-kind" data-v="stickers">Stickers (see-through)</button></div>
     ${giphy.note ? `<p class="small">${esc(giphy.note)}</p>` : ""}
     ${giphy.items.length ? `<div class="grid3" style="margin-top:8px">${giphy.items.map((g) => `<button data-a="giphy-add" data-v="${esc(g.id)}" style="padding:4px" title="${esc(g.title)}"><img src="${esc(g.preview)}" alt="${esc(g.title)}" style="width:100%;border-radius:8px;display:block" /></button>`).join("")}</div>
     <p class="small" style="text-align:right;font-weight:700;letter-spacing:.04em">POWERED BY GIPHY</p>` : ""}
     <p class="small">Your search words go to GIPHY. Many GIFs are clips from films and TV: check you may use one before it goes in a reel for your business.</p>`;
+}
+async function saveGiphyKey() {
+  const msg = $("#gkeymsg"), key = ($("#gkey")?.value || "").trim(); if (msg) msg.textContent = "Checking the key…";
+  try {
+    const r = await fetch("/api/giphy-key-save", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ key }) }), j = await r.json();
+    if (!j.ok) throw new Error(j.error || "couldn't save it");
+    $("#giphy").innerHTML = ""; if (j.state) S = j.state; else S.giphy = true;
+    giphy.note = j.tested ? "GIPHY is connected." : "Key saved. This computer couldn't reach GIPHY to test it yet."; render(); toast(giphy.note);
+  } catch (er) { if (msg) msg.textContent = er.message; toast(er.message, true); }
 }
 async function giphySearch() {
   const q = ($("#gq")?.value || "").trim(); giphy.q = q; if (!q) return;
@@ -481,6 +495,7 @@ document.addEventListener("click", async (e) => {
     if (j?.info?.index != null) { orbitOpen = false; orbitSel.clear(); const id = cid(j.info.index); openCard.add(id); selCard = id; render(); }
   }
   else if (a === "giphy-go") giphySearch();
+  else if (a === "giphy-key") saveGiphyKey();
   else if (a === "giphy-kind") { giphy.kind = el.dataset.v; giphy.items = []; giphy.note = ""; renderGiphy(); if (giphy.q) giphySearch(); }
   else if (a === "giphy-add") {
     toast("Getting it from GIPHY…");
@@ -533,7 +548,7 @@ document.addEventListener("change", async (e) => {
   if (e.target.id !== "themePick") return;
   try { await post("/api/theme", { name: e.target.value, scope: S.theme?.reel ? "reel" : "all" }); toast("Look saved: re-render to see it"); } catch (er) { toast(er.message, true); }
 });
-document.addEventListener("keydown", (e) => { if (e.key === "Enter" && e.target.id === "gq") giphySearch(); });
+document.addEventListener("keydown", (e) => { if (e.key === "Enter" && e.target.id === "gq") giphySearch(); if (e.key === "Enter" && e.target.id === "gkey") saveGiphyKey(); });
 
 // ------------------------------------------------------------------ job polling
 function startPoll() { clearInterval(pollT); pollT = setInterval(async () => {

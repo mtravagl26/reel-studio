@@ -47,7 +47,7 @@ const built = () => fs.existsSync(P.edit) && fs.existsSync(P.edl);
 const hasReview = () => fs.existsSync(path.join(REVIEW_DB, "reel", "current.json"));
 
 const TYPES = { ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".mjs": "text/javascript; charset=utf-8", ".json": "application/json; charset=utf-8",
-  ".mp4": "video/mp4", ".webm": "video/webm", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png", ".gif": "image/gif", ".webp": "image/webp",
+  ".mp4": "video/mp4", ".webm": "video/webm", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png", ".gif": "image/gif", ".webp": "image/webp", ".svg": "image/svg+xml",
   ".wav": "audio/wav", ".otf": "font/otf", ".ttf": "font/ttf", ".woff2": "font/woff2" };
 
 // ---- small file helpers ---------------------------------------------------------------------------------------------------------------
@@ -160,6 +160,27 @@ function giphyKey() {
   try { for (const line of fs.readFileSync(path.join(os.homedir(), ".config/reels/.env"), "utf8").split("\n")) if (line.startsWith("GIPHY_API_KEY=")) return line.split("=").slice(1).join("=").trim(); } catch { /* no file */ }
   return "";
 }
+// Added by By Mel Ross (0.15.0): the page saves the key, so nobody edits a hidden file. The key is tried on one search first, then
+// written to ~/.config/reels/.env (other lines in that file are kept; only the person can read the file).
+const ENV_FILE = () => path.join(os.homedir(), ".config/reels/.env");
+async function giphySaveKey(body) {
+  const key = String(body.key || "").trim().replace(/^GIPHY_API_KEY=/, "").replace(/^["']|["']$/g, "");
+  if (!key) throw new Error("paste your GIPHY key in the box first");
+  if (!/^[A-Za-z0-9]{16,64}$/.test(key)) throw new Error("that doesn't look like a GIPHY key: it is one run of letters and numbers, about 32 long, with no spaces");
+  let tested = false;
+  if (process.env.REEL_GIPHY_NO_CHECK !== "1") {
+    let r = null;
+    try { r = await fetch(`https://api.giphy.com/v1/gifs/search?api_key=${encodeURIComponent(key)}&q=hello&limit=1&rating=g`, { signal: AbortSignal.timeout(8000) }); } catch { /* offline: save it untested */ }
+    if (r && (r.status === 401 || r.status === 403)) throw new Error("GIPHY did not accept that key. Copy it again from developers.giphy.com, and check it is an API key (not an SDK key)");
+    tested = !!(r && r.ok);
+  }
+  const f = ENV_FILE(); fs.mkdirSync(path.dirname(f), { recursive: true, mode: 0o700 });
+  let lines = []; try { lines = fs.readFileSync(f, "utf8").split("\n").filter((l) => l.trim() && !l.startsWith("GIPHY_API_KEY=")); } catch { /* new file */ }
+  lines.push(`GIPHY_API_KEY=${key}`);
+  fs.writeFileSync(f + ".tmp", lines.join("\n") + "\n", { mode: 0o600 }); fs.renameSync(f + ".tmp", f); fs.chmodSync(f, 0o600);
+  if (process.env.GIPHY_API_KEY) process.env.GIPHY_API_KEY = key;   // a key set when the link started would otherwise hide the new one
+  return { tested };
+}
 async function giphyAdd(body) {
   requireIdle();
   const key = giphyKey(); if (!key) throw new Error("no GIPHY key on this computer yet");
@@ -228,19 +249,52 @@ function probeMedia(rel) {
   const f = path.join(REEL, rel);
   let st; try { st = fs.statSync(f); } catch { return null; }
   const c = mediaInfo.get(rel); if (c && c.m === st.mtimeMs) return c.info;
+  if (/\.svg$/i.test(rel)) {   // ffprobe can't always read an SVG, so its size comes from the file itself
+    let info = null; try { if (st.size <= 5e6) info = svgSize(fs.readFileSync(f, "utf8")); } catch { /* unreadable */ }
+    if (info) info = { ...info, animated: false, video: false };
+    mediaInfo.set(rel, { m: st.mtimeMs, info }); return info;
+  }
   const r = run("ffprobe", ["-v", "error", "-select_streams", "v:0", "-show_entries", "stream=width,height,nb_frames,codec_name", "-of", "json", f]);
   let info = null;
   try { const s = JSON.parse(r.stdout).streams[0]; if (s.width > 0 && s.height > 0) info = { w: s.width, h: s.height, animated: /\.gif$/i.test(rel) && Number(s.nb_frames || 0) > 1, video: /\.(mp4|mov|m4v|webm)$/i.test(rel) }; } catch { /* not an image */ }
   mediaInfo.set(rel, { m: st.mtimeMs, info });
   return info;
 }
+// An SVG's size in pixels: its width and height, or its viewBox. null when the text is not an SVG.
+function svgSize(text) {
+  const m = /<svg\b[^>]*>/i.exec(String(text).replace(/<!--[\s\S]*?-->/g, "")); if (!m) return null;
+  const at = (n) => (new RegExp(`\\s${n}\\s*=\\s*["']([^"']*)["']`, "i").exec(m[0]) || [])[1];
+  const px = (v) => { const k = /^\s*([\d.]+)\s*(px)?\s*$/i.exec(v || ""); return k ? Number(k[1]) : 0; };
+  let w = px(at("width")), h = px(at("height"));
+  const vb = String(at("viewBox") || "").trim().split(/[\s,]+/).map(Number);
+  if (vb.length === 4 && vb[2] > 0 && vb[3] > 0) { if (!w && !h) { w = vb[2]; h = vb[3]; } else if (!w) w = h * vb[2] / vb[3]; else if (!h) h = w * vb[3] / vb[2]; }
+  if (!(w > 0) || !(h > 0)) { w = 512; h = 512; }
+  const k = Math.max(w, h) < 64 ? 64 / Math.max(w, h) : 1;   // a 24 px icon still gets a usable starting size
+  return { w: Math.max(Math.round(w * k), 1), h: Math.max(Math.round(h * k), 1) };
+}
+// Take out anything in an SVG that could run or reach the internet: scripts, embedded web pages, on-click handlers, outside links.
+function cleanSvg(text) {
+  return String(text)
+    .replace(/<script\b[\s\S]*?<\/script\s*>/gi, "").replace(/<script\b[^>]*\/>/gi, "")
+    .replace(/<foreignObject\b[\s\S]*?<\/foreignObject\s*>/gi, "")
+    .replace(/<(iframe|object|embed)\b[\s\S]*?(<\/\1\s*>|\/>)/gi, "")
+    .replace(/\son[a-z]+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, "")
+    .replace(/\s(xlink:href|href)\s*=\s*("\s*(?!#|data:image\/)[^"]*"|'\s*(?!#|data:image\/)[^']*')/gi, "");
+}
 function saveUpload(buf, rawName) {
+  fs.mkdirSync(P.popups, { recursive: true });
   const ext = path.extname(rawName).toLowerCase();
   const base = path.basename(rawName, path.extname(rawName)).replace(/[^\w\- ]+/g, "").trim().replace(/\s+/g, "-").slice(0, 40) || "popup";
   const id = `${Date.now().toString(36)}-${base}`;
   const isVideo = [".mp4", ".mov", ".m4v", ".webm"].includes(ext);   // Added by By Mel Ross (0.13.0): a video clip or screen recording
-  if (!isVideo && ![".gif", ".png", ".jpg", ".jpeg", ".webp", ".heic", ".heif"].includes(ext)) throw new Error("use a picture (gif, png, jpg, webp, heic) or a video clip (mp4, mov)");
+  if (!isVideo && ![".gif", ".png", ".jpg", ".jpeg", ".webp", ".heic", ".heif", ".svg"].includes(ext)) throw new Error("use a picture (gif, png, jpg, webp, heic, svg) or a video clip (mp4, mov)");
   let out = `${id}${ext === ".jpeg" ? ".jpg" : ext}`;
+  if (ext === ".svg") {   // Added by By Mel Ross (0.15.0): an SVG stays an SVG, so it is sharp at any size. Anything that could run is taken out first.
+    if (buf.length > 5e6) throw new Error("that SVG is over 5 MB: export a smaller one, or send it as a PNG");
+    const clean = cleanSvg(buf.toString("utf8"));
+    if (!svgSize(clean)) throw new Error("that file is not an SVG picture this Mac can read");
+    buf = Buffer.from(clean);
+  }
   fs.writeFileSync(path.join(P.popups, out), buf);
   if (isVideo) {
     // Keep a small upright copy for the page and the build: 30 fps, at most 1080 wide, no sound, at most 3 minutes. A phone clip
@@ -288,7 +342,7 @@ function view() {
   });
   const media = {};
   for (const c of edit.cards || []) if (c.type === "popup" || c.src) { const s = Array.isArray(c.src) ? c.src[0] : c.src; if (s) { const i = probeMedia(s); if (i) media[s] = i; } }
-  const files = exists(P.popups) ? fs.readdirSync(P.popups).filter((n) => /\.(gif|png|jpe?g|webp|mp4|webm)$/i.test(n)).map((n) => ({ src: `popups/${n}`, ...(probeMedia(`popups/${n}`) || {}) })) : [];
+  const files = exists(P.popups) ? fs.readdirSync(P.popups).filter((n) => /\.(gif|png|jpe?g|webp|svg|mp4|webm)$/i.test(n)).map((n) => ({ src: `popups/${n}`, ...(probeMedia(`popups/${n}`) || {}) })) : [];
   for (const f of files) if (f.w) media[f.src] = { w: f.w, h: f.h, animated: f.animated, video: f.video };
   const renders = listRenders();
   const job = readJSON(P.job, { state: "idle" });
@@ -437,6 +491,10 @@ function prepareBaseline() {
 function sendFile(req, res, file) {
   let st; try { st = fs.statSync(file); if (!st.isFile()) throw 0; } catch { res.writeHead(404).end(); return; }
   const type = TYPES[path.extname(file).toLowerCase()] || "application/octet-stream";
+  if (type === "image/svg+xml") {   // an SVG opened on its own gets no scripts and no outside requests
+    res.writeHead(200, { "Content-Type": type, "Content-Length": st.size, "Cache-Control": "no-store", "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'; img-src data:; sandbox", "X-Content-Type-Options": "nosniff" });
+    fs.createReadStream(file).pipe(res); return;
+  }
   const m = /bytes=(\d*)-(\d*)/.exec(req.headers.range || "");   // video seeking (Safari insists on ranges)
   if (m) {
     const start = m[1] ? Number(m[1]) : Math.max(0, st.size - Number(m[2]));
@@ -502,6 +560,10 @@ const server = http.createServer(async (req, res) => {
     }
     if (p === "/api/state" && req.method === "GET") return json(res, 200, built() ? view() : { built: false, reel: path.basename(REEL), review: hasReview(), links: LINKS });
     if (req.method === "GET" && p === "/api/review-giphy-key") return json(res, 200, { key: giphyKey() || null });   // 0.10.2: GIPHY on the review page, before the build
+    if (req.method === "POST" && p === "/api/giphy-key-save") {   // 0.15.0: both pages can save the key (works before the build)
+      try { const r = await giphySaveKey(JSON.parse((await readBody(req, 1e4)).toString() || "{}")); return json(res, 200, { ok: true, ...r, ...(built() ? { state: view() } : {}) }); }
+      catch (e) { return json(res, 400, { ok: false, error: String(e.message || e) }); }
+    }
     if (req.method === "POST" && p === "/api/review-giphy") {
       try {
         fs.mkdirSync(P.popups, { recursive: true });

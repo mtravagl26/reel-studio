@@ -4,11 +4,15 @@ Added by By Mel Ross (0.9.0).
 
 The Popups section of the touch-ups page can search GIPHY and drop a GIF or sticker into the reel. It is off until the person adds their own GIPHY key. Nothing about it runs unless they press Search.
 
-## Setting it up
+## Setting it up (0.15.0: the page does it)
 
-1. They make a free account at developers.giphy.com and create an API key (choose "API", not "SDK"). A new key is a beta key: free, and limited to 100 searches an hour.
-2. The key goes in `~/.config/reels/.env`, the same file as the optional ElevenLabs key, as one line: `GIPHY_API_KEY=...`. Have them put it there themselves (`open -e ~/.config/reels/.env`, after `mkdir -p ~/.config/reels`); don't ask them to paste a key into chat.
-3. Restart the Reel Studio link. The Popups section now shows "Search GIPHY".
+1. They open **Search GIPHY** on the review page (Graphics tab) or the touch-ups page (Popups). With no key yet, the page shows a box and a link to developers.giphy.com.
+2. They make a free account there and create a key. When GIPHY asks, they choose **API**, not SDK. A new key is a beta key: free, and limited to 100 searches an hour.
+3. They paste the key in the box and press **Save key**. The page tries the key on one search, saves it, and says "GIPHY is connected." Search works right away. No restart.
+
+The page writes the key to `~/.config/reels/.env` as `GIPHY_API_KEY=...`, keeps any other line in that file (the optional ElevenLabs key), and sets the file so only the person can read it. Never ask them to open that file, use Terminal, or paste a key into chat. If they ask you to "set up GIPHY", give them the Reel Studio link and point at the box.
+
+If GIPHY rejects the key, the page says so. The usual cause is an SDK key or a partial copy. If the computer is offline, the key is saved untested and the first search is the test.
 
 Each person needs their own key. Never put a key in this repository or in a brand file.
 
@@ -32,4 +36,4 @@ Many GIFs on GIPHY are clips from films, TV and sport. GIPHY's API lets an app s
 
 ## On the review page too (0.10.2)
 
-Before the build, the review page's Graphics tab offers **Search GIPHY** next to "Use my own picture or GIF": on any graphic set to Change, and on any graphic they asked for with "Add a graphic". The picked GIF is downloaded into `popups/` and named in the import output (`Use their own picture(s) ...`). Same key, same rules as on the touch-ups page. With no key, the page tells them to ask you to set GIPHY up.
+Before the build, the review page's Graphics tab offers **Search GIPHY** next to "Use my own picture or GIF": on any graphic set to Change, and on any graphic they asked for with "Add a graphic". The picked GIF is downloaded into `popups/` and named in the import output (`Use their own picture(s) ...`). Same key, same rules as on the touch-ups page. With no key, the page asks for one in a box and saves it (see "Setting it up").

@@ -64,7 +64,7 @@ The review page's **Cover** tab links to the thumbnail studio, a local page for 
 
 ## Editing a finished reel by tapping (the touch-ups page)
 
-When the person wants to change a reel that is already built (fix a caption word, drop a piece, switch text or sounds on and off, add a GIF, graphic or photo, make pictures circle their head, change the theme), don't rewrite `edit.json` by hand: send them the Reel Studio link (`node <skill>/review/studio-server.mjs <reel folder> --lan --port 4792`; if the review link is still running it is the same server). They tap, every change is saved with an Undo, and **Re-render** runs the usual cut/render/QA and keeps earlier renders. It never delivers. Read `references/editor-page.md` before starting it; GIPHY search is `references/giphy.md`.
+When the person wants to change a reel that is already built (fix a caption word, drop a piece, switch text or sounds on and off, add a GIF, graphic or photo, make pictures circle their head, change the theme), don't rewrite `edit.json` by hand: send them the Reel Studio link (`node <skill>/review/studio-server.mjs <reel folder> --lan --port 4792`; if the review link is still running it is the same server). They tap, every change is saved with an Undo, and **Re-render** runs the usual cut/render/QA and keeps earlier renders. It never delivers. Read `references/editor-page.md` before starting it; GIPHY search is `references/giphy.md`: the pages take the person's GIPHY key in a box and save it, so never walk them through editing a file or Terminal for it. Pictures can be gif, png, jpg, webp, heic or svg.
 
 ## Word list (permanent vocabulary)
 

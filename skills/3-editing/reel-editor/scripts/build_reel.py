@@ -164,6 +164,9 @@ def img(src):
     """Copy an image into the project and return its path there. Looks in the reel folder, ~/reels/assets/, then as given."""
     for cand in (reel / src, HOME / "assets" / src, Path(src).expanduser()):
         if cand.exists():
+            if cand.suffix.lower() == ".svg":   # Added by By Mel Ross (0.15.0): an SVG is copied as it is, so it stays sharp at any size
+                dst = proj / "img" / f"{len(list((proj / 'img').iterdir()))}_{cand.stem}.svg"
+                shutil.copyfile(cand, dst); return f"img/{dst.name}"
             dst = proj / "img" / f"{len(list((proj / 'img').iterdir()))}_{cand.stem}.png"
             subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", str(cand), "-vf", "scale='min(1280,iw)':-2", str(dst)], check=True)
             return f"img/{dst.name}"
@@ -173,6 +176,28 @@ def numf(v, dflt):
     """A number from edit.json, or the default when it is missing, null or not a number (audit 3: 'from': null crashed the build)."""
     try: return float(v) if v is not None and not isinstance(v, bool) else float(dflt)
     except (TypeError, ValueError): return float(dflt)
+
+def svg_size(path):
+    """Width and height of an SVG in pixels, from its width/height or its viewBox. None when the file is not an SVG."""
+    try: text = re.sub(r"<!--.*?-->", "", Path(path).read_text(errors="replace"), flags=re.S)
+    except OSError: return None
+    m = re.search(r"<svg\b[^>]*>", text, re.I)
+    if not m: return None
+    def at(n):
+        k = re.search(rf"""\s{n}\s*=\s*["']([^"']*)["']""", m.group(0), re.I); return k.group(1) if k else ""
+    def px(v):
+        k = re.match(r"^\s*([\d.]+)\s*(px)?\s*$", v or "", re.I)
+        try: return float(k.group(1)) if k else 0.0
+        except ValueError: return 0.0
+    w, h = px(at("width")), px(at("height"))
+    try: vb = [float(x) for x in re.split(r"[\s,]+", at("viewBox").strip())]
+    except ValueError: vb = []
+    if len(vb) == 4 and vb[2] > 0 and vb[3] > 0:
+        if not w and not h: w, h = vb[2], vb[3]
+        elif not w: w = h * vb[2] / vb[3]
+        elif not h: h = w * vb[3] / vb[2]
+    if w <= 0 or h <= 0: w = h = 512.0
+    return max(int(round(w)), 1), max(int(round(h)), 1)
 
 VIDEO_EXT = (".mp4", ".mov", ".m4v", ".webm")      # Added by By Mel Ross (0.13.0): a popup can be a video clip (a screen recording, b-roll)
 
@@ -185,6 +210,10 @@ def popup_asset(src, secs, start=0.0, loop=False):
     else:
         print(f"warning: popup file not found: {src}"); return None
     n = len(list((proj / "img").iterdir()))
+    if cand.suffix.lower() == ".svg":   # 0.15.0: ffprobe can't always read an SVG; its size comes from the file
+        wh = svg_size(cand)
+        if not wh: print(f"warning: popup {src} is not an SVG picture: skipped"); return None
+        return "img", img(src), wh[0], wh[1]
     _chk = subprocess.run(["ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries", "stream=width,height", "-of", "csv=p=0", str(cand)], capture_output=True, text=True)
     try: _cw, _ch = [int(x) for x in _chk.stdout.strip().split(",")[:2]]
     except ValueError: _cw = _ch = 0
