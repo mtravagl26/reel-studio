@@ -221,14 +221,15 @@ test("the three pages share one step bar and one palette, and load nothing from 
 async function withServer(fn) {
   const dir = tmp("editorsrv"), home = path.join(dir, "reels"), reel = path.join(home, "r1");
   fs.mkdirSync(reel, { recursive: true });
-  fs.writeFileSync(path.join(home, "brand.json"), JSON.stringify({ colors: {}, vocabulary: { terms: [], corrections: {} } }));
+  fs.writeFileSync(path.join(home, "brand.json"), JSON.stringify({ colors: { main: "#141414", pop: "#B9C8A5", light: "#FFFFFF" }, sfx: "none", vocabulary: { terms: [], corrections: {} } }));
   fs.writeFileSync(path.join(reel, "edit.json"), JSON.stringify(mkEdit()));
   fs.writeFileSync(path.join(reel, "edl.json"), JSON.stringify(EDL));
   fs.writeFileSync(path.join(reel, "master_transcript.json"), JSON.stringify(TR));
   ff(["-f", "lavfi", "-i", "testsrc2=s=90x160:r=30:d=22", "-c:v", "libx264", "-pix_fmt", "yuv420p", path.join(reel, "master.mp4")]);
   ff(["-f", "lavfi", "-i", "color=c=0xB9C8A5:s=200x100", "-frames:v", "1", path.join(dir, "pic.png")]);
+  const engine = path.join(dir, "engine"); fs.mkdirSync(path.join(engine, "sfx"), { recursive: true }); fs.writeFileSync(path.join(engine, "gsap.min.js"), "/* gsap stand-in for the test */");   // 0.17.0: the live preview builds the reel page
   const port = 20000 + Math.floor(Math.random() * 20000);
-  const p = spawn("node", [path.join(review, "editor-server.mjs"), reel, "--lan", "--port", String(port)], { env: { ...process.env, REELS_HOME: home }, stdio: ["ignore", "pipe", "pipe"] });
+  const p = spawn("node", [path.join(review, "editor-server.mjs"), reel, "--lan", "--port", String(port)], { env: { ...process.env, REELS_HOME: home, REEL_ENGINE: engine }, stdio: ["ignore", "pipe", "pipe"] });
   let out = ""; p.stdout.on("data", (d) => (out += d)); p.stderr.on("data", (d) => (out += d));
   for (let i = 0; i < 60 && !/\?k=/.test(out); i++) await new Promise((r) => setTimeout(r, 100));
   const key = /\?k=([\w-]+)/.exec(out)?.[1];
@@ -331,6 +332,19 @@ test("server: uploads a picture into popups/, refuses other files, serves reel f
     const add = await post("/api/op", { op: { op: "card_add", card: { type: "popup", src: up.upload.src, start: 2 } } });
     assert.equal(add.ok, true, JSON.stringify(add));
     assert.equal((await get("/files/" + up.upload.src)).status, 200);
+    // 0.17.0: the live preview. The reel page is built into its own folder in seconds and served with a small driver.
+    const lv = await post("/api/live", {}); assert.equal(lv.ok, true, JSON.stringify(lv)); assert.equal(lv.live.state, "building");
+    let L = lv.live; for (let k = 0; k < 120 && L.state === "building"; k++) { await new Promise((r) => setTimeout(r, 250)); L = (await (await get("/api/live")).json()).live; }
+    assert.equal(L.state, "ready", JSON.stringify(L)); assert.ok(L.at);
+    const page = await (await get("/live/index.html")).text();
+    assert.match(page, /window\.reelLive=/); assert.match(page, /__timelines\["main"\]/); assert.match(page, new RegExp(up.upload.src.split("/").pop().replace(/\.[a-z]+$/, "").replace(/[-.]/g, "\\$&")), "the popup just added is in the preview");
+    assert.equal((await get("/live/vendor/gsap.min.js")).status, 200); assert.equal((await get("/live/..%2Fedit.json")).status, 403);
+    assert.ok(fs.existsSync(path.join(reel, "proj_live", "index.html")));
+    assert.equal((await post("/api/live", {})).live.at, L.at, "nothing changed, so nothing is rebuilt");
+    await post("/api/op", { op: { op: "card_set", i: 0, set: { off: true } } });
+    const lv2 = await post("/api/live", {}); assert.equal(lv2.live.state, "building", "a change makes a new preview");
+    for (let k = 0; k < 120 && L.state !== "ready" || L.at === lv.live.at; k++) { await new Promise((r) => setTimeout(r, 250)); L = (await (await get("/api/live")).json()).live; if (k > 118) break; }
+    await post("/api/op", { op: { op: "card_set", i: 0, set: { off: false } } });
     await post("/api/op", { op: { op: "card_set", i: 0, set: { off: true } } });
     assert.equal((await get("/files/editor/history/x")).status, 403);
     assert.equal((await get("/api/job").then((r) => r.json())).job.state, "idle");

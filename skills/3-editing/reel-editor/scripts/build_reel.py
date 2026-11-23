@@ -135,6 +135,23 @@ case = lambda s: s.lower() if CASE == "lower" else s
 
 # ---- project folder: template files are copied, never installed -------------------------------------------------
 proj = reel / "proj"
+# Added by By Mel Ross (0.17.0, live preview): the touch-ups page builds the page it shows into its own folder, so a preview never
+# touches the folder a render reads. Converted GIFs and video clips are kept in <reel>/.asset-cache, so the next preview takes seconds.
+if os.environ.get("REEL_PROJ_DIR"): proj = Path(os.environ["REEL_PROJ_DIR"])
+ASSET_CACHE = reel / ".asset-cache"
+def _cached(cand, ext, *key):
+    """(cache file, True if it is already there) for a converted copy of `cand` made with these settings."""
+    import hashlib
+    st = cand.stat()
+    h = hashlib.sha1(json.dumps([str(cand), st.st_mtime_ns, st.st_size, *key]).encode()).hexdigest()[:20]
+    f = ASSET_CACHE / f"{h}{ext}"
+    return f, f.exists() and f.stat().st_size > 0
+def _keep(dst, cache):
+    try:
+        ASSET_CACHE.mkdir(exist_ok=True); shutil.copyfile(dst, cache)
+        old = sorted(ASSET_CACHE.iterdir(), key=lambda x: x.stat().st_mtime)
+        for x in old[:-80]: x.unlink()                    # keep the 80 newest
+    except OSError: pass
 if proj.exists(): shutil.rmtree(proj)
 (proj / "fonts").mkdir(parents=True); (proj / "sfx").mkdir(); (proj / "vendor").mkdir()
 def mat(key, sticker=None):
@@ -224,6 +241,11 @@ def popup_asset(src, secs, start=0.0, loop=False):
         # every half second so the render can seek it frame by frame. A clip shorter than its time on screen holds its last frame,
         # or starts again with "loop": true. Phone clips filmed sideways are turned upright (ffmpeg reads the rotation flag).
         dst = proj / "img" / f"{n}_{cand.stem}.mp4"
+        _cf, _hit = _cached(cand, ".mp4", "clip", round(float(secs), 2), numf(start, 0), bool(loop))
+        if _hit:
+            shutil.copyfile(_cf, dst)
+            wh = subprocess.run(["ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries", "stream=width,height", "-of", "csv=p=0", str(dst)], capture_output=True, text=True).stdout.strip().split(",")
+            if len(wh) >= 2 and wh[0].isdigit() and wh[1].isdigit(): return "clip", f"img/{dst.name}", int(wh[0]), int(wh[1])
         try:   # audit 3: a start point past the end of the clip made an empty file and crashed the build; start inside the clip instead
             clip_len = float(subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", str(cand)], capture_output=True, text=True).stdout.strip() or 0)
         except ValueError: clip_len = 0.0
@@ -242,9 +264,15 @@ def popup_asset(src, secs, start=0.0, loop=False):
                             capture_output=True, text=True).stdout.strip().split(",")
         if len(wh) < 2 or not wh[0].isdigit() or not wh[1].isdigit():
             print(f"warning: video clip {src} has no picture in it: left out"); return None
+        _keep(dst, _cf)
         return "clip", f"img/{dst.name}", int(wh[0]), int(wh[1])
     if cand.suffix.lower() == ".gif":
         dst = proj / "img" / f"{n}_{cand.stem}.webm"
+        _cf, _hit = _cached(cand, ".webm", "gif", round(float(secs), 2))
+        if _hit:
+            shutil.copyfile(_cf, dst)
+            wh = subprocess.run(["ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries", "stream=width,height", "-of", "csv=p=0", str(dst)], capture_output=True, text=True).stdout.strip().split(",")
+            if len(wh) >= 2 and wh[0].isdigit() and wh[1].isdigit(): return "video", f"img/{dst.name}", int(wh[0]), int(wh[1])
         # looping: the loop filter repeats the first N decoded frames (N = the GIF's frame count, at most 900), which cycles at the GIF's own
         # speed. ffmpeg's -stream_loop is not used: on a GIF whose container has no duration it never advances time and runs forever.
         try:
@@ -261,6 +289,7 @@ def popup_asset(src, secs, start=0.0, loop=False):
         else:
             wh = subprocess.run(["ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries", "stream=width,height", "-of", "csv=p=0", str(dst)],
                                 capture_output=True, text=True).stdout.strip().split(",")
+            _keep(dst, _cf)
             return "video", f"img/{dst.name}", int(wh[0]), int(wh[1])
     try:
         path = img(src)
