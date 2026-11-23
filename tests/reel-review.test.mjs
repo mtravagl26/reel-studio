@@ -42,6 +42,7 @@ test("export writes what the page needs: words, a proposed cut, captions, the gr
   assert.deepEqual(r.themes.map((t) => t.id).sort(), ["bold", "editorial", "handwritten", "whimsical"]);
   assert.equal(r.theme, "", "no theme set in this brand");
   assert.ok(fs.existsSync(path.join(c.out, "reel.json")));
+  assert.deepEqual(r.board[0].sfx, { name: "pop", db: -14 }, "0.16.0: a graphic with no sound named gets the sound the build plays for its type, so the page can list it");
 });
 
 test("import turns decisions into edit.json and edl.json: cut words leave the captions, a graphic follows its word, a theme is recorded", { skip: skipReason }, () => {

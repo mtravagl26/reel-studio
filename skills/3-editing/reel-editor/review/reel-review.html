@@ -788,6 +788,9 @@ function renderSound() {
   $("#audio").replaceChildren(...(A.audioOriginal ? [fig("Original", au(A.audioOriginal)), fig("Cleaned", au(A.audioCleaned))] : [Object.assign(document.createElement("div"), { className: "empty", textContent: "No audio comparison for this reel yet." })]));
   $("#colour").replaceChildren(...(A.colourBefore && R.grade ? [fig("Original", im(A.colourBefore, "Frame before grading")), fig("Graded", im(A.colourAfter, "Same frame after grading"))] : [Object.assign(document.createElement("div"), { className: "empty", textContent: "No color grade is set for this brand, so the reel keeps its original color." })]));
   const cues = $("#cues"); cues.textContent = "";
+  if (!GFX.some(g => g.sfx && !g.gone && g.state !== "d")) {   // 0.16.0: say why the list is empty
+    cues.append(Object.assign(document.createElement("div"), { className: "empty", textContent: GFX.length ? "No sounds are set for this reel's graphics. Sounds are switched off in your brand settings, or this review was made before sounds were listed here. Tell Claude: \"turn sound effects on and refresh the review\"." : "Sounds come with graphics, and this reel has no graphics planned yet." }));
+  }
   for (const g of GFX.filter(g => g.sfx && !g.gone && g.state !== "d")) {
     const off = !!S.sfxOff[g.id];
     const row = document.createElement("div"); row.className = "cue" + (off ? " off" : "");

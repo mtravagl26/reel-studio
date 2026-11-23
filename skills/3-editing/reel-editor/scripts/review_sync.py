@@ -83,10 +83,18 @@ def export(reel, proposal, out):
             caps.append({"w": cur, "acc": [k for k in cur if norm(words[k]["text"]) in acc]}); cur = []
     if cur: caps.append({"w": cur, "acc": [k for k in cur if norm(words[k]["text"]) in acc]})
     board = []
+    ENTRANCE_SFX = {"title": ("snap", -11), "block": ("swish", -12), "card": ("swish", -13), "tag": ("pop", -14), "note": ("swish", -13), "cta": ("coin", -12),
+                    "shot": ("swish", -12), "image": ("swish", -13), "sticker": ("pop", -13), "popup": ("pop", -13), "orbit": ("whoosh", -15), "polaroids": ("swish", -13),
+                    "xlist": ("swish", -13), "stat": ("pop", -13), "tiles": ("swish", -13), "page": ("swish", -12), "motion": ("swish", -12), "follow": ("sparkle", -12)}   # the first sound each card type plays in build_reel.py
     for c in proposal["cards"]:
         hits = [i for i, w in enumerate(words) if norm(w["text"]) == norm(c["anchor"]) and w["s"] >= c.get("after", 0)]
         if not hits: print("warning: anchor not found:", c["id"], c["anchor"]); continue
         g = {k: v for k, v in c.items() if k not in ("anchor", "after", "end_anchor")}
+        # Added by By Mel Ross (0.16.0): the build gives each graphic an entrance sound by its type even when the plan names none,
+        # but the review page only listed sounds the plan named, so its Sound effects list could be empty for a reel that has
+        # sounds. The page now shows the sound the build will use (same name and level), so it can be heard and switched off.
+        if "sfx" not in g and brand.get("sfx", "subtle") != "none" and g.get("type") in ENTRANCE_SFX:
+            g["sfx"] = {"name": ENTRANCE_SFX[g["type"]][0], "db": ENTRANCE_SFX[g["type"]][1]}
         g["w0"] = hits[0]
         if c.get("end_anchor"):
             e = [i for i, w in enumerate(words) if norm(w["text"]) == norm(c["end_anchor"]) and i >= hits[0]]
