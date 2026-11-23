@@ -149,6 +149,10 @@ code{font:500 13px var(--f-mono);background:var(--accent-soft);border-radius:6px
 .builtnote{max-width:1200px;margin:12px auto 0;padding:10px 16px;border-radius:12px;background:#fbe7d6;color:#6b3410;font-size:14px}
 .builtnote a{color:inherit;font-weight:700}
 @media (min-width:1232px){.builtnote{padding-inline:14px}}
+.tipb{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;min-width:20px;min-height:20px;max-height:20px;flex:0 0 20px;align-self:center;box-sizing:border-box;padding:0;margin:0 0 0 6px;border:1.5px solid currentColor;border-radius:50%;background:transparent;color:inherit;opacity:.6;font:700 12px/1 system-ui,sans-serif;cursor:pointer;vertical-align:middle}
+.tipb::before{content:"?"}
+.tipb:hover,.tipb:focus-visible,.tipb.on{opacity:1}
+#tipbox{position:fixed;z-index:9999;max-width:min(300px,calc(100vw - 24px));background:#0d2b2d;color:#f5f2ec;font:400 14px/1.45 system-ui,sans-serif;padding:10px 12px;border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.25)}
 </style>
 
 <nav class="steps" aria-label="Reel Studio steps">
@@ -169,7 +173,7 @@ code{font:500 13px var(--f-mono);background:var(--accent-soft);border-radius:6px
     </div>
     <div class="ctl">
       <button class="b quiet" id="back5" type="button" aria-label="Back 5 seconds">−5s</button>
-      <button class="b primary" id="rough" type="button">Play rough cut</button>
+      <button class="b primary" id="rough" type="button" title="Plays your clip and skips everything you have cut">Play rough cut</button>
       <button class="b quiet" id="fwd5" type="button" aria-label="Forward 5 seconds">+5s</button>
     </div>
     <div class="scrub"><input type="range" id="scrub" min="0" max="60" step="0.1" value="0" aria-label="Position in the rough cut"><span class="tc" id="pos">0:00.0</span></div>
@@ -177,7 +181,7 @@ code{font:500 13px var(--f-mono);background:var(--accent-soft);border-radius:6px
     <div class="savebar">
       <span class="pill" id="save" aria-live="polite">Not loaded</span>
       <button class="b quiet" id="retry" type="button" hidden>Retry save</button>
-      <button class="b quiet" id="undo" type="button" disabled>Undo</button>
+      <button class="b quiet" id="undo" type="button" disabled title="Takes back your last change on this page">Undo</button>
     </div>
   </aside>
   <main>
@@ -241,7 +245,7 @@ code{font:500 13px var(--f-mono);background:var(--accent-soft);border-radius:6px
     <section data-p="preview" hidden>
       <p class="lede">Build preview makes a draft from your choices. It takes about 3 minutes. Watch it, pause where something is off, and add a note.</p>
       <div class="state" id="bstate">No preview built yet.</div>
-      <div class="ctl"><button class="b primary" id="build" type="button">Build preview</button></div>
+      <div class="ctl"><button class="b primary" id="build" type="button" title="Saves your choices as a request. Then tell Claude: build preview.">Build preview</button></div>
       <h2>Notes on the draft</h2>
       <div class="ctl"><input type="text" id="revtext" placeholder="What to change at this moment"><button class="b" id="revadd" type="button">Add note at current time</button></div>
       <div id="revs"></div>
@@ -879,4 +883,87 @@ function renderAll() {
     pill(rv.exists ? "Saved decisions loaded" : "Ready");
   } catch (e) { pill("Couldn't load the reel (" + (e?.code || "error") + "). Reload to try again.", true); }
 })();
+// ---- Tips (Added by By Mel Ross, 0.15.0): a small ? beside the terms that need explaining. Tap it (or hover on a computer) for one
+// plain sentence. The list is matched by the label's own words, so a re-drawn section gets its ? back on its own.
+const TIPS = [
+ [
+  "h1",
+  "Review the cut",
+  "This page is the plan for your reel. Nothing is built until you press Build preview and tell Claude."
+ ],
+ [
+  "#amountlabel",
+  "How many graphics",
+  "How often something appears on screen besides you: a title, a list, a picture. A few is about 1 every 10 seconds. Lots is 1 every few seconds."
+ ],
+ [
+  "h2",
+  "Voice clean-up",
+  "The editor lowers background noise and sets your voice to the volume Instagram expects. Listen to both and check your voice still sounds like you."
+ ],
+ [
+  "h2",
+  "Color",
+  "A light correction to the picture: a little warmer and brighter. It is the same for the whole reel."
+ ],
+ [
+  "h2",
+  "Sound effects",
+  "Short sounds such as a pop or a whoosh that play when a graphic appears."
+ ],
+ [
+  "h2",
+  "Notes on the draft",
+  "After a preview is built, pause where something looks wrong and write what to change. Claude reads these notes and fixes them in the next build."
+ ],
+ [
+  "label",
+  "Look for this reel",
+  "One choice that changes the fonts, captions, titles and card shapes together. Your colors stay."
+ ],
+ [
+  "label",
+  "When should it appear",
+  "Pick the line you are saying when the graphic should come on screen."
+ ],
+ [
+  "label",
+  "What kind",
+  "The type of graphic: a title, a list, a picture, a number and so on. Pick the closest one and describe the rest."
+ ],
+ [
+  ".approx",
+  "Approx",
+  "A rough sketch of where the graphic sits. The finished graphic uses your fonts and colors and moves."
+ ]
+];
+function addTips() {
+  for (const [sel, starts, tip] of TIPS) for (const el of document.querySelectorAll(sel)) {
+    if (el.querySelector(":scope > .tipb")) continue;
+    const own = [...el.childNodes].filter((n) => n.nodeType === 3).map((n) => n.textContent).join(" ").trim();
+    if (!own.startsWith(starts)) continue;
+    const b = document.createElement("button"); b.type = "button"; b.className = "tipb"; b.dataset.tip = tip; b.setAttribute("aria-label", "What is this? " + tip);
+    el.appendChild(b);
+  }
+}
+function hideTip() { document.getElementById("tipbox")?.remove(); document.querySelectorAll(".tipb.on").forEach((b) => b.classList.remove("on")); }
+let tipAt = 0;
+function showTip(b) {
+  hideTip(); b.classList.add("on"); tipAt = Date.now();
+  const box = document.createElement("div"); box.id = "tipbox"; box.setAttribute("role", "tooltip"); box.textContent = b.dataset.tip; document.body.appendChild(box);
+  const r = b.getBoundingClientRect(), w = box.offsetWidth, h = box.offsetHeight;
+  box.style.left = Math.max(12, Math.min(r.left + r.width / 2 - w / 2, innerWidth - w - 12)) + "px";
+  box.style.top = (r.bottom + 8 + h > innerHeight ? Math.max(8, r.top - h - 8) : r.bottom + 8) + "px";
+}
+document.addEventListener("click", (e) => {
+  const b = e.target.closest?.(".tipb");
+  if (!b) return hideTip();
+  e.preventDefault(); e.stopPropagation();   // a ? inside a section title or a label must not open the section or tick the box
+  if (b.classList.contains("on") && !matchMedia("(hover: hover)").matches) hideTip(); else showTip(b);   // on a phone a second tap closes it
+}, true);
+document.addEventListener("mouseover", (e) => { const b = e.target.closest?.(".tipb"); if (b && matchMedia("(hover: hover)").matches) showTip(b); });
+document.addEventListener("mouseout", (e) => { if (e.target.closest?.(".tipb") && matchMedia("(hover: hover)").matches) hideTip(); });
+document.addEventListener("keydown", (e) => { if (e.key === "Escape") hideTip(); });
+addEventListener("scroll", () => { if (Date.now() - tipAt > 400) hideTip(); }, true);   // a tap can nudge the page; that must not close the tip it just opened
+new MutationObserver(addTips).observe(document.body, { childList: true, subtree: true }); addTips();
 </script>

@@ -88,6 +88,11 @@ summary::-webkit-details-marker { display: none; } summary small { font-weight: 
 body.unbuilt > :not(nav):not(header):not(#unbuilt), body.unbuilt header button { display: none !important; }
 .banner a { color: inherit; }
 .lede { margin: 8px 0 0; font-size: 14px; color: #5b6b69; }
+.tipb{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;min-width:20px;min-height:20px;max-height:20px;flex:0 0 20px;align-self:center;box-sizing:border-box;padding:0;margin:0 0 0 6px;border:1.5px solid currentColor;border-radius:50%;background:transparent;color:inherit;opacity:.6;font:700 12px/1 system-ui,sans-serif;cursor:pointer;vertical-align:middle}
+summary .tipb{margin-right:auto}
+.tipb::before{content:"?"}
+.tipb:hover,.tipb:focus-visible,.tipb.on{opacity:1}
+#tipbox{position:fixed;z-index:9999;max-width:min(300px,calc(100vw - 24px));background:#0d2b2d;color:#f5f2ec;font:400 14px/1.45 system-ui,sans-serif;padding:10px 12px;border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.25)}
 </style></head>
 <body>
 <nav class="steps" aria-label="Reel Studio steps">
@@ -98,8 +103,8 @@ body.unbuilt > :not(nav):not(header):not(#unbuilt), body.unbuilt header button {
 </nav>
 <header>
   <div class="t"><h1>Touch-ups</h1><small id="sub"></small></div>
-  <button id="undo" class="sm" disabled>Undo</button>
-  <button id="render" class="pri">Re-render</button>
+  <button id="undo" class="sm" disabled title="Takes back your last change on this page">Undo</button>
+  <button id="render" class="pri" title="Builds the video again with your changes. It takes a few minutes and keeps the earlier version.">Re-render</button>
 </header>
 <p class="lede">For a reel that is already built. Fix a word, drop a piece, add text, pictures or sounds, then tap <b>Re-render</b>. To redo the cut from the start, go back to <b>1 Review</b>.</p>
 <div id="unbuilt" class="banner info" hidden>This reel is not built yet. Finish <a href="/review"><b>1 Review</b></a>, then tell Claude <b>build preview</b>. This page fills in when the video is ready.</div>
@@ -107,7 +112,7 @@ body.unbuilt > :not(nav):not(header):not(#unbuilt), body.unbuilt header button {
 <div id="notes"></div>
 
 <div class="vwrap"><video id="v" playsinline controls preload="metadata"></video><div id="ov"></div></div>
-<div class="vbar"><span id="clock">0:00.0</span><span class="grow"></span><button id="nowBtn" class="sm" title="Use this time">Mark time</button><select id="ver" style="width:auto"></select></div>
+<div class="vbar"><span id="clock">0:00.0</span><span class="grow"></span><button id="nowBtn" class="sm" title="Copies the moment the video is paused at into the start time of the item you have open">Mark time</button><select id="ver" style="width:auto"></select></div>
 <div id="tl"><div id="tli"></div></div>
 <div class="tlkey"><span><i style="background:#f3e9b8;border:1px solid #dccf8f"></i>captions</span><span><i style="background:#0d2b2d"></i>text and cards</span><span><i style="background:#e7a23b"></i>pictures, GIFs, clips</span><span><i style="background:#7a4fa3;border-radius:50%"></i>sounds</span><span><i style="background:none;border-left:2px dashed #c0392b;width:0"></i>a cut</span></div>
 <div id="stale"></div>
@@ -117,12 +122,16 @@ body.unbuilt > :not(nav):not(header):not(#unbuilt), body.unbuilt header button {
 <details open id="s-cut"><summary>Cuts <small id="cutn"></small></summary><div class="sec"><p class="help">Switch a piece off to drop it from the video. Captions, text and sounds after it move up to match. Turn it back on to bring it back.</p><div id="pieces"></div></div></details>
 <details open id="s-txt"><summary>Text on screen <small id="txtn"></small></summary><div class="sec"><div id="cards"></div><button id="addPill" class="sage" style="width:100%;margin-top:8px">+ Add text at this point in the video</button></div></details>
 <details open id="s-pop"><summary>Popups: GIFs, graphics, photos <small id="popn"></small></summary><div class="sec"><div id="popups"></div>
-  <p class="help" style="margin-top:10px">Pictures stay on this Mac (copied into the reel folder). GIFs animate in the video.</p>
+  <p class="help" style="margin-top:10px"><b>Add something that pops up on screen.</b> First pause the video at the moment you want it. Then pick one of the ways below. It shows for 3 seconds in the top right corner, and you can change where and how long after you add it.</p>
+  <label class="f">From this computer</label>
   <label class="sage" style="display:block"><input id="file" type="file" accept="image/gif,image/png,image/jpeg,image/webp,image/heic,image/heif,image/svg+xml,video/mp4,video/quicktime,.heic,.heif,.gif,.png,.jpg,.jpeg,.webp,.svg,.mp4,.mov,.m4v" style="display:none" />
-  <span style="display:flex;align-items:center;justify-content:center;min-height:44px;border-radius:12px;border:1.5px solid var(--sage-d);background:var(--sage);font-weight:600">+ Add a picture, GIF or video clip</span></label>
+  <span style="display:flex;align-items:center;justify-content:center;min-height:44px;border-radius:12px;border:1.5px solid var(--sage-d);background:var(--sage);font-weight:600">+ Upload a picture, GIF, SVG or video clip</span></label>
   <div id="reuse"></div>
-  <button id="addOrbit" data-a="orbit-open" style="width:100%;margin-top:10px">+ Make pictures circle my head</button><div id="orbitPick"></div>
-  <hr style="border:0;border-top:1px solid var(--line);margin:14px 0"><div id="giphy"></div></div></details>
+  <div id="giphy"></div>
+  <hr style="border:0;border-top:1px solid var(--line);margin:14px 0">
+  <label class="f">Special effect</label>
+  <button id="addOrbit" data-a="orbit-open" style="width:100%">+ Make pictures circle my head</button>
+  <p class="help" style="margin-top:8px">1 to 6 of your pictures fly in a ring around your head for a few seconds.</p><div id="orbitPick"></div></div></details>
 <details id="s-sfx"><summary>Sound effects <small id="sfxn"></small></summary><div class="sec"><div id="sfx"></div><button id="addSfx" class="sage" style="width:100%;margin-top:8px">+ Add a sound at this point in the video</button></div></details>
 <details id="s-set"><summary>Settings</summary><div class="sec" id="settings"></div></details>
 <details id="s-ver"><summary>Versions <small id="vern"></small></summary><div class="sec" id="versions"></div></details>
@@ -317,7 +326,7 @@ function renderPopups() {
   $("#popups").innerHTML = list.length ? list.map(([c, i]) => (c.type === "orbit" ? orbitHtml(c, i) : popupHtml(c, i))).join("") : `<p class="help">No popups yet.</p>`;
   renderOrbitPick(); renderGiphy();
   const spare = S.popups.filter((p) => !S.edit.cards.some((c) => c.src === p.src));
-  $("#reuse").innerHTML = S.popups.length ? `<label class="f">Or use a picture or clip you uploaded before</label><select id="reusePick"><option value="">Choose…</option>${S.popups.map((p) => `<option value="${esc(p.src)}">${esc(p.src.replace("popups/", ""))}${p.video ? " (video clip)" : p.animated ? " (GIF)" : ""}</option>`).join("")}</select>` : "";
+  $("#reuse").innerHTML = S.popups.length ? `<label class="f">One you already added to this reel</label><select id="reusePick"><option value="">Pick a file to use it again…</option>${S.popups.map((p) => `<option value="${esc(p.src)}">${esc(p.src.replace("popups/", ""))}${p.video ? " (video clip)" : p.animated ? " (GIF)" : ""}</option>`).join("")}</select>` : "";
 }
 function popupHtml(c, i) {
   const open = openCard.has(cid(i)), m = S.media[c.src] || { w: 1, h: 1 };
@@ -388,16 +397,16 @@ function renderGiphy() {
   const box = $("#giphy"); if (!box) return;
   if (!S.giphy) {   // 0.15.0: the page takes the key and saves it on this computer
     if (box.querySelector("#gkey")) return;   // keep what they are typing
-    box.innerHTML = `<p class="help"><b>Search GIPHY:</b> not set up yet. It needs a free key, once. <a href="https://developers.giphy.com/dashboard/" target="_blank" rel="noopener">Get one at developers.giphy.com</a>. Choose API (not SDK), copy the key, and paste it here.</p>
+    box.innerHTML = `<label class="f">From GIPHY, a free library of GIFs</label><p class="help">GIPHY is not set up yet. It needs a free key, once. <a href="https://developers.giphy.com/dashboard/" target="_blank" rel="noopener">Get one at developers.giphy.com</a>. Choose API (not SDK), copy the key, and paste it here.</p>
       <div class="row"><input type="password" id="gkey" placeholder="Paste your GIPHY key" autocomplete="off" aria-label="Your GIPHY key" class="grow" /><button class="sm" data-a="giphy-key">Save key</button></div><p class="small" id="gkeymsg"></p>`;
     return;
   }
-  box.innerHTML = `<label class="f">Search GIPHY</label><div class="row"><input type="text" id="gq" value="${esc(giphy.q)}" placeholder="happy dance" autocapitalize="off" class="grow" /><button class="sm" data-a="giphy-go">Search</button></div>
-    <div class="seg" style="margin-top:8px"><button class="${giphy.kind === "gifs" ? "on" : ""}" data-a="giphy-kind" data-v="gifs">GIFs</button><button class="${giphy.kind === "stickers" ? "on" : ""}" data-a="giphy-kind" data-v="stickers">Stickers (see-through)</button></div>
+  box.innerHTML = `<label class="f">From GIPHY, a free library of GIFs</label><div class="row"><input type="text" id="gq" value="${esc(giphy.q)}" placeholder="Type what you want, e.g. thumbs up" autocapitalize="off" class="grow" /><button class="sm" data-a="giphy-go">Search</button></div>
+    <div class="seg" style="margin-top:8px"><button class="${giphy.kind === "gifs" ? "on" : ""}" data-a="giphy-kind" data-v="gifs">GIFs</button><button class="${giphy.kind === "stickers" ? "on" : ""}" data-a="giphy-kind" data-v="stickers">Stickers (no background)</button></div>
     ${giphy.note ? `<p class="small">${esc(giphy.note)}</p>` : ""}
     ${giphy.items.length ? `<div class="grid3" style="margin-top:8px">${giphy.items.map((g) => `<button data-a="giphy-add" data-v="${esc(g.id)}" style="padding:4px" title="${esc(g.title)}"><img src="${esc(g.preview)}" alt="${esc(g.title)}" style="width:100%;border-radius:8px;display:block" /></button>`).join("")}</div>
     <p class="small" style="text-align:right;font-weight:700;letter-spacing:.04em">POWERED BY GIPHY</p>` : ""}
-    <p class="small">Your search words go to GIPHY. Many GIFs are clips from films and TV: check you may use one before it goes in a reel for your business.</p>`;
+    <p class="small">GIFs are moving pictures with a background. Stickers have no background, so they sit over your video. Your search words are sent to GIPHY. Many GIFs are clips from films and TV, so check you are allowed to use one before it goes in a reel for your business.</p>`;
 }
 async function saveGiphyKey() {
   const msg = $("#gkeymsg"), key = ($("#gkey")?.value || "").trim(); if (msg) msg.textContent = "Checking the key…";
@@ -558,5 +567,163 @@ function startPoll() { clearInterval(pollT); pollT = setInterval(async () => {
   } catch {} }, 2000); }
 await load();
 if (running()) startPoll();
+// ---- Tips (Added by By Mel Ross, 0.15.0): a small ? beside the terms that need explaining. Tap it (or hover on a computer) for one
+// plain sentence. The list is matched by the label's own words, so a re-drawn section gets its ? back on its own.
+const TIPS = [
+ [
+  "summary",
+  "Captions",
+  "The words shown on screen while you speak. Fix a misspelled word or switch a line off here. Your voice doesn't change."
+ ],
+ [
+  "summary",
+  "Cuts",
+  "The pieces of your clip that are in the reel. Switch a piece off to remove it: the reel gets shorter and everything after it moves earlier."
+ ],
+ [
+  "summary",
+  "Text on screen",
+  "Titles, labels and notes that sit over the video for a few seconds, at a moment you choose."
+ ],
+ [
+  "summary",
+  "Popups",
+  "A picture, GIF, SVG or video clip that appears for a few seconds, then leaves. It sits in a corner unless you move it."
+ ],
+ [
+  "summary",
+  "Sound effects",
+  "Short sounds such as a pop or a whoosh, placed at an exact moment. Your voice stays as it is."
+ ],
+ [
+  "summary",
+  "Settings",
+  "Choices for the whole reel: the look, and where new text starts."
+ ],
+ [
+  "summary",
+  "Versions",
+  "Every re-render is kept. Watch an older one to compare it with the newest."
+ ],
+ [
+  "#receipt > b",
+  "What was done",
+  "A plain list of what the editor changed in your clip: cuts, speed, captions, graphics and sounds."
+ ],
+ [
+  "label.f",
+  "Layer",
+  "In front puts it over you. Behind puts it between you and your background, which needs the outline of you that only a Mac makes."
+ ],
+ [
+  "label.f",
+  "Look (theme)",
+  "One choice that changes the fonts, captions, titles and card shapes together. Your colors stay."
+ ],
+ [
+  "label.f",
+  "Tilt",
+  "Turns it a few degrees so it looks hand-placed. 0 is straight."
+ ],
+ [
+  "label.f",
+  "Size",
+  "How wide it is. The reel is 1080 wide, so 360 is a third of the screen."
+ ],
+ [
+  "label.f",
+  "Where the ring",
+  "The pictures circle your head. Pick whether the ring sits around the top of your head or below your chin."
+ ],
+ [
+  "label.f",
+  "Where text goes",
+  "The layer new text starts on, in every reel. You can still change any single piece of text."
+ ],
+ [
+  "label.f",
+  "Where",
+  "Which part of the screen it sits in. Tap the video to put it on an exact spot."
+ ],
+ [
+  "label.f",
+  "Starts at",
+  "When it appears, in seconds from the start of the reel. Play to the moment and press Mark time to fill it in."
+ ],
+ [
+  "label.f",
+  "Ends at",
+  "When it leaves, in seconds from the start of the reel."
+ ],
+ [
+  "label.f",
+  "Time (s)",
+  "The moment the sound plays, in seconds from the start of the reel."
+ ],
+ [
+  "label.f",
+  "Volume",
+  "0 is the loudest. -20 is quiet. Lower it if a sound covers your voice."
+ ],
+ [
+  "label.f",
+  "Height on screen",
+  "How far down the screen the text sits, from above your head to just above the captions."
+ ],
+ [
+  "label.f",
+  "One lap every",
+  "How long the pictures take to go around your head once. A bigger number is slower."
+ ],
+ [
+  "label.f",
+  "Start the clip at",
+  "Skip the first seconds of your video clip. 3 means the clip starts playing from its 3 second mark."
+ ],
+ [
+  "label.f",
+  "Fix this word",
+  "Changes the spelling in the caption only. What you said stays the same."
+ ],
+ [
+  "label.f",
+  "Pick 1 to 6 pictures",
+  "These pictures circle your head, passing behind it and in front of it."
+ ],
+ [
+  "label.f",
+  "From GIPHY",
+  "Type a word or two, press Search, then tap a result to add it at the moment the video is paused on."
+ ]
+];
+function addTips() {
+  for (const [sel, starts, tip] of TIPS) for (const el of document.querySelectorAll(sel)) {
+    if (el.querySelector(":scope > .tipb")) continue;
+    const own = [...el.childNodes].filter((n) => n.nodeType === 3).map((n) => n.textContent).join(" ").trim();
+    if (!own.startsWith(starts)) continue;
+    const b = document.createElement("button"); b.type = "button"; b.className = "tipb"; b.dataset.tip = tip; b.setAttribute("aria-label", "What is this? " + tip);
+    el.insertBefore(b, el.matches("summary") ? el.querySelector("small") : null);   // in a section title the ? sits beside the name, the count stays on the right
+  }
+}
+function hideTip() { document.getElementById("tipbox")?.remove(); document.querySelectorAll(".tipb.on").forEach((b) => b.classList.remove("on")); }
+let tipAt = 0;
+function showTip(b) {
+  hideTip(); b.classList.add("on"); tipAt = Date.now();
+  const box = document.createElement("div"); box.id = "tipbox"; box.setAttribute("role", "tooltip"); box.textContent = b.dataset.tip; document.body.appendChild(box);
+  const r = b.getBoundingClientRect(), w = box.offsetWidth, h = box.offsetHeight;
+  box.style.left = Math.max(12, Math.min(r.left + r.width / 2 - w / 2, innerWidth - w - 12)) + "px";
+  box.style.top = (r.bottom + 8 + h > innerHeight ? Math.max(8, r.top - h - 8) : r.bottom + 8) + "px";
+}
+document.addEventListener("click", (e) => {
+  const b = e.target.closest?.(".tipb");
+  if (!b) return hideTip();
+  e.preventDefault(); e.stopPropagation();   // a ? inside a section title or a label must not open the section or tick the box
+  if (b.classList.contains("on") && !matchMedia("(hover: hover)").matches) hideTip(); else showTip(b);   // on a phone a second tap closes it
+}, true);
+document.addEventListener("mouseover", (e) => { const b = e.target.closest?.(".tipb"); if (b && matchMedia("(hover: hover)").matches) showTip(b); });
+document.addEventListener("mouseout", (e) => { if (e.target.closest?.(".tipb") && matchMedia("(hover: hover)").matches) hideTip(); });
+document.addEventListener("keydown", (e) => { if (e.key === "Escape") hideTip(); });
+addEventListener("scroll", () => { if (Date.now() - tipAt > 400) hideTip(); }, true);   // a tap can nudge the page; that must not close the tip it just opened
+new MutationObserver(addTips).observe(document.body, { childList: true, subtree: true }); addTips();
 </script>
 </body></html>

@@ -64,3 +64,16 @@ test("both pages ask for the GIPHY key themselves and accept SVG files", () => {
     assert.doesNotMatch(h, /tell Claude "add my GIPHY key"|set up GIPHY for the reel editor/, n + ": no trip back to chat");
   }
 });
+
+test("the pages explain themselves: tips beside the terms, the cover step last, and a Popups box that says what to do first", () => {
+  const rv = fs.readFileSync(path.join(review, "reel-review.html"), "utf8"), ed = fs.readFileSync(path.join(review, "editor.html"), "utf8"), th = fs.readFileSync(path.join(review, "thumbnail.html"), "utf8");
+  for (const [n, h] of [["review", rv], ["touch-ups", ed]]) {
+    const tips = JSON.parse(/const TIPS = (\[[\s\S]*?\n\]);/.exec(h)[1]);
+    assert.ok(tips.length >= 10, `${n}: ${tips.length} tips`);
+    for (const [sel, starts, tip] of tips) { assert.ok(sel && starts, n); assert.ok(tip.length > 20 && tip.length < 240 && !/[\u2014]/.test(tip), `${n}: "${starts}" tip is one or two plain sentences`); }
+    assert.match(h, /e\.preventDefault\(\); e\.stopPropagation\(\);/, n + ": a ? inside a section title does not open the section");
+  }
+  for (const [n, h] of [["review", rv], ["touch-ups", ed], ["cover", th]]) assert.match(h, /1 Review<\/a>\s*<a[^>]*data-step="touchups"[^>]*>2 Touch-ups<\/a>\s*<a[^>]*data-step="cover"[^>]*>3 Cover<\/a>/, n + ": the cover is the last step");
+  assert.match(ed, /First pause the video at the moment you want it/); assert.match(ed, /From this computer/); assert.match(ed, /Pick a file to use it again/); assert.match(ed, /Special effect/);
+  assert.match(fs.readFileSync(path.join(skill, "SKILL.md"), "utf8"), /Before step 1: they choose the kind of reel/);
+});
