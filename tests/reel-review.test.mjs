@@ -2,6 +2,7 @@
 // edit.json + edl.json, and rebuild from the review page without losing what was done on the touch-ups page.
 import assert from "node:assert/strict";
 import fs from "node:fs";
+import { spawn } from "node:child_process";
 import path from "node:path";
 import test from "node:test";
 import { createRequire } from "node:module";
@@ -152,4 +153,37 @@ test("graphics asked for on the review page reach the import as plain instructio
   assert.equal(core.hash({}), core.hash({ wanted: [], amount: null }), "older fingerprints still match");
   assert.notEqual(core.hash({}), core.hash({ amount: "lots" })); assert.notEqual(core.hash({}), core.hash({ wanted: [{ id: "w1" }] }));
   assert.equal(JSON.parse(fs.readFileSync(path.join(c.out, "reel.json"), "utf8")).graphicsAmount, "some", "the dial starts at the brand's setting");
+});
+
+// 0.18.0: the Build preview button starts the build from the page. The cut, the render and the checks are stand-ins here
+// (a real render needs Chrome and minutes); the import is the real one.
+test("review page: Build preview imports the choices, runs the build steps, and writes the preview the page shows", { skip: skipReason }, async () => {
+  const c = makeReel();
+  fs.cpSync(path.join(c.out, "reel.json"), path.join(c.reel, "review_db", "reel", "current.json"), { recursive: true });
+  write({ board: { g1: { state: "c", note: "make it pink" } }, wanted: [{ id: "w1", kind: "list", line: "alpha", note: "my 3 tools" }], notes: { cuts: "tighter please" } }, c.decisions);
+  const stub = path.join(tmp("stubscripts"), "scripts"); fs.cpSync(path.join(skill, "scripts"), stub, { recursive: true }); fs.cpSync(path.join(skill, "review"), path.join(stub, "..", "review"), { recursive: true });   // the import reads ../review/core.js
+  fs.writeFileSync(path.join(stub, "cut.py"), 'import shutil, sys\nfrom pathlib import Path\nr = Path(sys.argv[1]); shutil.copy(r / "raw.mp4", r / "master.mp4"); print("cut ok")\n');
+  fs.writeFileSync(path.join(stub, "render.sh"), '#!/bin/bash\ncp "$1/master.mp4" "$1/final.mp4"\necho "note: stand-in render"\n');
+  fs.writeFileSync(path.join(stub, "qa.py"), 'print("PASS (stand-in)")\n');
+  const port = 7300 + Math.floor(Math.random() * 500), base = `http://127.0.0.1:${port}`;
+  const p = spawn("node", [path.join(skill, "review", "studio-server.mjs"), c.reel, "--port", String(port)], { env: { ...process.env, REELS_HOME: c.home, REEL_EDITOR_SCRIPTS: stub, GIPHY_API_KEY: "" }, stdio: ["ignore", "pipe", "pipe"] });
+  let out = ""; p.stdout.on("data", (d) => (out += d)); p.stderr.on("data", (d) => (out += d));
+  for (let i = 0; i < 100 && !/Reel Studio for/.test(out); i++) await new Promise((r) => setTimeout(r, 100));
+  try {
+    assert.match(out, /Reel Studio for/, out);
+    fs.rmSync(path.join(c.reel, "edit.json"), { force: true }); fs.rmSync(path.join(c.reel, "edl.json"), { force: true });   // never built
+    assert.equal((await (await fetch(base + "/api/review-build")).json()).build.state, "idle");
+    assert.equal((await fetch(base + "/api/review-build", { method: "POST", headers: { origin: "https://example.test", "sec-fetch-site": "cross-site" } })).status, 403, "another site can't start a build");
+    const go = await (await fetch(base + "/api/review-build", { method: "POST" })).json(); assert.equal(go.ok, true, JSON.stringify(go));
+    assert.equal((await fetch(base + "/api/review-build", { method: "POST" })).status, 400, "one build at a time");
+    let j; for (let k = 0; k < 240; k++) { await new Promise((r) => setTimeout(r, 250)); j = await (await fetch(base + "/api/review-build")).json(); if (["done", "failed"].includes(j.build.state)) break; }
+    assert.equal(j.build.state, "done", JSON.stringify(j) + out);
+    assert.ok(j.build.told.some((l) => /^CHANGE REQUESTED: g1/.test(l)) && j.build.told.some((l) => /^GRAPHIC WANTED/.test(l)) && j.build.told.some((l) => /^NOTE/.test(l)), "what only Claude can do is handed back to the page: " + j.build.told.join(" | "));
+    const latest = read(c.reel, "review_db", "builds", "latest.json"), edit = read(c.reel, "edit.json");
+    assert.equal(latest.hash, edit.hash, "the page can tell the preview matches the choices"); assert.match(latest.url, /^\/files\/renders\/v001-phone\.mp4$/);
+    assert.equal((await fetch(base + latest.url)).status, 200);
+    assert.ok(fs.existsSync(path.join(c.reel, "final.mp4")) && fs.existsSync(path.join(c.reel, "edl.json")));
+  } finally { p.kill(); }
+  const rv = fs.readFileSync(path.join(skill, "review", "reel-review.html"), "utf8");
+  for (const t of ["Build now without those", "I'll tell Claude", "/api/review-build", "function needsClaude", "Step 2 of 4"]) assert.ok(rv.includes(t), t);
 });

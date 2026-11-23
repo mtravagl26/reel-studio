@@ -27,7 +27,7 @@ const LINKS = { review: flag("--review-url") || "/review", touchups: "/touchups"
 const KEY = LAN ? crypto.randomBytes(9).toString("base64url") : null;
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const SKILL = path.resolve(HERE, "..");
-const SCRIPTS = path.join(SKILL, "scripts");
+const SCRIPTS = process.env.REEL_EDITOR_SCRIPTS || path.join(SKILL, "scripts");   // REEL_EDITOR_SCRIPTS: for tests (stand-ins for the cut and the render)
 const HOME = path.resolve(process.env.REELS_HOME || path.dirname(REEL));
 if (!fs.existsSync(REEL)) { console.error(`no reel folder: ${REEL}`); process.exit(1); }
 if (!fs.existsSync(path.join(HOME, "brand.json"))) { console.error(`no brand.json in ${HOME}: set REELS_HOME to the reels workspace`); process.exit(1); }
@@ -476,6 +476,8 @@ async function runRender() {
     writeJSON(path.join(P.renders, `v${v}.json`), rec);
     fs.writeFileSync(path.join(P.renders, `v${v}-edit.json`), editBefore); fs.copyFileSync(P.edl, path.join(P.renders, `v${v}-edl.json`));
     writeJSON(P.meta, { cut_key: cutKeyNow(st), edit_hash: editHash(), version, at: rec.at });
+    writeLatestBuild(rec);
+    if (reviewBuild.state === "rendering") reviewBuild = { ...reviewBuild, state: "done" };
     setJob({ state: "done", step: "done", finishedAt: new Date().toISOString(), result: rec, steps });
   } catch (e) {
     setJob({ state: "failed", error: String(e.message || e), finishedAt: new Date().toISOString() });
@@ -485,7 +487,42 @@ function startRender() {
   if (job.state === "running" || job.state === "queued") throw new Error("A render is already running.");
   lastSnap = null;
   setJob({ state: "queued", step: "queued", steps: [], error: null });
-  runRender();
+  runRender().catch((e) => setJob({ state: "failed", error: String(e.message || e), finishedAt: new Date().toISOString() }));   // 0.18.0: a surprise here must not stop the server
+}
+
+// ---- build from the review page (Added by By Mel Ross, 0.18.0) -----------------------------------------------------------------------
+// "Build preview" used to save a request and send the person back to chat. Now the page starts the build: the decisions are
+// imported (review_sync.py import), then the usual cut, render and checks run, the same steps as Re-render on the touch-ups
+// page. Requests only Claude can act on (a graphic to change or add, typed notes) are listed on the page before it starts.
+let reviewBuild = { state: "idle", told: [], error: null };
+function startReviewBuild() {
+  if (!hasReview()) throw new Error("No reel is loaded on the review page yet.");
+  if (job.state === "running" || job.state === "queued" || reviewBuild.state === "importing") throw new Error("A build is already running.");
+  if (liveChild) { try { liveChild.kill("SIGTERM"); } catch { /* gone */ } }
+  const decisions = path.join(REVIEW_DB, "review", "current.json");
+  let file = decisions;
+  if (!exists(decisions)) { file = path.join(REEL, "editor", "no-decisions.json"); writeJSON(file, {}); }   // nothing tapped: the plan as proposed
+  reviewBuild = { state: "importing", told: [], error: null, at: new Date().toISOString() };
+  const out = [];
+  const c = spawn("python3", [path.join(SCRIPTS, "review_sync.py"), "import", REEL, file], { cwd: REEL, env: childEnv() });
+  c.stdout.on("data", (d) => out.push(d.toString())); c.stderr.on("data", (d) => out.push(d.toString()));
+  const fin = (code) => {
+    if (reviewBuild.state !== "importing") return;
+    const text = out.join("");
+    if (code !== 0) { reviewBuild = { ...reviewBuild, state: "failed", error: "Your choices could not be read: " + (tailReason(text) || "unknown reason") }; return; }
+    const told = text.split(/\r?\n/).filter((l) => /^(TOUCH-UP NOT KEPT|CHANGE REQUESTED|GRAPHIC WANTED|GRAPHICS AMOUNT|NOTE|REVISION|PLACE IT|BRAND CHANGE REQUESTED)/.test(l)).map((l) => l.slice(0, 300));
+    reviewBuild = { ...reviewBuild, state: "rendering", told };
+    try { initBuilt(); startRender(); } catch (e) { reviewBuild = { ...reviewBuild, state: "failed", error: String(e.message || e) }; }
+  };
+  c.on("error", () => fin(1)); c.on("close", fin);
+}
+// The review page reads builds/latest to show the preview and to tell whether it is out of date. Written after every render.
+function writeLatestBuild(rec) {
+  try {
+    if (!hasReview()) return;
+    const h = readJSON(P.edit, {}).hash; if (!h) return;
+    writeJSON(path.join(REVIEW_DB, "builds", "latest.json"), { url: `/files/${rec.phone}`, hash: h, at: rec.at, cutDur: rec.len ?? null, by: "page" });
+  } catch { /* the preview state just stays as it was */ }
 }
 
 // ---- live preview (Added by By Mel Ross, 0.17.0) -----------------------------------------------------------------------------------------
@@ -637,6 +674,14 @@ const server = http.createServer(async (req, res) => {
     if (p === "/api/state" && req.method === "GET" && built()) { try { prepareBaseline(); } catch { /* the player just stays as it is */ } }
     if (p === "/api/state" && req.method === "GET") return json(res, 200, built() ? view() : { built: false, reel: path.basename(REEL), review: hasReview(), links: LINKS });
     if (req.method === "GET" && p === "/api/review-giphy-key") return json(res, 200, { key: giphyKey() || null });   // 0.10.2: GIPHY on the review page, before the build
+    if (p === "/api/review-build" && req.method === "GET") {   // 0.18.0: works before the first build too
+      if (reviewBuild.state === "rendering" && job.state === "failed") reviewBuild = { ...reviewBuild, state: "failed", error: job.error || "the render failed" };
+      return json(res, 200, { ok: true, build: reviewBuild, job: { state: job.state, step: job.step, steps: job.steps || [], startedAt: job.startedAt || null } });
+    }
+    if (p === "/api/review-build" && req.method === "POST") {
+      try { startReviewBuild(); return json(res, 200, { ok: true, build: reviewBuild }); }
+      catch (e) { return json(res, 400, { ok: false, error: String(e.message || e) }); }
+    }
     if (req.method === "POST" && p === "/api/giphy-key-save") {   // 0.15.0: both pages can save the key (works before the build)
       try { const r = await giphySaveKey(JSON.parse((await readBody(req, 1e4)).toString() || "{}")); return json(res, 200, { ok: true, ...r, ...(built() ? { state: view() } : {}) }); }
       catch (e) { return json(res, 400, { ok: false, error: String(e.message || e) }); }
