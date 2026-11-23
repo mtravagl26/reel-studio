@@ -203,7 +203,7 @@ test("a popup can be a video clip: a silent 30 fps window that starts where aske
   fs.writeFileSync(path.join(c.reel, "edit.json"), JSON.stringify(edit));
   const r = build(c); assert.equal(r.status, 0, r.stdout + r.stderr);
   const h = html(c);
-  assert.match(h, /class="pop vclip" style="left:60px;top:150px;width:440px;height:953px"><video id="k0v" src="img\/0_screen\.mp4" muted playsinline data-start="0\.5" data-duration="3\.0"/, "top left, 440 wide by default");
+  assert.match(h, /class="pop vclip" style="left:320px;top:483px;width:440px;height:953px"><video id="k0v" src="img\/0_screen\.mp4" muted playsinline data-start="0\.5" data-duration="3\.0"/, "0.16.0: in the middle, 440 wide by default");
   assert.match(h, /class="pop vclip" style="left:720px;top:150px;width:300px/);
   assert.doesNotMatch(h, /class="pop clip"/, "the name clip belongs to HyperFrames' own timed elements, which are never hidden at the start");
   for (const f of ["0_screen.mp4", "1_screen.mp4"]) {

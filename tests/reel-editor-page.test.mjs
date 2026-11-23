@@ -111,7 +111,7 @@ test("edits are validated: caption words, card fields, times", () => {
   assert.throws(() => core.applyOp(edit, { op: "card_add", card: { type: "block", start: 1 } }, o), /pills/);
   // 0.13.0: a popup can be a video clip. It opens top left and wider; "from" and "loop" are its own settings; the head ring refuses it.
   const clip = core.applyOp(edit, { op: "card_add", card: { type: "popup", start: 1, src: "popups/abc-screen.clip.mp4" } }, o);
-  const ci = clip.info.index, cc = clip.edit.cards[ci]; assert.equal(cc.pos, "top-left"); assert.equal(cc.size, 440);
+  const ci = clip.info.index, cc = clip.edit.cards[ci]; assert.ok(["center", "side-right"].includes(cc.pos), "0.16.0: clips land in the middle, or beside a picture already there"); assert.equal(cc.size, 440);
   const set = core.applyOp(clip.edit, { op: "card_set", i: ci, set: { from: "2.5", loop: true } }, o).edit.cards[ci];
   assert.equal(set.from, 2.5); assert.equal(set.loop, true);
   assert.throws(() => core.applyOp(clip.edit, { op: "card_set", i: ci, set: { from: -1 } }, o), /where the clip starts/);

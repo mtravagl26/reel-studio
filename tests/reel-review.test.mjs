@@ -140,6 +140,13 @@ test("graphics asked for on the review page reach the import as plain instructio
   assert.match(out, /GRAPHICS AMOUNT: busy \(about 1 every 2-4 s\) for this reel/);
   assert.match(out, /GRAPHIC WANTED: motion carousel-\* at the line "word0 word1": my 3 screenshots\. Add it to edit\.json/);
   assert.match(out, /GRAPHIC WANTED: your choice of card at the line "word5"\. Add it/);
+  // 0.16.0: where they put it travels with the request; once Claude has added it to the plan it is marked done and not asked again
+  const placed = c.imp({ wanted: [{ id: "w1", kind: "photo", line: "word0", where: "center", layer: "behind" }, { id: "w2", kind: "choose", line: "word5" }], board: { g1: { where: "lower", layer: "behind" } } });
+  assert.match(placed, /GRAPHIC WANTED: image, shot or popup at the line "word0" Put it in the middle of the screen[^.]*\. Layer: behind the speaker\./);
+  assert.match(placed, /wanted-done <reel> w1/); assert.match(placed, /PLACE IT \(set this card's position in edit\.json before the render\): g1 \(tag\) @ cut [\d.]+s: lower, just above the captions/);
+  assert.equal(JSON.parse(fs.readFileSync(path.join(c.reel, "edit.json"), "utf8")).cards.find((x) => x.id === "g1").layer, "behind");
+  const done = py("review_sync.py", ["wanted-done", c.reel, "w1"], c.env); assert.equal(done.status, 0, done.stderr); assert.match(done.stdout, /1 asked-for graphic/);
+  const after = c.imp(); assert.doesNotMatch(after, /at the line "word0"/); assert.match(after, /at the line "word5"/);
   assert.doesNotMatch(c.imp({}), /GRAPHIC|GRAPHICS AMOUNT/, "nothing asked, nothing printed");
   const core = createRequire(import.meta.url)(path.join(skill, "review", "core.js"));
   assert.equal(core.hash({}), core.hash({ wanted: [], amount: null }), "older fingerprints still match");

@@ -389,10 +389,9 @@ def phrase_end(t):
 POPUP_POS = {"top-left": ("top", "left"), "top-center": ("top", "center"), "top-right": ("top", "right"), "middle-left": ("middle", "left"),
              "middle-right": ("middle", "right"), "center": ("center", "center")}
 # Added by By Mel Ross (0.16.0): a picture popup with no place set goes in the middle of the screen. Two of them on screen at the
-# same time sit side by side ("side-left" / "side-right", each at most 500 px wide). Video clips keep their own default (top left).
+# same time sit side by side ("side-left" / "side-right", each at most 500 px wide). Video clips follow the same rule.
 def _plain_pic(c):
-    return (isinstance(c, dict) and c.get("type") == "popup" and not c.get("off") and not c.get("pos") and not ("x" in c and "y" in c)
-            and Path(str(c.get("src", ""))).suffix.lower() not in VIDEO_EXT)
+    return isinstance(c, dict) and c.get("type") == "popup" and not c.get("off") and not c.get("pos") and not ("x" in c and "y" in c)
 def _span(c):
     a_ = numf(c.get("start"), 0); return a_, numf(c.get("end"), a_ + 3)
 _pics = sorted((c for c in edit.get("cards", []) if _plain_pic(c)), key=lambda c: _span(c)[0])
@@ -520,7 +519,7 @@ for i, c in enumerate(edit.get("cards", [])):
         if c.get("pos") in ("side-left", "side-right"): pw = min(pw, 500)
         ph = max(int(round(pw * ih / max(iw, 1))), 1)
         framed = c.get("frame", Path(str(c["src"])).suffix.lower() in (".jpg", ".jpeg", ".heic", ".heif"))
-        pos = c.get("pos") or ("top-left" if is_clip else "center"); top0 = 110 if c.get("caption") else 150; mx = 60
+        pos = c.get("pos") or "center"; top0 = 110 if c.get("caption") else 150; mx = 60
         if pos in ("side-left", "side-right"):
             left, top = (W // 2 - 12 - pw if pos == "side-left" else W // 2 + 12), (H - ph) // 2
         elif pos == "custom" or ("x" in c and "y" in c and pos not in POPUP_POS):

@@ -336,11 +336,11 @@ function popupHtml(c, i) {
   const open = openCard.has(cid(i)), m = S.media[c.src] || { w: 1, h: 1 };
   let h = `<div class="item${c.off ? " off" : ""}"><div class="hd"><label class="sw"><input type="checkbox" data-a="toggle" data-i="${i}" ${c.off ? "" : "checked"} ${running() ? "disabled" : ""}><i></i></label>
     ${thumb(c.src)}
-    <div class="tt" data-a="open" data-i="${i}" style="cursor:pointer">${esc(c.src.replace(/^popups\/[^-]*-/, "").replace(/\.clip\.mp4$/, ""))}<small>${isClip(c.src) ? "Video clip · " : m.animated ? "GIF · " : ""}${fmt(c.start)} – ${fmt(c.end)} · ${esc(({ center: "middle", "side-left": "left of a pair", "side-right": "right of a pair" })[c.pos || (isClip(c.src) ? "top-left" : "center")] || c.pos || "top-left")}${c.layer === "behind" ? " · behind my head" : ""}</small></div>
+    <div class="tt" data-a="open" data-i="${i}" style="cursor:pointer">${esc(c.src.replace(/^popups\/[^-]*-/, "").replace(/\.clip\.mp4$/, ""))}<small>${isClip(c.src) ? "Video clip · " : m.animated ? "GIF · " : ""}${fmt(c.start)} – ${fmt(c.end)} · ${esc(({ center: "middle", "side-left": "left of a pair", "side-right": "right of a pair" })[c.pos || "center"] || c.pos)}${c.layer === "behind" ? " · behind my head" : ""}</small></div>
     <button class="sm" data-a="open" data-i="${i}">${open ? "Close" : "Edit"}</button></div>`;
   if (open) {
     const P = [["top-left", "Top left"], ["top-center", "Top, above head"], ["top-right", "Top right"], ["middle-left", "Left"], ["center", "Middle"], ["middle-right", "Right"], ["side-left", "Left of a pair"], ["side-right", "Right of a pair"]];
-    const here = c.pos || (isClip(c.src) ? "top-left" : "center"), L = c.layer === "behind" ? "behind" : "front";
+    const here = c.pos || "center", L = c.layer === "behind" ? "behind" : "front";
     h += `<div class="edit">${times(c, i)}<label class="f">Where</label><div class="grid3">${P.map(([k, n]) => `<button class="${here === k ? "on" : ""}" data-a="set" data-i="${i}" data-f="pos" data-v="${k}">${n}</button>`).join("")}
       <button class="${(c.pos === "custom") ? "on" : ""}" data-a="place" data-i="${i}">Tap on video</button></div>
       <p class="small">Middle covers part of your face. The top corners keep it clear of your face. The pair spots put 2 pictures side by side.</p>
@@ -447,7 +447,13 @@ function renderSettings() {
   const themeBox = (S.themes || []).length ? `<label class="f">Look (theme)</label><select id="themePick"><option value="">My brand as it is</option>${S.themes.map((t) => `<option value="${esc(t.id)}" ${t.id === cur ? "selected" : ""}>${esc(t.name)}</option>`).join("")}</select>
     <div class="seg" style="margin-top:8px"><button class="${all ? "" : "on"}" data-a="theme-scope" data-v="reel">This reel only</button><button class="${all ? "on" : ""}" data-a="theme-scope" data-v="all">Every reel</button></div>
     <p class="help" style="margin-top:8px">${esc((S.themes.find((t) => t.id === cur) || {}).summary || "A theme changes the fonts, captions, titles and card shapes together. Your colors and name stay.")} Re-render to see it.</p><hr style="border:0;border-top:1px solid var(--line);margin:14px 0">` : "";
-  $("#settings").innerHTML = themeBox + `<label class="f">Where text goes by default (every reel)</label><div class="seg"><button class="${L === "front" ? "on" : ""}" data-a="default" data-v="front">In front of me</button><button class="${L === "behind" ? "on" : ""}" data-a="default" data-v="behind">Behind me</button></div>
+  const C = { ...S.colors.all, ...(S.colors.reel || {}) }, mine = !!S.colors.reel;
+  const NAMES = [["main", "Main", "text and dark shapes"], ["pop", "Pop", "highlighted words and accents"], ["light", "Light", "card backgrounds"]];
+  const colorBox = `<label class="f">Colors</label><div class="grid3">${NAMES.map(([k, n, what]) => `<label style="display:block;text-align:center"><input type="color" data-color="${k}" value="${esc(C[k])}" style="width:100%;height:48px;padding:0;border:1.5px solid var(--line);border-radius:12px;background:#fff"><span class="small" style="display:block"><b>${n}</b>: ${what}</span></label>`).join("")}</div>
+    <div class="seg" style="margin-top:8px"><button class="on" data-a="colors-save" data-v="reel">Use for this reel</button><button data-a="colors-save" data-v="all">Use for every reel</button></div>
+    ${mine ? `<button class="sm" data-a="colors-reset" style="margin-top:8px">Back to my brand colors</button>` : ""}
+    <p class="help" style="margin-top:8px">${mine ? "This reel has its own colors." : "This reel uses your brand colors."} Every look uses these 3 colors, so changing them changes any look. Pick, press a button, then re-render to see it.</p><hr style="border:0;border-top:1px solid var(--line);margin:14px 0">`;
+  $("#settings").innerHTML = themeBox + colorBox + `<label class="f">Where text goes by default (every reel)</label><div class="seg"><button class="${L === "front" ? "on" : ""}" data-a="default" data-v="front">In front of me</button><button class="${L === "behind" ? "on" : ""}" data-a="default" data-v="behind">Behind me</button></div>
     <p class="help" style="margin-top:8px">Text sits in the top area above your head. This only sets the layer new text starts on; you can change any single piece of text. ${S.hasTextDefault ? "" : "(Not saved in the brand file yet: the built-in default is in front.)"}</p>`;
 }
 function renderVersions() {
@@ -518,6 +524,10 @@ document.addEventListener("click", async (e) => {
     toast("Getting it from GIPHY…");
     try { const j = await post("/api/giphy-add", { id: el.dataset.v, kind: giphy.kind }); await addPopup(j.upload.src); } catch (er) { toast(er.message, true); }
   }
+  else if (a === "colors-save" || a === "colors-reset") {   // 0.16.0
+    const colors = a === "colors-reset" ? {} : Object.fromEntries([...document.querySelectorAll("#settings [data-color]")].map((x) => [x.dataset.color, x.value]));
+    try { await post("/api/colors", { colors, scope: a === "colors-reset" ? "reel" : el.dataset.v }); toast(a === "colors-reset" ? "Back to your brand colors: re-render to see it" : el.dataset.v === "all" ? "Saved for every reel: re-render to see it" : "Saved for this reel: re-render to see it"); } catch (er) { toast(er.message, true); }
+  }
   else if (a === "theme-scope") { try { await post("/api/theme", { name: $("#themePick").value, scope: el.dataset.v }); toast("Look saved: re-render to see it"); } catch (er) { toast(er.message, true); } }
   else if (a === "watch") { watch = +el.dataset.v; renderVideo(); v.scrollIntoView?.({ behavior: "smooth", block: "center" }); }
 });
@@ -556,8 +566,8 @@ $("#addPill").addEventListener("click", () => {
 $("#addSfx").addEventListener("click", () => { const t = now(); op({ op: "sfx_add", event: { name: "pop-soft", t, db: -16 } }, null, "Sound added").then((j) => { if (j?.info?.index != null) { openSfx.add(sid(j.info.index)); renderSfx(); } }); });
 async function addPopup(src) {
   const t = Math.min(now(), Math.max(S.total - 0.5, 0));
-  const j = await op({ op: "card_add", card: { type: "popup", src, start: t, end: Math.min(t + (isClip(src) ? 5 : 3), S.total), ...(isClip(src) ? {} : { size: 360 }) } }, null, isClip(src) ? "Clip added: pick where, when and how long, then re-render" : null);
-  if (j && !isClip(src)) toast(j.info?.paired ? "Added beside the picture already there: the 2 sit side by side. Re-render to see it." : "Added in the middle of the screen. Change where under Edit, then re-render.");
+  const j = await op({ op: "card_add", card: { type: "popup", src, start: t, end: Math.min(t + (isClip(src) ? 5 : 3), S.total), ...(isClip(src) ? {} : { size: 360 }) } }, null, null);
+  if (j) toast(j.info?.paired ? "Added beside the picture already there: the 2 sit side by side. Re-render to see it." : "Added in the middle of the screen. Change where under Edit, then re-render.");
   if (j?.info?.index != null) { const id = cid(j.info.index); openCard.add(id); selCard = id; render(); $("#s-pop").open = true; }
 }
 $("#file").addEventListener("change", async (e) => {
@@ -629,6 +639,11 @@ const TIPS = [
   "label.f",
   "Layer",
   "In front puts it over you. Behind puts it between you and your background, which needs the outline of you that only a Mac makes."
+ ],
+ [
+  "label.f",
+  "Colors",
+  "Your 3 brand colors. Main is for text and dark shapes, Pop is for highlights, Light is for card backgrounds. Every look uses them."
  ],
  [
   "label.f",

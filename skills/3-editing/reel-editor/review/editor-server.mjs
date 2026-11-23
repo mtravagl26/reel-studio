@@ -142,6 +142,19 @@ function stylePage() {
   const data = { reel: path.basename(REEL), looks: menuLooks(), extras: menuExtras(), themes: listThemes(), picks: stylePicks(), canSave: true };
   return fs.readFileSync(path.join(HERE, "style-menu.html"), "utf8").replace("/*MENU*/null", () => JSON.stringify(data).replace(/</g, "\\u003c"));
 }
+// Added by By Mel Ross (0.16.0): the color box. 3 colors (main, pop, light) for this reel only (edit.json "colors") or for every
+// reel (brand.json "colors"). An empty set for this reel goes back to the brand's colors.
+const HEX = /^#[0-9a-fA-F]{6}$/;
+function setColors(body) {
+  requireIdle();
+  const scope = body.scope === "all" ? "all" : "reel", got = {};
+  for (const k of ["main", "pop", "light"]) { const v = body.colors?.[k]; if (v == null || v === "") continue; if (!HEX.test(String(v))) throw new Error("a color must look like #B9C8A5"); got[k] = String(v).toUpperCase(); }
+  snapshot("colors", null, true);
+  const edit = readJSON(P.edit, {}), brand = brandJSON();
+  if (scope === "reel") { if (Object.keys(got).length) edit.colors = got; else delete edit.colors; }
+  else { if (!Object.keys(got).length) throw new Error("pick at least 1 color"); brand.colors = { ...(brand.colors || {}), ...got }; delete edit.colors; writeJSON(P.brand, brand); }
+  writeJSON(P.edit, edit);
+}
 function setTheme(body) {
   requireIdle();
   const name = String(body.name || ""), scope = body.scope === "reel" ? "reel" : "all";
@@ -352,6 +365,7 @@ function view() {
     pieces, media, popups: files, sfxNames: sfxNames(), notes, renders, job, receipt: receiptNow(st, edit, brand),
     textDefault: brand.text_default || { layer: "front", position: "above" }, hasTextDefault: !!brand.text_default,
     themes: listThemes(), theme: { reel: edit.theme || null, all: brand.theme || null }, giphy: !!giphyKey(),
+    colors: { reel: edit.colors || null, all: { main: brand.colors?.main || "#141414", pop: brand.colors?.pop || "#B9C8A5", light: brand.colors?.light || "#FFFFFF" } },
     cutsStale, dirty: meta.edit_hash !== editHash(), canUndo: history().length > 0, undoLabel: history().slice(-1)[0]?.replace(/^[\d_-]+?-(?=[A-Za-z])/, "") || null,
     video: renders.length ? renders[renders.length - 1].phone : null, prepping, links: LINKS, built: true,
   };
@@ -598,6 +612,7 @@ const server = http.createServer(async (req, res) => {
         if (p === "/api/op") { const b = JSON.parse((await readBody(req, 2e6)).toString() || "{}"); return json(res, 200, { ok: true, ...doOp(b), state: view() }); }
         if (p === "/api/undo") { requireIdle(); const what = undo(); return json(res, 200, { ok: true, undid: what, state: view() }); }
         if (p === "/api/render") { startRender(); return json(res, 200, { ok: true, job }); }
+        if (p === "/api/colors") { const b = JSON.parse((await readBody(req, 1e5)).toString() || "{}"); setColors(b); return json(res, 200, { ok: true, state: view() }); }
         if (p === "/api/theme") { const b = JSON.parse((await readBody(req, 1e5)).toString() || "{}"); setTheme(b); return json(res, 200, { ok: true, state: view() }); }
         if (p === "/api/giphy-add") { const b = JSON.parse((await readBody(req, 1e5)).toString() || "{}"); const up = await giphyAdd(b); return json(res, 200, { ok: true, upload: up, state: view() }); }
         if (p === "/api/text-default") { const b = JSON.parse((await readBody(req, 1e5)).toString() || "{}"); setTextDefault(b); return json(res, 200, { ok: true, state: view() }); }

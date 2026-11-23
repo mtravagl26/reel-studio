@@ -76,9 +76,16 @@ def load_brand(home=None, reel=None, name=None, quiet=False):
     """brand.json with the chosen theme laid over it. Adds "_theme": {"name", "css", "cards", "dir"} when a theme applies."""
     home = Path(home or home_dir())
     brand = json.load(open(home / "brand.json"))
-    if name is None and reel is not None:
-        try: name = json.load(open(Path(reel) / "edit.json")).get("theme")
-        except (OSError, ValueError): name = None
+    _edit = {}
+    if reel is not None:
+        try: _edit = json.load(open(Path(reel) / "edit.json"))
+        except (OSError, ValueError): _edit = {}
+        if not isinstance(_edit, dict): _edit = {}
+    # Added by By Mel Ross (0.16.0): colors for this reel only. edit.json "colors": {"main", "pop", "light"} is laid over the
+    # brand's colors before the theme reads them, so every card, caption highlight and cover uses them. Set on the pages.
+    mine = {k: v for k, v in (_edit.get("colors") or {}).items() if k in ("main", "pop", "light") and isinstance(v, str) and re.fullmatch(r"#[0-9a-fA-F]{6}", v)} if isinstance(_edit.get("colors"), dict) else {}
+    if mine: brand["colors"] = {**(brand.get("colors") or {}), **mine}
+    if name is None and reel is not None: name = _edit.get("theme")
     name = name or brand.get("theme")
     if not name or name == "none": return brand
     folder = available(home).get(name) if NAME_OK.match(str(name)) else None

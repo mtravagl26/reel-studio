@@ -289,10 +289,9 @@ export function applyOp(edit0, op, { dur }) {
         if (!/^popups\/[\w.\- ]+$/.test(String(src || ""))) throw new Error("popups come from the upload button");
         card.src = src; const clip = IS_VIDEO.test(src);   // 0.13.0: a video clip opens bigger, top left, like a window beside the face
         card.size = card.size || (clip ? 440 : 360);
-        if (!card.pos && clip) card.pos = "top-left";
         if (!card.pos) {
-          // 0.16.0: one picture goes in the middle. A second picture on screen at the same time puts the two side by side.
-          const mate = (edit.cards || []).filter((x) => x.type === "popup" && !x.off && !IS_VIDEO.test(String(x.src || "")) && (!x.pos || x.pos === "center") && x.start < card.end && (x.end ?? x.start + 3) > card.start);
+          // 0.16.0: one picture or video clip goes in the middle. A second one on screen at the same time puts the two side by side.
+          const mate = (edit.cards || []).filter((x) => x.type === "popup" && !x.off && (!x.pos || x.pos === "center") && x.start < card.end && (x.end ?? x.start + 3) > card.start);
           if (mate.length === 1) { mate[0].pos = "side-left"; card.pos = "side-right"; info.paired = true; } else card.pos = "center";
         }
       }
@@ -338,7 +337,7 @@ export function popupBox(card, iw, ih) {
   const W = 1080, H = 1920, side = card.pos === "side-left" || card.pos === "side-right";
   const pw = Math.min(Number(card.size || (IS_VIDEO.test(String(card.src || "")) ? 440 : 360)), side ? 500 : Infinity), ph = Math.max(Math.round((pw * ih) / Math.max(iw, 1)), 1);
   const named = { "top-left": ["top", "left"], "top-center": ["top", "center"], "top-right": ["top", "right"], "middle-left": ["middle", "left"], "middle-right": ["middle", "right"], center: ["center", "center"] };
-  const pos = card.pos || (IS_VIDEO.test(String(card.src || "")) ? "top-left" : "center");   // 0.16.0: a picture with no place set sits in the middle
+  const pos = card.pos || "center";   // 0.16.0: a picture or video clip with no place set sits in the middle
   if (side) return { left: pos === "side-left" ? W / 2 - 12 - pw : W / 2 + 12, top: Math.floor((H - ph) / 2), w: pw, h: ph };
   if (pos === "custom" || (card.x != null && card.y != null && !named[pos])) return { left: Math.trunc((card.x ?? W / 2) - pw / 2), top: Math.trunc((card.y ?? 400) - ph / 2), w: pw, h: ph };
   const [v, h] = named[pos] || named.center;

@@ -89,7 +89,7 @@ test("touch-ups: a new picture goes in the middle, a second one pairs up, lists 
   assert.deepEqual(edit.cards.map((c) => c.pos), ["side-left", "side-right"]); assert.equal(r.info.paired, true);
   r = core.applyOp(edit, { op: "card_add", card: { type: "popup", start: 12, src: "popups/c.png" } }, o); edit = r.edit;
   assert.equal(edit.cards[2].pos, "center", "not on screen with the others");
-  assert.equal(core.applyOp(edit, { op: "card_add", card: { type: "popup", start: 2, src: "popups/v.clip.mp4" } }, o).edit.cards.find((c) => /clip/.test(c.src)).pos, "top-left", "video clips keep their own spot");
+  assert.equal(core.applyOp(edit, { op: "card_add", card: { type: "popup", start: 15, src: "popups/v.clip.mp4" } }, o).edit.cards.find((c) => /clip/.test(c.src)).pos, "center", "video clips go in the middle too");
   assert.deepEqual(core.popupBox({ src: "popups/a.png" }, 400, 200), { left: 360, top: 870, w: 360, h: 180 }, "no place set = the middle");
   assert.deepEqual(core.popupBox({ src: "popups/a.png", pos: "side-left", size: 700 }, 400, 200), { left: 28, top: 835, w: 500, h: 250 });
   assert.deepEqual(core.popupBox({ src: "popups/a.png", pos: "side-right" }, 400, 200), { left: 552, top: 870, w: 360, h: 180 });
@@ -128,4 +128,22 @@ print(json.dumps(out))
   assert.deepEqual(o.moved.words, ["it", "a", "to"], "the fix follows its word; the neighbour is left alone");
   assert.deepEqual(o.gone.words, ["it", "a", "friend"], "no word is changed when the fixed word is not there");
   assert.match(o.gone.lost.join(" "), /caption fix "too" to "to".*left alone/);
+});
+
+test("the color box: 3 colors for this reel or for every reel, used by the build and kept through a re-import", { skip: skipReason }, async () => {
+  const dir = tmp("colors"), home = path.join(dir, "reels"), reel = path.join(home, "r1");
+  fs.mkdirSync(reel, { recursive: true });
+  fs.writeFileSync(path.join(home, "brand.json"), JSON.stringify({ colors: { main: "#0d2b2d", pop: "#B9C8A5", light: "#f5f2ec" }, theme: "whimsical" }));
+  fs.writeFileSync(path.join(reel, "edit.json"), JSON.stringify({ colors: { main: "#112233", pop: "not a color", extra: "#000000" } }));
+  const code = 'import json,sys\nsys.path.insert(0, sys.argv[1])\nimport theme\nb = theme.load_brand(sys.argv[2], sys.argv[3], None, True)\nprint(json.dumps({"c": b["colors"], "over": b["_theme"]["cards"]["title"]["overline_color"]}))';
+  const f = path.join(dir, "t.py"); fs.writeFileSync(f, code);
+  const r = spawnSync("python3", [f, path.join(skill, "scripts"), home, reel], { encoding: "utf8" }); assert.equal(r.status, 0, r.stderr);
+  const got = JSON.parse(r.stdout);
+  assert.equal(got.c.main, "#112233"); assert.equal(got.c.pop, "#B9C8A5", "a bad value is ignored"); assert.ok(!("extra" in got.c));
+  fs.writeFileSync(path.join(reel, "edit.json"), JSON.stringify({ colors: { pop: "#FF0066" } }));
+  assert.equal(JSON.parse(spawnSync("python3", [f, path.join(skill, "scripts"), home, reel], { encoding: "utf8" }).stdout).over, "#FF0066", "the theme takes its accent from this reel's pop color");
+  const ed = fs.readFileSync(path.join(review, "editor.html"), "utf8"), rv = fs.readFileSync(path.join(review, "reel-review.html"), "utf8"), srv = fs.readFileSync(path.join(review, "editor-server.mjs"), "utf8");
+  for (const t of ["Use for this reel", "Use for every reel", "Back to my brand colors", 'type="color"']) assert.ok(ed.includes(t), t);
+  assert.match(rv, /Colors for this reel/); assert.match(rv, /S\.colors = null/); assert.match(srv, /"\/api\/colors"/);
+  assert.match(fs.readFileSync(path.join(review, "core.js"), "utf8"), /if \(d\.colors\) parts\.push\(d\.colors\)/);
 });

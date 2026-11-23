@@ -104,6 +104,7 @@ def export(reel, proposal, out):
                  "format=duration", "-of", "csv=p=0", str(raw_clip(reel))], capture_output=True, text=True).stdout),
                  "speed": pacing(brand)["speed"], "pacing": pacing(brand), "words": words, "proposedCut": proposed_cut, "keepPauses": keep_pauses,
                  "captions": caps, "board": board,
+                 "colors": {k: brand.get("colors", {}).get(k, d_) for k, d_ in (("main", "#141414"), ("pop", "#B9C8A5"), ("light", "#FFFFFF"))},   # 0.16.0: the color box starts from these
                  "style": {"capSize": brand["captions"].get("size", 104), "capY": brand["captions"].get("y", 1250),
                            "mode": mode, "editorial": brand["captions"].get("style") == "editorial",
                            "cap": brand["colors"].get("caption", "#FFFFFF"), "acc": brand["colors"].get("caption_accent", "#FF7DB8"),
@@ -168,6 +169,9 @@ def do_import(reel, review):
         if c["start"] - last > 6: punch.append(c["start"]); last = c["start"]
     out = {"captions": caps, "punch": punch, "cards": cards, "hash": P["hash"]}
     if d.get("theme") is not None: out["theme"] = d["theme"] or "none"       # picked on the review page ("" = my brand as it is)
+    if isinstance(d.get("colors"), dict):                                    # 0.16.0: colors for this reel, picked on the review page
+        _col = {k: v for k, v in d["colors"].items() if k in ("main", "pop", "light") and isinstance(v, str) and re.fullmatch(r"#[0-9a-fA-F]{6}", v)}
+        if _col: out["colors"] = _col
     keep = [[round(a, 3), round(b, 3)] for a, b in P["spans"]]
     touchups.ensure_ids(out)
     touchups.save_base(reel, out, keep, reel_json.get("speed") or 1.0)       # what this import wrote, before touch-ups: the next import compares with it
@@ -187,10 +191,10 @@ def do_import(reel, review):
             "gif": "popup with a GIF (references/giphy.md)", "carousel": "motion carousel-*", "chart": "motion chart (references/motions.md)", "counter": "motion count-up",
             "follow": "follow card", "social": "motion comment / chat / notification", "orbit": "orbit"}
     for w in d.get("wanted") if isinstance(d.get("wanted"), list) else []:
-        if not isinstance(w, dict): continue                             # audit 3: a damaged decisions file must not stop the import
+        if not isinstance(w, dict) or w.get("done"): continue            # audit 3: a damaged decisions file must not stop the import; 0.16.0: done = already in the plan
         print(f'GRAPHIC WANTED: {KIND.get(w.get("kind"), "your choice of card")} at the line "{w.get("line", "")}"' + (f': {w["note"]}' if w.get("note") else "") + (f' Use their own picture(s), already in the reel folder: {", ".join(f for f in w["files"] if isinstance(f, str) and re.fullmatch(r"popups/[\w.\- ]+", f))}' if w.get("files") else "") +
               (f' Put it in {WHERE[w["where"]]}.' if w.get("where") in WHERE else "") + (f' Layer: {"behind the speaker" if w["layer"] == "behind" else "in front"}.' if w.get("layer") in ("front", "behind") else "") +
-              ". Add it to edit.json. If it needs pictures or numbers you don't have, ask them before the render.")
+              f". Add it to edit.json. If it needs pictures or numbers you don't have, ask them before the render. So the review page shows it: add the same card to proposal.json, run export again, then run `review_sync.py wanted-done <reel> {w.get('id', 'all')}`.")
     for k, n in (d.get("notes") or {}).items():
         if n.strip(): print(f"NOTE ({k}):", n.strip())
     if (d.get("brandRequest") or "").strip(): print("BRAND CHANGE REQUESTED (only apply if confirmed):", d["brandRequest"].strip())
@@ -202,4 +206,13 @@ if __name__ == "__main__":
         r = export(reel, json.load(open(sys.argv[3])), Path(sys.argv[4]))
         json.dump(r, open(reel / "review_reel.json", "w"))
     elif cmd == "import": do_import(reel, sys.argv[3])
+    elif cmd == "wanted-done":
+        # Added by By Mel Ross (0.16.0): mark graphics they asked for as added to the plan, so the page stops listing them as
+        # "You asked for" and the next import does not ask for them again. usage: wanted-done <reel> <id>|all
+        f = reel / "review_db" / "review" / "current.json"
+        d = json.load(open(f)); which = sys.argv[3] if len(sys.argv) > 3 else "all"; n = 0
+        for w in d.get("wanted") if isinstance(d.get("wanted"), list) else []:
+            if isinstance(w, dict) and not w.get("done") and which in ("all", str(w.get("id"))): w["done"] = True; n += 1
+        d["updatedAt"] = f"wanted-done-{n}-{which}"
+        json.dump(d, open(f, "w")); print(f"{n} asked-for graphic(s) marked as added to the plan")
     else: sys.exit(__doc__)
