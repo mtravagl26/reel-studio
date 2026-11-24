@@ -117,6 +117,20 @@ test("deliver.sh labels the full-quality copy and the phone copy BT.709", { skip
   assert.equal(r.status, 0, r.stdout + r.stderr);
   expectBt709(path.join(out, "t.mp4"));
   expectBt709(path.join(out, "t (phone).mp4"));
+  // 0.21.0: the person is asked where the finished reel goes. Without a folder, nothing is written and the choices are printed.
+  assert.equal(fs.readFileSync(path.join(home, "last_delivery.txt"), "utf8").trim(), out, "the folder is offered first next time");
+  fs.writeFileSync(path.join(reel, "source_dir.txt"), "/Users/someone/Clips\n");
+  const ask = run("bash", [path.join(scripts, "deliver.sh"), path.join(reel, "final.mp4"), "t2"], { REELS_HOME: home });
+  assert.equal(ask.status, 3, ask.stdout + ask.stderr);
+  assert.match(ask.stderr, /ASK THEM FIRST: where should the finished reel be saved\?/); assert.ok(ask.stderr.includes("the same place as last time: " + out)); assert.match(ask.stderr, /the folder the clip came from: \/Users\/someone\/Clips/); assert.match(ask.stderr, /--remember/);
+  assert.ok(!fs.existsSync(path.join(out, "t2.mp4")), "nothing is delivered before they choose");
+  const always = path.join(d, "always");
+  const rem = run("bash", [path.join(scripts, "deliver.sh"), path.join(reel, "final.mp4"), "t3", "--to", always, "--remember"], { REELS_HOME: home });
+  assert.equal(rem.status, 0, rem.stdout + rem.stderr);
+  const brand = JSON.parse(fs.readFileSync(path.join(home, "brand.json"), "utf8")); assert.equal(brand.deliver_dir, always); assert.equal(brand.deliver_ask, false);
+  const quiet = run("bash", [path.join(scripts, "deliver.sh"), path.join(reel, "final.mp4"), "t4"], { REELS_HOME: home });
+  assert.equal(quiet.status, 0, quiet.stdout + quiet.stderr); assert.ok(fs.existsSync(path.join(always, "t4.mp4")), "after 'always save there' it goes there without asking");
+  assert.equal(run("bash", [path.join(scripts, "deliver.sh"), path.join(reel, "final.mp4"), "t5", "--nope"], { REELS_HOME: home }).status, 2);
 });
 
 test("on a Mac, an HDR clip is converted: BT.709 H.264, same size, same length, sound kept", { skip: skipReason || (isMac ? false : "needs macOS avconvert") }, (t) => {
