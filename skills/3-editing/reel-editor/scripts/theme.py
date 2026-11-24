@@ -72,6 +72,21 @@ def _font_file(name, folder, home):
     return str(Path(home) / "fonts" / name)                    # not found: the build warns and falls back, as for any missing font
 
 
+def _highlight(v):
+    """The clean parts of a "caption_highlight" setting: text = a hex color, bg = a hex color or "none"."""
+    if not isinstance(v, dict): return {}
+    hexc = lambda x: isinstance(x, str) and re.fullmatch(r"#[0-9a-fA-F]{6}", x)
+    out = {}
+    if hexc(v.get("text")): out["text"] = v["text"]
+    if hexc(v.get("bg")) or v.get("bg") == "none": out["bg"] = v["bg"]
+    return out
+
+
+def _with_highlight(brand, hl):
+    brand["caption_highlight"] = hl
+    return brand
+
+
 def load_brand(home=None, reel=None, name=None, quiet=False):
     """brand.json with the chosen theme laid over it. Adds "_theme": {"name", "css", "cards", "dir"} when a theme applies."""
     home = Path(home or home_dir())
@@ -89,13 +104,16 @@ def load_brand(home=None, reel=None, name=None, quiet=False):
     # "sfx": "none"; edit.json "sfx" ("none" | "subtle" | "lots") sets it for one reel. Both are set by switches on the pages.
     sfx_own = _edit.get("sfx") if _edit.get("sfx") in ("none", "subtle", "lots") else brand.get("sfx")
     if sfx_own is not None: brand["sfx"] = sfx_own
+    # Added by By Mel Ross (0.22.0): the highlighted caption word. "caption_highlight": {"text": "#RRGGBB", "bg": "#RRGGBB" | "none"}
+    # in brand.json (every reel) or edit.json (this reel). The person's pick, so it is laid on after the theme, never under it.
+    hl = {**_highlight(brand.get("caption_highlight")), **_highlight(_edit.get("caption_highlight"))}
     if name is None and reel is not None: name = _edit.get("theme")
     name = name or brand.get("theme")
-    if not name or name == "none": return brand
+    if not name or name == "none": return _with_highlight(brand, hl)
     folder = available(home).get(name) if NAME_OK.match(str(name)) else None
     if not folder:
         if not quiet: print(f"warning: theme {name!r} not found (have: {', '.join(available(home)) or 'none'}); using brand.json as it is")
-        return brand
+        return _with_highlight(brand, hl)
     theme = json.load(open(folder / "theme.json"))
     colors = brand.get("colors", {})
     out = merge(brand, _tokens(theme.get("brand", {}), colors))
@@ -105,7 +123,7 @@ def load_brand(home=None, reel=None, name=None, quiet=False):
     if sfx_own is not None: out["sfx"] = sfx_own
     else: out.pop("sfx", None)
     out["_theme"] = {"name": name, "dir": str(folder), "css": theme.get("css", []), "cards": _tokens(theme.get("cards", {}), colors)}
-    return out
+    return _with_highlight(out, hl)
 
 
 def css_for(brand, families):

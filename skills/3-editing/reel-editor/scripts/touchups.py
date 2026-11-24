@@ -15,7 +15,7 @@ The edit as it was before the import is kept in editor/pre-import/.
 import copy, json, secrets, shutil
 from pathlib import Path
 
-BUILT_KEYS = {"captions", "punch", "cards", "hash", "theme", "colors", "sfx", "sfx_events"}   # what an import writes; any other key in edit.json was added by hand
+BUILT_KEYS = {"captions", "punch", "cards", "hash", "theme", "colors", "caption_highlight", "sfx", "sfx_events"}   # what an import writes; any other key in edit.json was added by hand
 TIME_KEYS = ("start", "end")
 EPS = 0.03
 
@@ -113,6 +113,7 @@ def collect(reel):
          "extra": {k: copy.deepcopy(v) for k, v in cur.items() if k not in BUILT_KEYS and base["edit"].get(k) != v},
          "theme": cur.get("theme") if cur.get("theme") != base["edit"].get("theme") else None,
          "colors": cur.get("colors") if cur.get("colors") != base["edit"].get("colors") else None,
+         "highlight": cur.get("caption_highlight") if cur.get("caption_highlight") != base["edit"].get("caption_highlight") else None,   # 0.22.0
          "sfx": cur.get("sfx") if cur.get("sfx") != base["edit"].get("sfx") else None}   # 0.19.0: sound effects on or off for this reel   # 0.16.0: this reel's own colors
     # a card that only disappeared because its piece was dropped is not a deliberate delete
     in_drop = lambda src: src is not None and any(a - 1e-6 <= src <= b + 1e-6 for a, b in dropped)
@@ -209,5 +210,6 @@ def apply(touch, edit, keep, speed):
     if touch.get("theme") and "theme" not in edit: edit["theme"] = touch["theme"]; kept.append(f'the {touch["theme"]} theme')
     if touch.get("sfx") and "sfx" not in edit: edit["sfx"] = touch["sfx"]; kept.append("sound effects " + ("off" if touch["sfx"] == "none" else "on"))
     if touch.get("colors") and "colors" not in edit: edit["colors"] = touch["colors"]; kept.append("this reel's colors")
+    if touch.get("highlight") and "caption_highlight" not in edit: edit["caption_highlight"] = touch["highlight"]; kept.append("this reel's highlighted word colors")
     if touch["dropped"]: kept.append(f'{len(touch["dropped"])} dropped piece{"s" if len(touch["dropped"]) != 1 else ""} (now shown as cut words on the review page)')
     return kept, lost

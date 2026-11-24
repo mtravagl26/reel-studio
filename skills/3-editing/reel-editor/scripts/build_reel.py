@@ -55,6 +55,7 @@ edit.json (written by auto_edit.py, then Claude marks accents and adds cards):
      page also takes bg: "blur" (the clip as a card over a blurred copy of itself) and label: "small caps label";  card takes y
      polaroids layout: "cloud" (up to 8 in an arc);  tiles layout: "column", side: "left" | "right" (up to 5 down one side)
      brand.json captions: bg: "#FFFFFF" | "rgba(0,0,0,.62)" (words on a box or bar), accent_font: "head", accent_italic: true
+     brand.json or edit.json caption_highlight: {text: "#141414", bg: "#B9C8A5" | "none"} (the highlighted word's color and the box behind it)
   Any card: "glass": true gives the frosted liquid-glass look (card, tag).
   Any card or sfx_event: "off": true leaves it out of the render (the editor page's on/off switch).
   Text cards (title, tag, card, cta) with no "layer" take brand.json "text_default": {"layer": "front" | "behind" | "both", "position": "above"}
@@ -123,6 +124,11 @@ STEMS = not brand.get("mix", {}).get("legacy", False)
 C = brand["colors"]
 MAIN, POP, LIGHT = C["main"], C["pop"], C.get("light", "#FFFFFF")
 CAP, CAP_ACC = C.get("caption", "#FFFFFF"), C.get("caption_accent", POP)
+# Added by By Mel Ross (0.22.0): the highlighted caption word has its own text color and an optional box behind it.
+# brand.json or edit.json "caption_highlight": {"text": "#141414", "bg": "#B9C8A5" | "none"}; set on the pages.
+_HL = brand.get("caption_highlight") or {}
+CAP_ACC = _HL.get("text", CAP_ACC)
+CAP_ACC_BG = _HL.get("bg") if _HL.get("bg") not in (None, "none") else None
 CAPS = brand.get("captions", {})
 CASE = CAPS.get("case", "lower")
 CAP_PX, CAP_Y = CAPS.get("size", 96), CAPS.get("y", 1250)
@@ -945,7 +951,9 @@ for i, c in enumerate(edit.get("captions", [])):
     blk = "display:block;line-height:.95;" if CAPS.get("style") == "editorial" and len(ws) > 1 else ""
     acc_role = CAPS.get("accent_font", "accent") if CAPS.get("accent_font") in FAM else "accent"   # 0.19.0 (Style Menu C9): captions "accent_font": "head", "accent_italic": true
     acc_it = ";font-style:italic" if CAPS.get("accent_italic") else ""
-    spans = "".join(f'<span class="acc" style="{blk}{font(acc_role, int(px * big))}{acc_it};color:{CAP_ACC}">{esc(case(w["text"]))}</span> ' if w.get("accent")
+    acc_box = (f";background:{CAP_ACC_BG};padding:.02em .2em .08em;border-radius:.16em;text-shadow:none;-webkit-box-decoration-break:clone;box-decoration-break:clone"
+               + (";width:fit-content;margin:.06em auto" if blk else "")) if CAP_ACC_BG else ""
+    spans = "".join(f'<span class="acc{" accbox" if CAP_ACC_BG else ""}" style="{blk}{font(acc_role, int(px * big))}{acc_it};color:{CAP_ACC}{acc_box}">{esc(case(w["text"]))}</span> ' if w.get("accent")
                     else f'<span>{esc(case(w["text"]))}</span> ' for w in ws)
     if CAPS.get("bg"):   # Added by By Mel Ross (0.19.0, Style Menu C6, C10): the words sit on a box or a bar. brand.json captions "bg": "#FFFFFF" | "rgba(0,0,0,.6)"
         spans = f'<span class="cb" style="background:{CAPS["bg"]};line-height:1.5">{spans.strip()}</span>'

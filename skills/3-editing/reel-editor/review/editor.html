@@ -460,9 +460,22 @@ function renderSettings() {
     <div class="seg" style="margin-top:8px"><button class="on" data-a="colors-save" data-v="reel">Use for this reel</button><button data-a="colors-save" data-v="all">Use for every reel</button></div>
     ${mine ? `<button class="sm" data-a="colors-reset" style="margin-top:8px">Back to my brand colors</button>` : ""}
     <p class="help" style="margin-top:8px">${mine ? "This reel has its own colors." : "This reel uses your brand colors."} Every look uses these 3 colors, so changing them changes any look. Pick, press a button, then re-render to see it.</p><hr style="border:0;border-top:1px solid var(--line);margin:14px 0">`;
+  // Added by By Mel Ross (0.22.0): the highlighted caption word: text color, and a box behind it you can switch on.
+  const H = { ...S.highlight.base, ...S.highlight.all, ...(S.highlight.reel || {}) }, hMine = !!S.highlight.reel, hBox = H.bg && H.bg !== "none";
+  const hlBox = `<label class="f">Highlighted word in captions</label>
+    <div id="hlsample" style="background:#5d6b63;border-radius:12px;padding:14px;text-align:center;font:800 26px/1.2 var(--f-body, system-ui);color:${esc(S.highlight.capColor)}">this is the <span id="hlword" style="color:${esc(H.text)};${hBox ? `background:${esc(H.bg)};` : ""}padding:.02em .2em .08em;border-radius:.16em">word</span></div>
+    <div class="grid3" style="margin-top:8px">
+      <label style="display:block;text-align:center"><input type="color" id="hlText" value="${esc(H.text)}" style="width:100%;height:48px;padding:0;border:1.5px solid var(--line);border-radius:12px;background:#fff"><span class="small" style="display:block"><b>Word color</b></span></label>
+      <label style="display:block;text-align:center"><input type="color" id="hlBg" value="${esc(hBox ? H.bg : "#FFFFFF")}" ${hBox ? "" : "disabled"} style="width:100%;height:48px;padding:0;border:1.5px solid var(--line);border-radius:12px;background:#fff"><span class="small" style="display:block"><b>Box color</b></span></label>
+      <label style="display:flex;align-items:center;gap:8px;justify-content:center"><input type="checkbox" id="hlOn" ${hBox ? "checked" : ""}><span class="small"><b>Box behind the word</b></span></label>
+    </div>
+    <p class="help" id="hlwarn" style="margin-top:8px;color:#b3261e" hidden>These 2 colors are too close. The word will be hard to read.</p>
+    <div class="seg" style="margin-top:8px"><button class="on" data-a="hl-save" data-v="reel">Use for this reel</button><button data-a="hl-save" data-v="all">Use for every reel</button></div>
+    ${hMine ? `<button class="sm" data-a="hl-reset" style="margin-top:8px">Back to my usual</button>` : ""}
+    <p class="help" style="margin-top:8px">${hMine ? "This reel has its own highlight colors." : "This reel uses your usual highlight colors."} A highlighted word is one you marked in the Captions list. Pick, then press a button.</p><hr style="border:0;border-top:1px solid var(--line);margin:14px 0">`;
   $("#sfxmaster").innerHTML = `<label class="f">Sounds when graphics appear</label><div class="seg"><button class="${S.sfxOn ? "on" : ""}" data-a="sfx-master" data-v="on" data-s="reel">On</button><button class="${S.sfxOn ? "" : "on"}" data-a="sfx-master" data-v="off" data-s="reel">Off</button></div>
     <p class="help" style="margin:8px 0">${S.sfxOn ? "Each graphic plays a short sound as it comes on." : "Graphics come on silently in this reel."} For every reel you make: <button class="sm" data-a="sfx-master" data-v="on" data-s="all">always on</button> <button class="sm" data-a="sfx-master" data-v="off" data-s="all">always off</button> (now ${S.sfxAll ? "on" : "off"}). Sounds you place by hand below always play.</p>`;
-  $("#settings").innerHTML = themeBox + colorBox + `<label class="f">Where text goes by default (every reel)</label><div class="seg"><button class="${L === "front" ? "on" : ""}" data-a="default" data-v="front">In front of me</button><button class="${L === "behind" ? "on" : ""}" data-a="default" data-v="behind">Behind me</button></div>
+  $("#settings").innerHTML = themeBox + colorBox + hlBox + `<label class="f">Where text goes by default (every reel)</label><div class="seg"><button class="${L === "front" ? "on" : ""}" data-a="default" data-v="front">In front of me</button><button class="${L === "behind" ? "on" : ""}" data-a="default" data-v="behind">Behind me</button></div>
     <p class="help" style="margin-top:8px">Text sits in the top area above your head. This only sets the layer new text starts on; you can change any single piece of text. ${S.hasTextDefault ? "" : "(Not saved in the brand file yet: the built-in default is in front.)"}</p>`;
 }
 function renderVersions() {
@@ -536,6 +549,10 @@ document.addEventListener("click", async (e) => {
   else if (a === "sfx-master") {   // 0.19.0
     try { await post("/api/sfx", { on: el.dataset.v === "on", scope: el.dataset.s }); toast(`Sound effects ${el.dataset.v} for ${el.dataset.s === "all" ? "every reel" : "this reel"}: re-render to hear it`); } catch (er) { toast(er.message, true); }
   }
+  else if (a === "hl-save" || a === "hl-reset") {   // 0.22.0: the highlighted caption word
+    const highlight = a === "hl-reset" ? {} : { text: $("#hlText").value, bg: $("#hlOn").checked ? $("#hlBg").value : "none" };
+    try { await post("/api/caption-highlight", { highlight, scope: a === "hl-reset" ? "reel" : el.dataset.v }); toast(a === "hl-reset" ? "Back to your usual highlight" : el.dataset.v === "all" ? "Saved for every reel" : "Saved for this reel"); } catch (er) { toast(er.message, true); }
+  }
   else if (a === "colors-save" || a === "colors-reset") {   // 0.16.0
     const colors = a === "colors-reset" ? {} : Object.fromEntries([...document.querySelectorAll("#settings [data-color]")].map((x) => [x.dataset.color, x.value]));
     try { await post("/api/colors", { colors, scope: a === "colors-reset" ? "reel" : el.dataset.v }); toast(a === "colors-reset" ? "Back to your brand colors: re-render to see it" : el.dataset.v === "all" ? "Saved for every reel: re-render to see it" : "Saved for this reel: re-render to see it"); } catch (er) { toast(er.message, true); }
@@ -558,6 +575,22 @@ document.addEventListener("change", async (e) => {
   else if (a === "set") op({ op: "card_set", i, set: { [el.dataset.f]: el.value } }, `c${cid(i)}:${el.dataset.f}`);
   else if (a === "range") op({ op: "card_set", i, set: { [el.dataset.f]: el.value } }, `c${cid(i)}:${el.dataset.f}`);
   else if (a === "sfx-set") op({ op: "sfx_set", i, set: { [el.dataset.f]: el.value } }, `s${sid(i)}:${el.dataset.f}`);
+});
+// Added by By Mel Ross (0.22.0): the highlighted-word sample follows the pickers before you save.
+function lum(h) { const c = [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16) / 255).map((x) => x <= 0.03928 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4); return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]; }
+function contrast(a, b) { const x = lum(a), y = lum(b); return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05); }
+function hlSample() {
+  const w = $("#hlword"); if (!w) return;
+  const on = $("#hlOn").checked; $("#hlBg").disabled = !on;
+  w.style.color = $("#hlText").value; w.style.background = on ? $("#hlBg").value : "none";
+  $("#hlwarn").hidden = !(on && contrast($("#hlText").value, $("#hlBg").value) < 2.5);
+}
+document.addEventListener("input", (e) => {
+  if (e.target.id === "hlOn" && e.target.checked) {   // switching the box on: the word's color becomes the box, and the word turns to whichever of main, black or white reads best on it
+    const bg = $("#hlText").value, main = (S.colors.reel || {}).main || S.colors.all.main;
+    $("#hlBg").value = bg; $("#hlText").value = contrast(main, bg) >= 4 ? main : contrast("#000000", bg) >= contrast("#ffffff", bg) ? "#000000" : "#ffffff";
+  }
+  if (["hlText", "hlBg", "hlOn"].includes(e.target.id)) hlSample();
 });
 document.addEventListener("input", (e) => { const el = e.target; if (el.dataset?.a === "range") { const l = el.previousElementSibling; if (l) l.textContent = l.textContent.replace(/:.*$/, `: ${el.value}${el.dataset.f === "size" ? "px wide" : el.dataset.f === "period" ? " seconds" : "°"}`); } });
 document.addEventListener("keydown", (e) => { if (e.key === "Enter" && e.target.id === "wtext") document.querySelector('[data-a="word-save"]')?.click(); });
@@ -705,6 +738,11 @@ const TIPS = [
   "label.f",
   "Layer",
   "In front puts it over you. Behind puts it between you and your background, which needs the outline of you that only a Mac makes."
+ ],
+ [
+  "label.f",
+  "Highlighted word in captions",
+  "A highlighted word is one you marked in the Captions list. Here you set its color, and you can put a colored box behind it."
  ],
  [
   "label.f",

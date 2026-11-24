@@ -238,3 +238,24 @@ test("caption step: the script checks drafts against Instagram's limits, the pag
   assert.match(fs.readFileSync(path.join(skill, "scripts", "deliver.sh"), "utf8"), /caption\.txt" "\$DIR\/\$NAME caption\.txt"/);
   assert.match(fs.readFileSync(path.join(skill, "SKILL.md"), "utf8"), /references\/caption\.md/);
 });
+
+test("the highlighted caption word: its own color and a box behind it, for this reel or every reel, laid on after the theme", { skip: skipReason }, async () => {
+  const dir = tmp("highlight"), home = path.join(dir, "reels"), reel = path.join(home, "r1");
+  fs.mkdirSync(reel, { recursive: true });
+  fs.writeFileSync(path.join(home, "brand.json"), JSON.stringify({ colors: { main: "#0d2b2d", pop: "#B9C8A5", light: "#f5f2ec" }, theme: "bold", caption_highlight: { text: "#111111", bg: "#EEEEEE" } }));
+  fs.writeFileSync(path.join(reel, "edit.json"), JSON.stringify({ caption_highlight: { text: "#FF0066", bg: "javascript:1", extra: 1 } }));
+  const code = 'import json,sys\nsys.path.insert(0, sys.argv[1])\nimport theme\nb = theme.load_brand(sys.argv[2], sys.argv[3], None, True)\nprint(json.dumps(b["caption_highlight"]))';
+  const f = path.join(dir, "t.py"); fs.writeFileSync(f, code);
+  const run = () => { const r = spawnSync("python3", [f, path.join(skill, "scripts"), home, reel], { encoding: "utf8" }); assert.equal(r.status, 0, r.stderr); return JSON.parse(r.stdout); };
+  assert.deepEqual(run(), { text: "#FF0066", bg: "#EEEEEE" }, "this reel's pick wins, a bad value is ignored, the brand's fills the rest");
+  fs.writeFileSync(path.join(reel, "edit.json"), JSON.stringify({ caption_highlight: { bg: "none" } }));
+  assert.deepEqual(run(), { text: "#111111", bg: "none" });
+  fs.writeFileSync(path.join(reel, "edit.json"), "{}"); fs.writeFileSync(path.join(home, "brand.json"), JSON.stringify({ colors: { main: "#0d2b2d", pop: "#B9C8A5", light: "#f5f2ec" } }));
+  assert.deepEqual(run(), {}, "nothing picked: the brand and theme decide, as before");
+  const ed = fs.readFileSync(path.join(review, "editor.html"), "utf8"), rv = fs.readFileSync(path.join(review, "reel-review.html"), "utf8"), srv = fs.readFileSync(path.join(review, "editor-server.mjs"), "utf8"), build = fs.readFileSync(path.join(skill, "scripts", "build_reel.py"), "utf8");
+  for (const t of ["Highlighted word in captions", "Box behind the word", 'data-a="hl-save"', "Back to my usual", "too close"]) assert.ok(ed.includes(t), t);
+  for (const t of ["Highlighted word", "Box behind the word", "S.highlight = null", "too close"]) assert.ok(rv.includes(t), t);
+  assert.match(srv, /"\/api\/caption-highlight"/); assert.match(build, /CAP_ACC_BG/);
+  assert.match(fs.readFileSync(path.join(review, "core.js"), "utf8"), /if \(d\.highlight\) parts\.push\(d\.highlight\)/);
+  assert.match(fs.readFileSync(path.join(skill, "scripts", "review_sync.py"), "utf8"), /out\["caption_highlight"\]/);
+});
