@@ -164,3 +164,5 @@ Added by By Mel Ross in 0.19.0 (November 2026), in skills/3-editing/reel-editor.
   highlighted word and a box behind it ("caption_highlight", in scripts/theme.py, scripts/build_reel.py, review/); an "arctitle" card
   and a "hand_trail" of stars that follows a moving hand (scripts/build_reel.py, scripts/hand_track.py, scripts/hand_track.swift,
   references/hand-trail.md). Hand tracking uses Apple Vision on the person's own Mac; nothing is downloaded or sent.
+- A list of sounds that never play (0.24.0): brand.json "sfx_never", and a build note when automatic sounds play on top of sounds placed
+  by hand, in scripts/build_reel.py.

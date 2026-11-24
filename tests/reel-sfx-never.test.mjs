@@ -36,3 +36,8 @@ test("the build says when automatic sounds play on top of placed ones, and stays
   assert.doesNotMatch(build({ sfx: "none", placed: [{ name: "tick", t: 1 }] }).out, /automatic sounds/);
   assert.doesNotMatch(build({}).out, /automatic sounds are playing on top/);
 });
+
+test("sfx_never written as one name without brackets still bans it, and sounds that were off anyway aren't counted", { skip: skipReason }, () => {
+  assert.ok(!build({ brand: { sfx_never: "pop" } }).names.includes("pop"));
+  assert.doesNotMatch(build({ brand: { sfx_never: ["pop"] }, sfx: "none" }).out, /left out/);
+});

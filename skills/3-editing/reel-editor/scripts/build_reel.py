@@ -120,7 +120,8 @@ for _c in edit["cards"]:
 # (effects as <audio> tags inside the composition, no music ducking).
 _mf = Path(__file__).resolve().parent.parent / "assets" / "sfx-manifest.json"
 SFX_LEVEL = {e["name"]: e.get("gain_db", 0) for e in json.load(open(_mf))["effects"]} if _mf.exists() else {}
-SFX_NEVER = set(brand.get("sfx_never") or [])            # 0.24.0: sounds the person never wants, e.g. ["pop", "pop-soft"]
+_sn = brand.get("sfx_never") or []
+SFX_NEVER = {_sn} if isinstance(_sn, str) else {str(x) for x in _sn if isinstance(x, str)}   # a single name written without brackets still counts            # 0.24.0: sounds the person never wants, e.g. ["pop", "pop-soft"]
 SFX_COUNT = {"auto": 0, "placed": 0, "banned": 0}
 SFX_VOL = brand.get("sfx_volume", {})                 # per-effect dB change, e.g. {"pop": -3}
 STEMS = not brand.get("mix", {}).get("legacy", False)
@@ -396,9 +397,9 @@ def sfx(name, t, db=-12, level="subtle", dur=None, manual=False):
     if CARD_SFX and level == "subtle" and not manual:     # the sound approved in the review replaces the entrance sound
         name, db = CARD_SFX["name"], CARD_SFX.get("db", db)
         CARD_SFX = None
-    if name in SFX_NEVER: SFX_COUNT["banned"] += 1; return    # 0.24.0: banned in brand.json "sfx_never"
     if not manual and (brand.get("sfx", "subtle") == "none" or (level == "lots" and brand.get("sfx") != "lots")): return
     if t >= DUR: return
+    if name in SFX_NEVER: SFX_COUNT["banned"] += 1; return    # 0.24.0: banned in brand.json "sfx_never" (counted only when it would have played)
     # automatic sounds: +8 dB makes them clearly audible under a voice with no music bed; an effect you place yourself (sfx_events)
     # uses "db" as its peak level in dBFS, so -9 means a peak 9 dB under full scale.
     gain = db + (0 if manual else brand.get("sfx_gain_db", 8)) + SFX_LEVEL.get(name, 0) + SFX_VOL.get(name, 0)
