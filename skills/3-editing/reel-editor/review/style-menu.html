@@ -81,7 +81,11 @@ function title(f, c) {
   const lines = String(c.text || "").split("/").map((s) => s.trim()).join("\n"), size = Math.min(c.size || 150, 240);
   const y = c.y || 95, align = c.align || "left";
   if (c.overline) { const o = el("div", "tx hand", c.overline); o.style.cssText = `top:${pct(y)};font-size:${px(size * 0.42)};text-align:${align};font-weight:600`; f.append(o); }
-  const t = el("div", "tx", lines.toUpperCase() === lines ? lines : lines); t.style.cssText = `top:${pct(y + (c.overline ? size * 0.5 : 0))};font-size:${px(size)};text-align:${align};color:${c.color || "#fff"}`;
+  const t = el("div", "tx" + (c.font === "serif" ? " serif" : "")); t.style.cssText = `top:${pct(y + (c.overline ? size * 0.5 : 0))};font-size:${px(size)};text-align:${align};color:${c.color || "#fff"}${c.italic ? ";font-style:italic" : ""}${c.font === "serif" || c.font === "body" ? ";font-weight:500;line-height:1.05" : ""}`;
+  // 0.19.0: *word* is the highlighted word; "sub" is a small line under; "labels" are 2 small labels under the headline
+  lines.split(/(\*[^*]+\*)/).forEach((part) => { if (/^\*.+\*$/.test(part)) { const m = el("span", "", part.slice(1, -1)); m.style.cssText = "position:static;background:#B9C8A5;color:#0d2b2d;border-radius:.14em;padding:0 .12em"; t.append(m); } else t.append(part); });
+  if (c.sub) { const u = el("div", "", c.sub); u.style.cssText = `position:static;font-size:${px(44)};font-weight:500;font-style:normal;margin-top:1.5cqw`; t.append(u); }
+  if (Array.isArray(c.labels)) { const u = el("div"); u.style.cssText = `position:static;font-size:${px(46)};font-weight:600;font-style:normal;margin-top:2cqw;color:#0d2b2d`; c.labels.slice(0, 2).forEach((x, k) => { const b = el("span", "", x); b.style.cssText = `position:static;display:inline-block;margin:0 1cqw;padding:.3cqw 2.4cqw;border-radius:99px;background:${k ? "#B9C8A5" : "#f5f2ec"}`; u.append(b); }); t.append(u); }
   f.append(t);
 }
 function captions(f, r) {
@@ -90,7 +94,9 @@ function captions(f, r) {
   const t = el("div", "tx" + (serif ? " serif" : "")); t.style.cssText = `top:${pct(y)};font-size:${px(size)};text-align:center;font-weight:${serif ? 500 : 700};color:${(b.colors || {}).caption || "#fff"}`;
   const say = word ? ["this"] : ["this is the", "line"]; let text = say.join(" ");
   if (cap.case === "lower") text = text.toLowerCase();
-  if (r.accent && !word) { const parts = text.split(" "), last = parts.pop(); t.append(parts.join(" ") + " "); const a = el("i", "serif", last); a.style.cssText = "position:static;color:#B9C8A5;font-style:italic"; t.append(a); }
+  if (cap.bg) { t.style.textShadow = "none"; const b2 = el("span", "", text); b2.style.cssText = `position:static;background:${cap.bg};padding:.6cqw 2.4cqw;border-radius:1.4cqw`; t.append(b2); }
+  else if (r.accent === "first") { t.style.color = "#B9C8A5"; t.style.fontStyle = "italic"; t.style.fontWeight = 800; t.textContent = text; }
+  else if (r.accent && !word) { const parts = text.split(" "), last = parts.pop(); t.append(parts.join(" ") + " "); const a = el("i", "serif", last); a.style.cssText = "position:static;color:#B9C8A5;font-style:italic"; t.append(a); }
   else t.textContent = text;
   f.append(t);
 }
@@ -101,6 +107,14 @@ function card(f, c) {
     const n = el("div", "paper hand"); n.style.cssText = "left:22%;right:22%;top:9%;padding:5cqw 3cqw 4cqw;font-size:8.5cqw;font-weight:600;text-align:center;line-height:1.1;transform:rotate(-3deg);white-space:pre-line";
     n.textContent = String(c.text || "").split("/").map((x) => x.trim()).join("\n");
     const t = el("div"); t.style.cssText = "left:50%;top:-2.5cqw;width:36%;height:5cqw;margin-left:-18%;background:rgba(222,205,160,.9);transform:rotate(-2deg)"; n.append(t); f.append(n); return;
+  }
+  if (kind === "polaroids" && c.layout === "cloud") { [[4, 12, -11], [20, 6, 7], [36, 3, -5], [52, 4, 9], [68, 8, -8], [80, 14, 6]].forEach(([l, t, rot]) => { const p = el("div", "photo"); p.style.cssText = `left:${l}%;top:${t}%;width:15%;height:10%;padding:.8cqw;transform:rotate(${rot}deg)`; p.append(el("i")); f.append(p); }); return; }
+  if (kind === "tiles" && c.layout === "column") { (c.tiles || []).slice(0, 4).forEach((t, i) => { const d = el("div", "paper", t.label || ""); d.style.cssText = `left:5%;top:${30 + i * 10}%;width:16%;height:8.4%;border-radius:3cqw;background:#fff;font-size:3.4cqw;font-weight:600;display:flex;align-items:flex-end;justify-content:center;padding-bottom:.6cqw`; f.append(d); }); return; }
+  if (kind === "popup" && c.pos) {
+    const w = c.size || 360, full = w >= 1000, h = full ? 1920 : w, cx = c.pos === "custom" ? (c.x || 540) : /left/.test(c.pos) ? 60 + w / 2 : /right/.test(c.pos) ? 1020 - w / 2 : 540, cy = c.pos === "custom" ? (c.y || 400) : /^top/.test(c.pos) ? 150 + h / 2 : /^middle/.test(c.pos) ? 700 : 960;
+    const p = el("div", full ? "" : "photo"); p.style.cssText = full ? "inset:0;border-radius:inherit;background:#0d2b2d" : `left:${px(cx - w / 2)};top:${pct(cy - h / 2)};width:${px(w)};height:${px(h)};border-radius:2cqw${c.frame === false ? ";padding:0;background:#B9C8A5" : ""}`; if (!full && c.frame !== false) p.append(el("i")); f.append(p);
+    if (full) { const t = el("div", "tx serif", "your slide"); t.style.cssText = "top:42%;font-size:9cqw;text-align:center;font-weight:500;color:#f5f2ec"; f.append(t); }
+    if (c.caption) { const s2 = el("div", "strip hand", c.caption); s2.style.cssText += `left:${px(cx - w / 2 - 20)};top:${pct(cy + h / 2 - 20)};font-size:4.2cqw`; f.append(s2); } return;
   }
   if (kind === "polaroids") {
     [[6, 30, -7], [16, 38, 5], [9, 49, -3]].forEach(([l, t, rot]) => { const p = el("div", "photo"); p.style.cssText = `left:${l}%;top:${t}%;width:34%;height:21%;transform:rotate(${rot}deg)`; p.append(el("i")); f.append(p); });
@@ -125,6 +139,20 @@ function card(f, c) {
     d.append(a, b); if (c.delta) { const g = el("span", "", c.delta); g.style.cssText = "position:static;display:inline-block;background:#B9C8A5;border-radius:99px;padding:0 2cqw;font-size:4.4cqw;font-weight:700"; d.append(g); }
     f.append(d); return;
   }
+  // ---- 0.19.0: the looks built from the planned list
+  if (kind === "quote") { const d = el("div", "paper", (c.marks === false ? "" : "\u201c") + String(c.text || "").split("/").map((x) => x.trim()).join("\n") + (c.marks === false ? "" : "\u201d")); d.style.cssText = "left:12%;right:12%;top:8%;padding:3cqw 4cqw;background:#fff;border-radius:3.5cqw;font-size:5.6cqw;font-weight:800;line-height:1.1;white-space:pre-line"; f.append(d); return; }
+  if (kind === "tag") { const d = el("div", "", c.text || "label"); d.style.cssText = `left:50%;transform:translateX(-50%);top:${pct(c.y || 300)};padding:1cqw 4cqw;border-radius:99px;background:${c.glass ? "rgba(255,255,255,.35)" : "#B9C8A5"};color:${c.glass ? "#fff" : "#0d2b2d"};font-size:5cqw;font-weight:700;white-space:nowrap`; f.append(d); return; }
+  if (kind === "cta") { const d = el("div", "paper"); d.style.cssText = "left:6%;right:6%;top:70%;padding:2.4cqw 3cqw;border-radius:6cqw;font-size:6cqw;font-weight:800;text-align:center;line-height:1.15"; String(c.text || "").split(" ").forEach((w) => { if (w.length > 1 && w === w.toUpperCase()) { const m = el("span", "", w); m.style.cssText = "position:static;background:#B9C8A5;border-radius:1cqw;padding:0 1cqw"; d.append(m, " "); } else d.append(w + " "); }); f.append(d); return; }
+  if (kind === "card") { const d = el("div", "paper"); d.style.cssText = `left:8%;right:8%;top:${pct(c.y || 150)};background:#fff;border-radius:4cqw;overflow:hidden;font-size:4.8cqw;font-weight:600`; const h = el("div", "", c.title || ""); h.style.cssText = "position:static;background:#0d2b2d;color:#fff;padding:1.6cqw 3cqw"; d.append(h); (c.rows || []).slice(0, 3).forEach((r) => { const x = el("div", "", r); x.style.cssText = "position:static;padding:1.6cqw 3cqw;border-top:1px solid #0001"; d.append(x); }); f.append(d); return; }
+  if (kind === "columns") { const d = el("div", "paper hand"); d.style.cssText = "left:8%;right:8%;top:6%;padding:2.4cqw 1cqw;display:flex;text-align:center;font-size:5.4cqw;font-weight:600;line-height:1.2"; (c.cols || []).slice(0, 3).forEach((col, k) => { const x = el("div"); x.style.cssText = `position:static;flex:1;color:${["#6f8658", "#0d2b2d", "#b4543c"][k]}`; const h = el("div", "", col.title || ""); h.style.cssText = "position:static;border-bottom:2px solid currentColor;margin:0 1.5cqw .8cqw"; x.append(h); (col.items || []).slice(0, 2).forEach((it) => { const r = el("div", "", it); r.style.cssText = "position:static;font-size:4.4cqw"; x.append(r); }); d.append(x); }); f.append(d); return; }
+  if (kind === "chips") { const t = el("div", "tx", String(c.title || "").toUpperCase()); t.style.cssText = `top:7%;font-size:${px(80)};text-align:center`; f.append(t); const row = el("div"); row.style.cssText = "left:0;right:0;top:15%;display:flex;justify-content:center;gap:2cqw"; for (let k = 0; k < Math.min(c.n || 5, 7); k++) { const b = el("span", "", String(k + 1)); b.style.cssText = `position:static;width:9cqw;height:9cqw;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:4.6cqw;font-weight:800;color:#0d2b2d;background:${k < 2 ? "#B9C8A5" : "#f5f2ec"}`; row.append(b); } f.append(row); return; }
+  if (kind === "page") {
+    const bg = el("div"); bg.style.cssText = `inset:0;border-radius:inherit;background:${c.bg === "blur" ? "rgba(13,43,45,.55)" : "#e9ecdf"};${c.bg === "blur" ? "backdrop-filter:blur(1.5cqw);" : ""}`; f.append(bg);
+    const card = el("div"); card.style.cssText = c.bg === "blur" ? "left:14%;right:14%;top:13%;height:56%;border-radius:5cqw;background:#7d9197;overflow:hidden;box-shadow:0 2cqw 6cqw #0006" : "left:18%;right:18%;top:29%;height:65%;border-radius:3cqw;border:1cqw solid #fff;background:#7d9197;overflow:hidden"; card.append(el("div", "body"), el("div", "who")); f.append(card);
+    if (c.label) { const l = el("div", "", String(c.label).toUpperCase()); l.style.cssText = "left:6%;top:4%;font-size:3.4cqw;letter-spacing:.14em;color:#0d2b2d;font-weight:600"; f.append(l); }
+    return;
+  }
+  if (kind === "sticker") { const p = el("div"); p.style.cssText = `left:${px((c.x || 540) - (c.size || 200) / 2)};top:${pct((c.y || 400) - (c.size || 200) / 2)};width:${px(c.size || 200)};height:${px(c.size || 200)};border-radius:22%;background:#B9C8A5;box-shadow:0 1cqw 3cqw #0004`; f.append(p); return; }
   const d = el("div", "paper", kind || "card"); d.style.cssText = "left:12%;right:12%;top:58%;padding:3cqw;font-size:5cqw;text-align:center"; f.append(d);
 }
 function extraSketch(x) {
@@ -144,7 +172,7 @@ function sketch(look) {
   const f = frame(), r = look.recipe;
   if (!r) { const bar = el("div", "cutbar"); bar.append(el("b"), el("b")); f.append(bar); return f; }   // an edit decision: no graphic to draw
   if (r.brand || r.mode) captions(f, r);
-  if (r.card) card(f, r.card);
+  for (const c of r.cards || (r.card ? [r.card] : [])) card(f, c);   // 0.19.0: a look can be more than one card
   return f;
 }
 

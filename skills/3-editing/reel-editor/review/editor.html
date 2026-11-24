@@ -285,7 +285,7 @@ function renderPieces() {
 }
 
 // ---- cards (pills / text / stickers)
-const TYPE_NAME = { tag: "Pill", title: "Title", cta: "Call to action", card: "List card", sticker: "Sticker", image: "Photos", shot: "Screenshot", block: "Color block", page: "Page", motion: "Motion", follow: "Word-by-word", popup: "Popup", orbit: "Circling my head" };
+const TYPE_NAME = { tag: "Pill", title: "Title", cta: "Call to action", card: "List card", sticker: "Sticker", image: "Photos", shot: "Screenshot", block: "Color block", page: "Page", motion: "Motion", follow: "Word-by-word", popup: "Popup", orbit: "Circling my head", quote: "Quote box", chips: "Number chips", columns: "Columns", note: "Taped note", polaroids: "Photo cards", tiles: "Icon tiles", stat: "Number card", xlist: "Check list" };
 const effLayer = (c) => c.layer || S.textDefault.layer || "front";
 function cardIndexes(pred) { return S.edit.cards.map((c, i) => [c, i]).filter(([c]) => pred(c)); }
 function renderCards() {
@@ -304,7 +304,7 @@ function cardHtml(c, i) {
     <button class="sm" data-a="open" data-i="${i}">${open ? "Close" : "Edit"}</button></div>`;
   if (open) {
     h += `<div class="edit">`;
-    if (c.type === "tag" || c.type === "title" || c.type === "cta") {
+    if (c.type === "tag" || c.type === "title" || c.type === "cta" || c.type === "quote") {
       h += `<label class="f">Text</label><input type="text" data-a="set" data-i="${i}" data-f="text" value="${esc(c.text)}" />`;
       if (c.type === "tag" && (c.text || "").length > 24) h += `<p class="warnt">Long text can run off the edge of the screen.</p>`;
     }
@@ -319,7 +319,7 @@ function cardHtml(c, i) {
         + (L === "behind" ? `<p class="warnt">Text behind you needs space above your head. If your face fills the frame, the text is hidden. If the outline around you isn't clean in this part, the text goes in front and the page tells you after the render.</p>` : "")
         + (c.layer == null ? `<p class="small">Using your default (${S.textDefault.layer === "front" ? "in front" : S.textDefault.layer}).</p>` : "");
     }
-    if (c.type === "tag" || c.type === "title" || c.type === "cta") {
+    if (c.type === "tag" || c.type === "title" || c.type === "cta" || c.type === "quote") {
       const y = c.y ?? (c.type === "tag" ? 130 : 360);
       h += `<label class="f">Height on screen</label><div class="grid3">${[[130, "Above my head"], [300, "Higher"], [800, "Middle"], [1050, "Lower"], [1150, "Above captions"]].map(([yy, n]) => `<button class="${Math.abs(y - yy) < 20 ? "on" : ""}" data-a="set" data-i="${i}" data-f="y" data-v="${yy}">${n}</button>`).join("")}<button class="${placing && placing.id === cid(i) ? "on" : ""}" data-a="place" data-i="${i}">Tap on video</button></div>`;
     }

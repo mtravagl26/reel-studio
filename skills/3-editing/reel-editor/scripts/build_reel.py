@@ -47,6 +47,14 @@ edit.json (written by auto_edit.py, then Claude marks accents and adds cards):
                                                      build says so. The ring is placed from the cutout: "crown" (default) rings the top of the head and stays above the
                                                      eyes, "chest" rings below the chin. Override with center: [x, y], rx, ry. period = seconds per lap, dir: -1 reverses,
                                                      frame: false drops the white border. See references/look-and-layers.md.
+     (0.19.0, Added by By Mel Ross, Style Menu H6-L23)
+     title also takes  *word* = highlighted word, font: "serif" | "body" | "accent" | "hand", italic: true, sub: "small line under", labels: ["before", "after"]
+     quote   {text: "line one / line two", y?, size?, marks?: false}   a sentence in a white rounded box above the head
+     columns {cols: [{title: "keep", items: ["a", "b"]}, ...], y?}     2 or 3 hand-lettered columns on a paper card, written in one after another
+     chips   {title: "5 things to fix", n: 5, chip_times?: [...]}      a caps title and a row of numbered chips; each lights up at its moment
+     page also takes bg: "blur" (the clip as a card over a blurred copy of itself) and label: "small caps label";  card takes y
+     polaroids layout: "cloud" (up to 8 in an arc);  tiles layout: "column", side: "left" | "right" (up to 5 down one side)
+     brand.json captions: bg: "#FFFFFF" | "rgba(0,0,0,.62)" (words on a box or bar), accent_font: "head", accent_italic: true
   Any card: "glass": true gives the frosted liquid-glass look (card, tag).
   Any card or sfx_event: "off": true leaves it out of the render (the editor page's on/off switch).
   Text cards (title, tag, card, cta) with no "layer" take brand.json "text_default": {"layer": "front" | "behind" | "both", "position": "above"}
@@ -317,6 +325,11 @@ for role, default in (("head", {"family": "Helvetica Neue", "weight": 700}), ("b
         else:
             print(f"warning: font file not found, using fallback: {src}")
     FAM[role] = (f"'{f['family']}', {FALLBACK}", f.get("weight", 400), f.get("style", "normal"))
+# Added by By Mel Ross (0.19.0): "serif" for title cards that ask for one. brand.json "fonts": {"serif": {...}} sets it; without
+# that it is the accent font upright when the brand has one, else a system serif.
+_sf = brand.get("fonts", {}).get("serif")
+if _sf and _sf.get("family"): FAM["serif"] = (f"'{_sf['family']}', Georgia, 'Times New Roman', serif", _sf.get("weight", 500), _sf.get("style", "normal"))
+else: FAM["serif"] = ("Georgia, 'Times New Roman', serif", 500, "normal")
 def font(role, px):
     fam, wt, st = FAM[role]
     return f"font-family:{fam};font-weight:{wt};font-style:{st};font-size:{px}px"
@@ -441,13 +454,30 @@ for i, c in enumerate(edit.get("cards", [])):
     if kind == "title":
         lines = [case(x.strip()) for x in c["text"].split("/")]
         if c.get("quiet", True): quiet.append((a, b))                    # the hook says it: captions step aside ("quiet": false keeps them)
-        sizes = [c.get("size") or fit(x, 230, 230 // 16) for x in lines]   # each line fitted on its own, outline included; "size" overrides (tight-tracked fonts fit bigger)
+        # Added by By Mel Ross (0.19.0, Style Menu H6-H19, L22, L23): *word* = that word in the highlight color; "font": head | body |
+        # accent | hand | serif; "italic": true; "sub": a small line under the headline; "labels": ["before", "after"] = 2 small
+        # labels under it with a mark between them.
+        tfont = c.get("font", "head"); tfont = tfont if tfont in FAM else "head"
+        ital = ";font-style:italic" if c.get("italic") else ""
+        hi_col = c.get("accent_color", POP)
+        # a soft highlight color on a white headline can't be read (sage on white): then the word gets the color as a marker behind it
+        hi_css = f"color:{hi_col}" if _contrast(hi_col, c.get("color", MAIN)) >= 2.2 else f"background:{hi_col};color:{MAIN};padding:0 .14em;border-radius:.14em;-webkit-text-stroke:0;text-shadow:none"
+        mark = lambda t: re.sub(r"\*([^*]+)\*", lambda m_: f'<span style="{hi_css}">{m_.group(1)}</span>', esc(t))
+        plain_of = lambda t: t.replace("*", "")
+        sizes = [c.get("size") or fit(plain_of(x), 230, 230 // 16) for x in lines]   # each line fitted on its own, outline included; "size" overrides (tight-tracked fonts fit bigger)
         ol = brand.get("title_outline", "#FFFFFF")                     # outline is for the hook title only, never captions
         olw = brand.get("title_outline_px")                            # fixed outline width (e.g. 2 for a faint hairline); default scales with size
-        st = lambda px: f";-webkit-text-stroke:{olw or max(6, px // 16)}px {ol};paint-order:stroke fill" if ol else ""
-        back.append(f'<div id="{cid}" class="title" style="{font("head", sizes[0])};top:{c.get("y", brand.get("title_y", 360))}px;color:{c.get("color", MAIN)};letter-spacing:{brand.get("title_tracking", -0.045)}em">'
+        st = lambda px: f";-webkit-text-stroke:{olw or max(6, px // 16)}px {ol};paint-order:stroke fill" if ol and tfont == "head" and px >= 90 else ""   # 0.19.0: the outline is for big headline type; serif, body and small lines stay clean
+        extra = ""
+        if c.get("sub"): extra += f'<div class="tl tsub" style="{font("body", int(numf(c.get("sub_size"), 44)))};color:{c.get("sub_color", c.get("color", MAIN))};letter-spacing:0;text-align:{c.get("align", "center")};padding-top:18px;-webkit-text-stroke:0">{esc(c["sub"])}</div>'
+        if isinstance(c.get("labels"), list) and len(c["labels"]) >= 2:
+            l1, l2 = [esc(case(str(x))) for x in c["labels"][:2]]
+            extra += (f'<div class="tl tlab" style="{font("body", 46)};letter-spacing:0;text-align:{c.get("align", "center")};padding-top:26px;-webkit-text-stroke:0">'
+                      f'<span style="background:{LIGHT};color:{MAIN};padding:8px 26px;border-radius:40px">{l1}</span><span style="color:{c.get("color", MAIN)};padding:0 18px">|</span>'
+                      f'<span style="background:{POP};color:{MAIN};padding:8px 26px;border-radius:40px">{l2}</span></div>')
+        back.append(f'<div id="{cid}" class="title" style="{font(tfont, sizes[0])}{ital};top:{c.get("y", brand.get("title_y", 360))}px;color:{c.get("color", MAIN)};letter-spacing:{brand.get("title_tracking", -0.045) if tfont == "head" else -0.01}em;line-height:{.88 if tfont == "head" else 1.04}">'
                     + (f'<div class="tl ol" style="{font(c.get("overline_font", "hand"), c.get("overline_size", 78))};color:{c.get("overline_color", LIGHT)};letter-spacing:0;text-align:{c.get("align", "left")};padding-bottom:6px">{esc(c["overline"])}</div>' if c.get("overline") else "")   # Style Menu H3/L7: a small handwritten (or italic serif) line above the headline
-                    + "".join(f'<div class="tl" style="font-size:{px}px;text-align:{c.get("align") or (("left", "right")[j % 2] if len(lines) > 1 else "center")}{st(px)}">{esc(x)}</div>' for j, (x, px) in enumerate(zip(lines, sizes))) + "</div>")
+                    + "".join(f'<div class="tl" style="font-size:{px}px;text-align:{c.get("align") or (("left", "right")[j % 2] if len(lines) > 1 else "center")}{st(px)}">{mark(x)}</div>' for j, (x, px) in enumerate(zip(lines, sizes))) + extra + "</div>")
         show(f"#{cid}", a, b)
         js.append(f'tl.fromTo("#{cid} .tl",{{clipPath:"inset(-40% 100% -40% 0%)",x:-30}},{{clipPath:"inset(-40% 0% -40% 0%)",x:0,duration:0.34,ease:"power3.out",stagger:0.25}},{q(a)});')
         sfx("snap", a + 0.03, -11)
@@ -465,17 +495,18 @@ for i, c in enumerate(edit.get("cards", [])):
     elif kind == "card":
         rows = c.get("rows", [])
         rt = c.get("row_times") or [a + 0.45 + 0.35 * j for j in range(len(rows))]
+        if "y" in c and numf(c["y"], 150) + 110 * (len(rows) + 1) > CAP_Y - 40: quiet.append((a, b))   # 0.19.0: a list moved down over the caption zone: captions step aside
         paper = mat("paper")
         if paper and not c.get("glass") and c.get("kit", True):
             # Added by By Mel Ross (0.11.0): with a kit, the list is a sheet of real paper, taped at the top, rows numbered with stickers
             tape = mat("tape"); tw = (KIT["materials"].get("tape") or {}).get("width") or 260
-            front.append(f'<div id="{cid}" class="card kcard" style="background-image:url({paper})">'
+            front.append(f'<div id="{cid}" class="card kcard" style="background-image:url({paper}){f";top:{int(numf(c["y"], 150))}px" if "y" in c else ""}">'
                          + (f'<img class="ktape" src="{tape}" style="width:{tw}px;margin-left:{-tw // 2}px" />' if tape else "")
                          + f'<div class="kh" style="{font("hand", fit(c.get("title", ""), 76))};color:{INK or MAIN}">{esc(case(c.get("title", "")))}</div>'
                          + "".join(f'<div class="cr" id="{cid}r{j}" style="{font("body", 50)};color:{INK or MAIN}">'
                                    + (f'<img class="kst" src="{mat("stickers", j + 1)}" />' if mat("stickers", j + 1) else f'<b style="background:{POP}"></b>') + f'{esc(case(r))}</div>' for j, r in enumerate(rows)) + "</div>")
         else:
-            front.append(f'<div id="{cid}" class="card{" glass" if c.get("glass") else ""}"><div class="ch" style="background:{MAIN};{font("head", 40)}"><i></i>{esc(case(c.get("title", "")))}</div>'
+            front.append(f'<div id="{cid}" class="card{" glass" if c.get("glass") else ""}"{f' style="top:{int(numf(c["y"], 150))}px"' if "y" in c else ""}><div class="ch" style="background:{MAIN};{font("head", 40)}"><i></i>{esc(case(c.get("title", "")))}</div>'
                          + "".join(f'<div class="cr" id="{cid}r{j}" style="{font("body", 50)};color:{MAIN}"><b style="background:{POP}"></b>{esc(case(r))}</div>' for j, r in enumerate(rows)) + "</div>")
         show(f"#{cid}", a, b)
         js.append(f'tl.fromTo("#{cid}",{{y:-160,scale:0.85,rotation:-3}},{{y:0,scale:1,rotation:-1.5,duration:0.5,ease:"back.out(1.6)"}},{q(a)});')
@@ -492,6 +523,48 @@ for i, c in enumerate(edit.get("cards", [])):
         show(f"#{cid}", a, b)
         js.append(f'tl.fromTo("#{cid} .tag",{{scale:0.4,y:30,opacity:0}},{{scale:1,y:0,opacity:1,duration:0.42,ease:"back.out(3)"}},{q(a)});')
         sfx("pop", a, -14)
+    elif kind == "quote":
+        # Added by By Mel Ross (0.19.0, Style Menu H12, H13): a sentence in a white rounded box above the head.
+        # {type:"quote", text:"line one / line two", y?, size?, color?, marks?: false}. Captions keep running under it.
+        lines = [l.strip() for l in str(c.get("text", "")).split("/") if l.strip()][:4] or [""]
+        px = min(max(int(numf(c.get("size"), 64)), 30), fit(max(lines, key=len), 64, 80))
+        if c.get("marks", True): lines[0] = "\u201c" + lines[0]; lines[-1] = lines[-1] + "\u201d"
+        front.append(f'<div id="{cid}" class="quotew" style="top:{int(numf(c.get("y"), 150))}px"><div class="quote" style="{font("head", px)};color:{c.get("color", MAIN)}">' + "".join(f"<div>{esc(l)}</div>" for l in lines) + "</div></div>")
+        show(f"#{cid}", a, b)
+        js.append(f'tl.fromTo("#{cid} .quote",{{scale:0.9,y:-24,opacity:0}},{{scale:1,y:0,opacity:1,duration:0.36,ease:"back.out(1.6)"}},{q(a)});')
+        sfx("pop", a, -15)
+    elif kind == "columns":
+        # Added by By Mel Ross (0.19.0, Style Menu L15): 2 or 3 hand-lettered columns on a paper card above the head.
+        # {type:"columns", cols:[{title:"keep", items:["a","b"], color?: "#hex"}, ...], y?}. Columns are written in one after another.
+        cols_ = [x for x in (c.get("cols") or []) if isinstance(x, dict)][:3] or [{"title": "", "items": []}]
+        inks = [SAGE_DEEP, MAIN, "#B4543C"]; cw_ = int(900 / len(cols_))
+        ct = c.get("col_times") or [a + 0.3 + 0.5 * j for j in range(len(cols_))]
+        cells = ""
+        for j, col in enumerate(cols_):
+            ink = col.get("color") or inks[j % 3]; items = [str(x) for x in (col.get("items") or [])][:4]
+            hp = min(64, int(cw_ / (max(len(str(col.get("title", ""))), 1) * 0.5))); ip = min(48, int(cw_ / (max([len(x) for x in items] + [1]) * 0.46)))
+            cells += (f'<div id="{cid}c{j}" class="colc" style="width:{cw_}px;color:{ink}"><div style="{font("hand", hp)};border-bottom:4px solid {ink};margin:0 18px 10px;padding-bottom:4px">{esc(str(col.get("title", "")))}</div>'
+                      + "".join(f'<div style="{font("hand", ip)};line-height:1.25">{esc(x)}</div>' for x in items) + "</div>")
+        front.append(f'<div id="{cid}" class="colw" style="top:{int(numf(c.get("y"), 110))}px;background:{LIGHT}">{cells}</div>')
+        show(f"#{cid}", a, b)
+        js.append(f'tl.fromTo("#{cid}",{{y:-120,opacity:0}},{{y:0,opacity:1,duration:0.4,ease:"power3.out"}},{q(a)});')
+        for j, t in enumerate(ct[:len(cols_)]):
+            js.append(f'tl.fromTo("#{cid}c{j}",{{clipPath:"inset(0% 100% 0% 0%)"}},{{clipPath:"inset(0% 0% 0% 0%)",duration:0.45,ease:"power2.out"}},{q(t)});'); sfx("pop", t, -17, "lots")
+        sfx("swish", a - 0.05, -13)
+    elif kind == "chips":
+        # Added by By Mel Ross (0.19.0, Style Menu L17): a caps title with a row of numbered chips; each chip lights up at its moment.
+        # {type:"chips", title:"5 things to fix", n: 5, chip_times?: [seconds...], y?}
+        n_ = max(2, min(int(numf(c.get("n"), 5)), 7)); ttl = case(str(c.get("title", ""))).upper()
+        px = fit(ttl, 88, 60) if ttl else 0; cs = int(min(120, (900 - 22 * (n_ - 1)) / n_))
+        ct = c.get("chip_times") or [a + 0.5 + (max(b - a - 1.0, 0.6) / n_) * j for j in range(n_)]
+        front.append(f'<div id="{cid}" class="chipw" style="top:{int(numf(c.get("y"), 130))}px">'
+                     + (f'<div class="chipt" style="{font("head", px)};color:{c.get("color", "#FFFFFF")}">{esc(ttl)}</div>' if ttl else "")
+                     + '<div class="chiprow">' + "".join(f'<span id="{cid}n{j}" class="chip" style="width:{cs}px;height:{cs}px;{font("head", int(cs * 0.5))};background:{LIGHT};color:{MAIN}">{j + 1}</span>' for j in range(n_)) + "</div></div>")
+        show(f"#{cid}", a, b)
+        js.append(f'tl.fromTo("#{cid} .chipt",{{y:-30,opacity:0}},{{y:0,opacity:1,duration:0.3,ease:"power3.out"}},{q(a)});tl.fromTo("#{cid} .chip",{{scale:0.4,opacity:0}},{{scale:1,opacity:1,duration:0.3,ease:"back.out(2.4)",stagger:0.06}},{q(a + 0.12)});')
+        for j, t in enumerate(ct[:n_]):
+            js.append(f'tl.to("#{cid}n{j}",{{backgroundColor:"{POP}",scale:1.14,duration:0.2,ease:"back.out(3)"}},{q(t)});tl.to("#{cid}n{j}",{{scale:1,duration:0.2}},{q(t + 0.25)});'); sfx("pop", t, -17, "lots")
+        sfx("swish", a - 0.05, -13)
     elif kind == "note":
         # Added by By Mel Ross (0.11.0): a short handwritten note on a scrap of paper, taped up above the head.
         # {type:"note", text:"line one / line two", y?, rotate?, size?, start, end}. With a kit: its paper and tape. Without: a plain sheet.
@@ -579,14 +652,16 @@ for i, c in enumerate(edit.get("cards", [])):
     elif kind == "polaroids":
         # Style Menu L2: 1-4 tilted white photo cards fan in with a handwritten label on a torn strip. Sized for face-filling footage:
         # a small stack in a top corner (side left/right) so it stays off the eyes; "size" and "y" move it.
-        srcs = (c["src"] if isinstance(c["src"], list) else [c["src"]])[:4]; n = len(srcs)
-        sz = int(c.get("size", 240)); pad = 12; chin = 46
-        spread = int(sz * 0.36); cw = sz + (n - 1) * spread
-        side = c.get("side", "left")
+        cloud = c.get("layout") == "cloud"   # Added by By Mel Ross (0.19.0, Style Menu L12): up to 8 smaller cards in an arc above the head
+        srcs = (c["src"] if isinstance(c["src"], list) else [c["src"]])[:8 if cloud else 4]; n = len(srcs)
+        sz = int(c.get("size", 170 if cloud else 240)); pad = 12; chin = 46
+        if cloud: pad, chin = 8, 22
+        spread = int((W - 120 - sz) / max(n - 1, 1)) if cloud else int(sz * 0.36); cw = sz + (n - 1) * spread
+        side = "center" if cloud else c.get("side", "left")
         cx = c["x"] if "x" in c else {"left": 50 + cw // 2 + 18, "right": W - 50 - cw // 2 - 18}.get(side, W // 2)
         top = int(c.get("y", 100))
-        rots = c.get("rotate") or {1: [-4], 2: [-7, 6], 3: [-8, 2, 8], 4: [-9, -2, 4, 9]}[n]
-        dys = [0, 12, -4, 14]
+        rots = c.get("rotate") or ([(-11, 7, -5, 9, -8, 5, -9, 10)[j] for j in range(n)] if cloud else {1: [-4], 2: [-7, 6], 3: [-8, 2, 8], 4: [-9, -2, 4, 9]}[n])
+        dys = [int(150 * abs((j - (n - 1) / 2) / max((n - 1) / 2, 1)) ** 1.6) + (0, 16, -6, 10)[j % 4] for j in range(n)] if cloud else [0, 12, -4, 14]   # cloud: the ends hang lower, like an arc
         parts = []
         for j, sj in enumerate(srcs):
             left = int(cx - sz / 2 + (j - (n - 1) / 2) * spread)
@@ -647,10 +722,12 @@ for i, c in enumerate(edit.get("cards", [])):
     elif kind == "tiles":
         # Style Menu L4: a torn paper label above a grid of soft icon tiles; each tile pops on in turn.
         tl_ = [x if isinstance(x, dict) else {"label": x} for x in c["tiles"]]; n = len(tl_)
-        cols = n if n <= 4 else 3 if n <= 6 else 4
+        column = c.get("layout") == "column"   # Added by By Mel Ross (0.19.0, Style Menu L14): one column of small tiles down one side
+        cols = 1 if column else n if n <= 4 else 3 if n <= 6 else 4
         gap = 26; ts = int(min(230, (900 - gap * (cols - 1)) / cols)); th = int(ts * 1.08)
-        y0 = int(c.get("y", 1050))
-        if c.get("quiet", True): quiet.append((a, b))
+        if column: n = min(n, 5); tl_ = tl_[:5]; gap = 18; ts = 170; th = 170
+        y0 = int(c.get("y", 560 if column else 1050))
+        if c.get("quiet", not column): quiet.append((a, b))
         rt = c.get("tile_times") or [a + 0.45 + 0.28 * j for j in range(n)]
         lab_html, lw_, lh_ = tape(c.get("label", ""), c.get("label_size", 76), c.get("label_bg", LIGHT), c.get("label_color", MAIN), seed=i + 5, rot=-2, maxw=W - 140) if c.get("label") else ("", 0, 0)
         gy = y0 + (lh_ + 26 if lab_html else 0)
@@ -658,6 +735,7 @@ for i, c in enumerate(edit.get("cards", [])):
         for j, t_ in enumerate(tl_):
             r_, k_ = divmod(j, cols); in_row = min(cols, n - r_ * cols)
             left = int((W - (in_row * ts + (in_row - 1) * gap)) / 2 + k_ * (ts + gap)); top = gy + r_ * (th + gap)
+            if column: left = 50 if c.get("side", "left") == "left" else W - 50 - ts
             ic = t_.get("icon", "")
             if ic in ICONS: glyph = f'<svg viewBox="0 0 24 24" width="{int(ts * 0.36)}" height="{int(ts * 0.36)}" fill="none" stroke="{MAIN}" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">{ICONS[ic]}</svg>'
             elif ic and Path(str(ic)).suffix.lower() in (".png", ".jpg", ".jpeg", ".webp") and img(ic): glyph = f'<img src="{img(ic)}" style="width:{int(ts * 0.4)}px;height:{int(ts * 0.4)}px;object-fit:contain" />'
@@ -677,8 +755,12 @@ for i, c in enumerate(edit.get("cards", [])):
         bg = c.get("bg", LIGHT)
         rgb = tuple(int(LIGHT.lstrip("#")[k:k + 2], 16) for k in (0, 2, 4))
         fade = f"linear-gradient(rgba({rgb[0]},{rgb[1]},{rgb[2]},.92) 0%, rgba({rgb[0]},{rgb[1]},{rgb[2]},.55) 28%, rgba({rgb[0]},{rgb[1]},{rgb[2]},.15) 60%)"
-        bgcss = f"background:{bg}" if bg.startswith("#") else f"background:{fade}, url('{img(bg)}') center/cover"   # fade keeps the title readable
-        mid.append(f'<div id="{cid}" class="page" style="opacity:0;visibility:hidden;{bgcss}">'
+        blur = bg == "blur"   # Added by By Mel Ross (0.19.0, Style Menu L10): the background is the same clip, enlarged and blurred; the clip sits in the middle as a card
+        bgcss = "background:#000" if blur else f"background:{bg}" if bg.startswith("#") else f"background:{fade}, url('{img(bg)}') center/cover"   # fade keeps the title readable
+        if blur: quiet.append((a, b)) if c.get("quiet") else None
+        mid.append(f'<div id="{cid}" class="page{" pblur" if blur else ""}" style="opacity:0;visibility:hidden;{bgcss}">'
+                   + (f'<video class="pbg" id="{cid}b" src="master.mp4" muted playsinline data-start="{q(a)}" data-duration="{q(b - a)}" data-media-start="{q(a)}" data-track-index="{40 + i}"></video>' if blur else "")
+                   + (f'<div class="plabel" style="{font("body", 34)};color:{MAIN}">{esc(str(c["label"]).upper())}</div>' if c.get("label") else "")
                    + (f'<div class="pt" style="{font("head", 92)};color:{c.get("color", MAIN)}">{esc(case(c["title"]))}</div>' if c.get("title") else "")
                    + f'<div class="pf"><video id="{cid}v" src="master.mp4" muted playsinline data-start="{q(a)}" data-duration="{q(b - a)}" data-media-start="{q(a)}" data-track-index="{9 + i}"></video></div></div>')
         js.append(f'tl.set("#{cid}",{{autoAlpha:1}},{q(a)});tl.fromTo("#{cid}",{{clipPath:"inset(100% 0% 0% 0%)"}},{{clipPath:"inset(0% 0% 0% 0%)",duration:0.3,ease:"power3.out"}},{q(a)});'
@@ -861,9 +943,13 @@ for i, c in enumerate(edit.get("captions", [])):
     big = 1.7 if CAPS.get("style") == "editorial" else 1.12          # editorial = dramatic size contrast on the emphasis word
     big = min(big, min((fit(w["text"], px * big) / px) for w in ws if w.get("accent")) if any(w.get("accent") for w in ws) else big)
     blk = "display:block;line-height:.95;" if CAPS.get("style") == "editorial" and len(ws) > 1 else ""
-    spans = "".join(f'<span class="acc" style="{blk}{font("accent", int(px * big))};color:{CAP_ACC}">{esc(case(w["text"]))}</span> ' if w.get("accent")
+    acc_role = CAPS.get("accent_font", "accent") if CAPS.get("accent_font") in FAM else "accent"   # 0.19.0 (Style Menu C9): captions "accent_font": "head", "accent_italic": true
+    acc_it = ";font-style:italic" if CAPS.get("accent_italic") else ""
+    spans = "".join(f'<span class="acc" style="{blk}{font(acc_role, int(px * big))}{acc_it};color:{CAP_ACC}">{esc(case(w["text"]))}</span> ' if w.get("accent")
                     else f'<span>{esc(case(w["text"]))}</span> ' for w in ws)
-    front.append(f'<div id="c{i}" class="cap" style="top:{CAP_Y}px;{font("body", int(px))};color:{CAP};letter-spacing:{CAPS.get("tracking", -0.02)}em">{spans.strip()}</div>')
+    if CAPS.get("bg"):   # Added by By Mel Ross (0.19.0, Style Menu C6, C10): the words sit on a box or a bar. brand.json captions "bg": "#FFFFFF" | "rgba(0,0,0,.6)"
+        spans = f'<span class="cb" style="background:{CAPS["bg"]};line-height:1.5">{spans.strip()}</span>'
+    front.append(f'<div id="c{i}" class="cap{" capbg" if CAPS.get("bg") else ""}" style="top:{CAP_Y}px;{font("body", int(px))};color:{CAP};letter-spacing:{CAPS.get("tracking", -0.02)}em">{spans.strip()}</div>')
     show(f"#c{i}", c["start"], c["end"], 0.06)
     js.append(f'tl.fromTo("#c{i}",{{scale:0.86,y:14}},{{scale:1,y:0,duration:0.16,ease:"back.out(2)"}},{q(c["start"])});')
 
@@ -902,6 +988,15 @@ html, body {{ margin: 0; background: #000; overflow: hidden; }}
 .cr {{ display: flex; align-items: center; gap: 24px; height: 110px; margin: 0 36px; border-bottom: 3px solid rgba(0,0,0,.06); letter-spacing: -.02em; }}
 .cr b {{ width: 26px; height: 26px; border-radius: 50%; flex: none; }}
 .tagw, .ctaw {{ position: absolute; left: 0; right: 0; text-align: center; }}
+.quotew {{ position: absolute; left: 70px; right: 70px; text-align: center; }}
+.quote {{ display: inline-block; background: #fff; border-radius: 34px; padding: 30px 44px; line-height: 1.08; letter-spacing: -.02em; text-align: left; box-shadow: 0 24px 60px rgba(0,0,0,.25); }}
+.colw {{ position: absolute; left: 90px; width: 900px; display: flex; border-radius: 26px; padding: 26px 0 30px; box-shadow: 0 30px 70px rgba(0,0,0,.25); text-align: center; }}
+.colc {{ box-sizing: border-box; }}
+.chipw {{ position: absolute; left: 60px; right: 60px; text-align: center; }}
+.chipt {{ letter-spacing: -.03em; line-height: 1; text-shadow: 0 4px 24px rgba(0,0,0,.45); margin-bottom: 26px; white-space: nowrap; }}
+.chiprow {{ display: flex; justify-content: center; gap: 22px; }}
+.chip {{ display: inline-flex; align-items: center; justify-content: center; border-radius: 50%; box-shadow: 0 10px 26px rgba(0,0,0,.28); }}
+.cap.capbg span.cb {{ padding: .08em .3em; border-radius: .16em; -webkit-box-decoration-break: clone; box-decoration-break: clone; text-shadow: none; }}
 .ctaw {{ top: 1360px; }}   /* above Instagram's caption + buttons zone (bottom ~420 px) */
 .tag, .cta {{ display: inline-block; color: #fff; padding: 18px 42px; border-radius: 80px; letter-spacing: -.02em; box-shadow: 0 14px 34px rgba(0,0,0,.2); }}
 .shot {{ position: absolute; left: 70px; top: 130px; width: 940px; border-radius: 26px; overflow: hidden; background: #fff; box-shadow: 0 34px 80px rgba(0,0,0,.3); }}
@@ -944,6 +1039,9 @@ html, body {{ margin: 0; background: #000; overflow: hidden; }}
 .pt {{ position: absolute; left: 0; right: 0; top: 150px; text-align: center; line-height: .9; letter-spacing: -.04em; padding: 0 60px; }}
 .pf {{ position: absolute; left: 190px; top: 560px; width: 700px; height: 1240px; overflow: hidden; border: 12px solid #fff; border-radius: 34px; box-shadow: 0 30px 70px rgba(0,0,0,.28); }}
 .pf video {{ width: 100%; height: 100%; object-fit: cover; display: block; }}
+.pbg {{ position: absolute; inset: -6%; width: 112%; height: 112%; object-fit: cover; filter: blur(34px) brightness(.82); }}
+.pblur .pf {{ left: 150px; top: 250px; width: 780px; height: 1080px; border: 0; border-radius: 54px; }}
+.plabel {{ position: absolute; left: 70px; top: 70px; letter-spacing: .14em; }}
 .glass {{ background: rgba(28,22,34,.34) !important; backdrop-filter: blur(22px) saturate(1.4); -webkit-backdrop-filter: blur(22px) saturate(1.4); border: 1.5px solid rgba(255,255,255,.55); box-shadow: 0 20px 60px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.6); }}
 .card.glass .cr {{ color: #fff !important; border-bottom-color: rgba(255,255,255,.25); }}
 .cap {{ position: absolute; left: 60px; right: 60px; text-align: center; line-height: 1.02; letter-spacing: -.02em; text-shadow: 0 2px 14px rgba(0,0,0,.3); }}

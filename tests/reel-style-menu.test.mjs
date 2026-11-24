@@ -37,8 +37,7 @@ test("style menu: the SKILL.md list of built looks matches the JSON", () => {
 test("style menu: every card recipe uses a card type that build_reel.py handles", () => {
   const build = read("scripts", "build_reel.py");
   for (const [id, look] of Object.entries(menu.looks)) {
-    const type = look.recipe?.card?.type;
-    if (type) assert.match(build, new RegExp(`kind == "${type}"`), `${id}: build_reel.py has a "${type}" card`);
+    for (const c of look.recipe?.cards || (look.recipe?.card ? [look.recipe.card] : [])) assert.match(build, new RegExp(`kind == "${c.type}"`), `${id}: build_reel.py has a "${c.type}" card`);
   }
 });
 
@@ -238,13 +237,61 @@ test("edl without xfade keeps the old short dip-fade at each join", { skip: skip
 // descriptions only: no links to other people's posts, no lines lifted from them, no private notes.
 test("style menu: planned looks have no recipe, no links, no private notes, and are never offered as usable", () => {
   const planned = Object.entries(menu.looks).filter(([, l]) => l.status === "planned");
-  assert.equal(planned.length, 39);
+  assert.deepEqual(planned.map(([id]) => id).sort(), ["C14", "H18", "L18"], "0.19.0: the rest are built; these 3 are not recommended");
   for (const [id, l] of planned) {
     assert.equal(l.recipe, null, `${id}: no recipe until it is built`);
     for (const f of ["evidence", "fit_for_melissa", "fit_note", "trend_2026_11"]) assert.ok(!(f in l), `${id}: ${f} stays out of the shipped menu`);
     assert.doesNotMatch(JSON.stringify(l), /https?:\/\/|instagram|\$\d/i, `${id}: general wording only`);
     assert.ok(l.does && l.build, `${id}: says what it is and how it would be made`);
   }
+  for (const [id, l] of Object.entries(menu.looks)) {   // no look carries links, quoted posts or private notes, built or not
+    for (const f of ["evidence", "fit_for_melissa", "fit_note", "trend_2026_11"]) assert.ok(!(f in l), `${id}: ${f}`);
+    assert.doesNotMatch(JSON.stringify(l), /https?:\/\/|instagram/i, `${id}`);
+  }
   const page = read("review", "style-menu.html");
   assert.match(page, /USABLE\.has\(l\.status\)/); assert.doesNotMatch(/const USABLE = new Set\(\[[^\]]*\]\)/.exec(page)?.[0] || "", /planned/, "the looks page never offers a planned look");
+});
+
+// 0.19.0: the looks built from the planned list. Every recipe is built for real (all cards and caption settings in one reel
+// each), and the things each look exists for are in the page.
+test("every usable look's recipe builds, alone, with its own caption settings and stand-in pictures", { skip: skipReason }, () => {
+  const caps = [{ start: 0.2, end: 3.6, words: [{ text: "this", t: 0.2, accent: true }, { text: "line", t: 1.0 }] }];
+  const got = {};
+  for (const [id, look] of Object.entries(menu.looks)) {
+    const r = look.recipe; if (!r) continue;
+    const brand = JSON.parse(JSON.stringify(r.brand || {}).replace(/\{reels\}|\{skill\}/g, "/nowhere"));
+    let k = 0;
+    const cards = (r.cards || (r.card ? [r.card] : [])).map((c0) => {
+      const c = { ...c0, start: 0.3, end: 3.4 };
+      if (c.type === "polaroids") c.src = Array.from({ length: r.needs_photos || 3 }, (_, j) => `shots/${"abc"[j % 3]}.png`);
+      else if (["popup", "sticker"].includes(c.type)) c.src = `shots/${"abc"[k++ % 3]}.png`;
+      else if (c.type === "page" && r.needs_photos) c.bg = "shots/a.png";
+      return c;
+    });
+    const reel = makeReel(cards, { brand: { ...brand, colors: { main: "#0d2b2d", pop: "#B9C8A5", light: "#f5f2ec", ...(brand.colors || {}) } }, captions: caps });
+    const out = py("build_reel.py", [reel.reel], reel.env);
+    assert.equal(out.status, 0, `${id}: ${out.stdout}${out.stderr}`.slice(-600));
+    got[id] = fs.readFileSync(path.join(reel.reel, "proj", "index.html"), "utf8");
+  }
+  assert.ok(Object.keys(got).length >= 46, `${Object.keys(got).length} looks built`);
+  assert.match(got.H6, /<span style="background:#B9C8A5;color:#0d2b2d[^"]*">161<\/span> days ago/, "a soft highlight on a white headline becomes a marker so the word can be read");
+  assert.match(got.H7, /class="tl tsub"[^>]*>\(as a solo business owner\)/); assert.match(got.H7, /Georgia/);
+  assert.match(got.H10, /class="tl tlab"[\s\S]*messy[\s\S]*mapped/);
+  assert.match(got.H12, /class="quote"[^>]*><div>\u201c/); assert.match(got.H13, /class="quote"[\s\S]*class="pop"/, "2 cards from 1 look");
+  assert.match(got.H15, /font-style:italic/); assert.doesNotMatch(got.H15.match(/class="tl" style="[^"]*"/)[0], /text-stroke/, "serif lines carry no outline");
+  assert.match(got.C6, /class="cap capbg"[\s\S]*?<span class="cb" style="background:#FFFFFF/); assert.match(got.C10, /class="cb" style="background:rgba\(0,0,0,\.62\)/);
+  assert.match(got.C9, /class="acc" style="[^"]*font-style:italic/);
+  assert.match(got.L10, /class="page pblur"[\s\S]*class="pbg"/); assert.match(got.L11, /class="plabel"[^>]*>APP NAME/);
+  assert.equal((got.L12.match(/class="pl"/g) || []).length, 6, "the cloud takes 6 pictures");
+  assert.equal((got.L14.match(/class="tile" style="left:50px/g) || []).length, 4, "a column down the left side");
+  assert.equal((got.L15.match(/class="colc"/g) || []).length, 3); assert.equal((got.L17.match(/class="chip"/g) || []).length, 5);
+  assert.match(got.L16, /class="card" style="top:1000px"/); assert.match(got.L20, /class="pop" style="left:0px;top:\d+px;width:1080px/);
+  assert.match(got.L23, /fix the basics<\/span>/i);
+});
+
+test("the pages and the storyboard handle a look made of several cards", () => {
+  const page = read("review", "style-menu.html"), sb = read("scripts", "storyboard.py");
+  assert.match(page, /for \(const c of r\.cards \|\| \(r\.card \? \[r\.card\] : \[\]\)\) card\(f, c\)/);
+  for (const k of ["quote", "columns", "chips", "page", "cta", "tag", "sticker"]) assert.match(page, new RegExp(`kind === "${k}"`), `the looks page draws a ${k}`);
+  assert.match(sb, /look_cards = r\.get\("cards"\)/); assert.match(sb, /accent == "first"/);
 });
