@@ -10,6 +10,15 @@ Step 4 of Reel Studio, after the cover: the post caption that goes under the ree
 4. `python3 scripts/caption.py check <reel>` and fix every `FIX:` line.
 5. Give them the Caption page link. The page shows the drafts by itself once the file is there.
 
+## Style, emojis and the ask (picked on the page)
+
+The person picks these on the Caption page; they are saved in `caption.json` and printed in the brief. Write to them.
+
+- **`tone`**: `mine` (their usual voice), `funny`, `witty`, `sarcastic`, `warm`, `bold`, `serious`, `corporate`. A style changes how it sounds, never what is true. Their `brand.md` rules win over every style: sarcasm is aimed at the situation, never at the reader or a person.
+- **`emoji`**: `0` none, `1` a few (1 or 2), `2` some (3 to 5), `3` lots (6 to 10), per caption. `check` counts them.
+- **`ask`**: `keyword` ("Comment REEL and I'll send you ..."), `follow` ("Follow for more ..." with their `more` text), `save`, `share`, or `none`. Leave each draft's `cta` empty and the page writes the line; fill `cta` only when they asked for their own closing line.
+- When you write or rewrite the drafts, set `"written": {"tone": ..., "emoji": ...}` to the style you wrote in. The page compares it with what is picked now, and offers a "rewrite" request when they differ. When they bring you that request, run the brief again, rewrite all 3 drafts, update `written`, and run `check`.
+
 ## Rules for the writing
 
 - Only say what the reel says or what they told you. No invented stories, clients, results or numbers. No fear.

@@ -27,6 +27,8 @@ label.f { display: block; font-size: 13px; font-weight: 600; color: var(--mute);
 input[type=text], textarea { width: 100%; font: inherit; color: var(--ink); padding: 10px 12px; border: 1.5px solid var(--line); border-radius: 12px; background: #fff; }
 textarea { resize: vertical; line-height: 1.4; } input:focus, textarea:focus { outline: 2px solid var(--sage-d); outline-offset: 1px; }
 .two { display: grid; grid-template-columns: 1fr 2fr; gap: 12px; } @media (max-width: 560px) { .two { grid-template-columns: 1fr; } }
+.chips { display: flex; gap: 8px; flex-wrap: wrap; } .chips button { border-radius: 999px; min-height: 40px; padding: 0 14px; border-color: var(--line); font-weight: 500; }
+.chips button[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: #fff; font-weight: 600; }
 .tabs { display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; }
 .tabs button { border-radius: 999px; min-height: 40px; } .tabs button[aria-pressed="true"] { background: var(--ink); color: #fff; }
 .tabs button .ck { margin-left: 6px; }
@@ -57,11 +59,21 @@ textarea { resize: vertical; line-height: 1.4; } input:focus, textarea:focus { o
 <p class="sub" id="sub">The words that go under your reel on Instagram.</p>
 
 <div class="box">
-  <h2>Your ask <button class="tipb" type="button" data-tip="The last line of the caption asks people to comment one word. You send the thing to everyone who comments it."></button></h2>
-  <div class="two">
+  <h2>Style <button class="tipb" type="button" data-tip="How the caption sounds. Claude writes the drafts in the style you pick. Your own brand rules still come first in every style."></button></h2>
+  <div class="chips" id="tones" role="group" aria-label="Style of the caption"></div>
+  <label class="f" style="margin-top:14px">Emojis <button class="tipb" type="button" data-tip="Off means none anywhere. On lets you pick how many go in each caption: a few is 1 or 2, some is 3 to 5, lots is 6 to 10."></button></label>
+  <div class="chips" id="emojis" role="group" aria-label="How many emojis"></div>
+  <div class="warn" id="stale" hidden></div>
+</div>
+
+<div class="box">
+  <h2>Your ask <button class="tipb" type="button" data-tip="The last line of the caption. Pick what you want people to do after they watch."></button></h2>
+  <div class="chips" id="asks" role="group" aria-label="What you ask people to do"></div>
+  <div class="two" id="askkw" style="margin-top:12px">
     <div><label class="f" for="kw">Keyword they comment</label><input type="text" id="kw" maxlength="20" placeholder="REEL" autocomplete="off" autocapitalize="characters"></div>
     <div><label class="f" for="gift">What you send them</label><input type="text" id="gift" maxlength="120" placeholder="the link to my reel editor" autocomplete="off"></div>
   </div>
+  <div id="askmore" style="margin-top:12px" hidden><label class="f" for="more">Follow for more of what (optional)</label><input type="text" id="more" maxlength="80" placeholder="AI words in plain English" autocomplete="off"></div>
   <p class="small" id="ctaprev"></p>
 </div>
 
@@ -107,7 +119,17 @@ textarea { resize: vertical; line-height: 1.4; } input:focus, textarea:focus { o
 <script>
 const $ = (s) => document.querySelector(s);
 const NAMES = { short: "Short", medium: "Medium", long: "Long" };
+let REEL = "";
 let D = null, LIM = { total: 2200, hook: 125, hashtagsMax: 5, hashtagsMin: 3 }, cur = "medium", saveT = null, lastSaved = "", ASK = "";
+// Style, emojis and the kind of ask (0.20.0). Claude writes to these; the page shows when the drafts were written in another style.
+let SET = { tone: "mine", emoji: 0, ask: "keyword" }, TONES = { mine: "My usual voice" }, WRITTEN = null;
+const EMOJI_NAMES = ["Off", "A few", "Some", "Lots"], EMOJI_SAY = ["no emojis", "a few emojis (1 or 2)", "some emojis (3 to 5)", "lots of emojis (6 to 10)"];
+const ASK_NAMES = { keyword: "Comment a keyword", follow: "Follow for more", save: "Save it", share: "Send it to someone", none: "No ask" };
+const EMOJI_RE = /\p{Extended_Pictographic}(\uFE0F|\u200D\p{Extended_Pictographic})*/gu;
+const autoCta = () => { const kw = $("#kw").value.trim().toUpperCase().replace(/[^A-Z0-9]/g, ""), gift = $("#gift").value.trim(), more = $("#more").value.trim();
+  if (SET.ask === "none") return ""; if (SET.ask === "follow") return more ? `Follow for more ${more}.` : "Follow for more."; if (SET.ask === "save") return "Save this so you can find it later."; if (SET.ask === "share") return "Send this to someone who needs it.";
+  return kw && gift ? `Comment ${kw} and I'll send you ${gift}.` : kw ? `Comment ${kw} and I'll send it to you.` : ""; };
+function chips(box, entries, on, pick) { box.textContent = ""; for (const [v, label] of entries) { const b = document.createElement("button"); b.type = "button"; b.textContent = label; b.setAttribute("aria-pressed", String(v) === String(on)); b.addEventListener("click", () => pick(v)); box.append(b); } }
 
 function setSteps(here, links) {
   const local = /^(127\.0\.0\.1|localhost|\[::1\])$/.test(location.hostname);
@@ -121,7 +143,7 @@ function setSteps(here, links) {
 }
 const draft = () => D && D.drafts.find((x) => x.id === cur);
 const tagsOf = (text) => { const out = []; for (const t of String(text || "").split(/[\s,]+/)) { const x = "#" + t.replace(/[^\p{L}\p{N}_]/gu, ""); if (x.length > 1 && !out.some((y) => y.toLowerCase() === x.toLowerCase())) out.push(x); } return out; };
-const ctaOf = (x) => { const own = (x.cta || "").trim(), kw = $("#kw").value.trim().toUpperCase().replace(/[^A-Z0-9]/g, ""), gift = $("#gift").value.trim(); return own || (kw && gift ? `Comment ${kw} and I'll send you ${gift}.` : kw ? `Comment ${kw} and I'll send it to you.` : ""); };
+const ctaOf = (x) => (x.cta || "").trim() || autoCta();
 const textOf = (x) => [x.hook.trim(), x.body.trim(), ctaOf(x), x.hashtags.join(" ")].filter(Boolean).join("\n\n");
 
 function fields() {   // the form is the truth for the open draft
@@ -135,8 +157,25 @@ function show() {
 }
 function paint() {
   const kw = $("#kw").value.trim().toUpperCase().replace(/[^A-Z0-9]/g, ""), gift = $("#gift").value.trim();
-  $("#ctaprev").textContent = kw ? "Your closing line: " + (gift ? `Comment ${kw} and I'll send you ${gift}.` : `Comment ${kw} and I'll send it to you.`) : "Type a keyword to get your closing line.";
-  $("#ask").textContent = ASK + (kw ? `\nKeyword: ${kw}.` + (gift ? ` I send: ${gift}.` : "") : "\nAsk me for the keyword people comment and what I send them.");
+  const again = () => { paint(); later(); };
+  chips($("#tones"), Object.entries(TONES), SET.tone, (v) => { SET.tone = v; again(); });
+  chips($("#emojis"), EMOJI_NAMES.map((n, i) => [i, n]), SET.emoji, (v) => { SET.emoji = v; again(); });
+  chips($("#asks"), Object.entries(ASK_NAMES), SET.ask, (v) => { SET.ask = v; again(); });
+  $("#askkw").hidden = SET.ask !== "keyword"; $("#askmore").hidden = SET.ask !== "follow";
+  $("#ctaprev").textContent = SET.ask === "none" ? "The caption ends on the last line of the body." : autoCta() ? "Your closing line: " + autoCta() : "Type a keyword to get your closing line.";
+  const styleSay = `Style: ${(TONES[SET.tone] || "My usual voice").toLowerCase()}, with ${EMOJI_SAY[SET.emoji]}.`;
+  $("#ask").textContent = ASK + "\n" + styleSay + (SET.ask !== "keyword" ? "" : kw ? `\nKeyword: ${kw}.` + (gift ? ` I send: ${gift}.` : "") : "\nAsk me for the keyword people comment and what I send them.");
+  // the drafts were written in one style; say so when the style picked now is another
+  const st = $("#stale"), was = WRITTEN || { tone: "mine", emoji: 0 }; st.textContent = ""; st.hidden = !(D && (was.tone !== SET.tone || was.emoji !== SET.emoji));
+  if (!st.hidden) {
+    const req = `Rewrite the Instagram captions for the reel "${REEL}". ${styleSay}`;
+    const p1 = document.createElement("p"); p1.style.margin = "0 0 8px"; p1.textContent = `These drafts were written as ${(TONES[was.tone] || "my usual voice").toLowerCase()} with ${EMOJI_SAY[was.emoji]}. To get them in the new style, give Claude this:`;
+    const code = document.createElement("div"); code.className = "ask"; code.style.margin = "0 0 8px"; code.textContent = req;
+    const b = document.createElement("button"); b.type = "button"; b.textContent = "Copy the request"; b.addEventListener("click", async () => { await save(); try { await navigator.clipboard.writeText(req); b.textContent = "Copied. Paste it to Claude."; } catch { b.textContent = "Select the text above and copy it"; } });
+    st.append(p1, code, b);
+    fields();
+    if (SET.emoji === 0 && D.drafts.some((x) => /\p{Extended_Pictographic}/u.test(x.hook + x.body + x.cta))) { const r = document.createElement("button"); r.type = "button"; r.style.marginLeft = "8px"; r.textContent = "Take the emojis out now"; r.addEventListener("click", () => { fields(); for (const x of D.drafts) for (const k of ["hook", "body", "cta"]) x[k] = x[k].replace(EMOJI_RE, "").replace(/[ \t]{2,}/g, " ").replace(/ +\n/g, "\n").trim(); WRITTEN = { tone: was.tone, emoji: 0 }; show(); later(); }); st.append(r); }
+  }
   const tabs = $("#tabs"); tabs.textContent = "";
   for (const d of D ? D.drafts : []) {
     const b = document.createElement("button"); b.type = "button"; b.textContent = NAMES[d.id] || d.id; b.setAttribute("aria-pressed", d.id === cur);
@@ -159,13 +198,15 @@ function paint() {
   if (hook.length > LIM.hook) w.push(`The hook is ${hook.length - LIM.hook} characters too long to show before “more”.`);
   if (tags.length > LIM.hashtagsMax) w.push(`Instagram allows ${LIM.hashtagsMax} hashtags. Remove ${tags.length - LIM.hashtagsMax}.`);
   if (/#/.test(hook + $("#body").value)) w.push("Move hashtags out of the hook and body, into the hashtags box.");
-  if (!ctaOf({ cta: $("#cta").value })) w.push("Add a keyword at the top, or write your own closing line.");
+  if (!ctaOf({ cta: $("#cta").value }) && SET.ask !== "none") w.push("Add a keyword at the top, or write your own closing line.");
+  const ne = (full.match(EMOJI_RE) || []).length, range = [[0, 0], [1, 2], [3, 5], [6, 10]][SET.emoji];
+  if (ne > range[1]) w.push(SET.emoji === 0 ? `Emojis are off and this draft has ${ne}.` : `This draft has ${ne} emojis. You picked ${EMOJI_NAMES[SET.emoji].toLowerCase()}, which is up to ${range[1]}.`);
   if (full.length > LIM.total) w.push(`This caption is ${full.length - LIM.total} characters over Instagram's limit.`);
   const wb = $("#warn"); wb.hidden = !w.length; wb.textContent = "";
   if (w.length) { const b = document.createElement("b"); b.textContent = "Before you post:"; const ul = document.createElement("ul"); for (const t of w) { const li = document.createElement("li"); li.textContent = t; ul.append(li); } wb.append(b, ul); }
   $("#use").disabled = $("#copy").disabled = full.length > LIM.total || !hook;
 }
-function payload() { fields(); return { keyword: $("#kw").value, gift: $("#gift").value, drafts: D ? D.drafts : [], chosen: D ? D.chosen : null }; }
+function payload() { fields(); return { keyword: $("#kw").value, gift: $("#gift").value, more: $("#more").value, tone: SET.tone, emoji: SET.emoji, ask: SET.ask, written: WRITTEN || undefined, drafts: D ? D.drafts : [], chosen: D ? D.chosen : null }; }
 async function save(say) {
   const body = JSON.stringify(payload()); if (body === lastSaved && !say) return true;
   try {
@@ -175,7 +216,7 @@ async function save(say) {
   } catch (e) { $("#msg").textContent = "Not saved: " + e.message; return false; }
 }
 function later() { clearTimeout(saveT); $("#msg").textContent = ""; saveT = setTimeout(() => save(), 700); }
-for (const id of ["hook", "body", "cta", "tags", "kw", "gift"]) $("#" + id).addEventListener("input", () => { if (id === "kw") $("#kw").value = $("#kw").value.toUpperCase().replace(/[^A-Z0-9]/g, ""); paint(); later(); });
+for (const id of ["hook", "body", "cta", "tags", "kw", "gift", "more"]) $("#" + id).addEventListener("input", () => { if (id === "kw") $("#kw").value = $("#kw").value.toUpperCase().replace(/[^A-Z0-9]/g, ""); paint(); later(); });
 $("#copy").addEventListener("click", async () => {
   fields(); const t = textOf(draft());
   try { await navigator.clipboard.writeText(t); $("#msg").textContent = "Copied. Paste it into Instagram."; }
@@ -187,12 +228,15 @@ $("#copyask").addEventListener("click", async () => { await save(); try { await 
 async function load(first) {
   let j; try { j = await (await fetch("/api/caption")).json(); } catch { return; }
   if (!j.ok) return;
-  LIM = j.limits || LIM; ASK = j.ask || ""; setSteps("caption", j.links);
+  LIM = j.limits || LIM; ASK = j.ask || ""; REEL = j.reel; TONES = j.tones || TONES; setSteps("caption", j.links);
+  if (first) { SET = { tone: j.settings.tone, emoji: j.settings.emoji, ask: j.settings.ask }; $("#more").value = j.settings.more || ""; }
+  if (j.caption && D && JSON.stringify(j.written) !== JSON.stringify(WRITTEN) && j.written) { D = null; }   // Claude rewrote them in a new style: load the new drafts
+  WRITTEN = j.written || WRITTEN;
   $("#sub").textContent = `The words that go under “${j.reel}” on Instagram.`;
   if (first) { $("#kw").value = j.keyword || ""; $("#gift").value = j.gift || ""; }
   if (j.caption && !D) { D = j.caption; cur = D.chosen || (D.drafts.find((x) => x.id === "medium") ? "medium" : D.drafts[0].id); show(); lastSaved = JSON.stringify(payload()); }
   $("#none").hidden = !!D; $("#work").hidden = !D; paint();
-  if (!D) setTimeout(() => load(false), 3000);   // the drafts appear by themselves when Claude has written them
+  setTimeout(() => load(false), D ? 5000 : 3000);   // drafts appear by themselves when Claude has written them, or rewritten them in a new style
 }
 // tips: tap the ? for one plain sentence
 document.addEventListener("click", (e) => {

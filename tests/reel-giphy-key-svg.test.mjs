@@ -197,6 +197,17 @@ test("caption step: the script checks drafts against Instagram's limits, the pag
   const no = cap("check", reel); assert.equal(no.status, 1);
   for (const t of ["the hook is 126 characters", "6 hashtags", "2 of them are the same", "hashtags go in the hashtags list"]) assert.ok(no.stdout.includes(t), t + "\n" + no.stdout);
 
+  // style, emojis and the kind of ask
+  const styled = { ...JSON.parse(JSON.stringify(good)), tone: "sarcastic", emoji: 1, ask: "follow", more: "AI words" };
+  fs.writeFileSync(path.join(reel, "caption.json"), JSON.stringify(styled));
+  const b2 = cap("brief", reel).stdout; for (const t of ["sarcastic: aimed at the situation", "a few (1 or 2)", "THE ASK: follow for more AI words", '"written": {"tone": "sarcastic", "emoji": 1}']) assert.ok(b2.includes(t), t + "\n" + b2);
+  const c2 = cap("check", reel); assert.equal(c2.status, 1); assert.match(c2.stdout, /short: 0 emojis; they asked for a few/);
+  for (const x of styled.drafts) x.body += " \u2728";
+  styled.drafts[2].cta = ""; fs.writeFileSync(path.join(reel, "caption.json"), JSON.stringify(styled));
+  assert.equal(cap("check", reel).status, 0, cap("check", reel).stdout); assert.match(cap("text", reel, "long").stdout, /\n\nFollow for more AI words\.\n\n#one/);
+  styled.ask = "none"; fs.writeFileSync(path.join(reel, "caption.json"), JSON.stringify(styled));
+  assert.equal(cap("check", reel).status, 0, "no ask is allowed"); assert.doesNotMatch(cap("text", reel, "short").stdout, /Comment|Follow/);
+
   fs.writeFileSync(path.join(reel, "caption.json"), JSON.stringify(good));
   const port = 6700 + Math.floor(Math.random() * 500), base = `http://127.0.0.1:${port}`;
   const p = spawn("node", [path.join(review, "editor-server.mjs"), reel, "--port", String(port)], { env: { ...process.env, REELS_HOME: home, GIPHY_API_KEY: "" }, stdio: ["ignore", "pipe", "pipe"] });
@@ -212,10 +223,17 @@ test("caption step: the script checks drafts against Instagram's limits, the pag
     const s1 = await (await post(edited)).json(); assert.equal(s1.ok, true, JSON.stringify(s1));
     assert.equal(s1.caption.keyword, "MODELS"); assert.equal(s1.caption.drafts[1].hashtags.length, 5, "never more than 5"); assert.equal(s1.caption.drafts[1].hook, "New hook");
     assert.match(fs.readFileSync(path.join(reel, "caption.txt"), "utf8"), /^New hook\n\n[\s\S]*Comment MODELS and I'll send you my cheat sheet\.\n\n#a #b #c #d #e\n$/);
+    assert.deepEqual(v.settings, { tone: "mine", emoji: 0, ask: "keyword", more: "" }); assert.equal(v.tones.sarcastic, "Sarcastic");
+    const s3 = await (await post({ ...edited, tone: "witty", emoji: 2, ask: "save", written: { tone: "mine", emoji: 0 } })).json();
+    assert.equal(s3.settings.tone, "witty"); assert.equal(s3.settings.emoji, 2); assert.deepEqual(s3.written, { tone: "mine", emoji: 0 });
+    assert.match(fs.readFileSync(path.join(reel, "caption.txt"), "utf8"), /\n\nSave this so you can find it later\.\n\n#a/, "the closing line follows the kind of ask");
+    assert.equal((await (await post({ ...edited, tone: "rude", emoji: 9, ask: "spam" })).json()).settings.tone, "mine", "an unknown style falls back");
     const big = JSON.parse(JSON.stringify(good)); big.drafts[2].body = "x".repeat(2200);
     const s2 = await post(big); assert.equal(s2.status, 400); assert.match((await s2.json()).error, /Instagram holds 2200/);
     edited.chosen = null; await post(edited); assert.ok(!fs.existsSync(path.join(reel, "caption.txt")), "nothing chosen, no file");
   } finally { p.kill(); }
+  const cp = fs.readFileSync(path.join(review, "caption.html"), "utf8");
+  for (const t of ['id="tones"', 'id="emojis"', 'id="asks"', "Take the emojis out now", "Follow for more", "Rewrite the Instagram captions"]) assert.ok(cp.includes(t), t);
   for (const f of ["editor.html", "reel-review.html", "thumbnail.html", "caption.html"]) assert.match(fs.readFileSync(path.join(review, f), "utf8"), /data-step="caption"[^>]*>4 Caption</, f + " has step 4");
   assert.match(fs.readFileSync(path.join(skill, "scripts", "deliver.sh"), "utf8"), /caption\.txt" "\$DIR\/\$NAME caption\.txt"/);
   assert.match(fs.readFileSync(path.join(skill, "SKILL.md"), "utf8"), /references\/caption\.md/);

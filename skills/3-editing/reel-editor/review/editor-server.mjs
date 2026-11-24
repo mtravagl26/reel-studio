@@ -541,6 +541,8 @@ function writeLatestBuild(rec) {
 // limits); this page shows them, takes edits, and writes the chosen one to <reel>/caption.txt, which delivery copies beside the video.
 const CAP_LIMITS = { total: 2200, hook: 125, hashtagsMax: 5, hashtagsMin: 3 };
 const CAP_IDS = ["short", "medium", "long"];
+const CAP_TONES = { mine: "My usual voice", funny: "Funny", witty: "Witty", sarcastic: "Sarcastic", warm: "Warm", bold: "Bold", serious: "Serious", corporate: "Corporate" };
+const CAP_ASKS = ["keyword", "follow", "save", "share", "none"];
 const capFile = () => path.join(REEL, "caption.json");
 const capTags = (list) => { const out = []; for (const t of Array.isArray(list) ? list : String(list || "").split(/[\s,]+/)) { const x = "#" + String(t).replace(/[^\p{L}\p{N}_]/gu, ""); if (x.length > 1 && !out.some((y) => y.toLowerCase() === x.toLowerCase())) out.push(x.slice(0, 60)); } return out.slice(0, CAP_LIMITS.hashtagsMax); };
 function capClean(d) {
@@ -548,21 +550,30 @@ function capClean(d) {
   const kw = str(d?.keyword, 20).replace(/[^A-Za-z0-9]/g, "").toUpperCase();
   const byId = new Map((Array.isArray(d?.drafts) ? d.drafts : []).filter((x) => x && typeof x === "object").map((x) => [x.id, x]));
   const drafts = CAP_IDS.filter((id) => byId.has(id)).map((id) => { const x = byId.get(id); return { id, hook: str(x.hook, 300).replace(/\n+/g, " "), body: str(x.body, 2200), cta: str(x.cta, 300), hashtags: capTags(x.hashtags) }; });
-  return { platform: "instagram", keyword: kw, gift: str(d?.gift, 120), drafts, chosen: CAP_IDS.includes(d?.chosen) && byId.has(d.chosen) ? d.chosen : null };
+  const lvl = (v) => ([0, 1, 2, 3].includes(Number(v)) ? Number(v) : 0), tone = (v) => (Object.hasOwn(CAP_TONES, v) ? v : "mine");
+  const out = { platform: "instagram", tone: tone(d?.tone), emoji: lvl(d?.emoji), ask: CAP_ASKS.includes(d?.ask) ? d.ask : "keyword", keyword: kw, gift: str(d?.gift, 120), more: str(d?.more, 80), drafts, chosen: CAP_IDS.includes(d?.chosen) && byId.has(d.chosen) ? d.chosen : null };
+  if (d?.written && typeof d.written === "object") out.written = { tone: tone(d.written.tone), emoji: lvl(d.written.emoji) };
+  return out;
 }
-function capCta(d, x) { if (x.cta) return x.cta; if (d.keyword && d.gift) return `Comment ${d.keyword} and I'll send you ${d.gift}.`; return d.keyword ? `Comment ${d.keyword} and I'll send it to you.` : ""; }
+function capCta(d, x) {
+  if (x.cta) return x.cta;
+  if (d.ask === "none") return ""; if (d.ask === "follow") return d.more ? `Follow for more ${d.more}.` : "Follow for more.";
+  if (d.ask === "save") return "Save this so you can find it later."; if (d.ask === "share") return "Send this to someone who needs it.";
+  if (d.keyword && d.gift) return `Comment ${d.keyword} and I'll send you ${d.gift}.`; return d.keyword ? `Comment ${d.keyword} and I'll send it to you.` : "";
+}
 const capText = (d, x) => [x.hook, x.body, capCta(d, x), x.hashtags.join(" ")].filter(Boolean).join("\n\n");
 function capView() {
   let d = null; try { d = capClean(JSON.parse(fs.readFileSync(capFile(), "utf8"))); } catch { /* none yet */ }
   let said = ""; try { said = (readJSON(P.edit, {}).captions || []).flatMap((c) => (c.words || []).map((w) => w.text)).join(" ").slice(0, 600); } catch { /* not built */ }
   return { reel: path.basename(REEL), caption: d && d.drafts.length ? d : null, keyword: d?.keyword || "", gift: d?.gift || "", limits: CAP_LIMITS, said, links: LINKS,
+    settings: { tone: d?.tone || "mine", emoji: d?.emoji || 0, ask: d?.ask || "keyword", more: d?.more || "" }, tones: CAP_TONES, written: d?.written || null,
     ask: `Write the Instagram captions for the reel "${path.basename(REEL)}" and give me the Caption page link.` };
 }
 function capSave(body) {
   const d = capClean(body);
   if (!d.drafts.length) {   // no drafts yet: only the keyword and what they get are kept, for Claude to write from
     let old = {}; try { old = JSON.parse(fs.readFileSync(capFile(), "utf8")); } catch { /* new */ }
-    writeJSON(capFile(), { ...capClean(old), keyword: d.keyword, gift: d.gift }); return capView();
+    writeJSON(capFile(), { ...capClean(old), keyword: d.keyword, gift: d.gift, tone: d.tone, emoji: d.emoji, ask: d.ask, more: d.more }); return capView();
   }
   for (const x of d.drafts) if (capText(d, x).length > CAP_LIMITS.total) throw new Error(`The ${x.id} caption is ${capText(d, x).length} characters. Instagram holds ${CAP_LIMITS.total}.`);
   writeJSON(capFile(), d);
