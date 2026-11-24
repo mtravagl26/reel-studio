@@ -4,15 +4,15 @@ Usage: python3 build_reel.py <reel-folder> [--capcut]
   --capcut  leave captions and sound effects out of the render and write captions.json + sfx.json for CapCut instead.
 
 edit.json (written by auto_edit.py, then Claude marks accents and adds cards):
-  captions: [{start, end, words: [{text, t, accent}], plain?}]   plain = basic white sans (a "before" look), not brand
+  captions: [{start, end, words: [{text, t, accent}], plain?, y?}]   plain = basic white sans (a "before" look), not brand; y = this caption's height in px (0.22.0, e.g. above the head when no graphic is up), default brand captions.y
   punch:    [seconds | [seconds, scale]]    quick zoom-ins on the camera (alternate in/out; [t, 1.25] forces a level)
   cards:    [{type, start, end, ...}]       types:
      title  {text: "line one / line two"}            big headline in the space above the head (hook)
                                                      optional: overline: "small line above" (overline_font: hand | accent | head, overline_size, overline_color), align: left | center | right
                                                      (Style Menu H3 handwritten overline + caps headline, L7 step label); color: "#fff" for a white headline.
      block  {top: "don't", bottom: "worry"}          full brand-colour screen with the clip framed in it (reveal)
-     card   {title: "my stack", rows: ["a","b"]}     white UI card, rows appear one by one (lists, steps, tools)
-     tag    {text: "open source", y: 300}            small pill label that pops on (name drops)
+     card   {title: "my stack", rows: ["a","b"]}     white UI card, rows appear one by one (lists, steps, tools); dot: false hides the dot in its header (0.22.0; brand.json "list_dot": false for every list)
+     tag    {text: "open source", y: 300}            small pill label that pops on (name drops); text_color: "#fff" sets the words' colour, also on a theme's pill graphic (0.22.0)
      (every card: leave out "end" and it clears when the phrase it starts in finishes)
      cta    {text: "comment EDIT", y?: 1360}         call-to-action pill (kept above the bottom ~420 px IG covers); CAPS word = pop color
      shot   {src: "shots/tool.png", label: "heyclicky.com", y?: 130}   website screenshot in a browser window (make it with screenshot.sh);
@@ -126,6 +126,7 @@ CAP, CAP_ACC = C.get("caption", "#FFFFFF"), C.get("caption_accent", POP)
 CAPS = brand.get("captions", {})
 CASE = CAPS.get("case", "lower")
 CAP_PX, CAP_Y = CAPS.get("size", 96), CAPS.get("y", 1250)
+LIST_DOT = brand.get("list_dot", True)        # 0.22.0: the little dot in a list card's header; "list_dot": false in brand.json (or a theme) turns it off, a card's own "dot" wins
 W, H, FPS = 1080, 1920, 30                     # authored at 1080x1920; 4K brands render with --resolution portrait-4k
 SAFE = 900                                     # guardrail: no text line may be wider than this (90 px margin each side)
 EM = 0.66                                      # conservative average glyph width (bold display fonts run ~0.6-0.66 em)
@@ -506,7 +507,7 @@ for i, c in enumerate(edit.get("cards", [])):
                          + "".join(f'<div class="cr" id="{cid}r{j}" style="{font("body", 50)};color:{INK or MAIN}">'
                                    + (f'<img class="kst" src="{mat("stickers", j + 1)}" />' if mat("stickers", j + 1) else f'<b style="background:{POP}"></b>') + f'{esc(case(r))}</div>' for j, r in enumerate(rows)) + "</div>")
         else:
-            front.append(f'<div id="{cid}" class="card{" glass" if c.get("glass") else ""}"{f' style="top:{int(numf(c["y"], 150))}px"' if "y" in c else ""}><div class="ch" style="background:{MAIN};{font("head", 40)}"><i></i>{esc(case(c.get("title", "")))}</div>'
+            front.append(f'<div id="{cid}" class="card{" glass" if c.get("glass") else ""}"{f' style="top:{int(numf(c["y"], 150))}px"' if "y" in c else ""}><div class="ch" style="background:{MAIN};{font("head", 40)}">{"<i></i>" if c.get("dot", LIST_DOT) else ""}{esc(case(c.get("title", "")))}</div>'
                          + "".join(f'<div class="cr" id="{cid}r{j}" style="{font("body", 50)};color:{MAIN}"><b style="background:{POP}"></b>{esc(case(r))}</div>' for j, r in enumerate(rows)) + "</div>")
         show(f"#{cid}", a, b)
         js.append(f'tl.fromTo("#{cid}",{{y:-160,scale:0.85,rotation:-3}},{{y:0,scale:1,rotation:-1.5,duration:0.5,ease:"back.out(1.6)"}},{q(a)});')
@@ -517,9 +518,9 @@ for i, c in enumerate(edit.get("cards", [])):
     elif kind == "tag":
         lab = mat("label") if not c.get("glass") and c.get("kit", True) else ""     # a theme's tag color does not block the kit; "kit": false does
         if lab:   # Added by By Mel Ross (0.11.0): with a kit, the label is a real tag or sticker shape with the words on it
-            front.append(f'<div id="{cid}" class="tagw" style="top:{c.get("y", 300)}px"><span class="tag ktag" style="background-image:url({lab});color:{INK or MAIN};{font("head", 58)}">{esc(case(c["text"]))}</span></div>')
+            front.append(f'<div id="{cid}" class="tagw" style="top:{c.get("y", 300)}px"><span class="tag ktag" style="background-image:url({lab});color:{c.get("text_color") or INK or MAIN};{font("head", 58)}">{esc(case(c["text"]))}</span></div>')
         else:
-            front.append(f'<div id="{cid}" class="tagw" style="top:{c.get("y", 300)}px"><span class="tag{" glass" if c.get("glass") else ""}" style="background:{c.get("color", POP)};{font("head", 58)}">{esc(case(c["text"]))}</span></div>')
+            front.append(f'<div id="{cid}" class="tagw" style="top:{c.get("y", 300)}px"><span class="tag{" glass" if c.get("glass") else ""}" style="background:{c.get("color", POP)};{f'color:{c["text_color"]};' if c.get("text_color") else ""}{font("head", 58)}">{esc(case(c["text"]))}</span></div>')
         show(f"#{cid}", a, b)
         js.append(f'tl.fromTo("#{cid} .tag",{{scale:0.4,y:30,opacity:0}},{{scale:1,y:0,opacity:1,duration:0.42,ease:"back.out(3)"}},{q(a)});')
         sfx("pop", a, -14)
@@ -936,7 +937,7 @@ for i, c in enumerate(edit.get("captions", [])):
                      "lines": [[{"text": w["text"] if plain else case(w["text"]), "kind": "sm" if plain else "acc" if w.get("accent") else "big", "t": w["t"]} for w in ws]]})
     if CAPCUT: continue
     if plain:
-        front.append(f'<div id="c{i}" class="cap" style="top:{CAP_Y}px;font-family:-apple-system,Helvetica,Arial,sans-serif;font-weight:500;font-size:46px;letter-spacing:0;color:#fff">{esc(" ".join(w["text"] for w in ws))}</div>')
+        front.append(f'<div id="c{i}" class="cap" style="top:{int(numf(c.get("y"), CAP_Y))}px;font-family:-apple-system,Helvetica,Arial,sans-serif;font-weight:500;font-size:46px;letter-spacing:0;color:#fff">{esc(" ".join(w["text"] for w in ws))}</div>')
         show(f"#c{i}", c["start"], c["end"], 0.04); continue
     chars = sum(len(w["text"]) + 1 for w in ws)
     px = fit(" ".join(w["text"] for w in ws), CAP_PX * (1.35 if len(ws) == 1 else 1))
@@ -949,7 +950,7 @@ for i, c in enumerate(edit.get("captions", [])):
                     else f'<span>{esc(case(w["text"]))}</span> ' for w in ws)
     if CAPS.get("bg"):   # Added by By Mel Ross (0.19.0, Style Menu C6, C10): the words sit on a box or a bar. brand.json captions "bg": "#FFFFFF" | "rgba(0,0,0,.6)"
         spans = f'<span class="cb" style="background:{CAPS["bg"]};line-height:1.5">{spans.strip()}</span>'
-    front.append(f'<div id="c{i}" class="cap{" capbg" if CAPS.get("bg") else ""}" style="top:{CAP_Y}px;{font("body", int(px))};color:{CAP};letter-spacing:{CAPS.get("tracking", -0.02)}em">{spans.strip()}</div>')
+    front.append(f'<div id="c{i}" class="cap{" capbg" if CAPS.get("bg") else ""}" style="top:{int(numf(c.get("y"), CAP_Y))}px;{font("body", int(px))};color:{CAP};letter-spacing:{CAPS.get("tracking", -0.02)}em">{spans.strip()}</div>')
     show(f"#c{i}", c["start"], c["end"], 0.06)
     js.append(f'tl.fromTo("#c{i}",{{scale:0.86,y:14}},{{scale:1,y:0,duration:0.16,ease:"back.out(2)"}},{q(c["start"])});')
 
