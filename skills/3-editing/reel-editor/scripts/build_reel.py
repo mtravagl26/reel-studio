@@ -65,6 +65,7 @@ edit.json (written by auto_edit.py, then Claude marks accents and adds cards):
                                  {"name": "rise", "t": 12.4, "db": -9}  (db = peak level in dBFS, default -10). These always play; automatic entrance sounds follow brand.json "sfx".
   Any card: "sfx": false mutes its entrance sound; "sfx": {"name": "ding", "db": -10} swaps it for another library effect.
   brand.json "sfx_volume": {"pop": -3, "whoosh": 2}   per-effect level change in dB, on top of each effect's default level.
+  brand.json "sfx_never": ["pop", "pop-soft"]   (Added by By Mel Ross, 0.24.0) sounds that never play, automatic, swapped-in or placed by hand.
   Any card: "layer": "behind" | "front" | "both"   (Added by By Mel Ross) where it sits relative to the speaker. "behind" puts it between the
      background and the speaker's cutout, so they stand in front of it (big type, shapes); "front" is the normal overlay; "both" keeps
      the card behind and also shows a copy in front inside "front_part" ("bottom" | "top" | [x, y, w, h], default "bottom"), so it weaves
@@ -119,6 +120,8 @@ for _c in edit["cards"]:
 # (effects as <audio> tags inside the composition, no music ducking).
 _mf = Path(__file__).resolve().parent.parent / "assets" / "sfx-manifest.json"
 SFX_LEVEL = {e["name"]: e.get("gain_db", 0) for e in json.load(open(_mf))["effects"]} if _mf.exists() else {}
+SFX_NEVER = set(brand.get("sfx_never") or [])            # 0.24.0: sounds the person never wants, e.g. ["pop", "pop-soft"]
+SFX_COUNT = {"auto": 0, "placed": 0, "banned": 0}
 SFX_VOL = brand.get("sfx_volume", {})                 # per-effect dB change, e.g. {"pop": -3}
 STEMS = not brand.get("mix", {}).get("legacy", False)
 
@@ -393,6 +396,7 @@ def sfx(name, t, db=-12, level="subtle", dur=None, manual=False):
     if CARD_SFX and level == "subtle" and not manual:     # the sound approved in the review replaces the entrance sound
         name, db = CARD_SFX["name"], CARD_SFX.get("db", db)
         CARD_SFX = None
+    if name in SFX_NEVER: SFX_COUNT["banned"] += 1; return    # 0.24.0: banned in brand.json "sfx_never"
     if not manual and (brand.get("sfx", "subtle") == "none" or (level == "lots" and brand.get("sfx") != "lots")): return
     if t >= DUR: return
     # automatic sounds: +8 dB makes them clearly audible under a voice with no music bed; an effect you place yourself (sfx_events)
@@ -405,7 +409,7 @@ def sfx(name, t, db=-12, level="subtle", dur=None, manual=False):
     p = ENGINE / "sfx" / f"{name}.wav"
     if not p.exists():
         print(f"warning: sound effect {name!r} is not in engine/sfx (run scripts/setup_engine.sh) - skipped"); return
-    n_sfx += 1
+    n_sfx += 1; SFX_COUNT["placed" if manual else "auto"] += 1
     d = min(dur or dur_of(p), dur_of(p), DUR - t)
     if STEMS:
         SFX_EVENTS.append({"name": name, "t": round(max(t, 0), 3), "db": round(gain, 2), **({"dur": round(d, 3)} if dur else {})}); return
@@ -1158,6 +1162,8 @@ html, body {{ margin: 0; background: #000; overflow: hidden; }}
 (proj / "package.json").write_text('{"name":"reel","private":true,"type":"module"}')
 if CAPCUT: (reel / "sfx_events.json").unlink(missing_ok=True)
 if not CAPCUT and STEMS:
+    if SFX_COUNT["banned"]: print(f"sounds: {SFX_COUNT['banned']} left out (brand.json sfx_never: {', '.join(sorted(SFX_NEVER))})")
+    if SFX_COUNT["auto"] and SFX_COUNT["placed"]: print(f"sounds: {SFX_COUNT['auto']} automatic sounds are playing on top of {SFX_COUNT['placed']} you placed; set \"sfx\": \"none\" (edit.json or brand.json) to hear only the placed ones")
     json.dump(SFX_EVENTS, open(reel / "sfx_events.json", "w"), indent=1)      # mix_audio.py mixes these in (render.sh)
 if CAPCUT:
     json.dump(cap_json, open(reel / "captions.json", "w"), indent=1)
