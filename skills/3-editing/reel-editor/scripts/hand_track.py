@@ -5,7 +5,7 @@
   python3 hand_track.py <reel> spans                  lists the stretches where a hand is clearly visible and moving (candidates for a trail)
 
 Apple Vision hand pose (built into macOS, runs on this computer, nothing downloaded or sent). Needs swiftc. build_reel.py calls
-path() for the "hand_trail" entries in edit.json; see SKILL.md "Hand trail".
+path() for the "hand_trail" entries in edit.json; see references/hand-trail.md.
 """
 import hashlib, json, os, shutil, subprocess, sys
 from pathlib import Path
@@ -37,15 +37,17 @@ def key_of(p):
 def load(reel, src="master.mp4"):
     """hands.json for this reel's master, tracked now if missing or the master changed."""
     reel = Path(reel); out = reel / "hands" / "hands.json"; srcp = reel / src
+    if not srcp.exists(): print(f"hand trail: {src} is not there yet - skipped", file=sys.stderr); return None
     key = key_of(srcp)
     if out.exists():
         d = json.load(open(out))
         if d.get("key") == key: return d
     t = tool()
-    if not t: sys.exit("hand trail needs the Swift compiler (xcode-select --install); nothing was drawn")
+    if not t:   # not a Mac, or no Swift compiler: the reel builds without the trail
+        print("hand trail skipped: it needs a Mac with the Swift compiler (xcode-select --install)", file=sys.stderr); return None
     print(f"tracking hands in {src} (about 15 s per minute of video) ...", file=sys.stderr)
     r = subprocess.run([str(t), str(srcp)], capture_output=True, text=True)
-    if r.returncode: sys.exit("hand tracker failed: " + r.stderr[-400:])
+    if r.returncode: print("hand trail skipped: the tracker failed: " + r.stderr[-400:], file=sys.stderr); return None
     d = json.loads(r.stdout); d["key"] = key
     out.parent.mkdir(exist_ok=True); json.dump(d, open(out, "w"))
     return d
@@ -106,6 +108,7 @@ if __name__ == "__main__":
     if not a: sys.exit(__doc__)
     reel = Path(a[0]); src = a[a.index("--src") + 1] if "--src" in a else "master.mp4"
     d = load(reel, src)
+    if d is None: sys.exit(1)
     if len(a) > 1 and a[1] == "spans":
         for s, e, sp in spans(d): print(f"{s:7.2f} - {e:7.2f}  ({e - s:.1f} s, {sp} px/s)")
     else:

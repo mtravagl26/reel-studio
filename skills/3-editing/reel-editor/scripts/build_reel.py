@@ -56,7 +56,7 @@ edit.json (written by auto_edit.py, then Claude marks accents and adds cards):
      page also takes bg: "blur" (the clip as a card over a blurred copy of itself) and label: "small caps label";  card takes y
      polaroids layout: "cloud" (up to 8 in an arc);  tiles layout: "column", side: "left" | "right" (up to 5 down one side)
      brand.json captions: bg: "#FFFFFF" | "rgba(0,0,0,.62)" (words on a box or bar), accent_font: "head", accent_italic: true
-     brand.json or edit.json caption_highlight: {text: "#141414", bg: "#B9C8A5" | "none"} (the highlighted word's color and the box behind it)
+     brand.json or edit.json caption_highlight: {words: "#FFFFFF", text: "#141414", bg: "#B9C8A5" | "none"} (the other words, the highlighted word, the box behind it)
   Any card: "glass": true gives the frosted liquid-glass look (card, tag).
   Any card or sfx_event: "off": true leaves it out of the render (the editor page's on/off switch).
   Text cards (title, tag, card, cta) with no "layer" take brand.json "text_default": {"layer": "front" | "behind" | "both", "position": "above"}
@@ -125,7 +125,7 @@ STEMS = not brand.get("mix", {}).get("legacy", False)
 C = brand["colors"]
 MAIN, POP, LIGHT = C["main"], C["pop"], C.get("light", "#FFFFFF")
 CAP, CAP_ACC = C.get("caption", "#FFFFFF"), C.get("caption_accent", POP)
-# Added by By Mel Ross (0.22.0): the highlighted caption word has its own text color and an optional box behind it.
+# Added by By Mel Ross (0.23.0): the highlighted caption word has its own text color and an optional box behind it.
 # brand.json or edit.json "caption_highlight": {"text": "#141414", "bg": "#B9C8A5" | "none"}; set on the pages.
 _HL = brand.get("caption_highlight") or {}
 CAP_ACC = _HL.get("text", CAP_ACC)
@@ -425,7 +425,7 @@ def show(sel, a, b, fade=0.18):
 ZOOM = {"scale": 1.04, "seconds": 2.5, "ease": "sine.inOut", **brand.get("zoom", {})}
 for k, t in enumerate(edit.get("punch", [])):   # [t, scale] forces a zoom level (e.g. a spoken "zoom in")
     t, z = t if isinstance(t, list) else (t, 1.0 if k % 2 else ZOOM["scale"])
-    js.append(f'tl.to("#cam",{{scale:{z},duration:{ZOOM["seconds"]},ease:"{ZOOM["ease"]}",overwrite:"auto"}},{q(t)});')
+    js.append(f'tl.to("#cam,#trail",{{scale:{z},duration:{ZOOM["seconds"]},ease:"{ZOOM["ease"]}",overwrite:"auto"}},{q(t)});')
 
 # ---- cards --------------------------------------------------------------------------------------------------------
 # Phrases from the cut's transcript: a phrase ends at punctuation or a gap over 0.35 s. A card with no "end" clears
@@ -499,12 +499,14 @@ for i, c in enumerate(edit.get("cards", [])):
         col, shd = c.get("color", LIGHT), c.get("shadow", MAIN)
         ay = int(numf(c.get("y"), 150)); px = max(70, int(numf(c.get("size"), 128)))
         pid = f"{cid}p"
+        px = min(px, int(px * 1160 / max(1, len(line) * px * 0.56)))   # the arc is about 1160 px long: a long line gets smaller, never cut off
+        _off = 'transform="translate(8 12)"'
         def _arc(fill, extra=""):
             return (f'<text {extra} style="{font("head", px)};letter-spacing:-.02em" fill="{fill}" text-anchor="middle">'
                     f'<textPath href="#{pid}" startOffset="50%">{esc(line)}</textPath></text>')
         svg = (f'<svg class="arcs" viewBox="0 0 1080 700" width="1080" height="700" style="position:absolute;left:0;top:{ay}px;overflow:visible">'
                f'<defs><path id="{pid}" d="M 40 560 Q 540 -60 1040 560" fill="none"/></defs>'
-               f'{_arc(shd, 'transform="translate(8 12)"')}{_arc(col)}</svg>')
+               f'{_arc(shd, _off)}{_arc(col)}</svg>')
         star_d = "M12 0C12.7 7.4 16.6 11.3 24 12C16.6 12.7 12.7 16.6 12 24C11.3 16.6 7.4 12.7 0 12C7.4 11.3 11.3 7.4 12 0Z"
         stars = "".join(f'<svg class="ast" viewBox="0 0 24 24" style="position:absolute;left:{sx}px;top:{ay + sy}px;width:{sw}px;height:{sw}px;overflow:visible">'
                         f'<path d="{star_d}" fill="{col}"/></svg>' for sx, sy, sw in [(150, 190, 60), (500, 70, 56), (880, 150, 50), (100, 700, 46), (940, 740, 52)])
@@ -1009,7 +1011,9 @@ trail = []
 HT = [{**(brand.get("hand_trail_defaults") or {}), **h} for h in edit.get("hand_trail", []) if not h.get("off")] + [{**(brand.get("hand_trail_defaults") or {}), **h} for h in TRAIL_REQ]
 if HT and not CAPCUT:
     import hand_track as _ht
-    _hd = _ht.load(reel)
+    _hd = _ht.load(reel)                        # None when hands can't be tracked on this computer: the reel still builds, with no trail
+    if _hd is None: HT = []
+    _sx, _sy = (W / _hd["w"], H / _hd["h"]) if _hd and _hd.get("w") and _hd.get("h") else (1, 1)   # the tracker's points are in the clip's own pixels
     _norm = lambda w: re.sub(r"[^a-z0-9']", "", w.lower())
     for e_, h in enumerate(HT):
         if "word" in h:
@@ -1018,7 +1022,7 @@ if HT and not CAPCUT:
             if occ >= len(hits): print(f"hand trail: the word {h['word']!r} is not in the captions - skipped"); continue
             t0 = hits[occ] - float(h.get("lead", 0.0)); t1 = hits[occ] + float(h.get("seconds", 1.4))
         else: t0, t1 = float(h["start"]), float(h["end"])
-        pts = _ht.path(_hd, t0, t1, h.get("joint", "palm"), h.get("side"))
+        pts = [(p_[0], None, None) if p_[1] is None else (p_[0], p_[1] * _sx, p_[2] * _sy) for p_ in _ht.path(_hd, t0, t1, h.get("joint", "palm"), h.get("side"))]
         if sum(1 for p_ in pts if p_[1] is not None) < 4: print(f"hand trail {t0:.2f}-{t1:.2f}: no hand found there - skipped"); continue
         rng = random.Random(900 + e_); sz = float(TR["size"]); col, core = TR["color"], TR["core"]; k_ = 0
         for p0, p1 in zip(pts, pts[1:]):
@@ -1042,7 +1046,7 @@ doc = f"""<!doctype html>
 <html lang="en"><head><meta charset="utf-8" />
 <style>
 {chr(10).join(font_css)}
-#trail {{ position: absolute; inset: 0; pointer-events: none; }}
+#trail {{ position: absolute; inset: 0; pointer-events: none; transform-origin: 50% 38%; }}   /* same origin as #cam: it zooms with the video, in front of the cards */
 .spk {{ position: absolute; overflow: visible; opacity: 0; filter: drop-shadow(0 0 5px rgba(255,196,60,.95)) drop-shadow(0 0 14px rgba(255,170,30,.55)); }}
 html, body {{ margin: 0; background: #000; overflow: hidden; }}
 #stage {{ position: relative; width: {W}px; height: {H}px; overflow: hidden; }}

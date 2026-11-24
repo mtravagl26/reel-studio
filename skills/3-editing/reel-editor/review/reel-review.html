@@ -231,9 +231,9 @@ code{font:500 13px var(--f-mono);background:var(--accent-soft);border-radius:6px
     <section data-p="captions" hidden>
       <p class="lede">Captions follow your cuts. Tap a word to highlight it. <b>edit</b> fixes the wording, ±0.1 moves the start, and <b>merge</b> joins a line to the next one. The player shows your caption style without the animation.</p>
       <div class="look" id="hlbox" hidden>
-        <label>Highlighted word</label>
+        <label>Caption colors</label>
         <div class="colorrow" id="hlrow"></div>
-        <p class="lede" id="hlwarn" style="color:#b3261e" hidden>These 2 colors are too close. The word will be hard to read.</p>
+        <p class="lede" id="hlwarn" style="color:#b3261e" hidden>The highlighted word and its box are too close in color. The word will be hard to read.</p>
         <div class="ctl"><button class="b quiet" id="hlreset" type="button" hidden>Back to my usual</button></div>
         <p class="lede" id="hlnote"></p>
       </div>
@@ -386,9 +386,9 @@ function renderColors() {
   $("#colornote").textContent = (S.colors ? "This reel has its own colors. " : "This reel uses your brand colors. ") + "Every look uses these 3 colors, so changing them changes any look. You'll see them in the preview build. To change them for every reel, use Settings on the Touch-ups page.";
 }
 $("#colorreset").addEventListener("click", () => mutate(() => { S.colors = null; }));
-// Added by By Mel Ross (0.22.0): the highlighted caption word. Its color, and a box behind it you can switch on. For this reel;
+// Added by By Mel Ross (0.23.0): the highlighted caption word. Its color, and a box behind it you can switch on. For this reel;
 // the player shows it right away. To set it for every reel, use Settings on the Touch-ups page.
-function hlNow() { return { text: R.style.acc, bg: R.style.accBg || "none", ...(S.highlight || {}) }; }
+function hlNow() { return { words: R.style.cap, text: R.style.acc, bg: R.style.accBg || "none", ...(S.highlight || {}) }; }
 function hlLum(h) { const c = [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16) / 255).map(x => x <= 0.03928 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4); return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]; }
 function renderHighlight() {
   const ok = R && R.style && /^#[0-9a-f]{6}$/i.test(R.style.acc || ""); $("#hlbox").hidden = !ok; if (!ok) return;
@@ -396,10 +396,11 @@ function renderHighlight() {
   const set = (patch) => mutate(() => { S.highlight = { ...hlNow(), ...patch }; });
   const pick = (name, val, off, on) => { const lab = document.createElement("label"); const inp = document.createElement("input"); inp.type = "color"; inp.value = val; inp.disabled = off; inp.setAttribute("aria-label", name);
     const cap = document.createElement("span"); cap.className = "lede"; cap.innerHTML = `<b>${name}</b>`; inp.addEventListener("change", () => on(inp.value.toUpperCase())); lab.append(inp, cap); row.append(lab); };
-  pick("Word color", cur.text, false, v => set({ text: v }));
-  pick("Box color", box ? cur.bg : "#FFFFFF", !box, v => set({ bg: v }));
+  if (/^#[0-9a-f]{6}$/i.test(cur.words || "")) pick("Words", cur.words, false, v => set({ words: v }));
+  pick("Highlighted word", cur.text, false, v => set({ text: v }));
+  pick("Box", box ? cur.bg : "#FFFFFF", !box, v => set({ bg: v }));
   const lab = document.createElement("label"); const chk = document.createElement("input"); chk.type = "checkbox"; chk.id = "hlon"; chk.checked = box;
-  const cap = document.createElement("span"); cap.className = "lede"; cap.innerHTML = "<b>Box behind the word</b>";
+  const cap = document.createElement("span"); cap.className = "lede"; cap.innerHTML = "<b>Box behind the highlighted word</b>";
   // switching the box on: the word's color becomes the box, and the word turns to whichever of main, black or white reads best on it
   const con = (a, b) => { const x = hlLum(a), y = hlLum(b); return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05); };
   chk.addEventListener("change", () => { if (!chk.checked) return set({ bg: "none" });
@@ -409,7 +410,7 @@ function renderHighlight() {
   let near = false; if (box) { const a = hlLum(cur.text), b = hlLum(cur.bg); near = (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05) < 2.5; }
   $("#hlwarn").hidden = !near;
   $("#hlreset").hidden = !S.highlight;
-  $("#hlnote").textContent = (S.highlight ? "This reel has its own highlight colors. " : "This reel uses your usual highlight colors. ") + "Play the video to see it on your captions. To change it for every reel, use Settings on the Touch-ups page.";
+  $("#hlnote").textContent = (S.highlight ? "This reel has its own caption colors. " : "This reel uses your usual caption colors. ") + "Play the video to see it on your captions. To change it for every reel, use Settings on the Touch-ups page.";
 }
 $("#hlreset").addEventListener("click", () => mutate(() => { S.highlight = null; }));
 $("#reset").addEventListener("click", () => {
@@ -488,7 +489,7 @@ function capEl(cap) {
   const st = R.style, W = $("#player").clientWidth, one = cap.words.length === 1;
   const el = document.createElement("div"); el.className = "capov" + (st.editorial && !one ? " ed" : "");
   const base = st.capSize / 1080 * W * (one ? 1.35 : 1);
-  Object.assign(el.style, { top: st.capY / 19.2 + "%", fontFamily: "rb, var(--f-body)", fontSize: base + "px", color: st.cap });
+  Object.assign(el.style, { top: st.capY / 19.2 + "%", fontFamily: "rb, var(--f-body)", fontSize: base + "px", color: hlNow().words || st.cap });
   for (const w of cap.words) {
     const s = document.createElement("span");
     if (w.accent) { const hl = hlNow(); s.className = "a"; Object.assign(s.style, { fontFamily: "ra, Georgia, serif", fontStyle: "italic", color: hl.text, fontSize: (st.editorial ? 1.7 : 1.12) + "em" });

@@ -113,7 +113,7 @@ def collect(reel):
          "extra": {k: copy.deepcopy(v) for k, v in cur.items() if k not in BUILT_KEYS and base["edit"].get(k) != v},
          "theme": cur.get("theme") if cur.get("theme") != base["edit"].get("theme") else None,
          "colors": cur.get("colors") if cur.get("colors") != base["edit"].get("colors") else None,
-         "highlight": cur.get("caption_highlight") if cur.get("caption_highlight") != base["edit"].get("caption_highlight") else None,   # 0.22.0
+         "highlight": cur.get("caption_highlight") if cur.get("caption_highlight") != base["edit"].get("caption_highlight") else None,   # 0.23.0
          "sfx": cur.get("sfx") if cur.get("sfx") != base["edit"].get("sfx") else None}   # 0.19.0: sound effects on or off for this reel   # 0.16.0: this reel's own colors
     # a card that only disappeared because its piece was dropped is not a deliberate delete
     in_drop = lambda src: src is not None and any(a - 1e-6 <= src <= b + 1e-6 for a, b in dropped)

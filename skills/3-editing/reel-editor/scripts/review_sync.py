@@ -108,7 +108,7 @@ def export(reel, proposal, out):
                  "style": {"capSize": brand["captions"].get("size", 104), "capY": brand["captions"].get("y", 1250),
                            "mode": mode, "editorial": brand["captions"].get("style") == "editorial",
                            "cap": brand["colors"].get("caption", "#FFFFFF"), "acc": (brand.get("caption_highlight") or {}).get("text") or brand["colors"].get("caption_accent", "#FF7DB8"),
-                           "accBg": (brand.get("caption_highlight") or {}).get("bg") or "none",   # 0.22.0: the box behind the highlighted word
+                           "accBg": (brand.get("caption_highlight") or {}).get("bg") or "none",   # 0.23.0: the box behind the highlighted word
                            "main": brand["colors"]["main"], "case": brand["captions"].get("case", "lower")},
                  "grade": brand.get("grade"),
                  # Added by By Mel Ross (0.9.0): the themes this machine has, for the page's "Look for this reel" picker
@@ -174,7 +174,7 @@ def do_import(reel, review):
     if isinstance(d.get("colors"), dict):                                    # 0.16.0: colors for this reel, picked on the review page
         _col = {k: v for k, v in d["colors"].items() if k in ("main", "pop", "light") and isinstance(v, str) and re.fullmatch(r"#[0-9a-fA-F]{6}", v)}
         if _col: out["colors"] = _col
-    if isinstance(d.get("highlight"), dict):                                 # 0.22.0: the highlighted caption word, picked on the review page
+    if isinstance(d.get("highlight"), dict):                                 # 0.23.0: caption colors picked on the review page
         sys.path.insert(0, str(Path(__file__).resolve().parent)); import theme as _th
         _hl = _th._highlight(d["highlight"])
         if _hl: out["caption_highlight"] = _hl

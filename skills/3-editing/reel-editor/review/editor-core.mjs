@@ -198,6 +198,7 @@ const COMMON = ["start", "end", "off"];
 const FIELDS = {
   tag: [...COMMON, "text", "y", "layer", "glass", "color"],
   title: [...COMMON, "text", "y", "size", "layer"],
+  arctitle: [...COMMON, "text", "sub"],   // 0.23.0: a headline arched over the head; "sub" is the heavy line under it
   cta: [...COMMON, "text", "y", "layer"],
   quote: [...COMMON, "text", "y", "size", "layer"],   // 0.19.0: a sentence in a white box
   chips: [...COMMON, "title", "y", "layer"],
@@ -232,6 +233,7 @@ export function cleanCardFields(type, set, dur) {
     else if (k === "off" || k === "glass" || k === "frame" || k === "loop") out[k] = !!v;
     else if (k === "from") out[k] = num(v, "where the clip starts", 0, 900);
     else if (k === "text" || k === "title" || k === "label") out[k] = cleanText(v, k);
+    else if (k === "sub") out[k] = String(v ?? "").trim() ? cleanText(v, "the line under it", 30) : "";   // 0.23.0: empty takes it off
     else if (k === "caption") out[k] = String(v ?? "").trim() ? cleanText(v, "label", 40) : "";   // 0.16.0: the handwritten label under a popup; empty takes it off
     else if (k === "layer") { if (!LAYERS.has(v)) throw new Error("layer must be front, behind or both"); out[k] = v; }
     else if (k === "pos") { if (!POS.has(v)) throw new Error("unknown position"); out[k] = v; }
