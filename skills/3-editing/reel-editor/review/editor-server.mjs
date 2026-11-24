@@ -23,7 +23,7 @@ const PORT = Number(args[args.indexOf("--port") + 1]) || 4792;
 const LAN = args.includes("--lan");
 // Added by By Mel Ross: addresses of the other two Reel Studio pages, shown as links in the step bar (both optional).
 const flag = (n) => { const i = args.indexOf(n); return i >= 0 && /^https?:\/\//.test(args[i + 1] || "") ? args[i + 1] : null; };
-const LINKS = { review: flag("--review-url") || "/review", touchups: "/touchups", cover: flag("--cover-url") };
+const LINKS = { review: flag("--review-url") || "/review", touchups: "/touchups", cover: flag("--cover-url"), caption: "/caption" };
 const KEY = LAN ? crypto.randomBytes(9).toString("base64url") : null;
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const SKILL = path.resolve(HERE, "..");
@@ -536,6 +536,52 @@ function writeLatestBuild(rec) {
   } catch { /* the preview state just stays as it was */ }
 }
 
+// ---- caption step (Added by By Mel Ross, 0.20.0) ----------------------------------------------------------------------------------------
+// Step 4: the post caption for Instagram. Claude writes 3 drafts into <reel>/caption.json (scripts/caption.py has the shape and the
+// limits); this page shows them, takes edits, and writes the chosen one to <reel>/caption.txt, which delivery copies beside the video.
+const CAP_LIMITS = { total: 2200, hook: 125, hashtagsMax: 5, hashtagsMin: 3 };
+const CAP_IDS = ["short", "medium", "long"];
+const CAP_TONES = { mine: "My usual voice", funny: "Funny", witty: "Witty", sarcastic: "Sarcastic", warm: "Warm", bold: "Bold", serious: "Serious", corporate: "Corporate" };
+const CAP_ASKS = ["keyword", "follow", "save", "share", "none"];
+const capFile = () => path.join(REEL, "caption.json");
+const capTags = (list) => { const out = []; for (const t of Array.isArray(list) ? list : String(list || "").split(/[\s,]+/)) { const x = "#" + String(t).replace(/[^\p{L}\p{N}_]/gu, ""); if (x.length > 1 && !out.some((y) => y.toLowerCase() === x.toLowerCase())) out.push(x.slice(0, 60)); } return out.slice(0, CAP_LIMITS.hashtagsMax); };
+function capClean(d) {
+  const str = (v, n) => String(v ?? "").replace(/\r/g, "").replace(/[\u0000-\u0008\u000b-\u001f]/g, "").slice(0, n).trim();
+  const kw = str(d?.keyword, 20).replace(/[^A-Za-z0-9]/g, "").toUpperCase();
+  const byId = new Map((Array.isArray(d?.drafts) ? d.drafts : []).filter((x) => x && typeof x === "object").map((x) => [x.id, x]));
+  const drafts = CAP_IDS.filter((id) => byId.has(id)).map((id) => { const x = byId.get(id); return { id, hook: str(x.hook, 300).replace(/\n+/g, " "), body: str(x.body, 2200), cta: str(x.cta, 300), hashtags: capTags(x.hashtags) }; });
+  const lvl = (v) => ([0, 1, 2, 3].includes(Number(v)) ? Number(v) : 0), tone = (v) => (Object.hasOwn(CAP_TONES, v) ? v : "mine");
+  const out = { platform: "instagram", tone: tone(d?.tone), emoji: lvl(d?.emoji), ask: CAP_ASKS.includes(d?.ask) ? d.ask : "keyword", keyword: kw, gift: str(d?.gift, 120), more: str(d?.more, 80), drafts, chosen: CAP_IDS.includes(d?.chosen) && byId.has(d.chosen) ? d.chosen : null };
+  if (d?.written && typeof d.written === "object") out.written = { tone: tone(d.written.tone), emoji: lvl(d.written.emoji) };
+  return out;
+}
+function capCta(d, x) {
+  if (x.cta) return x.cta;
+  if (d.ask === "none") return ""; if (d.ask === "follow") return d.more ? `Follow for more ${d.more}.` : "Follow for more.";
+  if (d.ask === "save") return "Save this so you can find it later."; if (d.ask === "share") return "Send this to someone who needs it.";
+  if (d.keyword && d.gift) return `Comment ${d.keyword} and I'll send you ${d.gift}.`; return d.keyword ? `Comment ${d.keyword} and I'll send it to you.` : "";
+}
+const capText = (d, x) => [x.hook, x.body, capCta(d, x), x.hashtags.join(" ")].filter(Boolean).join("\n\n");
+function capView() {
+  let d = null; try { d = capClean(JSON.parse(fs.readFileSync(capFile(), "utf8"))); } catch { /* none yet */ }
+  let said = ""; try { said = (readJSON(P.edit, {}).captions || []).flatMap((c) => (c.words || []).map((w) => w.text)).join(" ").slice(0, 600); } catch { /* not built */ }
+  return { reel: path.basename(REEL), caption: d && d.drafts.length ? d : null, keyword: d?.keyword || "", gift: d?.gift || "", limits: CAP_LIMITS, said, links: LINKS,
+    settings: { tone: d?.tone || "mine", emoji: d?.emoji || 0, ask: d?.ask || "keyword", more: d?.more || "" }, tones: CAP_TONES, written: d?.written || null,
+    ask: `Write the Instagram captions for the reel "${path.basename(REEL)}" and give me the Caption page link.` };
+}
+function capSave(body) {
+  const d = capClean(body);
+  if (!d.drafts.length) {   // no drafts yet: only the keyword and what they get are kept, for Claude to write from
+    let old = {}; try { old = JSON.parse(fs.readFileSync(capFile(), "utf8")); } catch { /* new */ }
+    writeJSON(capFile(), { ...capClean(old), keyword: d.keyword, gift: d.gift, tone: d.tone, emoji: d.emoji, ask: d.ask, more: d.more }); return capView();
+  }
+  for (const x of d.drafts) if (capText(d, x).length > CAP_LIMITS.total) throw new Error(`The ${x.id} caption is ${capText(d, x).length} characters. Instagram holds ${CAP_LIMITS.total}.`);
+  writeJSON(capFile(), d);
+  const pick = d.drafts.find((x) => x.id === d.chosen);
+  if (pick) fs.writeFileSync(path.join(REEL, "caption.txt"), capText(d, pick) + "\n"); else fs.rmSync(path.join(REEL, "caption.txt"), { force: true });
+  return capView();
+}
+
 // ---- live preview (Added by By Mel Ross, 0.17.0) -----------------------------------------------------------------------------------------
 // The reel is a web page before it is a video. build_reel.py writes that page in seconds; a render takes minutes. The touch-ups
 // page shows the built page over its player, in step with it, so a change to a graphic is seen right away with the real fonts,
@@ -653,8 +699,14 @@ const server = http.createServer(async (req, res) => {
     }
     if (p === "/favicon.ico") { res.writeHead(204); return res.end(); }   // no icon: answer quietly so the page shows no failed request
     if (p === "/touchups") return sendFile(req, res, path.join(HERE, "editor.html"));
+    if (p === "/caption") return sendFile(req, res, path.join(HERE, "caption.html"));   // 0.20.0: step 4
+    if (p === "/api/caption" && req.method === "GET") return json(res, 200, { ok: true, ...capView() });
+    if (p === "/api/caption" && req.method === "POST") {
+      try { return json(res, 200, { ok: true, ...capSave(JSON.parse((await readBody(req, 2e5)).toString() || "{}")) }); }
+      catch (e) { return json(res, 400, { ok: false, error: String(e.message || e) }); }
+    }
     if (p === "/review") {
-      const links = `<script>window.REEL_STUDIO_LINKS=${JSON.stringify({ touchups: LINKS.touchups, cover: LINKS.cover }).replace(/</g, "\\u003c")}</script>`;
+      const links = `<script>window.REEL_STUDIO_LINKS=${JSON.stringify({ touchups: LINKS.touchups, cover: LINKS.cover, caption: LINKS.caption }).replace(/</g, "\\u003c")}</script>`;
       const html = fs.readFileSync(path.join(HERE, "reel-review.html"), "utf8")
         .replace('<script src="core.js"></script>', links + '<script src="shim.js"></script><script src="core.js"></script>');
       res.writeHead(200, { "Content-Type": TYPES[".html"], "Cache-Control": "no-store" }).end(html); return;

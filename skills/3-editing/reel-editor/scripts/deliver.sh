@@ -41,3 +41,5 @@ ffmpeg -hide_banner -loglevel error -y -i "$SRC" -vf "scale='min(1080,iw)':-2,$S
   -pix_fmt yuv420p "${TAG709[@]}" -tag:v avc1 -c:a aac -b:a 128k -movflags +faststart "$PHONE"
 cp "$REEL/cover.jpg" "$COVER"
 printf '%s\n' "$OUT" "$PHONE" "$COVER"
+# Added by By Mel Ross (0.20.0): the caption they chose on the Caption page goes beside the video, ready to paste.
+if [ -s "$REEL/caption.txt" ]; then cp "$REEL/caption.txt" "$DIR/$NAME caption.txt"; printf '%s\n' "$DIR/$NAME caption.txt"; fi

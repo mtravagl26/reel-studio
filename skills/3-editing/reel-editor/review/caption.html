@@ -1,0 +1,251 @@
+<!doctype html>
+<!-- Added by By Mel Ross (0.20.0). Reel Studio step 4: the post caption for Instagram.
+     Claude writes 3 drafts into <reel>/caption.json (scripts/caption.py). This page shows them, takes edits, counts against
+     Instagram's limits, shows how the caption looks under a reel, and saves the chosen one as <reel>/caption.txt.
+     Loads nothing from the internet. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Caption · Reel Studio</title>
+<style>
+:root { --bg:#f5f2ec; --ink:#0d2b2d; --sage:#B9C8A5; --sage-d:#8da273; --card:#fff; --line:#e1dccf; --bad:#a32727; --mute:#5b6b69; }
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html { background: var(--bg); }
+body { margin: 0 auto; max-width: 980px; padding: 0 16px 90px; font: 16px/1.45 -apple-system, "Helvetica Neue", Arial, sans-serif; color: var(--ink); }
+.steps{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:14px 0 4px;font-size:14px;font-weight:600}
+.steps b{margin-right:6px}
+.steps .step{display:inline-flex;align-items:center;min-height:36px;padding:0 12px;border-radius:999px;border:1.5px solid #e1dccf;background:#fff;color:#0d2b2d;text-decoration:none}
+.steps .step[aria-current="step"]{background:#0d2b2d;border-color:#0d2b2d;color:#f5f2ec}
+.steps .step.off{opacity:.55}
+h1 { font-size: 26px; margin: 14px 0 0; } .sub { margin: 4px 0 18px; color: var(--mute); }
+h2 { font-size: 17px; margin: 0 0 8px; }
+button { font: inherit; min-height: 44px; padding: 0 18px; border-radius: 12px; border: 1.5px solid var(--ink); background: #fff; color: var(--ink); font-weight: 600; cursor: pointer; }
+button.pri { background: var(--ink); color: #fff; } button.sage { background: var(--sage); border-color: var(--sage-d); } button:disabled { opacity: .4; cursor: default; }
+.box { background: var(--card); border: 1.5px solid var(--line); border-radius: 16px; padding: 16px; margin-bottom: 16px; }
+label.f { display: block; font-size: 13px; font-weight: 600; color: var(--mute); margin: 12px 0 4px; } label.f:first-child { margin-top: 0; }
+input[type=text], textarea { width: 100%; font: inherit; color: var(--ink); padding: 10px 12px; border: 1.5px solid var(--line); border-radius: 12px; background: #fff; }
+textarea { resize: vertical; line-height: 1.4; } input:focus, textarea:focus { outline: 2px solid var(--sage-d); outline-offset: 1px; }
+.two { display: grid; grid-template-columns: 1fr 2fr; gap: 12px; } @media (max-width: 560px) { .two { grid-template-columns: 1fr; } }
+.chips { display: flex; gap: 8px; flex-wrap: wrap; } .chips button { border-radius: 999px; min-height: 40px; padding: 0 14px; border-color: var(--line); font-weight: 500; }
+.chips button[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: #fff; font-weight: 600; }
+.tabs { display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; }
+.tabs button { border-radius: 999px; min-height: 40px; } .tabs button[aria-pressed="true"] { background: var(--ink); color: #fff; }
+.tabs button .ck { margin-left: 6px; }
+.cols { display: grid; grid-template-columns: 1fr 300px; gap: 20px; align-items: start; } @media (max-width: 760px) { .cols { grid-template-columns: 1fr; } }
+.count { font-size: 12.5px; color: var(--mute); margin: 4px 2px 0; text-align: right; } .count.over { color: var(--bad); font-weight: 700; }
+.small { font-size: 13.5px; color: var(--mute); margin: 6px 0 0; }
+.phone { background: #fff; border: 1.5px solid var(--line); border-radius: 20px; padding: 14px; font-size: 14px; line-height: 1.4; }
+.phone .who { font-weight: 700; margin-right: 5px; } .phone .more { color: var(--mute); } .phone .full { white-space: pre-wrap; overflow-wrap: anywhere; }
+.phone .full .tag { color: #2b5c8a; } .phone h3 { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--mute); margin: 0 0 6px; } .phone hr { border: 0; border-top: 1px solid var(--line); margin: 12px 0; }
+.bar { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 16px; align-items: center; } #msg { font-size: 14px; color: var(--mute); }
+.warn { background: #fbe6d8; border-radius: 12px; padding: 10px 12px; margin: 10px 0 0; font-size: 14px; } .warn ul { margin: 4px 0 0 18px; padding: 0; }
+.ask { white-space: pre-wrap; background: #f1efe7; border-radius: 12px; padding: 12px; font-family: ui-monospace, Menlo, monospace; font-size: 14px; margin: 10px 0; }
+.tipb{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;min-width:20px;min-height:20px;max-height:20px;padding:0;margin:0 0 0 6px;border:1.5px solid currentColor;border-radius:50%;background:transparent;color:inherit;opacity:.6;font:700 12px/1 system-ui,sans-serif;cursor:pointer;vertical-align:middle}
+.tipb::before{content:"?"} .tipb.on{opacity:1}
+#tipbox{position:fixed;z-index:99;max-width:min(300px,calc(100vw - 24px));background:#0d2b2d;color:#f5f2ec;font:400 14px/1.45 system-ui,sans-serif;padding:10px 12px;border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.25)}
+[hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<nav class="steps" aria-label="Reel Studio steps">
+  <b>Reel Studio</b>
+  <a class="step off" data-step="review" title="Ask Claude to open the review page">1 Review</a>
+  <a class="step off" data-step="touchups" title="Ask Claude to open the editor page">2 Touch-ups</a>
+  <a class="step off" data-step="cover" title="Ask Claude to open my thumbnail studio">3 Cover</a>
+  <a class="step off" data-step="caption">4 Caption</a>
+</nav>
+<h1>Write the caption</h1>
+<p class="sub" id="sub">The words that go under your reel on Instagram.</p>
+
+<div class="box">
+  <h2>Style <button class="tipb" type="button" data-tip="How the caption sounds. Claude writes the drafts in the style you pick. Your own brand rules still come first in every style."></button></h2>
+  <div class="chips" id="tones" role="group" aria-label="Style of the caption"></div>
+  <label class="f" style="margin-top:14px">Emojis <button class="tipb" type="button" data-tip="Off means none anywhere. On lets you pick how many go in each caption: a few is 1 or 2, some is 3 to 5, lots is 6 to 10."></button></label>
+  <div class="chips" id="emojis" role="group" aria-label="How many emojis"></div>
+  <div class="warn" id="stale" hidden></div>
+</div>
+
+<div class="box">
+  <h2>Your ask <button class="tipb" type="button" data-tip="The last line of the caption. Pick what you want people to do after they watch."></button></h2>
+  <div class="chips" id="asks" role="group" aria-label="What you ask people to do"></div>
+  <div class="two" id="askkw" style="margin-top:12px">
+    <div><label class="f" for="kw">Keyword they comment</label><input type="text" id="kw" maxlength="20" placeholder="REEL" autocomplete="off" autocapitalize="characters"></div>
+    <div><label class="f" for="gift">What you send them</label><input type="text" id="gift" maxlength="120" placeholder="the link to my reel editor" autocomplete="off"></div>
+  </div>
+  <div id="askmore" style="margin-top:12px" hidden><label class="f" for="more">Follow for more of what (optional)</label><input type="text" id="more" maxlength="80" placeholder="AI words in plain English" autocomplete="off"></div>
+  <p class="small" id="ctaprev"></p>
+</div>
+
+<div class="box" id="none" hidden>
+  <h2>No drafts yet</h2>
+  <p class="small" style="font-size:15px;color:var(--ink)">Claude writes 3 drafts from what you say in the reel: 1 short, 1 medium, 1 long. Fill in your keyword and what you send, then give Claude this request.</p>
+  <div class="ask" id="ask"></div>
+  <button class="pri" id="copyask" type="button">Copy the request</button>
+  <p class="small">This page shows the drafts by itself when they are ready.</p>
+</div>
+
+<div id="work" hidden>
+  <div class="tabs" id="tabs" role="group" aria-label="Which draft"></div>
+  <div class="cols">
+    <div class="box" style="margin:0">
+      <label class="f" for="hook">Hook line <button class="tipb" type="button" data-tip="The first line. Instagram shows about 125 characters before the word “more”, so the reason to keep reading has to fit in that."></button></label>
+      <textarea id="hook" rows="2"></textarea><p class="count" id="chook"></p>
+      <label class="f" for="body">Body <button class="tipb" type="button" data-tip="A few short lines that add to the reel. Leave a blank line between thoughts; Instagram keeps your line breaks."></button></label>
+      <textarea id="body" rows="8"></textarea><p class="count" id="cbody"></p>
+      <label class="f" for="cta">Call to action <button class="tipb" type="button" data-tip="Leave this empty to use your keyword line from the top of the page. Type here to write your own closing line for this draft."></button></label>
+      <textarea id="cta" rows="2" placeholder="Leave empty to use your keyword line"></textarea>
+      <label class="f" for="tags">Hashtags <button class="tipb" type="button" data-tip="Instagram allows 5 hashtags on a reel. Pick ones about this reel’s topic. Separate them with spaces."></button></label>
+      <input type="text" id="tags" autocomplete="off" autocapitalize="off" spellcheck="false"><p class="count" id="ctags"></p>
+      <div class="warn" id="warn" hidden></div>
+    </div>
+    <div class="phone" aria-label="How it looks on Instagram">
+      <h3>Under your reel</h3>
+      <div><span class="who" id="who1">you</span><span id="cut"></span><span class="more" id="more"></span></div>
+      <hr>
+      <h3>After they tap “more”</h3>
+      <div class="full" id="full"></div>
+      <p class="count" id="ctotal" style="text-align:left;margin-top:10px"></p>
+    </div>
+  </div>
+  <div class="bar">
+    <button class="pri" id="copy" type="button">Copy this caption</button>
+    <button class="sage" id="use" type="button">Use this one</button>
+    <span id="msg" role="status"></span>
+  </div>
+  <p class="small">“Use this one” saves it as caption.txt in the reel’s folder. When Claude delivers the reel, the caption file goes beside the video.</p>
+</div>
+
+<script>
+const $ = (s) => document.querySelector(s);
+const NAMES = { short: "Short", medium: "Medium", long: "Long" };
+let REEL = "";
+let D = null, LIM = { total: 2200, hook: 125, hashtagsMax: 5, hashtagsMin: 3 }, cur = "medium", saveT = null, lastSaved = "", ASK = "";
+// Style, emojis and the kind of ask (0.20.0). Claude writes to these; the page shows when the drafts were written in another style.
+let SET = { tone: "mine", emoji: 0, ask: "keyword" }, TONES = { mine: "My usual voice" }, WRITTEN = null;
+const EMOJI_NAMES = ["Off", "A few", "Some", "Lots"], EMOJI_SAY = ["no emojis", "a few emojis (1 or 2)", "some emojis (3 to 5)", "lots of emojis (6 to 10)"];
+const ASK_NAMES = { keyword: "Comment a keyword", follow: "Follow for more", save: "Save it", share: "Send it to someone", none: "No ask" };
+const EMOJI_RE = /\p{Extended_Pictographic}(\uFE0F|\u200D\p{Extended_Pictographic})*/gu;
+const autoCta = () => { const kw = $("#kw").value.trim().toUpperCase().replace(/[^A-Z0-9]/g, ""), gift = $("#gift").value.trim(), more = $("#more").value.trim();
+  if (SET.ask === "none") return ""; if (SET.ask === "follow") return more ? `Follow for more ${more}.` : "Follow for more."; if (SET.ask === "save") return "Save this so you can find it later."; if (SET.ask === "share") return "Send this to someone who needs it.";
+  return kw && gift ? `Comment ${kw} and I'll send you ${gift}.` : kw ? `Comment ${kw} and I'll send it to you.` : ""; };
+function chips(box, entries, on, pick) { box.textContent = ""; for (const [v, label] of entries) { const b = document.createElement("button"); b.type = "button"; b.textContent = label; b.setAttribute("aria-pressed", String(v) === String(on)); b.addEventListener("click", () => pick(v)); box.append(b); } }
+
+function setSteps(here, links) {
+  const local = /^(127\.0\.0\.1|localhost|\[::1\])$/.test(location.hostname);
+  document.querySelectorAll(".steps .step").forEach((el) => {
+    const k = el.dataset.step, u = links && links[k];
+    if (k === here) { el.setAttribute("aria-current", "step"); el.classList.remove("off"); el.removeAttribute("title"); el.removeAttribute("href"); return; }
+    const ok = typeof u === "string" && (/^https?:\/\/[\w.\-\[\]:]+(:\d+)?\//.test(u) || /^\/[\w\-\/]*$/.test(u)) && (k !== "cover" || local);
+    if (ok) { el.href = u; el.classList.remove("off"); el.removeAttribute("title"); }
+    else if (k === "cover" && u && !local) el.title = "The cover page opens on your Mac, not on your phone";
+  });
+}
+const draft = () => D && D.drafts.find((x) => x.id === cur);
+const tagsOf = (text) => { const out = []; for (const t of String(text || "").split(/[\s,]+/)) { const x = "#" + t.replace(/[^\p{L}\p{N}_]/gu, ""); if (x.length > 1 && !out.some((y) => y.toLowerCase() === x.toLowerCase())) out.push(x); } return out; };
+const ctaOf = (x) => (x.cta || "").trim() || autoCta();
+const textOf = (x) => [x.hook.trim(), x.body.trim(), ctaOf(x), x.hashtags.join(" ")].filter(Boolean).join("\n\n");
+
+function fields() {   // the form is the truth for the open draft
+  const x = draft(); if (!x) return;
+  x.hook = $("#hook").value.replace(/\n+/g, " "); x.body = $("#body").value; x.cta = $("#cta").value; x.hashtags = tagsOf($("#tags").value);
+}
+function show() {
+  const x = draft(); if (!x) return;
+  $("#hook").value = x.hook; $("#body").value = x.body; $("#cta").value = x.cta; $("#tags").value = x.hashtags.join(" ");
+  paint();
+}
+function paint() {
+  const kw = $("#kw").value.trim().toUpperCase().replace(/[^A-Z0-9]/g, ""), gift = $("#gift").value.trim();
+  const again = () => { paint(); later(); };
+  chips($("#tones"), Object.entries(TONES), SET.tone, (v) => { SET.tone = v; again(); });
+  chips($("#emojis"), EMOJI_NAMES.map((n, i) => [i, n]), SET.emoji, (v) => { SET.emoji = v; again(); });
+  chips($("#asks"), Object.entries(ASK_NAMES), SET.ask, (v) => { SET.ask = v; again(); });
+  $("#askkw").hidden = SET.ask !== "keyword"; $("#askmore").hidden = SET.ask !== "follow";
+  $("#ctaprev").textContent = SET.ask === "none" ? "The caption ends on the last line of the body." : autoCta() ? "Your closing line: " + autoCta() : "Type a keyword to get your closing line.";
+  const styleSay = `Style: ${(TONES[SET.tone] || "My usual voice").toLowerCase()}, with ${EMOJI_SAY[SET.emoji]}.`;
+  $("#ask").textContent = ASK + "\n" + styleSay + (SET.ask !== "keyword" ? "" : kw ? `\nKeyword: ${kw}.` + (gift ? ` I send: ${gift}.` : "") : "\nAsk me for the keyword people comment and what I send them.");
+  // the drafts were written in one style; say so when the style picked now is another
+  const st = $("#stale"), was = WRITTEN || { tone: "mine", emoji: 0 }; st.textContent = ""; st.hidden = !(D && (was.tone !== SET.tone || was.emoji !== SET.emoji));
+  if (!st.hidden) {
+    const req = `Rewrite the Instagram captions for the reel "${REEL}". ${styleSay}`;
+    const p1 = document.createElement("p"); p1.style.margin = "0 0 8px"; p1.textContent = `These drafts were written as ${(TONES[was.tone] || "my usual voice").toLowerCase()} with ${EMOJI_SAY[was.emoji]}. To get them in the new style, give Claude this:`;
+    const code = document.createElement("div"); code.className = "ask"; code.style.margin = "0 0 8px"; code.textContent = req;
+    const b = document.createElement("button"); b.type = "button"; b.textContent = "Copy the request"; b.addEventListener("click", async () => { await save(); try { await navigator.clipboard.writeText(req); b.textContent = "Copied. Paste it to Claude."; } catch { b.textContent = "Select the text above and copy it"; } });
+    st.append(p1, code, b);
+    fields();
+    if (SET.emoji === 0 && D.drafts.some((x) => /\p{Extended_Pictographic}/u.test(x.hook + x.body + x.cta))) { const r = document.createElement("button"); r.type = "button"; r.style.marginLeft = "8px"; r.textContent = "Take the emojis out now"; r.addEventListener("click", () => { fields(); for (const x of D.drafts) for (const k of ["hook", "body", "cta"]) x[k] = x[k].replace(EMOJI_RE, "").replace(/[ \t]{2,}/g, " ").replace(/ +\n/g, "\n").trim(); WRITTEN = { tone: was.tone, emoji: 0 }; show(); later(); }); st.append(r); }
+  }
+  const tabs = $("#tabs"); tabs.textContent = "";
+  for (const d of D ? D.drafts : []) {
+    const b = document.createElement("button"); b.type = "button"; b.textContent = NAMES[d.id] || d.id; b.setAttribute("aria-pressed", d.id === cur);
+    if (D.chosen === d.id) { const c = document.createElement("span"); c.className = "ck"; c.textContent = "✓ using"; b.append(c); }
+    b.addEventListener("click", () => { fields(); cur = d.id; show(); }); tabs.append(b);
+  }
+  const x = draft(); if (!x) return;
+  const hook = $("#hook").value.trim(), tags = tagsOf($("#tags").value), full = [hook, $("#body").value.trim(), ctaOf({ cta: $("#cta").value }), tags.join(" ")].filter(Boolean).join("\n\n");
+  const set = (el, text, over) => { el.textContent = text; el.classList.toggle("over", !!over); };
+  set($("#chook"), `${hook.length} of ${LIM.hook} characters`, hook.length > LIM.hook);
+  set($("#cbody"), `${$("#body").value.trim().length} characters`);
+  set($("#ctags"), `${tags.length} of ${LIM.hashtagsMax} hashtags`, tags.length > LIM.hashtagsMax);
+  set($("#ctotal"), `${full.length} of ${LIM.total} characters in all`, full.length > LIM.total);
+  const flat = full.replace(/\s*\n+\s*/g, " "), shown = flat.length > LIM.hook ? flat.slice(0, LIM.hook).replace(/\s+\S*$/, "") : flat;
+  $("#cut").textContent = shown; $("#more").textContent = flat.length > shown.length ? "… more" : "";
+  const fb = $("#full"); fb.textContent = "";
+  full.split(/(#[\p{L}\p{N}_]+)/u).forEach((part) => { if (/^#/.test(part)) { const s = document.createElement("span"); s.className = "tag"; s.textContent = part; fb.append(s); } else fb.append(part); });
+  const w = [];
+  if (!hook) w.push("Add a hook line.");
+  if (hook.length > LIM.hook) w.push(`The hook is ${hook.length - LIM.hook} characters too long to show before “more”.`);
+  if (tags.length > LIM.hashtagsMax) w.push(`Instagram allows ${LIM.hashtagsMax} hashtags. Remove ${tags.length - LIM.hashtagsMax}.`);
+  if (/#/.test(hook + $("#body").value)) w.push("Move hashtags out of the hook and body, into the hashtags box.");
+  if (!ctaOf({ cta: $("#cta").value }) && SET.ask !== "none") w.push("Add a keyword at the top, or write your own closing line.");
+  const ne = (full.match(EMOJI_RE) || []).length, range = [[0, 0], [1, 2], [3, 5], [6, 10]][SET.emoji];
+  if (ne > range[1]) w.push(SET.emoji === 0 ? `Emojis are off and this draft has ${ne}.` : `This draft has ${ne} emojis. You picked ${EMOJI_NAMES[SET.emoji].toLowerCase()}, which is up to ${range[1]}.`);
+  if (full.length > LIM.total) w.push(`This caption is ${full.length - LIM.total} characters over Instagram's limit.`);
+  const wb = $("#warn"); wb.hidden = !w.length; wb.textContent = "";
+  if (w.length) { const b = document.createElement("b"); b.textContent = "Before you post:"; const ul = document.createElement("ul"); for (const t of w) { const li = document.createElement("li"); li.textContent = t; ul.append(li); } wb.append(b, ul); }
+  $("#use").disabled = $("#copy").disabled = full.length > LIM.total || !hook;
+}
+function payload() { fields(); return { keyword: $("#kw").value, gift: $("#gift").value, more: $("#more").value, tone: SET.tone, emoji: SET.emoji, ask: SET.ask, written: WRITTEN || undefined, drafts: D ? D.drafts : [], chosen: D ? D.chosen : null }; }
+async function save(say) {
+  const body = JSON.stringify(payload()); if (body === lastSaved && !say) return true;
+  try {
+    const j = await (await fetch("/api/caption", { method: "POST", headers: { "Content-Type": "application/json" }, body })).json();
+    if (!j.ok) throw new Error(j.error || "couldn't save");
+    lastSaved = body; if (say) $("#msg").textContent = say; return true;
+  } catch (e) { $("#msg").textContent = "Not saved: " + e.message; return false; }
+}
+function later() { clearTimeout(saveT); $("#msg").textContent = ""; saveT = setTimeout(() => save(), 700); }
+for (const id of ["hook", "body", "cta", "tags", "kw", "gift", "more"]) $("#" + id).addEventListener("input", () => { if (id === "kw") $("#kw").value = $("#kw").value.toUpperCase().replace(/[^A-Z0-9]/g, ""); paint(); later(); });
+$("#copy").addEventListener("click", async () => {
+  fields(); const t = textOf(draft());
+  try { await navigator.clipboard.writeText(t); $("#msg").textContent = "Copied. Paste it into Instagram."; }
+  catch { const ta = document.createElement("textarea"); ta.value = t; document.body.append(ta); ta.select(); document.execCommand("copy"); ta.remove(); $("#msg").textContent = "Copied. Paste it into Instagram."; }
+});
+$("#use").addEventListener("click", async () => { fields(); D.chosen = cur; if (await save(`Saved the ${NAMES[cur].toLowerCase()} one as caption.txt in the reel's folder.`)) paint(); });
+$("#copyask").addEventListener("click", async () => { await save(); try { await navigator.clipboard.writeText($("#ask").textContent); $("#copyask").textContent = "Copied. Paste it to Claude."; } catch { $("#copyask").textContent = "Select the text above and copy it"; } });
+
+async function load(first) {
+  let j; try { j = await (await fetch("/api/caption")).json(); } catch { return; }
+  if (!j.ok) return;
+  LIM = j.limits || LIM; ASK = j.ask || ""; REEL = j.reel; TONES = j.tones || TONES; setSteps("caption", j.links);
+  if (first) { SET = { tone: j.settings.tone, emoji: j.settings.emoji, ask: j.settings.ask }; $("#more").value = j.settings.more || ""; }
+  if (j.caption && D && JSON.stringify(j.written) !== JSON.stringify(WRITTEN) && j.written) { D = null; }   // Claude rewrote them in a new style: load the new drafts
+  WRITTEN = j.written || WRITTEN;
+  $("#sub").textContent = `The words that go under “${j.reel}” on Instagram.`;
+  if (first) { $("#kw").value = j.keyword || ""; $("#gift").value = j.gift || ""; }
+  if (j.caption && !D) { D = j.caption; cur = D.chosen || (D.drafts.find((x) => x.id === "medium") ? "medium" : D.drafts[0].id); show(); lastSaved = JSON.stringify(payload()); }
+  $("#none").hidden = !!D; $("#work").hidden = !D; paint();
+  setTimeout(() => load(false), D ? 5000 : 3000);   // drafts appear by themselves when Claude has written them, or rewritten them in a new style
+}
+// tips: tap the ? for one plain sentence
+document.addEventListener("click", (e) => {
+  const b = e.target.closest(".tipb"), old = document.getElementById("tipbox"); if (old) old.remove(); document.querySelectorAll(".tipb.on").forEach((x) => x.classList.remove("on"));
+  if (!b) return; e.preventDefault(); b.classList.add("on");
+  const box = document.createElement("div"); box.id = "tipbox"; box.setAttribute("role", "tooltip"); box.textContent = b.dataset.tip; document.body.append(box);
+  const r = b.getBoundingClientRect(); box.style.left = Math.max(12, Math.min(r.left + r.width / 2 - box.offsetWidth / 2, innerWidth - box.offsetWidth - 12)) + "px"; box.style.top = (r.bottom + 8) + "px";
+});
+load(true);
+</script>
+</body>
+</html>
