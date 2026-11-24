@@ -4,19 +4,41 @@
 #   <name>.mp4          full quality: same resolution, high-bitrate H.264, fast-start (the upload copy)
 #   <name> (phone).mp4  small copy for sending and watching on a phone: H.264 CRF 26, AAC 128k, fast-start
 #   <name> cover.jpg    the Reel cover (make it first with cover.py; delivery stops without one)
-# Usage: deliver.sh <final.mp4> "<clear name>" [--to <folder>]
+# Usage: deliver.sh <final.mp4> "<clear name>" [--to <folder>] [--remember]
 # Where: --to wins; else brand.json "deliver_dir". "footage" means the folder the raw clip came from (saved in
 # <reel>/source_dir.txt when the clip was copied in), e.g. a cloud-synced folder the person filmed into.
 set -euo pipefail
-SRC="$1"; NAME="${2:-$(basename "${SRC%.*}")}"; TO=""
-[ "${3:-}" = "--to" ] && TO="${4:?--to needs a folder}"
+SRC="$1"; NAME="${2:-$(basename "${SRC%.*}")}"; TO=""; REMEMBER=""
+shift; [ $# -gt 0 ] && shift
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --to) TO="${2:?--to needs a folder}"; shift 2;;
+    --remember) REMEMBER=1; shift;;
+    *) echo "unknown option: $1 (use --to <folder> and, when they said to always save there, --remember)" >&2; exit 2;;
+  esac
+done
 REEL="$(cd "$(dirname "$SRC")" && pwd)"
-BRAND="${REELS_HOME:-$HOME/reels}/brand.json"
+HOME_REELS="${REELS_HOME:-$HOME/reels}"; BRAND="$HOME_REELS/brand.json"
+# Added by By Mel Ross (0.21.0): ask where the finished reel goes. Without --to, and unless the person already said "always
+# save there" (brand.json "deliver_ask": false), this stops and prints the choices to offer them. Nothing is written first.
+SET_DIR="$(python3 -c "import json,sys;print(json.load(open(sys.argv[1])).get('deliver_dir','~/Movies/Reels'))" "$BRAND")"
+ASK="$(python3 -c "import json,sys;print('no' if json.load(open(sys.argv[1])).get('deliver_ask', True) is False else 'yes')" "$BRAND")"
+FOOT=""; [ -s "$REEL/source_dir.txt" ] && FOOT="$(head -n1 "$REEL/source_dir.txt")"
+LAST=""; [ -s "$HOME_REELS/last_delivery.txt" ] && LAST="$(head -n1 "$HOME_REELS/last_delivery.txt")"
+if [ -z "$TO" ] && [ "$ASK" = "yes" ]; then
+  echo "ASK THEM FIRST: where should the finished reel be saved? Offer these, and let them name any other folder:" >&2
+  [ -n "$LAST" ] && echo "  - the same place as last time: $LAST" >&2
+  [ -n "$FOOT" ] && [ "$FOOT" != "$LAST" ] && echo "  - the folder the clip came from: $FOOT" >&2
+  [ "$HOME/Movies/Reels" != "$LAST" ] && echo "  - their Movies folder: $HOME/Movies/Reels" >&2
+  echo "  - their Desktop: $HOME/Desktop" >&2
+  echo "Then run this again with --to \"<the folder they chose>\". If they say to always save there, add --remember and they won't be asked again." >&2
+  exit 3
+fi
 if [ -n "$TO" ]; then DIR="$TO"
 else
-  DIR="$(python3 -c "import json,sys;print(json.load(open(sys.argv[1])).get('deliver_dir','~/Movies/Reels'))" "$BRAND")"
+  DIR="$SET_DIR"
   if [ "$DIR" = "footage" ]; then
-    if [ -s "$REEL/source_dir.txt" ]; then DIR="$(head -n1 "$REEL/source_dir.txt")"
+    if [ -n "$FOOT" ]; then DIR="$FOOT"
     else DIR="~/Movies/Reels"; echo "no source_dir.txt in the reel folder, delivering to ~/Movies/Reels" >&2; fi
   fi
 fi
@@ -41,5 +63,15 @@ ffmpeg -hide_banner -loglevel error -y -i "$SRC" -vf "scale='min(1080,iw)':-2,$S
   -pix_fmt yuv420p "${TAG709[@]}" -tag:v avc1 -c:a aac -b:a 128k -movflags +faststart "$PHONE"
 cp "$REEL/cover.jpg" "$COVER"
 printf '%s\n' "$OUT" "$PHONE" "$COVER"
+printf '%s\n' "$DIR" > "$HOME_REELS/last_delivery.txt" 2>/dev/null || true   # offered first next time
+if [ -n "$REMEMBER" ]; then   # they said "always save there"
+  python3 - "$BRAND" "$DIR" <<'PY'
+import json, sys
+f, d = sys.argv[1], sys.argv[2]
+b = json.load(open(f)); b["deliver_dir"] = d; b["deliver_ask"] = False
+json.dump(b, open(f, "w"), indent=2, ensure_ascii=False); open(f, "a").write("\n")
+PY
+  echo "saved: every reel now goes to $DIR without asking (brand.json deliver_dir; set \"deliver_ask\": true to be asked again)" >&2
+fi
 # Added by By Mel Ross (0.20.0): the caption they chose on the Caption page goes beside the video, ready to paste.
 if [ -s "$REEL/caption.txt" ]; then cp "$REEL/caption.txt" "$DIR/$NAME caption.txt"; printf '%s\n' "$DIR/$NAME caption.txt"; fi

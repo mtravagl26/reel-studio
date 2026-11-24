@@ -108,6 +108,7 @@ Runs once, before the first edit. Output: `~/reels/brand.md` (for people and for
 - `capcut_font`: a CapCut font URI (`vimo://...`), filled in later - see capcut.md.
 - `grade`: optional ffmpeg color filter string; leave `null` unless they ask for a look.
 - `deliver_dir`: where the finished files go. `"footage"` = back into the folder the raw clip came from (handy when they film into a synced folder such as iCloud Drive and want the reel on their phone); otherwise a folder like `~/Movies/Reels` (on Windows/Linux `~/Videos/Reels`). Keep the reel working folders (`~/reels/`) off cloud-synced folders: the big working files make syncing struggle. Only the three finished files go to `"footage"`.
+- `deliver_ask` (0.21.0): `true` by default, so you ask where to save each finished reel. It turns `false` when they say "always save there" (`deliver.sh --remember`).
 - `zoom` (optional): `scale`, `seconds`, `ease` and `every` for the camera zooms; see question 7b.
 - `caption_accent_shadow` (optional): CSS text-shadow behind highlighted caption words, e.g. a soft shadow in the main color so a light highlight color still reads over light clothes.
 - `cover_title_y` (optional): how far from the top the cover title starts (default 300).

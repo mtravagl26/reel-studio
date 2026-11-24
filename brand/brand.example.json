@@ -15,6 +15,7 @@
   "capcut_font": null,
   "sfx": "subtle",
   "deliver_dir": "footage",
+  "deliver_ask": true,
   "grade": null,
   "require_carousel": false,
   "title_outline": "#f5f2ec",
