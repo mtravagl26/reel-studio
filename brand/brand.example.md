@@ -28,7 +28,7 @@ Short phrases (2-4 words), sentence case, white, at mid-chest (move them below t
 Clean, warm, not flashy. Minimal by default: captions plus a hook title. Anything more only shows what's being said at that moment and lives in the space above the head. No b-roll, no stock footage. The hook title is the only text with an outline. No carousel.
 
 ## Sound
-No background music and no automatic sound effects by default. If you add a music bed (`"music"` in brand.json) it dips under the voice and comes up in the gaps; sound effects can be placed one by one (`sfx_events`) from the 40-effect library. Levels for voice, music and effects are in `brand.json` `"mix"`; final loudness is -14 LUFS with no clipping.
+No background music by default. Sound effects are on by default: each graphic plays a short sound as it comes on, and the pages have a switch to turn them off for one reel or every reel (`"sfx": "none"` in brand.json). If you add a music bed (`"music"` in brand.json) it dips under the voice and comes up in the gaps; sound effects can be placed one by one (`sfx_events`) from the 40-effect library. Levels for voice, music and effects are in `brand.json` `"mix"`; final loudness is -14 LUFS with no clipping.
 
 ## Studio look
 Natural by default: only mild denoise and sharpen. No colour grade and no background blur unless you turn them on (set `color`, `exposure`, `warmth` or `background` to 1). No skin smoothing. Review the before/after frame; every part is adjustable in `brand.json` `"enhance"`.

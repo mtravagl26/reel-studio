@@ -136,7 +136,7 @@ summary .tipb{margin-right:auto}
   <label class="f">Special effect</label>
   <button id="addOrbit" data-a="orbit-open" style="width:100%">+ Make pictures circle my head</button>
   <p class="help" style="margin-top:8px">1 to 6 of your pictures fly in a ring around your head for a few seconds.</p><div id="orbitPick"></div></div></details>
-<details id="s-sfx"><summary>Sound effects <small id="sfxn"></small></summary><div class="sec"><div id="sfx"></div><button id="addSfx" class="sage" style="width:100%;margin-top:8px">+ Add a sound at this point in the video</button></div></details>
+<details id="s-sfx"><summary>Sound effects <small id="sfxn"></small></summary><div class="sec"><div id="sfxmaster"></div><div id="sfx"></div><button id="addSfx" class="sage" style="width:100%;margin-top:8px">+ Add a sound at this point in the video</button></div></details>
 <details id="s-set"><summary>Settings</summary><div class="sec" id="settings"></div></details>
 <details id="s-ver"><summary>Versions <small id="vern"></small></summary><div class="sec" id="versions"></div></details>
 <div id="toast"></div>
@@ -285,7 +285,7 @@ function renderPieces() {
 }
 
 // ---- cards (pills / text / stickers)
-const TYPE_NAME = { tag: "Pill", title: "Title", cta: "Call to action", card: "List card", sticker: "Sticker", image: "Photos", shot: "Screenshot", block: "Color block", page: "Page", motion: "Motion", follow: "Word-by-word", popup: "Popup", orbit: "Circling my head" };
+const TYPE_NAME = { tag: "Pill", title: "Title", cta: "Call to action", card: "List card", sticker: "Sticker", image: "Photos", shot: "Screenshot", block: "Color block", page: "Page", motion: "Motion", follow: "Word-by-word", popup: "Popup", orbit: "Circling my head", quote: "Quote box", chips: "Number chips", columns: "Columns", note: "Taped note", polaroids: "Photo cards", tiles: "Icon tiles", stat: "Number card", xlist: "Check list" };
 const effLayer = (c) => c.layer || S.textDefault.layer || "front";
 function cardIndexes(pred) { return S.edit.cards.map((c, i) => [c, i]).filter(([c]) => pred(c)); }
 function renderCards() {
@@ -304,7 +304,7 @@ function cardHtml(c, i) {
     <button class="sm" data-a="open" data-i="${i}">${open ? "Close" : "Edit"}</button></div>`;
   if (open) {
     h += `<div class="edit">`;
-    if (c.type === "tag" || c.type === "title" || c.type === "cta") {
+    if (c.type === "tag" || c.type === "title" || c.type === "cta" || c.type === "quote") {
       h += `<label class="f">Text</label><input type="text" data-a="set" data-i="${i}" data-f="text" value="${esc(c.text)}" />`;
       if (c.type === "tag" && (c.text || "").length > 24) h += `<p class="warnt">Long text can run off the edge of the screen.</p>`;
     }
@@ -319,7 +319,7 @@ function cardHtml(c, i) {
         + (L === "behind" ? `<p class="warnt">Text behind you needs space above your head. If your face fills the frame, the text is hidden. If the outline around you isn't clean in this part, the text goes in front and the page tells you after the render.</p>` : "")
         + (c.layer == null ? `<p class="small">Using your default (${S.textDefault.layer === "front" ? "in front" : S.textDefault.layer}).</p>` : "");
     }
-    if (c.type === "tag" || c.type === "title" || c.type === "cta") {
+    if (c.type === "tag" || c.type === "title" || c.type === "cta" || c.type === "quote") {
       const y = c.y ?? (c.type === "tag" ? 130 : 360);
       h += `<label class="f">Height on screen</label><div class="grid3">${[[130, "Above my head"], [300, "Higher"], [800, "Middle"], [1050, "Lower"], [1150, "Above captions"]].map(([yy, n]) => `<button class="${Math.abs(y - yy) < 20 ? "on" : ""}" data-a="set" data-i="${i}" data-f="y" data-v="${yy}">${n}</button>`).join("")}<button class="${placing && placing.id === cid(i) ? "on" : ""}" data-a="place" data-i="${i}">Tap on video</button></div>`;
     }
@@ -459,6 +459,8 @@ function renderSettings() {
     <div class="seg" style="margin-top:8px"><button class="on" data-a="colors-save" data-v="reel">Use for this reel</button><button data-a="colors-save" data-v="all">Use for every reel</button></div>
     ${mine ? `<button class="sm" data-a="colors-reset" style="margin-top:8px">Back to my brand colors</button>` : ""}
     <p class="help" style="margin-top:8px">${mine ? "This reel has its own colors." : "This reel uses your brand colors."} Every look uses these 3 colors, so changing them changes any look. Pick, press a button, then re-render to see it.</p><hr style="border:0;border-top:1px solid var(--line);margin:14px 0">`;
+  $("#sfxmaster").innerHTML = `<label class="f">Sounds when graphics appear</label><div class="seg"><button class="${S.sfxOn ? "on" : ""}" data-a="sfx-master" data-v="on" data-s="reel">On</button><button class="${S.sfxOn ? "" : "on"}" data-a="sfx-master" data-v="off" data-s="reel">Off</button></div>
+    <p class="help" style="margin:8px 0">${S.sfxOn ? "Each graphic plays a short sound as it comes on." : "Graphics come on silently in this reel."} For every reel you make: <button class="sm" data-a="sfx-master" data-v="on" data-s="all">always on</button> <button class="sm" data-a="sfx-master" data-v="off" data-s="all">always off</button> (now ${S.sfxAll ? "on" : "off"}). Sounds you place by hand below always play.</p>`;
   $("#settings").innerHTML = themeBox + colorBox + `<label class="f">Where text goes by default (every reel)</label><div class="seg"><button class="${L === "front" ? "on" : ""}" data-a="default" data-v="front">In front of me</button><button class="${L === "behind" ? "on" : ""}" data-a="default" data-v="behind">Behind me</button></div>
     <p class="help" style="margin-top:8px">Text sits in the top area above your head. This only sets the layer new text starts on; you can change any single piece of text. ${S.hasTextDefault ? "" : "(Not saved in the brand file yet: the built-in default is in front.)"}</p>`;
 }
@@ -529,6 +531,9 @@ document.addEventListener("click", async (e) => {
   else if (a === "giphy-add") {
     toast("Getting it from GIPHY…");
     try { const j = await post("/api/giphy-add", { id: el.dataset.v, kind: giphy.kind }); await addPopup(j.upload.src); } catch (er) { toast(er.message, true); }
+  }
+  else if (a === "sfx-master") {   // 0.19.0
+    try { await post("/api/sfx", { on: el.dataset.v === "on", scope: el.dataset.s }); toast(`Sound effects ${el.dataset.v} for ${el.dataset.s === "all" ? "every reel" : "this reel"}: re-render to hear it`); } catch (er) { toast(er.message, true); }
   }
   else if (a === "colors-save" || a === "colors-reset") {   // 0.16.0
     const colors = a === "colors-reset" ? {} : Object.fromEntries([...document.querySelectorAll("#settings [data-color]")].map((x) => [x.dataset.color, x.value]));

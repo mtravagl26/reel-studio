@@ -13,7 +13,7 @@
   },
   "capcut": false,
   "capcut_font": null,
-  "sfx": "none",
+  "sfx": "subtle",
   "deliver_dir": "footage",
   "grade": null,
   "require_carousel": false,

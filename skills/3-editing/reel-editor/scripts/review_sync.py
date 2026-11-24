@@ -93,7 +93,7 @@ def export(reel, proposal, out):
         # Added by By Mel Ross (0.16.0): the build gives each graphic an entrance sound by its type even when the plan names none,
         # but the review page only listed sounds the plan named, so its Sound effects list could be empty for a reel that has
         # sounds. The page now shows the sound the build will use (same name and level), so it can be heard and switched off.
-        if "sfx" not in g and brand.get("sfx", "subtle") != "none" and g.get("type") in ENTRANCE_SFX:
+        if "sfx" not in g and g.get("type") in ENTRANCE_SFX:   # listed even when sounds are off, so the page can show what switching them on gives
             g["sfx"] = {"name": ENTRANCE_SFX[g["type"]][0], "db": ENTRANCE_SFX[g["type"]][1]}
         g["w0"] = hits[0]
         if c.get("end_anchor"):
@@ -103,7 +103,7 @@ def export(reel, proposal, out):
     reel_json = {"title": proposal["title"], "srcDur": float(subprocess.run(["ffprobe", "-v", "error", "-show_entries",
                  "format=duration", "-of", "csv=p=0", str(raw_clip(reel))], capture_output=True, text=True).stdout),
                  "speed": pacing(brand)["speed"], "pacing": pacing(brand), "words": words, "proposedCut": proposed_cut, "keepPauses": keep_pauses,
-                 "captions": caps, "board": board,
+                 "captions": caps, "board": board, "sfxOn": brand.get("sfx", "subtle") != "none",
                  "colors": {k: brand.get("colors", {}).get(k, d_) for k, d_ in (("main", "#141414"), ("pop", "#B9C8A5"), ("light", "#FFFFFF"))},   # 0.16.0: the color box starts from these
                  "style": {"capSize": brand["captions"].get("size", 104), "capY": brand["captions"].get("y", 1250),
                            "mode": mode, "editorial": brand["captions"].get("style") == "editorial",
@@ -169,6 +169,7 @@ def do_import(reel, review):
         if c["start"] - last > 6: punch.append(c["start"]); last = c["start"]
     out = {"captions": caps, "punch": punch, "cards": cards, "hash": P["hash"]}
     if d.get("theme") is not None: out["theme"] = d["theme"] or "none"       # picked on the review page ("" = my brand as it is)
+    if d.get("sfxAll") in ("on", "off"): out["sfx"] = "subtle" if d["sfxAll"] == "on" else "none"   # 0.19.0: the master switch on the review page
     if isinstance(d.get("colors"), dict):                                    # 0.16.0: colors for this reel, picked on the review page
         _col = {k: v for k, v in d["colors"].items() if k in ("main", "pop", "light") and isinstance(v, str) and re.fullmatch(r"#[0-9a-fA-F]{6}", v)}
         if _col: out["colors"] = _col

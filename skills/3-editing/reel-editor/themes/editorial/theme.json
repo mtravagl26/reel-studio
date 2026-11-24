@@ -38,8 +38,7 @@
       "seconds": 2.5,
       "ease": "sine.inOut",
       "every": 6
-    },
-    "sfx": "none"
+    }
   },
   "cards": {
     "title": {

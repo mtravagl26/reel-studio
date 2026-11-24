@@ -295,41 +295,87 @@
   "H6": {
    "name": "Time-stamped number opener",
    "group": "Hooks",
-   "status": "planned",
+   "status": "built",
    "version": "v1",
    "build": "now",
    "does": "The opening line is a count plus a result, such as \"[number] days ago, [what you did]\", on the first second, with the number in the accent color.",
    "when": "Story or results reels where you have a real number and a real date (days since, dollars, hours). Real numbers only.",
    "build_note": "`title` card with `overline` (\"X days ago\") and the number as headline, left-aligned; same family as H2/H3.",
-   "recipe": null
+   "recipe": {
+    "slot": "hook",
+    "card": {
+     "type": "title",
+     "text": "*161* days ago / I started this",
+     "align": "left",
+     "y": 95,
+     "size": 130,
+     "color": "#FFFFFF"
+    }
+   }
   },
   "H7": {
    "name": "Ranked serif headline + context line",
    "group": "Hooks",
-   "status": "planned",
+   "status": "built",
    "version": "v1",
    "build": "now",
    "does": "A big serif headline built on a number or rating, such as \"[number] [things] I use\", with a tiny line in brackets under it that says who it is for.",
    "when": "Tool, tip or habit round-ups. Use the bracket line for who it is for: (as a solo business owner).",
    "build_note": "`title` card with a serif headline in the light color, `overline` or a second line for the bracket line.",
-   "recipe": null
+   "recipe": {
+    "slot": "hook",
+    "card": {
+     "type": "title",
+     "text": "my 10 best tools / this year",
+     "font": "serif",
+     "sub": "(as a solo business owner)",
+     "align": "center",
+     "y": 110,
+     "size": 120,
+     "color": "#FFFFFF"
+    }
+   }
   },
   "H8": {
    "name": "Built-it lockup: I BUILT MY OWN ___ IN [logo]",
    "group": "Hooks",
-   "status": "planned",
+   "status": "built",
    "version": "v1",
    "build": "assets",
    "does": "A tiny spaced caps line, a big italic serif headline, then \"IN\" and an app logo. Reads like a title card; strong for tool demos.",
    "when": "Demoing a system you built. Needs the logo image.",
    "build_note": "`title` card + `sticker` for the logo (you supply the image). Close to H1 but with 1 logo.",
-   "needs": "`title` card + `sticker` for the logo (she supplies the image). Close to H1 but one-logo.",
-   "recipe": null
+   "needs": "your own picture(s): a logo, a screenshot, a GIF or photos",
+   "recipe": {
+    "slot": "hook",
+    "needs_photos": 1,
+    "cards": [
+     {
+      "type": "title",
+      "overline": "I BUILT MY OWN",
+      "overline_font": "body",
+      "overline_size": 40,
+      "text": "reel editor",
+      "font": "serif",
+      "italic": true,
+      "align": "center",
+      "y": 95,
+      "size": 130,
+      "color": "#FFFFFF"
+     },
+     {
+      "type": "sticker",
+      "x": 540,
+      "y": 400,
+      "size": 150
+     }
+    ]
+   }
   },
   "H9": {
    "name": "Contrarian count line",
    "group": "Hooks",
-   "status": "planned",
+   "status": "cut-choice",
    "version": "v1",
    "build": "cut",
    "does": "The spoken hook is the whole graphic: a line that swaps a big number for a small one, such as \"You don't need [big number] [things]. You need [small number].\" Plain shot, no title card.",
@@ -340,90 +386,184 @@
   "H10": {
    "name": "Two-label contrast title",
    "group": "Hooks",
-   "status": "planned",
+   "status": "built",
    "version": "v1",
    "build": "now",
    "does": "A serif title, then 2 small labels left and right of a center mark, such as \"[before] | [after]\".",
    "when": "Before/after or this-vs-that explainers.",
    "build_note": "`title` card + two `tag` cards; or `tiles` with two tiles.",
-   "recipe": null
+   "recipe": {
+    "slot": "hook",
+    "card": {
+     "type": "title",
+     "text": "my week",
+     "font": "serif",
+     "labels": [
+      "messy",
+      "mapped"
+     ],
+     "align": "center",
+     "y": 110,
+     "size": 130,
+     "color": "#FFFFFF"
+    }
+   }
   },
   "H11": {
    "name": "Community prompt",
    "group": "Hooks",
-   "status": "planned",
+   "status": "built",
    "version": "v1",
    "build": "now",
    "does": "A large centered serif line over street or desk footage that asks viewers to say what they are working on.",
    "when": "A warm comment-driver at the start or end.",
    "build_note": "`title` card, centered, serif, 2 lines; in the first 3 s or as an end card.",
-   "recipe": null
+   "recipe": {
+    "slot": "hook",
+    "card": {
+     "type": "title",
+     "text": "tell me what / you're building",
+     "font": "serif",
+     "align": "center",
+     "y": 110,
+     "size": 110,
+     "color": "#FFFFFF"
+    }
+   }
   },
   "H12": {
    "name": "Quote-in-a-box hook",
    "group": "Hooks",
-   "status": "planned",
+   "status": "built",
    "version": "v1",
    "build": "small",
    "does": "A white rounded box with a sentence in your viewer's own words, in bold color.",
    "when": "Opening on the exact sentence a client says. Pairs with a plain face-to-camera answer.",
    "build_note": "Needs a `quote` card (white box, bold coloured text, held 3 s); closest now is a `card` with one row.",
-   "recipe": null
+   "recipe": {
+    "slot": "hook",
+    "card": {
+     "type": "quote",
+     "text": "I want to post more / but it eats my week"
+    }
+   }
   },
   "H13": {
    "name": "POV / relatable line + reaction GIF",
    "group": "Hooks",
-   "status": "planned",
+   "status": "built",
    "version": "v1",
    "build": "now",
    "does": "A white text box with a relatable line and a GIF reaction popped in.",
    "when": "Light humour on a serious topic. Use sparingly; one per reel.",
    "build_note": "`title`/`tag` for the line + `popup` with a GIF (already supported, GIFs loop).",
-   "recipe": null
+   "recipe": {
+    "slot": "hook",
+    "needs_photos": 1,
+    "cards": [
+     {
+      "type": "quote",
+      "text": "how I expect clients / to react",
+      "marks": false,
+      "size": 54
+     },
+     {
+      "type": "popup",
+      "pos": "middle-right",
+      "size": 300
+     }
+    ]
+   },
+   "needs": "your own picture(s): a logo, a screenshot, a GIF or photos"
   },
   "H14": {
    "name": "Day-N series label (quiet version)",
    "group": "Hooks",
-   "status": "planned",
+   "status": "built",
    "version": "v1",
    "build": "now",
    "does": "\"Day [number] of [what you are building]\" as a series opener. The quiet version is a small serif \"day [number]:\" over the headline.",
    "when": "Build-in-public or a running series.",
    "build_note": "`title` with `overline` \"day [number]:\" in the accent font (same as L7).",
-   "recipe": null
+   "recipe": {
+    "slot": "hook",
+    "card": {
+     "type": "title",
+     "overline": "day 12:",
+     "overline_font": "accent",
+     "text": "building my / reel editor",
+     "align": "left",
+     "y": 95,
+     "size": 130,
+     "color": "#FFFFFF"
+    }
+   }
   },
   "H15": {
    "name": "Quoted myth on screen",
    "group": "Hooks",
-   "status": "planned",
+   "status": "built",
    "version": "v1",
    "build": "now",
    "does": "A quoted line floats over a calm shot: a myth your audience hears. You then answer it.",
    "when": "Myth-busting. Use a myth in your audience's words.",
    "build_note": "`title`, small, with quote marks; hold 3 s; captions below.",
-   "recipe": null
+   "recipe": {
+    "slot": "hook",
+    "card": {
+     "type": "title",
+     "text": "“I'll get organised / when things slow down”",
+     "font": "serif",
+     "italic": true,
+     "align": "center",
+     "y": 110,
+     "size": 84,
+     "color": "#FFFFFF"
+    }
+   }
   },
   "H16": {
    "name": "Time or money handed back",
    "group": "Hooks",
-   "status": "planned",
+   "status": "built",
    "version": "v1",
    "build": "now",
    "does": "A serif line at the top of the frame stating a result in time or money, over a plain face shot.",
    "when": "Only with a true number from your own work (hours saved, a client result you may share).",
    "build_note": "`title` card; or `stat` (L8) for the number.",
-   "recipe": null
+   "recipe": {
+    "slot": "hook",
+    "card": {
+     "type": "title",
+     "text": "I save *10 hours* / a week",
+     "font": "serif",
+     "align": "center",
+     "y": 110,
+     "size": 110,
+     "color": "#FFFFFF"
+    }
+   }
   },
   "H17": {
    "name": "List promise with the number in colour",
    "group": "Hooks",
-   "status": "planned",
+   "status": "built",
    "version": "v1",
    "build": "now",
    "does": "A number-led promise, such as \"the [number] I'd give anyone\", with the number in the accent color, then the list on screen.",
    "when": "Any tips or tools list. Tell them how many up front.",
    "build_note": "`title` card with the number coloured; list as L6/L16/L4.",
-   "recipe": null
+   "recipe": {
+    "slot": "hook",
+    "card": {
+     "type": "title",
+     "text": "the *5* tools / I'd give anyone",
+     "align": "center",
+     "y": 95,
+     "size": 130,
+     "color": "#FFFFFF"
+    }
+   }
   },
   "H18": {
    "name": "Hype claim hook",
@@ -439,101 +579,208 @@
   "H19": {
    "name": "Question label above the head",
    "group": "Hooks",
-   "status": "planned",
+   "status": "built",
    "version": "v1",
    "build": "now",
    "does": "A small label across the top as a question or a \"what most people do\" line; the answer starts in the first sentence.",
    "when": "Comparing the common approach to yours.",
    "build_note": "`title` card, small, left-aligned; or a `tag`.",
-   "recipe": null
+   "recipe": {
+    "slot": "hook",
+    "card": {
+     "type": "tag",
+     "text": "what most people do",
+     "y": 130
+    }
+   }
   },
   "C6": {
    "name": "White label-box single word",
    "group": "Captions",
-   "status": "planned",
+   "status": "built",
    "version": "v1",
    "build": "small",
    "does": "One word at a time in black on a white rectangle, centred in the lower middle; the box hugs the word.",
    "when": "Direct-to-camera talking head, calm pace; reads as clean and businesslike.",
    "build_note": "Caption style `box` (background on the word). Closest now: C3 with `colors.caption` black on a card.",
-   "recipe": null
+   "recipe": {
+    "mode": "word",
+    "brand": {
+     "colors": {
+      "caption": "#000000"
+     },
+     "captions": {
+      "size": 96,
+      "y": 1250,
+      "case": "sentence",
+      "mode": "word",
+      "bg": "#FFFFFF"
+     }
+    }
+   }
   },
   "C7": {
    "name": "Quiet mid-lower white phrase",
    "group": "Captions",
-   "status": "planned",
+   "status": "built",
    "version": "v1",
    "build": "now",
    "does": "Small clean white sans, 2-4 words at a time, sentence case, centred at about 60% height, no highlight. The face stays the star.",
    "when": "A good default for calm explainers and personal reels. Easy to read, easy to live with.",
    "build_note": "brand.json `captions` `{\"size\":54,\"y\":1130,\"case\":\"sentence\",\"mode\":\"phrase\"}`, no accent.",
-   "recipe": null
+   "recipe": {
+    "brand": {
+     "captions": {
+      "size": 54,
+      "y": 1130,
+      "case": "sentence",
+      "mode": "phrase"
+     }
+    }
+   }
   },
   "C8": {
    "name": "Bold word with soft shadow",
    "group": "Captions",
-   "status": "planned",
+   "status": "built",
    "version": "v1",
    "build": "now",
    "does": "One heavy white word, large, soft drop shadow, centre-lower. High energy without a colour.",
    "when": "Fast talkers or a list rhythm.",
    "build_note": "C3 with `colors.caption` `#FFFFFF` and size 120; shadow already in the build.",
-   "recipe": null
+   "recipe": {
+    "mode": "word",
+    "brand": {
+     "colors": {
+      "caption": "#FFFFFF"
+     },
+     "captions": {
+      "size": 120,
+      "y": 1250,
+      "case": "sentence",
+      "mode": "word"
+     }
+    }
+   }
   },
   "C9": {
    "name": "Highlighter italic punch",
    "group": "Captions",
-   "status": "planned",
+   "status": "built",
    "version": "v1",
    "build": "now",
    "does": "A heavy italic line in the accent color on the hook line, white after.",
    "when": "The first sentence only.",
    "build_note": "C2 with the accent color, `\"accent\": true` on the whole first phrase.",
-   "recipe": null
+   "recipe": {
+    "accent": "first",
+    "brand": {
+     "captions": {
+      "size": 92,
+      "y": 1250,
+      "case": "sentence",
+      "mode": "phrase",
+      "accent_font": "head",
+      "accent_italic": true
+     }
+    }
+   }
   },
   "C10": {
    "name": "Dark translucent phrase bar",
    "group": "Captions",
-   "status": "planned",
+   "status": "built",
    "version": "v1",
    "build": "small",
    "does": "Two lines of white sans on a dark semi-opaque rounded bar across the lower middle.",
    "when": "Busy backgrounds or when a face is partly dark; extra legibility.",
    "build_note": "Caption style `bar` (background behind the phrase).",
-   "recipe": null
+   "recipe": {
+    "brand": {
+     "captions": {
+      "size": 60,
+      "y": 1240,
+      "case": "sentence",
+      "mode": "phrase",
+      "bg": "rgba(0,0,0,.62)"
+     }
+    }
+   }
   },
   "C11": {
    "name": "Keyword colour highlight",
    "group": "Captions",
-   "status": "planned",
+   "status": "built",
    "version": "v1",
    "build": "now",
    "does": "A white phrase with 1 key word in the accent color.",
    "when": "Any explainer; the accent word is the one idea of the sentence.",
    "build_note": "C2 recipe, `\"accent\": true` on one word per caption.",
-   "recipe": null
+   "recipe": {
+    "accent": "auto",
+    "brand": {
+     "captions": {
+      "size": 72,
+      "y": 1250,
+      "case": "sentence",
+      "mode": "phrase"
+     }
+    }
+   }
   },
   "C12": {
    "name": "Tiny centred serif over b-roll",
    "group": "Captions",
-   "status": "planned",
+   "status": "built",
    "version": "v1",
    "build": "now",
    "does": "Two-line tiny serif, centred, over aesthetic desk or street b-roll; voiceover feel, no face.",
    "when": "Voiceover reels, quote reels, \"day in the work\" b-roll.",
    "build_note": "C1 centered: captions `{\"size\":44,\"y\":900}` with a serif body font.",
-   "recipe": null
+   "recipe": {
+    "brand": {
+     "captions": {
+      "size": 44,
+      "y": 900,
+      "case": "lower",
+      "mode": "phrase"
+     },
+     "fonts": {
+      "body": {
+       "family": "Lora",
+       "file": "{reels}/fonts/Lora.ttf",
+       "weight": 500
+      }
+     }
+    }
+   }
   },
   "C13": {
    "name": "Pinned topic label + quiet captions",
    "group": "Captions",
-   "status": "planned",
+   "status": "built",
    "version": "v1",
    "build": "now",
    "does": "A translucent label holds the topic at the top for the whole point, and small white captions stay low.",
    "when": "Teaching one topic for 20-40 s; gives a new viewer instant context.",
    "build_note": "`title` card held with `end`, small, + C7 captions.",
-   "recipe": null
+   "recipe": {
+    "slot": "hook",
+    "brand": {
+     "captions": {
+      "size": 54,
+      "y": 1130,
+      "case": "sentence",
+      "mode": "phrase"
+     }
+    },
+    "card": {
+     "type": "tag",
+     "text": "operations",
+     "y": 120,
+     "glass": true
+    }
+   }
   },
   "C14": {
    "name": "Chunky playful stacked type",
@@ -549,21 +796,34 @@
   "C15": {
    "name": "One bold white word, no highlight",
    "group": "Captions",
-   "status": "planned",
+   "status": "built",
    "version": "v1",
    "build": "now",
    "does": "A single bold white word under the speaker's chin, mid-lower, small. No colour, no box.",
    "when": "Hold-up demos (laptop, object) where the picture is busy.",
    "build_note": "C3 with white caption colour, size ~96, y 1180.",
-   "recipe": null
+   "recipe": {
+    "mode": "word",
+    "brand": {
+     "colors": {
+      "caption": "#FFFFFF"
+     },
+     "captions": {
+      "size": 96,
+      "y": 1180,
+      "case": "sentence",
+      "mode": "word"
+     }
+    }
+   }
   },
   "C16": {
    "name": "Caption doubles as counter",
    "group": "Captions",
-   "status": "planned",
+   "status": "cut-choice",
    "version": "v1",
    "build": "now",
-   "does": "The running caption carries the count, such as \"1 of 5\", so the rhythm of a list is built into the words.",
+   "does": "The running caption carries the count, such as \"1 of 5\", so the rhythm of a list is built into the words. A writing choice: the count is typed into the captions.",
    "when": "Rated lists and step lists; viewers stay for the next number.",
    "build_note": "Write the count into `edit.json` captions text at each item; plain C7 styling.",
    "recipe": null
@@ -571,92 +831,205 @@
   "L10": {
    "name": "Inset card over a blurred, enlarged self",
    "group": "Layouts",
-   "status": "planned",
+   "status": "built",
    "version": "v1",
    "build": "small",
    "does": "Your clip sits as a smaller rounded card in the middle; the frame behind is the same clip enlarged and blurred. Caption under the card.",
    "when": "Hand-held or off-centre footage you want to dress up; story and diary reels.",
    "build_note": "`page` card has the clip framed with a background; needs a `bg: \"blur\"` option (blurred copy of the same clip).",
-   "recipe": null
+   "recipe": {
+    "slot": "layout",
+    "card": {
+     "type": "page",
+     "bg": "blur"
+    }
+   }
   },
   "L11": {
    "name": "Top asset panel + face below",
    "group": "Layouts",
-   "status": "planned",
+   "status": "partial",
    "version": "v1",
    "build": "assets",
    "does": "The top half is a rounded panel holding the app icon or screen; your face fills the bottom half; a small label names the panel.",
    "when": "Explaining a tool in one line each. Keeps your face on screen the whole time.",
    "build_note": "`page` card (background image + clip framed) with your screenshot or logo; small label added.",
-   "needs": "`page` card (bg image + clip framed) with her screenshot or logo; small mono label added.",
-   "recipe": null
+   "needs": "your own picture(s): a logo, a screenshot, a GIF or photos",
+   "recipe": {
+    "slot": "layout",
+    "needs_photos": 1,
+    "card": {
+     "type": "page",
+     "label": "app name"
+    }
+   },
+   "missing": "the picture fills the whole background behind the title area; a separate top panel with your face filling the bottom half is not built"
   },
   "L12": {
    "name": "Photo-card cloud above the head",
    "group": "Layouts",
-   "status": "planned",
+   "status": "built",
    "version": "v1",
    "build": "small",
    "does": "6-8 tilted vertical frames of finished work fan above the speaker; one word of caption below.",
    "when": "Proof of finished work. More dramatic than L2.",
    "build_note": "`polaroids` allows 4 cards; raise to 8 with a cloud placement.",
-   "recipe": null
+   "recipe": {
+    "slot": "layout",
+    "needs_photos": 6,
+    "card": {
+     "type": "polaroids",
+     "layout": "cloud",
+     "y": 60
+    }
+   },
+   "needs": "your own picture(s): a logo, a screenshot, a GIF or photos"
   },
   "L13": {
    "name": "Logo chips either side of the face",
    "group": "Layouts",
-   "status": "planned",
+   "status": "built",
    "version": "v1",
    "build": "assets",
    "does": "2 app-logo chips sit left and right of the speaker with a one-word label under each.",
    "when": "\"Which tool for which job\" lists, one pair at a time.",
    "build_note": "Two `sticker` cards per pair (logos supplied).",
-   "needs": "Two `sticker` cards per pair (logos supplied).",
-   "recipe": null
+   "needs": "your own picture(s): a logo, a screenshot, a GIF or photos",
+   "recipe": {
+    "slot": "layout",
+    "needs_photos": 2,
+    "cards": [
+     {
+      "type": "popup",
+      "pos": "middle-left",
+      "size": 170,
+      "frame": false,
+      "caption": "writing"
+     },
+     {
+      "type": "popup",
+      "pos": "middle-right",
+      "size": 170,
+      "frame": false,
+      "caption": "images"
+     }
+    ]
+   }
   },
   "L14": {
    "name": "Vertical icon list beside the face",
    "group": "Layouts",
-   "status": "planned",
+   "status": "built",
    "version": "v1",
    "build": "small",
    "does": "4 app icons with names stack down the left side, your face on the right.",
    "when": "Showing a stack (tools, platforms, client types) in one glance.",
    "build_note": "`tiles` laid out in one column at the left.",
-   "recipe": null
+   "recipe": {
+    "slot": "layout",
+    "card": {
+     "type": "tiles",
+     "layout": "column",
+     "tiles": [
+      {
+       "label": "one",
+       "icon": "star"
+      },
+      {
+       "label": "two",
+       "icon": "chart"
+      },
+      {
+       "label": "three",
+       "icon": "people"
+      },
+      {
+       "label": "four",
+       "icon": "doc"
+      }
+     ]
+    }
+   }
   },
   "L15": {
    "name": "Whiteboard columns above the head",
    "group": "Layouts",
-   "status": "planned",
+   "status": "built",
    "version": "v1",
    "build": "small",
    "does": "3 hand-lettered columns on a whiteboard-style chart above the speaker, each in its own ink color.",
    "when": "Sorting a messy thing into keep, drop and fix.",
    "build_note": "New card `columns` (like `xlist`, 2-3 columns of items drawn in turn). Hand font already bundled.",
-   "recipe": null
+   "recipe": {
+    "slot": "layout",
+    "card": {
+     "type": "columns",
+     "cols": [
+      {
+       "title": "keep",
+       "items": [
+        "this",
+        "that"
+       ]
+      },
+      {
+       "title": "drop",
+       "items": [
+        "this",
+        "that"
+       ]
+      },
+      {
+       "title": "fix",
+       "items": [
+        "this",
+        "that"
+       ]
+      }
+     ]
+    }
+   }
   },
   "L16": {
    "name": "Numbered steps card",
    "group": "Layouts",
-   "status": "planned",
+   "status": "built",
    "version": "v1",
    "build": "now",
    "does": "A white card with numbered rows that appear one by one, left of centre, speaker on the right.",
    "when": "Step-by-step processes.",
    "build_note": "`card` with `rows` (1. 2. 3.) in the lower third; quiet, not a pop-up.",
-   "recipe": null
+   "recipe": {
+    "slot": "layout",
+    "card": {
+     "type": "card",
+     "title": "how I do it",
+     "rows": [
+      "1. first step",
+      "2. second step",
+      "3. third step"
+     ],
+     "y": 1000
+    }
+   }
   },
   "L17": {
    "name": "Number chips 1-5 under a caps title",
    "group": "Layouts",
-   "status": "planned",
+   "status": "built",
    "version": "v1",
    "build": "small",
    "does": "A bold caps title with 5 numbered chips in a row.",
    "when": "Five-item frameworks; the chips light up as each is spoken.",
    "build_note": "New `chips` card or `tiles` with number glyphs.",
-   "recipe": null
+   "recipe": {
+    "slot": "layout",
+    "card": {
+     "type": "chips",
+     "title": "5 things to fix",
+     "n": 5
+    }
+   }
   },
   "L18": {
    "name": "Two-person split",
@@ -672,57 +1045,106 @@
   "L19": {
    "name": "Reaction GIF at chest height",
    "group": "Layouts",
-   "status": "planned",
+   "status": "built",
    "version": "v1",
    "build": "now",
    "does": "A small meme/GIF reaction sits across the chest area for a beat to land a joke, then leaves.",
    "when": "One light moment per reel.",
    "build_note": "`popup` with a GIF (already works).",
-   "recipe": null
+   "recipe": {
+    "slot": "layout",
+    "needs_photos": 1,
+    "card": {
+     "type": "popup",
+     "pos": "custom",
+     "x": 540,
+     "y": 1230,
+     "size": 320
+    }
+   },
+   "needs": "your own picture(s): a logo, a screenshot, a GIF or photos"
   },
   "L20": {
    "name": "Carousel slide as opening or closing frame",
    "group": "Layouts",
-   "status": "planned",
+   "status": "built",
    "version": "v1",
    "build": "now",
    "does": "A designed slide (dark card, big headline) shown full-screen at the start or end of the reel.",
    "when": "You already built a carousel; reuse its cover or last slide as the reel opener or CTA.",
    "build_note": "`page` or full-frame `image` card with your carousel slide PNG for 1.5-3 s.",
-   "recipe": null
+   "recipe": {
+    "slot": "layout",
+    "needs_photos": 1,
+    "card": {
+     "type": "popup",
+     "pos": "center",
+     "size": 1080,
+     "frame": false
+    }
+   },
+   "needs": "your own picture(s): a logo, a screenshot, a GIF or photos"
   },
   "L21": {
    "name": "Comment-keyword end line",
    "group": "Layouts",
-   "status": "planned",
+   "status": "built",
    "version": "v1",
    "build": "now",
    "does": "The last 3-4 seconds: \"Comment [WORD] and I'll send you [the thing]\".",
    "when": "Whenever you have a freebie to send.",
    "build_note": "`cta` card (the CAPS word pops) or `title` card at the end.",
-   "recipe": null
+   "recipe": {
+    "slot": "layout",
+    "card": {
+     "type": "cta",
+     "text": "comment GUIDE and I'll send it"
+    }
+   }
   },
   "L22": {
    "name": "Small top-left statement block",
    "group": "Layouts",
-   "status": "planned",
+   "status": "built",
    "version": "v1",
    "build": "now",
    "does": "A small 2-3 line statement stays in the top-left corner for the whole reel as a running subtitle of the idea.",
    "when": "A single thesis you want held on screen.",
    "build_note": "`title` card, left-aligned, small, long `end`.",
-   "recipe": null
+   "recipe": {
+    "slot": "hook",
+    "card": {
+     "type": "title",
+     "text": "one idea / that stays up / the whole reel",
+     "font": "body",
+     "align": "left",
+     "y": 100,
+     "size": 54,
+     "color": "#FFFFFF",
+     "quiet": false
+    }
+   }
   },
   "L23": {
    "name": "Two-line caps title, second line in accent",
    "group": "Layouts",
-   "status": "planned",
+   "status": "built",
    "version": "v1",
    "build": "small",
    "does": "A heavy caps title in 2 lines; the second line sits in the accent color.",
    "when": "A strong opening thesis; also a section title mid-reel.",
    "build_note": "`title` with a second-line colour option (today one colour per card).",
-   "recipe": null
+   "recipe": {
+    "slot": "hook",
+    "card": {
+     "type": "title",
+     "text": "before you grow / *fix the basics*",
+     "align": "center",
+     "y": 95,
+     "size": 120,
+     "color": "#FFFFFF"
+    }
+   }
   },
   "L24": {
    "name": "Taped note",
@@ -739,5 +1161,5 @@
    }
   }
  },
- "v1_added": "H6-H19, C6-C16 and L10-L23 are status 'planned' (recipe null). They describe common patterns in short-form reels in general terms; no footage, text, code or images from any reel were copied."
+ "v1_added": "H6-H19, C6-C16 and L10-L23 were added as ideas and built in 0.19.0 (H18, C14 and L18 stay 'planned': not recommended). They describe common patterns in short-form reels in general terms; no footage, text, code or images from any reel were copied."
 }

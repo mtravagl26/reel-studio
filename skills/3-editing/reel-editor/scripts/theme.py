@@ -85,6 +85,10 @@ def load_brand(home=None, reel=None, name=None, quiet=False):
     # brand's colors before the theme reads them, so every card, caption highlight and cover uses them. Set on the pages.
     mine = {k: v for k, v in (_edit.get("colors") or {}).items() if k in ("main", "pop", "light") and isinstance(v, str) and re.fullmatch(r"#[0-9a-fA-F]{6}", v)} if isinstance(_edit.get("colors"), dict) else {}
     if mine: brand["colors"] = {**(brand.get("colors") or {}), **mine}
+    # Added by By Mel Ross (0.19.0): sound effects are the person's choice, never a theme's. They are on unless brand.json says
+    # "sfx": "none"; edit.json "sfx" ("none" | "subtle" | "lots") sets it for one reel. Both are set by switches on the pages.
+    sfx_own = _edit.get("sfx") if _edit.get("sfx") in ("none", "subtle", "lots") else brand.get("sfx")
+    if sfx_own is not None: brand["sfx"] = sfx_own
     if name is None and reel is not None: name = _edit.get("theme")
     name = name or brand.get("theme")
     if not name or name == "none": return brand
@@ -98,6 +102,8 @@ def load_brand(home=None, reel=None, name=None, quiet=False):
     out = merge(out, _tokens(brand.get("theme_overrides", {}), colors))
     for role, f in (out.get("fonts") or {}).items():
         if isinstance(f, dict) and f.get("file"): f["file"] = _font_file(f["file"], folder, home)
+    if sfx_own is not None: out["sfx"] = sfx_own
+    else: out.pop("sfx", None)
     out["_theme"] = {"name": name, "dir": str(folder), "css": theme.get("css", []), "cards": _tokens(theme.get("cards", {}), colors)}
     return out
 

@@ -191,7 +191,7 @@ export const expectedText = (transcript) => transcript.map((w) => w.text).join("
 // ---------------------------------------------------------------------------------------------------------------------------------------
 // ordinary edits: validated, whitelisted
 // ---------------------------------------------------------------------------------------------------------------------------------------
-const TEXT_TYPES = new Set(["tag", "title", "card", "cta", "note"]);
+const TEXT_TYPES = new Set(["tag", "title", "card", "cta", "note", "quote"]);
 const LAYERS = new Set(["front", "behind", "both"]);
 const POS = new Set(["top-left", "top-center", "top-right", "middle-left", "middle-right", "center", "side-left", "side-right", "custom"]);   // 0.16.0: side-left / side-right = 2 pictures side by side in the middle
 const COMMON = ["start", "end", "off"];
@@ -199,6 +199,9 @@ const FIELDS = {
   tag: [...COMMON, "text", "y", "layer", "glass", "color"],
   title: [...COMMON, "text", "y", "size", "layer"],
   cta: [...COMMON, "text", "y", "layer"],
+  quote: [...COMMON, "text", "y", "size", "layer"],   // 0.19.0: a sentence in a white box
+  chips: [...COMMON, "title", "y", "layer"],
+  columns: [...COMMON, "y", "layer"],
   note: [...COMMON, "text", "y", "rotate", "size", "layer"],   // Added by By Mel Ross (0.11.0): taped paper note
   card: [...COMMON, "title", "rows", "layer", "glass"],
   popup: [...COMMON, "pos", "x", "y", "size", "rotate", "frame", "layer", "from", "loop", "caption"],   // 0.13.0: "from" and "loop" are for video clips

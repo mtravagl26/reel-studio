@@ -74,48 +74,57 @@ It builds a throw-away copy of the reel per option, takes stills with `hyperfram
 2. The text must be inside the frame and readable over the footage.
 3. Say plainly what you looked at and what you did not listen to.
 
-## Planned looks (H6-H19, C6-C16, L10-L23)
+## The looks built in 0.19.0 (H6-H19, C6-C16, L10-L23)
 
-39 more looks are on the list as ideas. **All are status `planned`**: none has a recipe, so the looks page does not offer them, `style_card.py` says "not built yet", and `storyboard.py` skips them and says so. Never fake one. `Build` says how each would be made: `now` = today's cards and caption settings, `small` = a small engine change, `assets` = the person supplies images, `cut` = an edit choice, `no` = not recommended. They describe common patterns in short-form reels in general terms; no footage, text, code or images from any reel were copied. `assets/style-menu.json` has what each one does and when to use it.
+Each was built from its recipe on real footage and the frame was looked at. The recipe below is stand-in content: put the person's own words, numbers and pictures in. `planned` rows (H18, C14, L18) are not recommended and are never offered.
 
-| ID | Look | Status | Build | How |
-|---|---|---|---|---|
-| H6 | Time-stamped number opener | planned | now | `title` card with `overline` ("X days ago") and the number as headline, left-aligned; same family as H2/H3. |
-| H7 | Ranked serif headline + context line | planned | now | `title` card with a serif headline in the light color, `overline` or a second line for the bracket line. |
-| H8 | Built-it lockup: I BUILT MY OWN ___ IN [logo] | planned | assets | `title` card + `sticker` for the logo (you supply the image). Close to H1 but with 1 logo. |
-| H9 | Contrarian count line | planned | cut | Cut choice: start on that sentence with no wind-up (like H5, but no reaction). |
-| H10 | Two-label contrast title | planned | now | `title` card + two `tag` cards; or `tiles` with two tiles. |
-| H11 | Community prompt | planned | now | `title` card, centered, serif, 2 lines; in the first 3 s or as an end card. |
-| H12 | Quote-in-a-box hook | planned | small | Needs a `quote` card (white box, bold coloured text, held 3 s); closest now is a `card` with one row. |
-| H13 | POV / relatable line + reaction GIF | planned | now | `title`/`tag` for the line + `popup` with a GIF (already supported, GIFs loop). |
-| H14 | Day-N series label (quiet version) | planned | now | `title` with `overline` "day [number]:" in the accent font (same as L7). |
-| H15 | Quoted myth on screen | planned | now | `title`, small, with quote marks; hold 3 s; captions below. |
-| H16 | Time or money handed back | planned | now | `title` card; or `stat` (L8) for the number. |
-| H17 | List promise with the number in colour | planned | now | `title` card with the number coloured; list as L6/L16/L4. |
-| H18 | Hype claim hook | planned | no | Do not build. |
-| H19 | Question label above the head | planned | now | `title` card, small, left-aligned; or a `tag`. |
-| C6 | White label-box single word | planned | small | Caption style `box` (background on the word). Closest now: C3 with `colors.caption` black on a card. |
-| C7 | Quiet mid-lower white phrase | planned | now | brand.json `captions` `{"size":54,"y":1130,"case":"sentence","mode":"phrase"}`, no accent. |
-| C8 | Bold word with soft shadow | planned | now | C3 with `colors.caption` `#FFFFFF` and size 120; shadow already in the build. |
-| C9 | Highlighter italic punch | planned | now | C2 with the accent color, `"accent": true` on the whole first phrase. |
-| C10 | Dark translucent phrase bar | planned | small | Caption style `bar` (background behind the phrase). |
-| C11 | Keyword colour highlight | planned | now | C2 recipe, `"accent": true` on one word per caption. |
-| C12 | Tiny centred serif over b-roll | planned | now | C1 centered: captions `{"size":44,"y":900}` with a serif body font. |
-| C13 | Pinned topic label + quiet captions | planned | now | `title` card held with `end`, small, + C7 captions. |
-| C14 | Chunky playful stacked type | planned | no | Do not build. |
-| C15 | One bold white word, no highlight | planned | now | C3 with white caption colour, size ~96, y 1180. |
-| C16 | Caption doubles as counter | planned | now | Write the count into `edit.json` captions text at each item; plain C7 styling. |
-| L10 | Inset card over a blurred, enlarged self | planned | small | `page` card has the clip framed with a background; needs a `bg: "blur"` option (blurred copy of the same clip). |
-| L11 | Top asset panel + face below | planned | assets | `page` card (background image + clip framed) with your screenshot or logo; small label added. |
-| L12 | Photo-card cloud above the head | planned | small | `polaroids` allows 4 cards; raise to 8 with a cloud placement. |
-| L13 | Logo chips either side of the face | planned | assets | Two `sticker` cards per pair (logos supplied). |
-| L14 | Vertical icon list beside the face | planned | small | `tiles` laid out in one column at the left. |
-| L15 | Whiteboard columns above the head | planned | small | New card `columns` (like `xlist`, 2-3 columns of items drawn in turn). Hand font already bundled. |
-| L16 | Numbered steps card | planned | now | `card` with `rows` (1. 2. 3.) in the lower third; quiet, not a pop-up. |
-| L17 | Number chips 1-5 under a caps title | planned | small | New `chips` card or `tiles` with number glyphs. |
-| L18 | Two-person split | planned | no | Skip unless you film with a second person. |
-| L19 | Reaction GIF at chest height | planned | now | `popup` with a GIF (already works). |
-| L20 | Carousel slide as opening or closing frame | planned | now | `page` or full-frame `image` card with your carousel slide PNG for 1.5-3 s. |
-| L21 | Comment-keyword end line | planned | now | `cta` card (the CAPS word pops) or `title` card at the end. |
-| L22 | Small top-left statement block | planned | now | `title` card, left-aligned, small, long `end`. |
-| L23 | Two-line caps title, second line in accent | planned | small | `title` with a second-line colour option (today one colour per card). |
+What the engine gained for these (all in `scripts/build_reel.py`):
+
+- `title`: `*word*` marks the highlighted word (the highlight color, or a marker behind the word when that color is too light to read on the headline); `"font": "serif" | "body" | "accent" | "hand"`; `"italic": true`; `"sub": "small line under"`; `"labels": ["before", "after"]`. brand.json `fonts.serif` sets the serif.
+- New cards: `quote` (a sentence in a white box), `columns` (2 or 3 hand-lettered columns on paper), `chips` (a caps title with numbered chips that light up at `chip_times`).
+- brand.json `captions`: `"bg": "#FFFFFF"` or `"rgba(0,0,0,.62)"` puts the words on a box or a bar; `"accent_font": "head"` and `"accent_italic": true` restyle the highlighted words.
+- `page`: `"bg": "blur"` shows the clip as a card over a blurred copy of itself; `"label"` adds a small caps label.
+- `polaroids`: `"layout": "cloud"` takes up to 8 pictures in an arc. `tiles`: `"layout": "column"` stacks up to 5 small tiles down one side. `card`: `"y"` moves a list.
+- A recipe can hold more than one card (`"cards": [...]`).
+
+| ID | Look | Status | Recipe (stand-in content) |
+|---|---|---|---|
+| H6 | Time-stamped number opener | built | `{"type": "title", "text": "*161* days ago / I started this", "align": "left", "y": 95, "size": 130, "color": "#FFFFFF"}` |
+| H7 | Ranked serif headline + context line | built | `{"type": "title", "text": "my 10 best tools / this year", "font": "serif", "sub": "(as a solo business owner)", "align": "center", "y": 110, "size": 120, "color": "#FFFFFF"}` |
+| H8 | Built-it lockup: I BUILT MY OWN ___ IN [logo] | built | `{"type": "title", "overline": "I BUILT MY OWN", "overline_font": "body", "overline_size": 40, "text": "reel editor", "font": "serif", "italic": true, "align": "center", "y": 95, "size": 130, "color": "#FFFFFF"}` + `{"type": "sticker", "x": 540, "y": 400, "size": 150}` + needs 1 picture(s) from them |
+| H9 | Contrarian count line | cut-choice | The spoken hook is the whole graphic: a line that swaps a big number for a small one, such as "You don't need [big number] [things]. You need [small number]." Plain shot, no title card. |
+| H10 | Two-label contrast title | built | `{"type": "title", "text": "my week", "font": "serif", "labels": ["messy", "mapped"], "align": "center", "y": 110, "size": 130, "color": "#FFFFFF"}` |
+| H11 | Community prompt | built | `{"type": "title", "text": "tell me what / you're building", "font": "serif", "align": "center", "y": 110, "size": 110, "color": "#FFFFFF"}` |
+| H12 | Quote-in-a-box hook | built | `{"type": "quote", "text": "I want to post more / but it eats my week"}` |
+| H13 | POV / relatable line + reaction GIF | built | `{"type": "quote", "text": "how I expect clients / to react", "marks": false, "size": 54}` + `{"type": "popup", "pos": "middle-right", "size": 300}` + needs 1 picture(s) from them |
+| H14 | Day-N series label (quiet version) | built | `{"type": "title", "overline": "day 12:", "overline_font": "accent", "text": "building my / reel editor", "align": "left", "y": 95, "size": 130, "color": "#FFFFFF"}` |
+| H15 | Quoted myth on screen | built | `{"type": "title", "text": "“I'll get organised / when things slow down”", "font": "serif", "italic": true, "align": "center", "y": 110, "size": 84, "color": "#FFFFFF"}` |
+| H16 | Time or money handed back | built | `{"type": "title", "text": "I save *10 hours* / a week", "font": "serif", "align": "center", "y": 110, "size": 110, "color": "#FFFFFF"}` |
+| H17 | List promise with the number in colour | built | `{"type": "title", "text": "the *5* tools / I'd give anyone", "align": "center", "y": 95, "size": 130, "color": "#FFFFFF"}` |
+| H18 | Hype claim hook | planned | A claim that one thing has ended another, in a white box. Common, and it draws comments by overstating. |
+| H19 | Question label above the head | built | `{"type": "tag", "text": "what most people do", "y": 130}` |
+| C6 | White label-box single word | built | brand: `{"colors": {"caption": "#000000"}, "captions": {"size": 96, "y": 1250, "case": "sentence", "mode": "word", "bg": "#FFFFFF"}}` |
+| C7 | Quiet mid-lower white phrase | built | brand: `{"captions": {"size": 54, "y": 1130, "case": "sentence", "mode": "phrase"}}` |
+| C8 | Bold word with soft shadow | built | brand: `{"colors": {"caption": "#FFFFFF"}, "captions": {"size": 120, "y": 1250, "case": "sentence", "mode": "word"}}` |
+| C9 | Highlighter italic punch | built | brand: `{"captions": {"size": 92, "y": 1250, "case": "sentence", "mode": "phrase", "accent_font": "head", "accent_italic": true}}` + accent: the whole first phrase |
+| C10 | Dark translucent phrase bar | built | brand: `{"captions": {"size": 60, "y": 1240, "case": "sentence", "mode": "phrase", "bg": "rgba(0,0,0,.62)"}}` |
+| C11 | Keyword colour highlight | built | brand: `{"captions": {"size": 72, "y": 1250, "case": "sentence", "mode": "phrase"}}` + accent: one word per caption |
+| C12 | Tiny centred serif over b-roll | built | brand: `{"captions": {"size": 44, "y": 900, "case": "lower", "mode": "phrase"}, "fonts": {"body": {"family": "Lora", "file": "{reels}/fonts/Lora.ttf", "weight": 500}}}` |
+| C13 | Pinned topic label + quiet captions | built | `{"type": "tag", "text": "operations", "y": 120, "glass": true}` + brand: `{"captions": {"size": 54, "y": 1130, "case": "sentence", "mode": "phrase"}}` |
+| C14 | Chunky playful stacked type | planned | Rounded chunky words of mixed sizes stacked down the frame. |
+| C15 | One bold white word, no highlight | built | brand: `{"colors": {"caption": "#FFFFFF"}, "captions": {"size": 96, "y": 1180, "case": "sentence", "mode": "word"}}` |
+| C16 | Caption doubles as counter | cut-choice | The running caption carries the count, such as "1 of 5", so the rhythm of a list is built into the words. A writing choice: the count is typed into the captions. |
+| L10 | Inset card over a blurred, enlarged self | built | `{"type": "page", "bg": "blur"}` |
+| L11 | Top asset panel + face below | partial | `{"type": "page", "label": "app name"}` + needs 1 picture(s) from them Not included: the picture fills the whole background behind the title area; a separate top panel with your face filling the bottom half is not built |
+| L12 | Photo-card cloud above the head | built | `{"type": "polaroids", "layout": "cloud", "y": 60}` + needs 6 picture(s) from them |
+| L13 | Logo chips either side of the face | built | `{"type": "popup", "pos": "middle-left", "size": 170, "frame": false, "caption": "writing"}` + `{"type": "popup", "pos": "middle-right", "size": 170, "frame": false, "caption": "images"}` + needs 2 picture(s) from them |
+| L14 | Vertical icon list beside the face | built | `{"type": "tiles", "layout": "column", "tiles": [{"label": "one", "icon": "star"}, {"label": "two", "icon": "chart"}, {"label": "three", "icon": "people"}, {"label": "four", "icon": "doc"}]}` |
+| L15 | Whiteboard columns above the head | built | `{"type": "columns", "cols": [{"title": "keep", "items": ["this", "that"]}, {"title": "drop", "items": ["this", "that"]}, {"title": "fix", "items": ["this", "that"]}]}` |
+| L16 | Numbered steps card | built | `{"type": "card", "title": "how I do it", "rows": ["1. first step", "2. second step", "3. third step"], "y": 1000}` |
+| L17 | Number chips 1-5 under a caps title | built | `{"type": "chips", "title": "5 things to fix", "n": 5}` |
+| L18 | Two-person split | planned | Two people side by side with a logo and price between them; labels top-left and top-right. |
+| L19 | Reaction GIF at chest height | built | `{"type": "popup", "pos": "custom", "x": 540, "y": 1230, "size": 320}` + needs 1 picture(s) from them |
+| L20 | Carousel slide as opening or closing frame | built | `{"type": "popup", "pos": "center", "size": 1080, "frame": false}` + needs 1 picture(s) from them |
+| L21 | Comment-keyword end line | built | `{"type": "cta", "text": "comment GUIDE and I'll send it"}` |
+| L22 | Small top-left statement block | built | `{"type": "title", "text": "one idea / that stays up / the whole reel", "font": "body", "align": "left", "y": 100, "size": 54, "color": "#FFFFFF", "quiet": false}` |
+| L23 | Two-line caps title, second line in accent | built | `{"type": "title", "text": "before you grow / *fix the basics*", "align": "center", "y": 95, "size": 120, "color": "#FFFFFF"}` |

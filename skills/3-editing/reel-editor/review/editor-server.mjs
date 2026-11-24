@@ -155,6 +155,16 @@ function setColors(body) {
   else { if (!Object.keys(got).length) throw new Error("pick at least 1 color"); brand.colors = { ...(brand.colors || {}), ...got }; delete edit.colors; writeJSON(P.brand, brand); }
   writeJSON(P.edit, edit);
 }
+// Added by By Mel Ross (0.19.0): sound effects on or off, for this reel (edit.json "sfx") or every reel (brand.json "sfx").
+function setSfx(body) {
+  requireIdle();
+  const on = body.on !== false, scope = body.scope === "all" ? "all" : "reel";
+  snapshot("sfx", null, true);
+  const edit = readJSON(P.edit, {}), brand = brandJSON();
+  if (scope === "all") { brand.sfx = on ? (brand.sfx && brand.sfx !== "none" ? brand.sfx : "subtle") : "none"; delete edit.sfx; writeJSON(P.brand, brand); }
+  else if (on === ((brand.sfx ?? "subtle") !== "none")) delete edit.sfx; else edit.sfx = on ? "subtle" : "none";
+  writeJSON(P.edit, edit);
+}
 function setTheme(body) {
   requireIdle();
   const name = String(body.name || ""), scope = body.scope === "reel" ? "reel" : "all";
@@ -365,6 +375,7 @@ function view() {
     pieces, media, popups: files, sfxNames: sfxNames(), notes, renders, job, receipt: receiptNow(st, edit, brand),
     textDefault: brand.text_default || { layer: "front", position: "above" }, hasTextDefault: !!brand.text_default,
     themes: listThemes(), theme: { reel: edit.theme || null, all: brand.theme || null }, giphy: !!giphyKey(),
+    sfxOn: (edit.sfx ?? brand.sfx ?? "subtle") !== "none", sfxAll: (brand.sfx ?? "subtle") !== "none",
     colors: { reel: edit.colors || null, all: { main: brand.colors?.main || "#141414", pop: brand.colors?.pop || "#B9C8A5", light: brand.colors?.light || "#FFFFFF" } },
     hasMaster: exists(P.master), cutsStale, dirty: meta.edit_hash !== editHash(), canUndo: history().length > 0, undoLabel: history().slice(-1)[0]?.replace(/^[\d_-]+?-(?=[A-Za-z])/, "") || null,
     video: renders.length ? renders[renders.length - 1].phone : null, prepping, links: LINKS, built: true,
@@ -708,6 +719,7 @@ const server = http.createServer(async (req, res) => {
         if (p === "/api/undo") { requireIdle(); const what = undo(); return json(res, 200, { ok: true, undid: what, state: view() }); }
         if (p === "/api/render") { startRender(); return json(res, 200, { ok: true, job }); }
         if (p === "/api/live") { const b = JSON.parse((await readBody(req, 1e4)).toString() || "{}"); return json(res, 200, { ok: true, live: startLive(!!b.force) }); }
+        if (p === "/api/sfx") { const b = JSON.parse((await readBody(req, 1e4)).toString() || "{}"); setSfx(b); return json(res, 200, { ok: true, state: view() }); }
         if (p === "/api/colors") { const b = JSON.parse((await readBody(req, 1e5)).toString() || "{}"); setColors(b); return json(res, 200, { ok: true, state: view() }); }
         if (p === "/api/theme") { const b = JSON.parse((await readBody(req, 1e5)).toString() || "{}"); setTheme(b); return json(res, 200, { ok: true, state: view() }); }
         if (p === "/api/giphy-add") { const b = JSON.parse((await readBody(req, 1e5)).toString() || "{}"); const up = await giphyAdd(b); return json(res, 200, { ok: true, upload: up, state: view() }); }

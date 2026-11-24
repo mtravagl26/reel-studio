@@ -156,3 +156,20 @@ test("live preview: the server builds the reel page in its own folder, serves it
   assert.match(build, /if os\.environ\.get\("REEL_PROJ_DIR"\): proj = Path\(os\.environ\["REEL_PROJ_DIR"\]\)/); assert.match(build, /ASSET_CACHE = reel \/ "\.asset-cache"/);
   assert.doesNotMatch(srv.split("const LIVE_DRIVER")[1].split("`;")[0], /https?:\/\//, "the driver loads nothing from outside");
 });
+
+// 0.19.0: sound effects are on by default and are the person's choice, never a theme's.
+test("sound effects are on by default, no theme turns them off, and one reel or every reel can be switched", { skip: skipReason }, async () => {
+  const themes = path.join(skill, "themes");
+  for (const n of fs.readdirSync(themes)) { const f = path.join(themes, n, "theme.json"); if (fs.existsSync(f)) assert.ok(!("sfx" in (JSON.parse(fs.readFileSync(f, "utf8")).brand || {})), `${n} does not set sound effects`); }
+  assert.equal(JSON.parse(fs.readFileSync(path.join(skill, "..", "..", "..", "brand", "brand.example.json"), "utf8")).sfx, "subtle", "a new brand file starts with sounds on");
+  const dir = tmp("sfxdef"), home = path.join(dir, "reels"), reel = path.join(home, "r1"); fs.mkdirSync(reel, { recursive: true });
+  const code = 'import json,sys\nsys.path.insert(0, sys.argv[1])\nimport theme\nprint(json.dumps(theme.load_brand(sys.argv[2], sys.argv[3], None, True).get("sfx", "subtle")))';
+  const f = path.join(dir, "t.py"); fs.writeFileSync(f, code);
+  const eff = (brand, edit) => { fs.writeFileSync(path.join(home, "brand.json"), JSON.stringify({ colors: { main: "#0d2b2d", pop: "#B9C8A5", light: "#f5f2ec" }, ...brand })); fs.writeFileSync(path.join(reel, "edit.json"), JSON.stringify(edit));
+    const r = spawnSync("python3", [f, path.join(skill, "scripts"), home, reel], { encoding: "utf8" }); assert.equal(r.status, 0, r.stderr); return JSON.parse(r.stdout); };
+  assert.equal(eff({}, {}), "subtle"); assert.equal(eff({ theme: "editorial" }, {}), "subtle", "the Editorial theme used to switch sounds off");
+  assert.equal(eff({ sfx: "none", theme: "bold" }, {}), "none", "the brand's own choice holds under any theme");
+  assert.equal(eff({ sfx: "none" }, { sfx: "subtle" }), "subtle", "on for this reel"); assert.equal(eff({}, { sfx: "none" }), "none", "off for this reel");
+  const ed = fs.readFileSync(path.join(review, "editor.html"), "utf8"), rv = fs.readFileSync(path.join(review, "reel-review.html"), "utf8");
+  assert.match(ed, /data-a="sfx-master" data-v="off" data-s="reel"/); assert.match(ed, /always on/); assert.match(rv, /Sound effects on/); assert.match(rv, /S\.sfxAll = v/);
+});

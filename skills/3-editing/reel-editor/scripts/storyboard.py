@@ -119,28 +119,39 @@ for name, ids in options:
         if not r or L["status"] in ("not-built", "cut-choice"):
             skipped.append(i); notes.append(f"Option {name}: {i} ({L['name']}) is {L['status']}: {L.get('needs') or L.get('does', '')}"); continue
         if r.get("brand"): deep(brand, subst(r["brand"]))
-        if r.get("accent"): accent = True
+        if r.get("accent"): accent = r["accent"] if r["accent"] == "first" else (accent or True)
         if r.get("mode") == "word": word_mode = True
-        if r.get("card"):
-            card = copy.deepcopy(subst(r["card"])); card.update({k: v for k, v in content.get(i, {}).items()})
-            if r.get("needs_photos"):
-                if not photos: skipped.append(i); notes.append(f"Option {name}: {i} needs photos (--photos) and none were given: skipped"); continue
-                srcs = [photos[k % len(photos)] for k in range(r["needs_photos"])]
+        # Added by By Mel Ross (0.19.0): a look can be more than one card ("cards"); each picture card takes the next photo.
+        look_cards = r.get("cards") or ([r["card"]] if r.get("card") else [])
+        if look_cards and r.get("needs_photos") and not photos:
+            skipped.append(i); notes.append(f"Option {name}: {i} needs photos (--photos) and none were given: skipped"); continue
+        srcs = [photos[k % len(photos)] for k in range(r.get("needs_photos") or 0)] if photos else []
+        look_t = None
+        for n_, rc in enumerate(look_cards):
+            card = copy.deepcopy(subst(rc))
+            if n_ == 0: card.update({k: v for k, v in content.get(i, {}).items()})
+            if srcs:
                 if card["type"] == "polaroids": card["src"] = srcs
-                else: card["src"] = srcs[0]
+                elif card["type"] in ("popup", "sticker", "image", "shot"): card["src"] = srcs.pop(0) if len(srcs) > 1 else srcs[0]
+                elif card["type"] == "page" and card.get("bg") != "blur": card["bg"] = srcs[0]
             slot = r.get("slot", "layout")
-            if "at" in content and i in content["at"]: t = float(content["at"][i])
+            if look_t is not None: t = look_t
+            elif "at" in content and i in content["at"]: t = float(content["at"][i])
             elif slot == "hook": t = moments[slot_hook]
             else:
                 t = moments[min(slot_lay, len(moments) - 1)]; slot_lay += 1
+            look_t = t
             card["start"], card["end"] = round(max(t - 1.6, 0), 2), round(min(t + 2.4, dur), 2)
             if card["type"] == "xlist" and "row_times" not in card: card["row_times"] = [round(card["start"] + 0.3 + 0.22 * j, 2) for j in range(len(card["items"]))]
             if card["type"] == "tiles" and "tile_times" not in card: card["tile_times"] = [round(card["start"] + 0.3 + 0.18 * j, 2) for j in range(len(card["tiles"]))]
-            if card["type"] == "title": card["start"] = round(max(t - 1.2, 0), 2); card["quiet"] = capy_of(brand) < 600   # a top caption (C1, y 150) would sit on the title: captions step aside like in a real build
+            if card["type"] == "title": card["start"] = round(max(t - 1.2, 0), 2); card["quiet"] = card.get("quiet", True) and capy_of(brand) < 600   # a top caption (C1, y 150) would sit on the title: captions step aside like in a real build
             cards.append(card)
         used.append(i)
     if word_mode: caps = rechunk_words(caps)
-    if accent and not word_mode: caps = auto_accent(caps)
+    if accent == "first" and not word_mode:   # 0.19.0 (Style Menu C9): the whole first phrase carries the highlight
+        for k_, c_ in enumerate(caps):
+            for w_ in c_["words"]: w_["accent"] = k_ == 0
+    elif accent and not word_mode: caps = auto_accent(caps)
     json.dump(brand, open(work / "home/brand.json", "w"), indent=1)
     for sub in ("fonts", "assets"):
         if (HOME / sub).exists(): os.symlink(HOME / sub, work / "home" / sub)
