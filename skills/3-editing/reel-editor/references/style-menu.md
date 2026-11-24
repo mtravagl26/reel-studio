@@ -74,48 +74,48 @@ It builds a throw-away copy of the reel per option, takes stills with `hyperfram
 2. The text must be inside the frame and readable over the footage.
 3. Say plainly what you looked at and what you did not listen to.
 
-## Style Menu v1 (planned looks, 2026-11-16)
+## Planned looks (H6-H19, C6-C16, L10-L23)
 
-Added from a trend pass over Instagram niche feeds (women business owners, AI and systems for small business). **All status `planned`**: no recipe yet, so `storyboard.py` skips them and says so. `build` says how they would be made: `now` = current cards/captions config, `small` = small engine change, `assets` = she supplies images, `cut` = edit choice, `no` = skip (poor fit). Full table with evidence: `projects/style-menu-v1/STYLE-MENU-v1.md` in the Control Room workspace; visual menu `~/Movies/Video Studio/style-menu/Style Menu v1.html`.
+39 more looks are on the list as ideas. **All are status `planned`**: none has a recipe, so the looks page does not offer them, `style_card.py` says "not built yet", and `storyboard.py` skips them and says so. Never fake one. `Build` says how each would be made: `now` = today's cards and caption settings, `small` = a small engine change, `assets` = the person supplies images, `cut` = an edit choice, `no` = not recommended. They describe common patterns in short-form reels in general terms; no footage, text, code or images from any reel were copied. `assets/style-menu.json` has what each one does and when to use it.
 
-| ID | Look | Status | Build | Fit | How |
-|---|---|---|---|---|---|
-| H6 | Time-stamped number opener | planned | now | 4/5 | `title` card with `overline` ("X days ago") and the number as headline, left-aligned; same family as H2/H3. |
-| H7 | Ranked serif headline + context line | planned | now | 5/5 | `title` card, Lora headline in `#F4EFE0`, `overline`/second line for the parenthetical. |
-| H8 | Built-it lockup: I BUILT MY OWN ___ IN [logo] | planned | assets | 4/5 | `title` card + `sticker` for the logo (she supplies the image). Close to H1 but one-logo. |
-| H9 | Contrarian count line | planned | cut | 5/5 | Cut choice: start on that sentence with no wind-up (like H5, but no reaction). |
-| H10 | Two-label contrast title (messy | mapped) | planned | now | 4/5 | `title` card + two `tag` cards; or `tiles` with two tiles. |
-| H11 | Community prompt: "tell me what you're building" | planned | now | 5/5 | `title` card, centred, Lora, two lines; add to the first 3 s or as an end card. |
-| H12 | Quote-in-a-box hook | planned | small | 5/5 | Needs a `quote` card (white box, bold coloured text, held 3 s); closest now is a `card` with one row. |
-| H13 | POV / relatable line + reaction GIF | planned | now | 3/5 | `title`/`tag` for the line + `popup` with a GIF (already supported, GIFs loop). |
-| H14 | Day-N series label (quiet version) | planned | now | 4/5 | `title` with `overline` "day 12:" in the accent font (same as L7). |
-| H15 | Quoted myth on screen | planned | now | 4/5 | `title`, small, with quote marks; hold 3 s; captions below. |
-| H16 | Time or money handed back | planned | now | 4/5 | `title` card; or `stat` (L8) for the number. |
-| H17 | List promise with the number in colour | planned | now | 5/5 | `title` card with the number coloured; list as L6/L16/L4. |
-| H18 | Hype claim hook ("X just killed Y") | planned | no | 1/5 | Do not build. |
-| H19 | Question label above the head | planned | now | 3/5 | `title` card, small, left-aligned; or a `tag`. |
-| C6 | White label-box single word | planned | small | 4/5 | Caption style `box` (background on the word). Closest now: C3 with `colors.caption` black on a card. |
-| C7 | Quiet mid-lower white phrase | planned | now | 5/5 | brand.json `captions` `{"size":54,"y":1130,"case":"sentence","mode":"phrase"}`, no accent. |
-| C8 | Bold word with soft shadow | planned | now | 3/5 | C3 with `colors.caption` `#FFFFFF` and size 120; shadow already in the build. |
-| C9 | Highlighter italic punch (sage version) | planned | now | 3/5 | C2 accent colour sage, `"accent": true` on the whole first phrase. |
-| C10 | Dark translucent phrase bar | planned | small | 3/5 | Caption style `bar` (background behind the phrase). |
-| C11 | Keyword colour highlight | planned | now | 5/5 | C2 recipe, `"accent": true` on one word per caption. |
-| C12 | Tiny centred serif over b-roll | planned | now | 5/5 | C1 centred: captions `{"size":44,"y":900}` with Lora body font. |
-| C13 | Pinned topic label + quiet captions | planned | now | 5/5 | `title` card held with `end`, small, + C7 captions. |
-| C14 | Chunky playful stacked type | planned | no | 1/5 | Do not build. |
-| C15 | One bold white word, no highlight | planned | now | 4/5 | C3 with white caption colour, size ~96, y 1180. |
-| C16 | Caption doubles as counter | planned | now | 4/5 | Write the count into `edit.json` captions text at each item; plain C7 styling. |
-| L10 | Inset card over a blurred, enlarged self | planned | small | 4/5 | `page` card has the clip framed with a background; needs a `bg: "blur"` option (blurred copy of the same clip). |
-| L11 | Top asset panel + face below | planned | assets | 4/5 | `page` card (bg image + clip framed) with her screenshot or logo; small mono label added. |
-| L12 | Photo-card cloud above the head | planned | small | 4/5 | `polaroids` allows 4 cards; raise to 8 with a cloud placement. |
-| L13 | Logo chips either side of the face | planned | assets | 3/5 | Two `sticker` cards per pair (logos supplied). |
-| L14 | Vertical icon list beside the face | planned | small | 3/5 | `tiles` laid out in one column at the left. |
-| L15 | Whiteboard columns above the head | planned | small | 5/5 | New card `columns` (like `xlist`, 2-3 columns of items drawn in turn). Hand font already bundled. |
-| L16 | Numbered steps card | planned | now | 4/5 | `card` with `rows` (1. 2. 3.) in the lower third; quiet, not a pop-up. |
-| L17 | Number chips 1-5 under a caps title | planned | small | 3/5 | New `chips` card (sage numbers) or `tiles` with number glyphs. |
-| L18 | Two-person split (Paid vs Free) | planned | no | 2/5 | Skip unless she films with a second person. |
-| L19 | Reaction GIF at chest height | planned | now | 3/5 | `popup` with a GIF (already works; her Giphy backups exist). |
-| L20 | Carousel slide as opening or closing frame | planned | now | 4/5 | `page` or full-frame `image` card with her carousel slide PNG for 1.5-3 s. |
-| L21 | Comment-keyword end line | planned | now | 5/5 | `cta` card (CAPS word pops) or `title` card at the end; the keyword matches the comment-DM rule. |
-| L22 | Small top-left statement block | planned | now | 4/5 | `title` card, left-aligned, small, long `end`. |
-| L23 | Two-line caps title, second line in accent | planned | small | 4/5 | `title` with a second-line colour option (today one colour per card). |
+| ID | Look | Status | Build | How |
+|---|---|---|---|---|
+| H6 | Time-stamped number opener | planned | now | `title` card with `overline` ("X days ago") and the number as headline, left-aligned; same family as H2/H3. |
+| H7 | Ranked serif headline + context line | planned | now | `title` card with a serif headline in the light color, `overline` or a second line for the bracket line. |
+| H8 | Built-it lockup: I BUILT MY OWN ___ IN [logo] | planned | assets | `title` card + `sticker` for the logo (you supply the image). Close to H1 but with 1 logo. |
+| H9 | Contrarian count line | planned | cut | Cut choice: start on that sentence with no wind-up (like H5, but no reaction). |
+| H10 | Two-label contrast title | planned | now | `title` card + two `tag` cards; or `tiles` with two tiles. |
+| H11 | Community prompt | planned | now | `title` card, centered, serif, 2 lines; in the first 3 s or as an end card. |
+| H12 | Quote-in-a-box hook | planned | small | Needs a `quote` card (white box, bold coloured text, held 3 s); closest now is a `card` with one row. |
+| H13 | POV / relatable line + reaction GIF | planned | now | `title`/`tag` for the line + `popup` with a GIF (already supported, GIFs loop). |
+| H14 | Day-N series label (quiet version) | planned | now | `title` with `overline` "day [number]:" in the accent font (same as L7). |
+| H15 | Quoted myth on screen | planned | now | `title`, small, with quote marks; hold 3 s; captions below. |
+| H16 | Time or money handed back | planned | now | `title` card; or `stat` (L8) for the number. |
+| H17 | List promise with the number in colour | planned | now | `title` card with the number coloured; list as L6/L16/L4. |
+| H18 | Hype claim hook | planned | no | Do not build. |
+| H19 | Question label above the head | planned | now | `title` card, small, left-aligned; or a `tag`. |
+| C6 | White label-box single word | planned | small | Caption style `box` (background on the word). Closest now: C3 with `colors.caption` black on a card. |
+| C7 | Quiet mid-lower white phrase | planned | now | brand.json `captions` `{"size":54,"y":1130,"case":"sentence","mode":"phrase"}`, no accent. |
+| C8 | Bold word with soft shadow | planned | now | C3 with `colors.caption` `#FFFFFF` and size 120; shadow already in the build. |
+| C9 | Highlighter italic punch | planned | now | C2 with the accent color, `"accent": true` on the whole first phrase. |
+| C10 | Dark translucent phrase bar | planned | small | Caption style `bar` (background behind the phrase). |
+| C11 | Keyword colour highlight | planned | now | C2 recipe, `"accent": true` on one word per caption. |
+| C12 | Tiny centred serif over b-roll | planned | now | C1 centered: captions `{"size":44,"y":900}` with a serif body font. |
+| C13 | Pinned topic label + quiet captions | planned | now | `title` card held with `end`, small, + C7 captions. |
+| C14 | Chunky playful stacked type | planned | no | Do not build. |
+| C15 | One bold white word, no highlight | planned | now | C3 with white caption colour, size ~96, y 1180. |
+| C16 | Caption doubles as counter | planned | now | Write the count into `edit.json` captions text at each item; plain C7 styling. |
+| L10 | Inset card over a blurred, enlarged self | planned | small | `page` card has the clip framed with a background; needs a `bg: "blur"` option (blurred copy of the same clip). |
+| L11 | Top asset panel + face below | planned | assets | `page` card (background image + clip framed) with your screenshot or logo; small label added. |
+| L12 | Photo-card cloud above the head | planned | small | `polaroids` allows 4 cards; raise to 8 with a cloud placement. |
+| L13 | Logo chips either side of the face | planned | assets | Two `sticker` cards per pair (logos supplied). |
+| L14 | Vertical icon list beside the face | planned | small | `tiles` laid out in one column at the left. |
+| L15 | Whiteboard columns above the head | planned | small | New card `columns` (like `xlist`, 2-3 columns of items drawn in turn). Hand font already bundled. |
+| L16 | Numbered steps card | planned | now | `card` with `rows` (1. 2. 3.) in the lower third; quiet, not a pop-up. |
+| L17 | Number chips 1-5 under a caps title | planned | small | New `chips` card or `tiles` with number glyphs. |
+| L18 | Two-person split | planned | no | Skip unless you film with a second person. |
+| L19 | Reaction GIF at chest height | planned | now | `popup` with a GIF (already works). |
+| L20 | Carousel slide as opening or closing frame | planned | now | `page` or full-frame `image` card with your carousel slide PNG for 1.5-3 s. |
+| L21 | Comment-keyword end line | planned | now | `cta` card (the CAPS word pops) or `title` card at the end. |
+| L22 | Small top-left statement block | planned | now | `title` card, left-aligned, small, long `end`. |
+| L23 | Two-line caps title, second line in accent | planned | small | `title` with a second-line colour option (today one colour per card). |

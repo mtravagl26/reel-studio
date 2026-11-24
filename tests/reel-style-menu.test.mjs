@@ -233,3 +233,18 @@ test("edl without xfade keeps the old short dip-fade at each join", { skip: skip
   assert.doesNotMatch(x.filter, /acrossfade/);
   assert.ok(Math.abs(x.video - 2.8) < 0.08 && Math.abs(x.audio - x.video) < 0.08);
 });
+
+// Added by By Mel Ross (menu-58 review): the planned looks ship to everyone who installs the plugin, so they carry general
+// descriptions only: no links to other people's posts, no lines lifted from them, no private notes.
+test("style menu: planned looks have no recipe, no links, no private notes, and are never offered as usable", () => {
+  const planned = Object.entries(menu.looks).filter(([, l]) => l.status === "planned");
+  assert.equal(planned.length, 39);
+  for (const [id, l] of planned) {
+    assert.equal(l.recipe, null, `${id}: no recipe until it is built`);
+    for (const f of ["evidence", "fit_for_melissa", "fit_note", "trend_2026_11"]) assert.ok(!(f in l), `${id}: ${f} stays out of the shipped menu`);
+    assert.doesNotMatch(JSON.stringify(l), /https?:\/\/|instagram|\$\d/i, `${id}: general wording only`);
+    assert.ok(l.does && l.build, `${id}: says what it is and how it would be made`);
+  }
+  const page = read("review", "style-menu.html");
+  assert.match(page, /USABLE\.has\(l\.status\)/); assert.doesNotMatch(/const USABLE = new Set\(\[[^\]]*\]\)/.exec(page)?.[0] || "", /planned/, "the looks page never offers a planned look");
+});
