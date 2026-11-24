@@ -9,16 +9,17 @@ import { ff, haveFfmpeg, havePython, py, run, root, skill, skipReason, tmp } fro
 
 const read = (...p) => fs.readFileSync(path.join(skill, ...p), "utf8");
 const menu = JSON.parse(read("assets", "style-menu.json"));
-const IDS = ["H1", "H2", "H3", "H4", "H5", "C1", "C2", "C3", "C4", "C5", "L1", "L2", "L3", "L4", "L5", "L6", "L7", "L8", "L9", "L10"];
+const IDS = Object.keys(menu.looks);   // the menu decides which IDs exist (59 looks: H1-H19, C1-C16, L1-L24)
 
 // ------------------------------------------------------------------------------------------------------ the menu itself
-test("style menu: all 20 IDs are in the JSON and in the Markdown table, with a known status", () => {
-  assert.deepEqual(Object.keys(menu.looks).sort(), [...IDS].sort());
+test("style menu: every ID is in the JSON and in the Markdown table, with a known status", () => {
+  assert.equal(IDS.length, 59);
+  for (const id of IDS) assert.match(id, /^[HCL]\d+$/, `${id} is a hook, caption or layout ID`);
   const md = read("references", "style-menu.md");
   for (const id of IDS) {
     assert.match(md, new RegExp(`^\\| ${id} \\|`, "m"), `${id} has a row in references/style-menu.md`);
     const look = menu.looks[id];
-    assert.ok(["built", "partial", "not-built", "cut-choice"].includes(look.status), `${id}: status ${look.status}`);
+    assert.ok(["built", "partial", "not-built", "cut-choice", "planned"].includes(look.status), `${id}: status ${look.status}`);
     assert.ok(look.name && look.group, `${id}: name and group`);
     if (look.status === "built" || look.status === "partial") assert.ok(look.recipe, `${id}: a built or partial look has a recipe`);
   }
@@ -231,4 +232,19 @@ test("edl without xfade keeps the old short dip-fade at each join", { skip: skip
   assert.match(x.filter, /afade=t=in/);
   assert.doesNotMatch(x.filter, /acrossfade/);
   assert.ok(Math.abs(x.video - 2.8) < 0.08 && Math.abs(x.audio - x.video) < 0.08);
+});
+
+// Added by By Mel Ross (menu-58 review): the planned looks ship to everyone who installs the plugin, so they carry general
+// descriptions only: no links to other people's posts, no lines lifted from them, no private notes.
+test("style menu: planned looks have no recipe, no links, no private notes, and are never offered as usable", () => {
+  const planned = Object.entries(menu.looks).filter(([, l]) => l.status === "planned");
+  assert.equal(planned.length, 39);
+  for (const [id, l] of planned) {
+    assert.equal(l.recipe, null, `${id}: no recipe until it is built`);
+    for (const f of ["evidence", "fit_for_melissa", "fit_note", "trend_2026_11"]) assert.ok(!(f in l), `${id}: ${f} stays out of the shipped menu`);
+    assert.doesNotMatch(JSON.stringify(l), /https?:\/\/|instagram|\$\d/i, `${id}: general wording only`);
+    assert.ok(l.does && l.build, `${id}: says what it is and how it would be made`);
+  }
+  const page = read("review", "style-menu.html");
+  assert.match(page, /USABLE\.has\(l\.status\)/); assert.doesNotMatch(/const USABLE = new Set\(\[[^\]]*\]\)/.exec(page)?.[0] || "", /planned/, "the looks page never offers a planned look");
 });

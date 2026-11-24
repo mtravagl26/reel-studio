@@ -72,5 +72,5 @@ test("kit.py lists and checks kits; every stand-in picture exists and is marked 
   const kit = JSON.parse(fs.readFileSync(path.join(skill, "kits", "standin", "kit.json"), "utf8"));
   assert.equal(kit.placeholder, true);
   const menu = JSON.parse(fs.readFileSync(path.join(skill, "assets", "style-menu.json"), "utf8")).looks;
-  assert.equal(menu.L10.recipe.card.type, "note");
+  assert.equal(menu.L24.recipe.card.type, "note");
 });
