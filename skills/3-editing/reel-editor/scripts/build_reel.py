@@ -10,6 +10,7 @@ edit.json (written by auto_edit.py, then Claude marks accents and adds cards):
      title  {text: "line one / line two"}            big headline in the space above the head (hook)
                                                      optional: overline: "small line above" (overline_font: hand | accent | head, overline_size, overline_color), align: left | center | right
                                                      (Style Menu H3 handwritten overline + caps headline, L7 step label); color: "#fff" for a white headline.
+     arctitle {text: "Demystifying AI", sub: "part one", trail: true}   (0.23.0) a headline arched over the head with stars and a heavy line under it; trail lays gold sparkles along the tracked hand as it wipes in
      block  {top: "don't", bottom: "worry"}          full brand-colour screen with the clip framed in it (reveal)
      card   {title: "my stack", rows: ["a","b"]}     white UI card, rows appear one by one (lists, steps, tools); dot: false hides the dot in its header (0.22.0; brand.json "list_dot": false for every list)
      tag    {text: "open source", y: 300}            small pill label that pops on (name drops); text_color: "#fff" sets the words' colour, also on a theme's pill graphic (0.22.0)
@@ -55,6 +56,7 @@ edit.json (written by auto_edit.py, then Claude marks accents and adds cards):
      page also takes bg: "blur" (the clip as a card over a blurred copy of itself) and label: "small caps label";  card takes y
      polaroids layout: "cloud" (up to 8 in an arc);  tiles layout: "column", side: "left" | "right" (up to 5 down one side)
      brand.json captions: bg: "#FFFFFF" | "rgba(0,0,0,.62)" (words on a box or bar), accent_font: "head", accent_italic: true
+     brand.json or edit.json caption_highlight: {words: "#FFFFFF", text: "#141414", bg: "#B9C8A5" | "none"} (the other words, the highlighted word, the box behind it)
   Any card: "glass": true gives the frosted liquid-glass look (card, tag).
   Any card or sfx_event: "off": true leaves it out of the render (the editor page's on/off switch).
   Text cards (title, tag, card, cta) with no "layer" take brand.json "text_default": {"layer": "front" | "behind" | "both", "position": "above"}
@@ -123,6 +125,11 @@ STEMS = not brand.get("mix", {}).get("legacy", False)
 C = brand["colors"]
 MAIN, POP, LIGHT = C["main"], C["pop"], C.get("light", "#FFFFFF")
 CAP, CAP_ACC = C.get("caption", "#FFFFFF"), C.get("caption_accent", POP)
+# Added by By Mel Ross (0.23.0): the highlighted caption word has its own text color and an optional box behind it.
+# brand.json or edit.json "caption_highlight": {"text": "#141414", "bg": "#B9C8A5" | "none"}; set on the pages.
+_HL = brand.get("caption_highlight") or {}
+CAP_ACC = _HL.get("text", CAP_ACC)
+CAP_ACC_BG = _HL.get("bg") if _HL.get("bg") not in (None, "none") else None
 CAPS = brand.get("captions", {})
 CASE = CAPS.get("case", "lower")
 CAP_PX, CAP_Y = CAPS.get("size", 96), CAPS.get("y", 1250)
@@ -418,7 +425,7 @@ def show(sel, a, b, fade=0.18):
 ZOOM = {"scale": 1.04, "seconds": 2.5, "ease": "sine.inOut", **brand.get("zoom", {})}
 for k, t in enumerate(edit.get("punch", [])):   # [t, scale] forces a zoom level (e.g. a spoken "zoom in")
     t, z = t if isinstance(t, list) else (t, 1.0 if k % 2 else ZOOM["scale"])
-    js.append(f'tl.to("#cam",{{scale:{z},duration:{ZOOM["seconds"]},ease:"{ZOOM["ease"]}",overwrite:"auto"}},{q(t)});')
+    js.append(f'tl.to("#cam,#trail",{{scale:{z},duration:{ZOOM["seconds"]},ease:"{ZOOM["ease"]}",overwrite:"auto"}},{q(t)});')
 
 # ---- cards --------------------------------------------------------------------------------------------------------
 # Phrases from the cut's transcript: a phrase ends at punctuation or a gap over 0.35 s. A card with no "end" clears
@@ -445,6 +452,7 @@ for _k, _c in enumerate(_pics):
             _c["pos"], _d["pos"] = "side-left", "side-right"; break
 quiet = []                                      # spans where a card carries its own words, so captions step aside
 ORBITS = []                                     # orbit cards (i, card, start, end), drawn once the speaker's cutout is known
+TRAIL_REQ = []                                  # 0.23.0: hand trails that cards ask for ("trail": true on an arctitle)
 for i, c in enumerate(edit.get("cards", [])):
     _marks.append((len(back), len(mid), len(front), len(js)))
     CARD_MUTE = c.get("sfx") is False
@@ -482,6 +490,42 @@ for i, c in enumerate(edit.get("cards", [])):
         show(f"#{cid}", a, b)
         js.append(f'tl.fromTo("#{cid} .tl",{{clipPath:"inset(-40% 100% -40% 0%)",x:-30}},{{clipPath:"inset(-40% 0% -40% 0%)",x:0,duration:0.34,ease:"power3.out",stagger:0.25}},{q(a)});')
         sfx("snap", a + 0.03, -11)
+    elif kind == "arctitle":
+        # Added by By Mel Ross (0.23.0): a headline arched over the head with a few stars, and a heavy line under it.
+        # {type:"arctitle", text:"Demystifying AI", sub:"part one", y?: 150, size?, sub_size?, sub_y?: 1180, color?, shadow?, trail?: true | {seconds, joint, side}}
+        # The words wipe in from the left; "trail": true also lays a gold sparkle trail along the tracked hand while they arrive.
+        if c.get("quiet", True): quiet.append((a, b))
+        line = case(str(c.get("text", "")).strip()); subt = case(str(c.get("sub", "")).strip())
+        col, shd = c.get("color", LIGHT), c.get("shadow", MAIN)
+        ay = int(numf(c.get("y"), 150)); px = max(70, int(numf(c.get("size"), 128)))
+        pid = f"{cid}p"
+        px = min(px, int(px * 1160 / max(1, len(line) * px * 0.56)))   # the arc is about 1160 px long: a long line gets smaller, never cut off
+        _off = 'transform="translate(8 12)"'
+        def _arc(fill, extra=""):
+            return (f'<text {extra} style="{font("head", px)};letter-spacing:-.02em" fill="{fill}" text-anchor="middle">'
+                    f'<textPath href="#{pid}" startOffset="50%">{esc(line)}</textPath></text>')
+        svg = (f'<svg class="arcs" viewBox="0 0 1080 700" width="1080" height="700" style="position:absolute;left:0;top:{ay}px;overflow:visible">'
+               f'<defs><path id="{pid}" d="M 40 560 Q 540 -60 1040 560" fill="none"/></defs>'
+               f'{_arc(shd, _off)}{_arc(col)}</svg>')
+        star_d = "M12 0C12.7 7.4 16.6 11.3 24 12C16.6 12.7 12.7 16.6 12 24C11.3 16.6 7.4 12.7 0 12C7.4 11.3 11.3 7.4 12 0Z"
+        stars = "".join(f'<svg class="ast" viewBox="0 0 24 24" style="position:absolute;left:{sx}px;top:{ay + sy}px;width:{sw}px;height:{sw}px;overflow:visible">'
+                        f'<path d="{star_d}" fill="{col}"/></svg>' for sx, sy, sw in [(150, 190, 60), (500, 70, 56), (880, 150, 50), (100, 700, 46), (940, 740, 52)])
+        sub_html = ""
+        if subt:
+            sp_ = int(numf(c.get("sub_size"), min(190, fit(subt, 190))))
+            sub_html = (f'<div class="asub" style="position:absolute;left:0;width:1080px;top:{int(numf(c.get("sub_y"), 1180))}px;text-align:center;{font("head", sp_)};'
+                        f'color:{col};letter-spacing:-.02em;text-shadow:6px 9px 0 {shd}">{esc(subt)}</div>')
+        front.append(f'<div id="{cid}" style="position:absolute;inset:0">{svg}{stars}{sub_html}</div>')
+        show(f"#{cid}", a, b)
+        js.append(f'tl.fromTo("#{cid} .arcs",{{clipPath:"inset(0% 100% 0% 0%)"}},{{clipPath:"inset(0% 0% 0% 0%)",duration:0.9,ease:"power2.out"}},{q(a)});')
+        for k_ in range(5):
+            js.append(f'tl.fromTo("#{cid} .ast:nth-of-type({k_ + 2})",{{scale:0,rotation:-40}},{{scale:1,rotation:0,duration:0.35,ease:"back.out(2.4)"}},{q(a + 0.45 + 0.12 * k_)});')
+            js.append(f'tl.to("#{cid} .ast:nth-of-type({k_ + 2})",{{scale:0.6,duration:0.5,ease:"sine.inOut",yoyo:true,repeat:3}},{q(a + 0.9 + 0.12 * k_)});')
+        if subt: js.append(f'tl.fromTo("#{cid} .asub",{{scale:0.7,opacity:0,y:30}},{{scale:1,opacity:1,y:0,duration:0.4,ease:"back.out(2)"}},{q(a + 0.8)});')
+        if c.get("trail"):
+            tr = c["trail"] if isinstance(c["trail"], dict) else {}
+            TRAIL_REQ.append({**tr, "start": a, "end": a + float(tr.get("seconds", 1.8))})
+        sfx("swoosh-soft", a, -16)
     elif kind == "block":
         quiet.append((a, b))
         mid.append(f'<div id="{cid}" class="block" style="opacity:0;visibility:hidden;background:{c.get("color", MAIN)}">'
@@ -946,7 +990,9 @@ for i, c in enumerate(edit.get("captions", [])):
     blk = "display:block;line-height:.95;" if CAPS.get("style") == "editorial" and len(ws) > 1 else ""
     acc_role = CAPS.get("accent_font", "accent") if CAPS.get("accent_font") in FAM else "accent"   # 0.19.0 (Style Menu C9): captions "accent_font": "head", "accent_italic": true
     acc_it = ";font-style:italic" if CAPS.get("accent_italic") else ""
-    spans = "".join(f'<span class="acc" style="{blk}{font(acc_role, int(px * big))}{acc_it};color:{CAP_ACC}">{esc(case(w["text"]))}</span> ' if w.get("accent")
+    acc_box = (f";background:{CAP_ACC_BG};padding:.02em .2em .08em;border-radius:.16em;text-shadow:none;-webkit-box-decoration-break:clone;box-decoration-break:clone"
+               + (";width:fit-content;margin:.06em auto" if blk else "")) if CAP_ACC_BG else ""
+    spans = "".join(f'<span class="acc{" accbox" if CAP_ACC_BG else ""}" style="{blk}{font(acc_role, int(px * big))}{acc_it};color:{CAP_ACC}{acc_box}">{esc(case(w["text"]))}</span> ' if w.get("accent")
                     else f'<span>{esc(case(w["text"]))}</span> ' for w in ws)
     if CAPS.get("bg"):   # Added by By Mel Ross (0.19.0, Style Menu C6, C10): the words sit on a box or a bar. brand.json captions "bg": "#FFFFFF" | "rgba(0,0,0,.6)"
         spans = f'<span class="cb" style="background:{CAPS["bg"]};line-height:1.5">{spans.strip()}</span>'
@@ -954,11 +1000,54 @@ for i, c in enumerate(edit.get("captions", [])):
     show(f"#c{i}", c["start"], c["end"], 0.06)
     js.append(f'tl.fromTo("#c{i}",{{scale:0.86,y:14}},{{scale:1,y:0,duration:0.16,ease:"back.out(2)"}},{q(c["start"])});')
 
+# ---- hand trail (added by By Mel Ross, 0.23.0) -------------------------------------------------------------------------
+# edit.json "hand_trail": [{"word": "highly", "seconds": 1.4}] or [{"start": 42.1, "end": 43.6}]; optional "joint": "palm" | "wrist" | "index",
+# "side": "left" | "right", "lead": seconds before the word, "occurrence": 2, "density": 2, "sound": dB, "off": true. A card can ask for one too
+# (arctitle "trail": true). Gold stars are laid along the tracked hand (Apple Vision, scripts/hand_track.py) and fade behind it. Colour and size:
+# a "sparkle" block ({"color": "#F2C14E", "core": "#FFF6CF", "size": 1.2}) in brand.json or edit.json. Only what asks for a trail gets one.
+TR = {"color": "#F2C14E", "core": "#FFF6CF", "size": 1.2, **(brand.get("sparkle") or {}), **(edit.get("sparkle") or {})}
+STAR_PATH = "M12 0C12.7 7.4 16.6 11.3 24 12C16.6 12.7 12.7 16.6 12 24C11.3 16.6 7.4 12.7 0 12C7.4 11.3 11.3 7.4 12 0Z"
+trail = []
+HT = [{**(brand.get("hand_trail_defaults") or {}), **h} for h in edit.get("hand_trail", []) if not h.get("off")] + [{**(brand.get("hand_trail_defaults") or {}), **h} for h in TRAIL_REQ]
+if HT and not CAPCUT:
+    import hand_track as _ht
+    _hd = _ht.load(reel)                        # None when hands can't be tracked on this computer: the reel still builds, with no trail
+    if _hd is None: HT = []
+    _sx, _sy = (W / _hd["w"], H / _hd["h"]) if _hd and _hd.get("w") and _hd.get("h") else (1, 1)   # the tracker's points are in the clip's own pixels
+    _norm = lambda w: re.sub(r"[^a-z0-9']", "", w.lower())
+    for e_, h in enumerate(HT):
+        if "word" in h:
+            hits = [w["t"] for c in edit.get("captions", []) for w in c["words"] if _norm(w["text"]) == _norm(h["word"])]
+            occ = int(h.get("occurrence", 1)) - 1
+            if occ >= len(hits): print(f"hand trail: the word {h['word']!r} is not in the captions - skipped"); continue
+            t0 = hits[occ] - float(h.get("lead", 0.0)); t1 = hits[occ] + float(h.get("seconds", 1.4))
+        else: t0, t1 = float(h["start"]), float(h["end"])
+        pts = [(p_[0], None, None) if p_[1] is None else (p_[0], p_[1] * _sx, p_[2] * _sy) for p_ in _ht.path(_hd, t0, t1, h.get("joint", "palm"), h.get("side"))]
+        if sum(1 for p_ in pts if p_[1] is not None) < 4: print(f"hand trail {t0:.2f}-{t1:.2f}: no hand found there - skipped"); continue
+        rng = random.Random(900 + e_); sz = float(TR["size"]); col, core = TR["color"], TR["core"]; k_ = 0
+        for p0, p1 in zip(pts, pts[1:]):
+            if p0[1] is None or p1[1] is None: continue
+            for sub in range(int(h.get("density", 2))):
+                u = sub / int(h.get("density", 2)); ts = p0[0] + u * (p1[0] - p0[0])
+                x = p0[1] + u * (p1[1] - p0[1]) + rng.uniform(-16, 16); y = p0[2] + u * (p1[2] - p0[2]) + rng.uniform(-16, 16)
+                dot = rng.random() < 0.35
+                sp_ = round((rng.uniform(5, 9) if dot else rng.uniform(15, 36)) * sz, 1); life = rng.uniform(0.55, 0.9)
+                peak = rng.uniform(0.75, 1.15); rot = rng.uniform(-60, 60); sid = f"ht{e_}s{k_}"; k_ += 1
+                shape = (f'<circle cx="12" cy="12" r="9" fill="{col}"/><circle cx="12" cy="12" r="4.5" fill="{core}"/>' if dot else
+                         f'<path d="{STAR_PATH}" fill="{col}"/><path d="{STAR_PATH}" transform="translate(12 12) scale(.42) translate(-12 -12)" fill="{core}"/>')
+                trail.append(f'<svg id="{sid}" class="spk" viewBox="0 0 24 24" style="left:{x:.1f}px;top:{y:.1f}px;width:{sp_}px;height:{sp_}px;margin:-{sp_ / 2}px 0 0 -{sp_ / 2}px">{shape}</svg>')
+                js.append(f'tl.fromTo("#{sid}",{{scale:0,rotation:{rot - 40:.0f},opacity:0}},{{scale:{peak:.2f},rotation:{rot:.0f},opacity:1,duration:0.09,ease:"back.out(2)"}},{q(ts)});'
+                          f'tl.to("#{sid}",{{scale:0,opacity:0,y:14,rotation:{rot + 50:.0f},duration:{life:.2f},ease:"power1.in"}},{q(ts + 0.09)});')
+        if h.get("sound") is not None: sfx("sparkle", t0, float(h["sound"]), "subtle", manual=True)
+        print(f"hand trail {t0:.2f}-{t1:.2f}: {k_} stars")
+
 # ---- assemble -----------------------------------------------------------------------------------------------------
 doc = f"""<!doctype html>
 <html lang="en"><head><meta charset="utf-8" />
 <style>
 {chr(10).join(font_css)}
+#trail {{ position: absolute; inset: 0; pointer-events: none; transform-origin: 50% 38%; }}   /* same origin as #cam: it zooms with the video, in front of the cards */
+.spk {{ position: absolute; overflow: visible; opacity: 0; filter: drop-shadow(0 0 5px rgba(255,196,60,.95)) drop-shadow(0 0 14px rgba(255,170,30,.55)); }}
 html, body {{ margin: 0; background: #000; overflow: hidden; }}
 #stage {{ position: relative; width: {W}px; height: {H}px; overflow: hidden; }}
 #cam {{ position: absolute; inset: 0; transform-origin: 50% 38%; }}
@@ -1057,6 +1146,7 @@ html, body {{ margin: 0; background: #000; overflow: hidden; }}
     <div id="back">{"".join(back)}</div></div>
   <div id="mid">{"".join(mid)}</div>
   <div id="front">{"".join(front)}</div>
+  <div id="trail">{"".join(trail)}</div>
   {"".join(audio)}
   <script src="vendor/gsap.min.js"></script>
   <script>(function () {{ window.__timelines = window.__timelines || {{}};

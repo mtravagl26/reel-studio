@@ -155,6 +155,44 @@ function setColors(body) {
   else { if (!Object.keys(got).length) throw new Error("pick at least 1 color"); brand.colors = { ...(brand.colors || {}), ...got }; delete edit.colors; writeJSON(P.brand, brand); }
   writeJSON(P.edit, edit);
 }
+// Added by By Mel Ross (0.23.0): the highlighted caption word: its text color and an optional box behind it. For this reel
+// (edit.json "caption_highlight") or every reel (brand.json "caption_highlight"). An empty set for this reel goes back to the usual.
+function cleanHighlight(h) {
+  const out = {};
+  if (h && h.words != null && h.words !== "") { if (!HEX.test(String(h.words))) throw new Error("a color must look like #B9C8A5"); out.words = String(h.words).toUpperCase(); }
+  if (h && h.text != null && h.text !== "") { if (!HEX.test(String(h.text))) throw new Error("a color must look like #B9C8A5"); out.text = String(h.text).toUpperCase(); }
+  if (h && h.bg != null && h.bg !== "") { if (h.bg !== "none" && !HEX.test(String(h.bg))) throw new Error("a color must look like #B9C8A5"); out.bg = h.bg === "none" ? "none" : String(h.bg).toUpperCase(); }
+  return out;
+}
+function setHighlight(body) {
+  requireIdle();
+  const scope = body.scope === "all" ? "all" : "reel", got = cleanHighlight(body.highlight);
+  snapshot("highlighted word", null, true);
+  const edit = readJSON(P.edit, {}), brand = brandJSON();
+  delete edit.caption_colors;   // the hand-written form of the same setting: the page's pick replaces it
+  if (scope === "reel") { if (Object.keys(got).length) edit.caption_highlight = got; else delete edit.caption_highlight; }
+  else { if (!Object.keys(got).length) throw new Error("pick a color first"); brand.caption_highlight = { ...(brand.caption_highlight || {}), ...got }; delete edit.caption_highlight; writeJSON(P.brand, brand); }
+  writeJSON(P.edit, edit);
+}
+// What the highlighted word looks like before any pick: the theme's choice when a theme sets one, else the brand's.
+function highlightBase(edit, brand) {
+  const c = brand.colors || {}, pop = edit.colors?.pop || c.pop || "#B9C8A5", main = edit.colors?.main || c.main || "#141414";
+  let text = c.caption_accent || pop, words = c.caption || "#FFFFFF";
+  const tok = (v, d) => v === "@pop" ? pop : v === "@main" ? main : v === "@light" ? (edit.colors?.light || c.light || "#FFFFFF") : HEX.test(String(v || "")) ? v : d;
+  const old = edit.caption_colors && typeof edit.caption_colors === "object" ? edit.caption_colors : {};
+  const name = edit.theme || brand.theme;
+  if (name && name !== "none" && THEME_OK.test(name)) {
+    for (const dir of [path.join(HOME, "themes"), path.join(SKILL, "themes")]) {
+      const t = readJSON(path.join(dir, name, "theme.json"), null), v = t?.brand?.colors?.caption_accent;
+      if (!t) continue;
+      text = tok(v, text); words = tok(t?.brand?.colors?.caption, words);
+      break;
+    }
+  }
+  if (HEX.test(String(old.caption_accent || ""))) text = old.caption_accent;   // written by hand before the pages had this
+  if (HEX.test(String(old.caption || ""))) words = old.caption;
+  return { words: String(words).toUpperCase(), text: String(text).toUpperCase(), bg: "none" };
+}
 // Added by By Mel Ross (0.19.0): sound effects on or off, for this reel (edit.json "sfx") or every reel (brand.json "sfx").
 function setSfx(body) {
   requireIdle();
@@ -377,6 +415,7 @@ function view() {
     themes: listThemes(), theme: { reel: edit.theme || null, all: brand.theme || null }, giphy: !!giphyKey(),
     sfxOn: (edit.sfx ?? brand.sfx ?? "subtle") !== "none", sfxAll: (brand.sfx ?? "subtle") !== "none",
     colors: { reel: edit.colors || null, all: { main: brand.colors?.main || "#141414", pop: brand.colors?.pop || "#B9C8A5", light: brand.colors?.light || "#FFFFFF" } },
+    highlight: (() => { let all = {}, reel = null; try { all = cleanHighlight(brand.caption_highlight); } catch {} try { reel = edit.caption_highlight ? cleanHighlight(edit.caption_highlight) : null; } catch {} return { reel, all, base: highlightBase(edit, brand) }; })(),
     hasMaster: exists(P.master), cutsStale, dirty: meta.edit_hash !== editHash(), canUndo: history().length > 0, undoLabel: history().slice(-1)[0]?.replace(/^[\d_-]+?-(?=[A-Za-z])/, "") || null,
     video: renders.length ? renders[renders.length - 1].phone : null, prepping, links: LINKS, built: true,
   };
@@ -773,6 +812,7 @@ const server = http.createServer(async (req, res) => {
         if (p === "/api/live") { const b = JSON.parse((await readBody(req, 1e4)).toString() || "{}"); return json(res, 200, { ok: true, live: startLive(!!b.force) }); }
         if (p === "/api/sfx") { const b = JSON.parse((await readBody(req, 1e4)).toString() || "{}"); setSfx(b); return json(res, 200, { ok: true, state: view() }); }
         if (p === "/api/colors") { const b = JSON.parse((await readBody(req, 1e5)).toString() || "{}"); setColors(b); return json(res, 200, { ok: true, state: view() }); }
+        if (p === "/api/caption-highlight") { const b = JSON.parse((await readBody(req, 1e5)).toString() || "{}"); setHighlight(b); return json(res, 200, { ok: true, state: view() }); }
         if (p === "/api/theme") { const b = JSON.parse((await readBody(req, 1e5)).toString() || "{}"); setTheme(b); return json(res, 200, { ok: true, state: view() }); }
         if (p === "/api/giphy-add") { const b = JSON.parse((await readBody(req, 1e5)).toString() || "{}"); const up = await giphyAdd(b); return json(res, 200, { ok: true, upload: up, state: view() }); }
         if (p === "/api/text-default") { const b = JSON.parse((await readBody(req, 1e5)).toString() || "{}"); setTextDefault(b); return json(res, 200, { ok: true, state: view() }); }
