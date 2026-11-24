@@ -136,7 +136,7 @@ summary .tipb{margin-right:auto}
   <label class="f">Special effect</label>
   <button id="addOrbit" data-a="orbit-open" style="width:100%">+ Make pictures circle my head</button>
   <p class="help" style="margin-top:8px">1 to 6 of your pictures fly in a ring around your head for a few seconds.</p><div id="orbitPick"></div></div></details>
-<details id="s-sfx"><summary>Sound effects <small id="sfxn"></small></summary><div class="sec"><div id="sfx"></div><button id="addSfx" class="sage" style="width:100%;margin-top:8px">+ Add a sound at this point in the video</button></div></details>
+<details id="s-sfx"><summary>Sound effects <small id="sfxn"></small></summary><div class="sec"><div id="sfxmaster"></div><div id="sfx"></div><button id="addSfx" class="sage" style="width:100%;margin-top:8px">+ Add a sound at this point in the video</button></div></details>
 <details id="s-set"><summary>Settings</summary><div class="sec" id="settings"></div></details>
 <details id="s-ver"><summary>Versions <small id="vern"></small></summary><div class="sec" id="versions"></div></details>
 <div id="toast"></div>
@@ -459,6 +459,8 @@ function renderSettings() {
     <div class="seg" style="margin-top:8px"><button class="on" data-a="colors-save" data-v="reel">Use for this reel</button><button data-a="colors-save" data-v="all">Use for every reel</button></div>
     ${mine ? `<button class="sm" data-a="colors-reset" style="margin-top:8px">Back to my brand colors</button>` : ""}
     <p class="help" style="margin-top:8px">${mine ? "This reel has its own colors." : "This reel uses your brand colors."} Every look uses these 3 colors, so changing them changes any look. Pick, press a button, then re-render to see it.</p><hr style="border:0;border-top:1px solid var(--line);margin:14px 0">`;
+  $("#sfxmaster").innerHTML = `<label class="f">Sounds when graphics appear</label><div class="seg"><button class="${S.sfxOn ? "on" : ""}" data-a="sfx-master" data-v="on" data-s="reel">On</button><button class="${S.sfxOn ? "" : "on"}" data-a="sfx-master" data-v="off" data-s="reel">Off</button></div>
+    <p class="help" style="margin:8px 0">${S.sfxOn ? "Each graphic plays a short sound as it comes on." : "Graphics come on silently in this reel."} For every reel you make: <button class="sm" data-a="sfx-master" data-v="on" data-s="all">always on</button> <button class="sm" data-a="sfx-master" data-v="off" data-s="all">always off</button> (now ${S.sfxAll ? "on" : "off"}). Sounds you place by hand below always play.</p>`;
   $("#settings").innerHTML = themeBox + colorBox + `<label class="f">Where text goes by default (every reel)</label><div class="seg"><button class="${L === "front" ? "on" : ""}" data-a="default" data-v="front">In front of me</button><button class="${L === "behind" ? "on" : ""}" data-a="default" data-v="behind">Behind me</button></div>
     <p class="help" style="margin-top:8px">Text sits in the top area above your head. This only sets the layer new text starts on; you can change any single piece of text. ${S.hasTextDefault ? "" : "(Not saved in the brand file yet: the built-in default is in front.)"}</p>`;
 }
@@ -529,6 +531,9 @@ document.addEventListener("click", async (e) => {
   else if (a === "giphy-add") {
     toast("Getting it from GIPHY…");
     try { const j = await post("/api/giphy-add", { id: el.dataset.v, kind: giphy.kind }); await addPopup(j.upload.src); } catch (er) { toast(er.message, true); }
+  }
+  else if (a === "sfx-master") {   // 0.19.0
+    try { await post("/api/sfx", { on: el.dataset.v === "on", scope: el.dataset.s }); toast(`Sound effects ${el.dataset.v} for ${el.dataset.s === "all" ? "every reel" : "this reel"}: re-render to hear it`); } catch (er) { toast(er.message, true); }
   }
   else if (a === "colors-save" || a === "colors-reset") {   // 0.16.0
     const colors = a === "colors-reset" ? {} : Object.fromEntries([...document.querySelectorAll("#settings [data-color]")].map((x) => [x.dataset.color, x.value]));

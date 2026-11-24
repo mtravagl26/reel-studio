@@ -96,3 +96,8 @@ The touch-ups page shows changes without a render. After each change the server 
 - A switch above the timeline turns it off; the player then shows the last render.
 - `proj_live` and `.asset-cache` are working folders. Never deliver from them. A render still uses `proj`.
 - Re-render is still the last step before delivery. The live preview is not the finished video.
+
+
+## Sound effects are on by default (0.19.0)
+
+Every graphic plays a short sound as it comes on unless the person switched sounds off. No theme changes this (Editorial used to). The switches: on the review page, "Sound effects on / off" for this reel (Sound & color tab); on the touch-ups page, under Sound effects, On / Off for this reel and "always on" / "always off" for every reel. They write `edit.json` `"sfx"` (`"subtle"` or `"none"`) and `brand.json` `"sfx"`. A brand file made from the old example has `"sfx": "none"`: if someone says their reels have no sounds, check that line and tell them about the "always on" button. Sounds placed by hand always play.

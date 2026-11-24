@@ -15,7 +15,7 @@ The edit as it was before the import is kept in editor/pre-import/.
 import copy, json, secrets, shutil
 from pathlib import Path
 
-BUILT_KEYS = {"captions", "punch", "cards", "hash", "theme", "colors", "sfx_events"}   # what an import writes; any other key in edit.json was added by hand
+BUILT_KEYS = {"captions", "punch", "cards", "hash", "theme", "colors", "sfx", "sfx_events"}   # what an import writes; any other key in edit.json was added by hand
 TIME_KEYS = ("start", "end")
 EPS = 0.03
 
@@ -112,7 +112,8 @@ def collect(reel):
          "sounds": _items(base["edit"].get("sfx_events") or [], cur.get("sfx_events") or [], tl_base, tl_cur, ("t",)),
          "extra": {k: copy.deepcopy(v) for k, v in cur.items() if k not in BUILT_KEYS and base["edit"].get(k) != v},
          "theme": cur.get("theme") if cur.get("theme") != base["edit"].get("theme") else None,
-         "colors": cur.get("colors") if cur.get("colors") != base["edit"].get("colors") else None}   # 0.16.0: this reel's own colors
+         "colors": cur.get("colors") if cur.get("colors") != base["edit"].get("colors") else None,
+         "sfx": cur.get("sfx") if cur.get("sfx") != base["edit"].get("sfx") else None}   # 0.19.0: sound effects on or off for this reel   # 0.16.0: this reel's own colors
     # a card that only disappeared because its piece was dropped is not a deliberate delete
     in_drop = lambda src: src is not None and any(a - 1e-6 <= src <= b + 1e-6 for a, b in dropped)
     by_id = {c["id"]: c for c in base["edit"].get("cards") or [] if c.get("id")}
@@ -206,6 +207,7 @@ def apply(touch, edit, keep, speed):
     if fixed: kept.append(f"{fixed} caption word fix{'es' if fixed != 1 else ''}")
     for k, v in touch["extra"].items(): edit[k] = v; kept.append(f'the "{k}" setting added by hand')
     if touch.get("theme") and "theme" not in edit: edit["theme"] = touch["theme"]; kept.append(f'the {touch["theme"]} theme')
+    if touch.get("sfx") and "sfx" not in edit: edit["sfx"] = touch["sfx"]; kept.append("sound effects " + ("off" if touch["sfx"] == "none" else "on"))
     if touch.get("colors") and "colors" not in edit: edit["colors"] = touch["colors"]; kept.append("this reel's colors")
     if touch["dropped"]: kept.append(f'{len(touch["dropped"])} dropped piece{"s" if len(touch["dropped"]) != 1 else ""} (now shown as cut words on the review page)')
     return kept, lost
