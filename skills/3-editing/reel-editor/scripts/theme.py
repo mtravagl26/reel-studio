@@ -120,6 +120,9 @@ def load_brand(home=None, reel=None, name=None, quiet=False):
     out = merge(out, _tokens(brand.get("theme_overrides", {}), colors))
     for role, f in (out.get("fonts") or {}).items():
         if isinstance(f, dict) and f.get("file"): f["file"] = _font_file(f["file"], folder, home)
+    # Added by By Mel Ross (0.23.0): caption colours for this reel only, laid over the theme's. edit.json "caption_colors": {"caption": "#726969", "caption_accent": "#FFFFFF"}
+    _cc = {k: v for k, v in (_edit.get("caption_colors") or {}).items() if k in ("caption", "caption_accent") and isinstance(v, str) and re.fullmatch(r"#[0-9a-fA-F]{6}", v)} if isinstance(_edit.get("caption_colors"), dict) else {}
+    if _cc: out["colors"] = {**(out.get("colors") or {}), **_cc}
     if sfx_own is not None: out["sfx"] = sfx_own
     else: out.pop("sfx", None)
     out["_theme"] = {"name": name, "dir": str(folder), "css": theme.get("css", []), "cards": _tokens(theme.get("cards", {}), colors)}
