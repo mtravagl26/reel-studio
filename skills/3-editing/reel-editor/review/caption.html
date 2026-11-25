@@ -50,10 +50,9 @@ textarea { resize: vertical; line-height: 1.4; } input:focus, textarea:focus { o
 <body>
 <nav class="steps" aria-label="Reel Studio steps">
   <b>Reel Studio</b>
-  <a class="step off" data-step="review" title="Ask Claude to open the review page">1 Review</a>
-  <a class="step off" data-step="touchups" title="Ask Claude to open the editor page">2 Touch-ups</a>
-  <a class="step off" data-step="cover" title="Ask Claude to open my thumbnail studio">3 Cover</a>
-  <a class="step off" data-step="caption">4 Caption</a>
+  <a class="step off" data-step="edit" title="Ask Claude to open the editor page">1 Edit</a>
+  <a class="step off" data-step="cover" title="Ask Claude to open my thumbnail studio">2 Cover</a>
+  <a class="step off" data-step="caption">3 Caption</a>
 </nav>
 <h1>Write the caption</h1>
 <p class="sub" id="sub">The words that go under your reel on Instagram.</p>
@@ -144,7 +143,7 @@ function setSteps(here, links) {
 const draft = () => D && D.drafts.find((x) => x.id === cur);
 const tagsOf = (text) => { const out = []; for (const t of String(text || "").split(/[\s,]+/)) { const x = "#" + t.replace(/[^\p{L}\p{N}_]/gu, ""); if (x.length > 1 && !out.some((y) => y.toLowerCase() === x.toLowerCase())) out.push(x); } return out; };
 const ctaOf = (x) => (x.cta || "").trim() || autoCta();
-const textOf = (x) => [x.hook.trim(), x.body.trim(), ctaOf(x), x.hashtags.join(" ")].filter(Boolean).join("\n\n");
+const textOf = (x) => [x.hook.trim(), x.body.trim(), ctaOf(x), (D && D.credit) || "", x.hashtags.join(" ")].filter(Boolean).join("\n\n");
 
 function fields() {   // the form is the truth for the open draft
   const x = draft(); if (!x) return;
@@ -183,7 +182,7 @@ function paint() {
     b.addEventListener("click", () => { fields(); cur = d.id; show(); }); tabs.append(b);
   }
   const x = draft(); if (!x) return;
-  const hook = $("#hook").value.trim(), tags = tagsOf($("#tags").value), full = [hook, $("#body").value.trim(), ctaOf({ cta: $("#cta").value }), tags.join(" ")].filter(Boolean).join("\n\n");
+  const hook = $("#hook").value.trim(), tags = tagsOf($("#tags").value), full = [hook, $("#body").value.trim(), ctaOf({ cta: $("#cta").value }), (D && D.credit) || "", tags.join(" ")].filter(Boolean).join("\n\n");   // 0.28.0: music credit
   const set = (el, text, over) => { el.textContent = text; el.classList.toggle("over", !!over); };
   set($("#chook"), `${hook.length} of ${LIM.hook} characters`, hook.length > LIM.hook);
   set($("#cbody"), `${$("#body").value.trim().length} characters`);

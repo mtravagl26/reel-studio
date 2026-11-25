@@ -29,6 +29,7 @@ Runs once, before the first edit. Output: `~/reels/brand.md` (for people and for
 7a. **How many graphics?** Minimal (one every 8-12 s, mostly you on camera) / balanced (every 4-6 s, the default) / busy (every 2-4 s). → `"graphics": "minimal" | "balanced" | "busy"`.
 7b. **Zooms.** Gentle (a slow push in and back out every few sentences, eased, never a snap; the default) / punchy (quick snap zoom-ins on most sentences) / none. → `"zoom"`: leave it out for gentle; punchy = `{"scale": 1.07, "seconds": 0.22, "ease": "power3.out", "every": 2.2}`; none = leave `punch` empty in each edit.
 8. **Sound effects.** None / subtle (a whoosh at cuts) / lots (pops, snaps, dings).
+8a. **Background music (0.28.0).** "Do you want soft music under some reels?" If yes, follow the first-time setup in `references/music.md`: mood folders in `~/reels/music`, 2 or 3 instrumental tracks each from Pixabay Music or Mixkit, and whether one track plays under every reel.
 9a. **Carousel.** "Do you want a carousel (a spinning row of images/screenshots) in every reel?" Yes → `"require_carousel": true`.
 9. **Pacing.** Natural (normal speed, only long pauses and clear "um"s go; the default) / tight (1.1x, most pauses go) / fast (1.15x, every gap goes). → `"pacing"`. Then: "Any filler words you want kept, or extra ones to cut, like 'like' or 'so'?" (single words only) Only if they change the list, set `"fillers"` (an empty list keeps every filler).
 10. **Your usual call to action.** e.g. "comment GUIDE and I'll send it", "follow for part 2". Always at the end?

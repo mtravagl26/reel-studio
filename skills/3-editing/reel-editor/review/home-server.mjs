@@ -18,6 +18,7 @@ import { pipeline } from "node:stream/promises";
 import { fileURLToPath } from "node:url";
 import { trusted } from "./review-shim.mjs";
 import { lookPreviews } from "./look-preview.mjs";
+import * as MUSIC from "./music.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url)), SKILL = path.dirname(HERE);
 const arg = (name, dflt) => { const i = process.argv.indexOf(name); return i > -1 && process.argv[i + 1] ? process.argv[i + 1] : dflt; };
@@ -73,12 +74,13 @@ function themes() {
 }
 const looks = () => Object.entries(readJSON(path.join(SKILL, "assets", "style-menu.json"), {}).looks || {}).map(([id, l]) => ({ id, name: l.name, group: l.group, status: l.status, missing: l.missing || null, needs: l.needs || null, does: l.does || null, recipe: l.recipe || null }));
 const extras = () => readJSON(path.join(SKILL, "assets", "style-extras.json"), {}).extras || [];
-function picks() { const p = readJSON(PICKS, {}); return { ids: Array.isArray(p.ids) ? p.ids : [], extras: Array.isArray(p.extras) ? p.extras : [], theme: typeof p.theme === "string" ? p.theme : "" }; }
+function picks() { const p = readJSON(PICKS, {}); return { ids: Array.isArray(p.ids) ? p.ids : [], extras: Array.isArray(p.extras) ? p.extras : [], theme: typeof p.theme === "string" ? p.theme : "", music: typeof p.music === "string" ? p.music : "" }; }
 function setPicks(body) {
   const ok = new Set(looks().filter((l) => USABLE.has(l.status)).map((l) => l.id)), okx = new Set(extras().map((x) => x.id));
   const theme = String(body.theme || ""); if (theme && !themes().some((t) => t.id === theme)) throw new Error("unknown theme");
+  const music = String(body.music || ""); if (music && !MUSIC.trackPath(HOME, music)) throw new Error("that track isn't in your music folder");   // 0.28.0
   const out = { ids: [...new Set((Array.isArray(body.ids) ? body.ids : []).map(String))].filter((i) => ok.has(i)).slice(0, 40),
-    extras: [...new Set((Array.isArray(body.extras) ? body.extras : []).map(String))].filter((i) => okx.has(i)), theme, at: {} };
+    extras: [...new Set((Array.isArray(body.extras) ? body.extras : []).map(String))].filter((i) => okx.has(i)), theme, at: {}, music };
   fs.mkdirSync(HOME, { recursive: true }); fs.writeFileSync(PICKS, JSON.stringify(out)); return out;
 }
 // 0.27.0: "Show me on my clip" uses the last clip checked on this page
@@ -99,7 +101,7 @@ function page() {
   try { for (const n of fs.readdirSync(INBOX)) if (VIDEO.has(path.extname(n).toLowerCase())) { kept.count++; kept.bytes += fs.statSync(path.join(INBOX, n)).size; } } catch {}
   const all = looks(), names = Object.fromEntries(all.map((l) => [l.id, l.name]));
   const data = { formats, reels: reels(), inbox: INBOX.replace(os.homedir(), "~"), kept, brand: fs.existsSync(path.join(HOME, "brand.json")),
-    themes: themes(), picks: picks(), lookNames: names, lookCount: all.filter((l) => USABLE.has(l.status)).length };
+    themes: themes(), picks: picks(), lookNames: names, music: MUSIC.tracks(HOME), musicDir: MUSIC.musicDir(HOME).replace(os.homedir(), "~"), lookCount: all.filter((l) => USABLE.has(l.status)).length };
   return fs.readFileSync(path.join(HERE, "home.html"), "utf8").replace("/*HOME*/null", () => JSON.stringify(data).replace(/</g, "\\u003c"));
 }
 
@@ -115,6 +117,11 @@ const server = http.createServer(async (req, res) => {
       try { LOOKP.start(lastClip(), JSON.parse(body || "{}")); return json(res, 200, { ok: true, ...LOOKP.state() }); } catch (e) { return json(res, 400, { ok: false, error: e.message }); }
     }
     if (req.method === "GET" && p === "/look-preview.jpg") { const f = LOOKP.image(); if (!f) { res.writeHead(404).end(); return; } res.writeHead(200, { "Content-Type": "image/jpeg", "Cache-Control": "no-store" }); fs.createReadStream(f).pipe(res); return; }
+    if (req.method === "GET" && p.startsWith("/music/")) return MUSIC.serveTrack(HOME, p.slice(7), res);   // 0.28.0
+    if (req.method === "POST" && p === "/api/music-upload") {
+      try { const name = await MUSIC.upload(HOME, req, url.searchParams.get("name")); return json(res, 200, { ok: true, name, music: MUSIC.tracks(HOME) }); }
+      catch (e) { return json(res, 400, { ok: false, error: String(e.message || e) }); }
+    }
     if (req.method === "POST" && p === "/api/home-picks") {
       let body = ""; for await (const c of req) { body += c; if (body.length > 1e5) return json(res, 413, { ok: false, error: "too big" }); }
       try { return json(res, 200, { ok: true, picks: setPicks(JSON.parse(body || "{}")) }); } catch (e) { return json(res, 400, { ok: false, error: e.message }); }

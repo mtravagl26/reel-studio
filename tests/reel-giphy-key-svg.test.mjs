@@ -74,7 +74,7 @@ test("the pages explain themselves: tips beside the terms, the cover step last, 
     for (const [sel, starts, tip] of tips) { assert.ok(sel && starts, n); assert.ok(tip.length > 20 && tip.length < 240 && !/[\u2014]/.test(tip), `${n}: "${starts}" tip is one or two plain sentences`); }
     assert.match(h, /e\.preventDefault\(\); e\.stopPropagation\(\);/, n + ": a ? inside a section title does not open the section");
   }
-  for (const [n, h] of [["review", rv], ["touch-ups", ed], ["cover", th]]) assert.match(h, /1 Review<\/a>\s*<a[^>]*data-step="touchups"[^>]*>2 Touch-ups<\/a>\s*<a[^>]*data-step="cover"[^>]*>3 Cover<\/a>/, n + ": the cover is the last step");
+  for (const [n, h] of [["review", rv], ["touch-ups", ed], ["cover", th]]) assert.match(h, /1 Edit<\/a>\s*<a[^>]*data-step="cover"[^>]*>2 Cover<\/a>\s*<a[^>]*data-step="caption"[^>]*>3 Caption<\/a>/, n + ": cover, then caption, after Edit");
   assert.match(ed, /First pause the video at the moment you want it/); assert.match(ed, /From this computer/); assert.match(ed, /Pick a file to use it again/); assert.match(ed, /Special effect/);
   assert.match(fs.readFileSync(path.join(skill, "SKILL.md"), "utf8"), /Before step 1: they choose the kind of reel/);
 });
@@ -234,7 +234,7 @@ test("caption step: the script checks drafts against Instagram's limits, the pag
   } finally { p.kill(); }
   const cp = fs.readFileSync(path.join(review, "caption.html"), "utf8");
   for (const t of ['id="tones"', 'id="emojis"', 'id="asks"', "Take the emojis out now", "Follow for more", "Rewrite the Instagram captions"]) assert.ok(cp.includes(t), t);
-  for (const f of ["editor.html", "reel-review.html", "thumbnail.html", "caption.html"]) assert.match(fs.readFileSync(path.join(review, f), "utf8"), /data-step="caption"[^>]*>4 Caption</, f + " has step 4");
+  for (const f of ["editor.html", "reel-review.html", "thumbnail.html", "caption.html"]) assert.match(fs.readFileSync(path.join(review, f), "utf8"), /data-step="caption"[^>]*>3 Caption</, f + " has the caption step");
   assert.match(fs.readFileSync(path.join(skill, "scripts", "deliver.sh"), "utf8"), /caption\.txt" "\$DIR\/\$NAME caption\.txt"/);
   assert.match(fs.readFileSync(path.join(skill, "SKILL.md"), "utf8"), /references\/caption\.md/);
 });

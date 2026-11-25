@@ -179,6 +179,15 @@ def do_import(reel, review):
         _where, _layer = _b.get("where") if _b.get("where") in WHERE else None, _b.get("layer") if _b.get("layer") in ("front", "behind") else None
         if _layer == "behind": spec["layer"] = "behind"
         elif _layer == "front": spec.pop("layer", None); spec["layer"] = "front"
+        # Added by By Mel Ross (0.28.0): words changed on the review page go straight into the card
+        WORD_KEYS = {"text": 80, "title": 80, "sub": 30, "label": 60, "value": 16, "delta": 12}
+        for k, v in (_b.get("set") or {}).items() if isinstance(_b.get("set"), dict) else []:
+            if k in WORD_KEYS and isinstance(v, str) and (k in spec or k in ("sub", "delta")):
+                v = re.sub(r"[\r\n\t]+", " ", v).strip()[:WORD_KEYS[k]]
+                if v or k in ("sub", "delta"): spec[k] = v
+            elif k in ("rows", "items") and isinstance(v, list) and k in spec:
+                rows = [re.sub(r"[\r\n\t]+", " ", str(x)).strip()[:40] for x in v if str(x).strip()][:6]
+                if rows: spec[k] = rows
         if _where and spec.get("type") == "popup" and _where != "lower": spec["pos"] = _where; spec.pop("x", None); spec.pop("y", None)
         elif _where: places.append(f"{g['id']} ({spec.get('type', 'card')}) @ cut {g['start']:.1f}s: {WHERE[_where]}")
         cards.append(spec)

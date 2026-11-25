@@ -211,6 +211,7 @@ def main():
     edit = json.load(open(reel / "edit.json")) if (reel / "edit.json").exists() else {}
     cfg = {**DEFAULTS, **brand.get("mix", {}), **edit.get("mix", {})}
     music = edit.get("music") or brand.get("music")
+    if music == "none": music = None                  # 0.28.0: this reel has no music even when brand.json gives every reel some
     music = Path(os.path.expanduser(music)) if music else None
     if music and not music.is_absolute() and (reel / music).exists(): music = reel / music
     if music and not music.exists():
@@ -239,13 +240,18 @@ def main():
             mlufs = float(mstat["input_i"]) if mstat else -20.0
             mgain = max(-40.0, min(30.0, (vlufs + cfg["music"]) - mlufs))
             mask = close_gaps(speech_mask(pcm16(voice)), cfg["hold"])
+            # 0.28.0: the music also steps back under each sound effect, so an effect in a pause is heard over the music
+            for e in events:
+                k0 = int(float(e.get("t", 0)) / FR); k1 = k0 + int(0.6 / FR)
+                for k in range(max(0, k0), min(len(mask), k1)): mask[k] = True
             gain = tmp / "gain.wav"
             g = gain_curve(mask, cfg["duck"], cfg["attack"], cfg["release"])
             write_gain_wav(gain, g, total)
             speaking = sum(mask) * FR
             report.update({"voice_lufs": round(vlufs, 1), "music_gap_level_lu": cfg["music"], "music_under_voice_lu": cfg["music"] + cfg["duck"],
                            "speech_seconds": round(speaking, 1), "gap_seconds": round(total - speaking, 1)})
-            inputs += ["-stream_loop", "-1", "-i", music, "-i", gain]
+            ms = max(0.0, float(edit.get("music_start") or brand.get("music_start") or 0))   # 0.28.0: skip a long intro
+            inputs += ["-stream_loop", "-1", *(["-ss", f"{ms:.2f}"] if ms else []), "-i", music, "-i", gain]
             fo = max(0.0, total - cfg["fade_out"])
             graph += [f"[1:a]atrim=0:{total:.3f},asetpts=PTS-STARTPTS,aformat=channel_layouts=stereo,aresample={SR},volume={mgain:.2f}dB,"
                       f"afade=t=in:d={cfg['fade_in']},afade=t=out:st={fo:.3f}:d={cfg['fade_out']}[m0]",

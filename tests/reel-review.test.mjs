@@ -187,3 +187,16 @@ test("review page: Build preview imports the choices, runs the build steps, and 
   const rv = fs.readFileSync(path.join(skill, "review", "reel-review.html"), "utf8");
   for (const t of ["Build now without those", "I'll tell Claude", "/api/review-build", "function needsClaude", "Step 2 of 4"]) assert.ok(rv.includes(t), t);
 });
+
+test("words changed on the review page go into the card (0.28.0); bad values are cut down or ignored", { skip: skipReason }, () => {
+  const c = makeReel();
+  c.imp({ board: { g1: { set: { text: "  new words\nhere ", title: "not a tag field", rows: ["x"] } } } });
+  const card = read(c.reel, "edit.json").cards.find((x) => x.id === "g1");
+  assert.equal(card.text, "new words here"); assert.equal(card.title, undefined, "a field the card doesn't have is not added"); assert.equal(card.rows, undefined);
+  c.imp({ board: { g1: { set: { text: "x".repeat(200) } } } });
+  assert.equal(read(c.reel, "edit.json").cards.find((x) => x.id === "g1").text.length, 80);
+  c.imp({ board: { g1: { set: { text: "" } } } });
+  assert.equal(read(c.reel, "edit.json").cards.find((x) => x.id === "g1").text, "hello", "empty words keep the old ones");
+  const rv = fs.readFileSync(path.join(skill, "review", "reel-review.html"), "utf8");
+  for (const t of ["WORD_FIELDS", "function wordsBox", "New words saved"]) assert.ok(rv.includes(t), t);
+});

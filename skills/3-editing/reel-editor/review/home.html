@@ -92,8 +92,16 @@ button.pri { background: var(--ink); color: #fff; } button:disabled { opacity: .
   <p><a href="/looks" id="alllooks">See all the looks</a> <span id="pickednote"></span></p>
 </section>
 
+<section id="stepmusic" hidden>
+  <h2><b>4</b>Background music <small style="font-weight:500;color:var(--mute)">(optional)</small></h2>
+  <p>Soft music under your voice. It dips while you talk and comes back in the pauses. Use tracks you're allowed to use, like ones from Pixabay Music or Mixkit. They live in <code id="musicdir"></code>.</p>
+  <div id="tracks" class="lookrow"></div>
+  <p><label class="style" style="display:inline-block;cursor:pointer;padding:10px 14px"><input type="file" id="addtrack" accept=".mp3,.m4a,.wav,.aac,.ogg,.flac,audio/*" hidden><b>Add a track from this computer</b></label> <span id="trackmsg"></span></p>
+  <audio id="preview" controls hidden style="width:100%"></audio>
+</section>
+
 <section id="step3" hidden>
-  <h2><b>4</b>Hand it to Claude</h2>
+  <h2><b>5</b>Hand it to Claude</h2>
   <p>Paste this where you talk to Claude Code. It does the edit and gives you a link to review the cut.</p>
   <div id="ask">
     <p>Your request</p>
@@ -145,9 +153,30 @@ let LP = D.picks || { ids: [], extras: [], theme: "" };
 function lookWords() {
   const t = (D.themes || []).find((x) => x.id === LP.theme), ids = LP.ids || [];
   const parts = [ids.length ? ids.map((i) => `${i} (${(D.lookNames || {})[i] || i})`).join(", ") : "", t ? `the ${t.name} theme` : ""].filter(Boolean);
-  return parts.length ? ` Use ${parts.join(" and ")}.` : "";
+  const m = LP.music ? ` Play my track "${LP.music}" softly in the background.` : "";   // 0.28.0
+  return (parts.length ? ` Use ${parts.join(" and ")}.` : "") + m;
 }
+document.addEventListener("change", async (e) => {   // 0.28.0: add a track to the music folder
+  if (e.target.id !== "addtrack" || !e.target.files[0]) return;
+  const f = e.target.files[0]; $("#trackmsg").textContent = "Adding " + f.name + "...";
+  try { const r = await fetch("/api/music-upload?name=" + encodeURIComponent(f.name), { method: "POST", body: f }), j = await r.json();
+    if (!j.ok) throw new Error(j.error); TR = j.music; LP.music = j.name; $("#trackmsg").textContent = "Added."; savePicks(); }
+  catch (er) { $("#trackmsg").textContent = er.message; }
+  e.target.value = "";
+});
 function savePicks() { fetch("/api/home-picks", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(LP) }).catch(() => {}); refresh(); }
+// Added by By Mel Ross (0.28.0): background music, picked before the first edit
+let TR = D.music || [];
+function showMusic() {
+  $("#stepmusic").hidden = !pickStyle; if (!pickStyle) return;
+  $("#musicdir").textContent = D.musicDir || "~/reels/music";
+  const box = $("#tracks"); box.textContent = "";
+  const mk = (name, label, sub) => { const b = el("button", "style"); b.type = "button"; b.dataset.track = name; b.setAttribute("aria-pressed", String((LP.music || "") === name)); b.append(el("b", "", label), el("span", "", sub));
+    b.addEventListener("click", () => { LP.music = name; savePicks(); const a = $("#preview"); if (name) { a.src = "/music/" + encodeURIComponent(name); a.hidden = false; a.play().catch(() => {}); } else { a.pause(); a.hidden = true; } }); box.append(b); };
+  mk("", "No music", "Just your voice and the sound effects.");
+  for (const t of TR) mk(t.name, t.name.replace(/^[^/]*\//, "").replace(/\.[^.]+$/, ""), `${t.mood ? t.mood[0].toUpperCase() + t.mood.slice(1) + ". " : ""}Tap to hear it.`);
+  if (!TR.length) box.append(el("p", "", "Your music folder is empty. Add a track below, or ask Claude: \"help me add background music\"."));
+}
 function showLooks() {
   $("#steplook").hidden = !pickStyle; if (!pickStyle || $("#themes").childElementCount) return;
   const mk = (id, name, does) => { const b = el("button", "style"); b.type = "button"; b.dataset.theme = id; b.append(el("b", "", name), el("span", "", does)); b.addEventListener("click", () => { LP.theme = id; savePicks(); }); $("#themes").append(b); };
@@ -164,7 +193,7 @@ function ask() {
 function refresh() {
   document.querySelectorAll(".style").forEach((b) => b.setAttribute("aria-pressed", String(pickStyle && b.dataset.id === pickFormat.id + "/" + pickStyle.id)));
   $("#step3").hidden = !pickStyle; $("#say").textContent = ask(); $("#brandnote").hidden = !!D.brand;
-  showLooks();
+  showLooks(); showMusic();
   document.querySelectorAll("[data-theme]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.theme === (LP.theme || ""))));
   $("#h20").setAttribute("aria-pressed", String((LP.ids || []).includes("H20")));
   const n = (LP.ids || []).length; $("#pickednote").textContent = n ? `${n} ${n === 1 ? "look" : "looks"} picked: ${LP.ids.join(", ")}.` : "";

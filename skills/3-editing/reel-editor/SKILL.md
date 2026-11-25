@@ -81,6 +81,10 @@ Cut only at the end of a sentence or in the quietest part of a natural pause, on
 
 The person can pick looks by ID: H1-H20 hooks, C1-C16 captions, L1-L24 layouts ("H3, C2, L8"). Read `references/style-menu.md`: it says, per ID, which `edit.json` / `brand.json` setting or card produces it (`assets/style-menu.json` has the same table, with a ready `recipe` per look, for scripts) and which are only *partial* or *not built*. Built: H3, C1, C2, C3, L2, L4, L6, L7, L8, L9, H6, H7, H8, H10, H11, H12, H13, H14, H15, H16, H17, H19, H20, C6, C7, C8, C9, C10, C11, C12, C13, C15, L10, L12, L13, L14, L15, L16, L17, L19, L20, L21, L22, L23, L24; partial: H2, C5, L11; not built: H1, H4, C4, L1, L3, L5; cut or writing choices with no setting: H5, H9, C16; planned only (not recommended, never offer): H18, C14, L18. Say plainly when an ID is not built; never fake it. To use a built look, copy its recipe card(s) into `edit.json` with the person's own words and times, or its `brand` block into the reel's brand settings; a recipe with `needs_photos` waits for their pictures. The eye rules apply to all of them: graphics go in the top corners or the lower third, never on the eyes unless the person asked, and captions step aside under lower-third cards.
 
+## Background music (0.28.0)
+
+When the request says `Play my track "..." softly in the background`, set `edit.json` `"music"` to that file in `~/reels/music`. Read `references/music.md` for the levels, the every-reel track and first-time setup. Never download music for the person or add a track they didn't pick. If a track needs credit (CC BY), put its credit line in the caption.
+
 ## Arched title and hand trail (0.23.0)
 
 Only when the person asks for it: an `arctitle` card (a headline arched over the head, with an optional line under it) and a `hand_trail` (gold stars that follow a moving hand). Read `references/hand-trail.md` first. The trail needs a Mac with the Swift compiler; without it the reel still builds and the trail is left out, so say so. Never add a trail the person did not ask for.
