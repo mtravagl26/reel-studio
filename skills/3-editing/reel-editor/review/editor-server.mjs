@@ -124,7 +124,7 @@ const MENU_FILE = path.join(SKILL, "assets", "style-menu.json"), PICKS_FILE = pa
 const USABLE_LOOK = new Set(["built", "partial", "cut-choice"]);
 function menuLooks() {
   const looks = (readJSON(MENU_FILE, {}).looks) || {};
-  return Object.entries(looks).map(([id, l]) => ({ id, name: l.name, group: l.group, status: l.status, missing: l.missing || null, recipe: l.recipe || null }));
+  return Object.entries(looks).map(([id, l]) => ({ id, name: l.name, group: l.group, status: l.status, missing: l.missing || null, needs: l.needs || null, does: l.does || null, recipe: l.recipe || null }));
 }
 const menuExtras = () => (readJSON(path.join(SKILL, "assets", "style-extras.json"), {}).extras) || [];   // 0.10.1: animations and moving extras
 function stylePicks() { const p = readJSON(PICKS_FILE, {}); return { ids: Array.isArray(p.ids) ? p.ids : [], extras: Array.isArray(p.extras) ? p.extras : [], theme: typeof p.theme === "string" ? p.theme : "" }; }
@@ -215,6 +215,17 @@ function setSfxVolume(body) {
   else if (v === (brand.mix?.effects ?? 0)) { if (edit.mix) delete edit.mix.effects; }
   else edit.mix = { ...(edit.mix || {}), effects: v };
   if (edit.mix && !Object.keys(edit.mix).length) delete edit.mix;
+  writeJSON(P.edit, edit);
+}
+// Added by By Mel Ross (0.26.0): where captions sit. "captions-high" (above the head, text graphics in the lower third) or
+// "captions-low". For this reel (edit.json "layout") or every reel (brand.json "layout").
+function setLayout(body) {
+  requireIdle();
+  const v = body.layout === "captions-high" ? "captions-high" : "captions-low", scope = body.scope === "all" ? "all" : "reel";
+  snapshot("caption spot", null, true);
+  const edit = readJSON(P.edit, {}), brand = brandJSON();
+  if (scope === "all") { brand.layout = v; delete edit.layout; writeJSON(P.brand, brand); }
+  else if (v === (brand.layout || "captions-low")) delete edit.layout; else edit.layout = v;
   writeJSON(P.edit, edit);
 }
 const volName = (v) => (v <= -3 ? "quieter" : v >= 2 ? "louder" : "normal");
@@ -429,6 +440,7 @@ function view() {
     textDefault: brand.text_default || { layer: "front", position: "above" }, hasTextDefault: !!brand.text_default,
     themes: listThemes(), theme: { reel: edit.theme || null, all: brand.theme || null }, giphy: !!giphyKey(),
     sfxOn: (edit.sfx ?? brand.sfx ?? "subtle") !== "none", sfxAll: (brand.sfx ?? "subtle") !== "none",
+    layout: edit.layout || brand.layout || "captions-low", layoutAll: brand.layout || "captions-low",
     sfxVol: volName(edit.mix?.effects ?? brand.mix?.effects ?? 0), sfxVolAll: volName(brand.mix?.effects ?? 0), hasFinal: exists(P.final),
     colors: { reel: edit.colors || null, all: { main: brand.colors?.main || "#141414", pop: brand.colors?.pop || "#B9C8A5", light: brand.colors?.light || "#FFFFFF" } },
     highlight: (() => { let all = {}, reel = null; try { all = cleanHighlight(brand.caption_highlight); } catch {} try { reel = edit.caption_highlight ? cleanHighlight(edit.caption_highlight) : null; } catch {} return { reel, all, base: highlightBase(edit, brand) }; })(),
@@ -842,6 +854,7 @@ const server = http.createServer(async (req, res) => {
         if (p === "/api/op") { const b = JSON.parse((await readBody(req, 2e6)).toString() || "{}"); return json(res, 200, { ok: true, ...doOp(b), state: view() }); }
         if (p === "/api/undo") { requireIdle(); const what = undo(); return json(res, 200, { ok: true, undid: what, state: view() }); }
         if (p === "/api/render") { startRender(); return json(res, 200, { ok: true, job }); }
+        if (p === "/api/layout") { const b = JSON.parse((await readBody(req, 1e4)).toString() || "{}"); setLayout(b); return json(res, 200, { ok: true, state: view() }); }
         if (p === "/api/remix") { startRender({ soundOnly: true }); return json(res, 200, { ok: true, job }); }   // 0.25.0: sound only
         if (p === "/api/sfx-volume") { const b = JSON.parse((await readBody(req, 1e4)).toString() || "{}"); setSfxVolume(b); return json(res, 200, { ok: true, state: view() }); }
         if (p === "/api/live") { const b = JSON.parse((await readBody(req, 1e4)).toString() || "{}"); return json(res, 200, { ok: true, live: startLive(!!b.force) }); }

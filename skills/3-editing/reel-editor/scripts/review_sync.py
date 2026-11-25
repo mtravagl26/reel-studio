@@ -52,23 +52,34 @@ def export(reel, proposal, out):
     # fillers ("um", "uh") found by tighten.py's Whisper pass: slot them in as removable words
     fj = reel / "fillers.json"
     if fj.exists():
-        for t in json.load(open(fj))["transcription"]:
+        import false_starts as _fs
+        _tr = json.load(open(fj))["transcription"]
+        for _k, t in enumerate(_tr):
             txt = t["text"].strip()
-            if norm(txt) in set(pacing(brand)["fillers"]):
+            # 0.26.0: the filler pass also writes down a stumbled word said twice ("with with") that the main pass tidied away
+            stumble = (_k + 1 < len(_tr) and norm(txt) and norm(txt) == norm(_tr[_k + 1]["text"]) and norm(txt) not in _fs.OK_TWICE
+                       and _tr[_k + 1]["offsets"]["from"] - t["offsets"]["to"] < 1000)
+            if norm(txt) in set(pacing(brand)["fillers"]) or stumble:
                 s, e = t["offsets"]["from"] / 1000, t["offsets"]["to"] / 1000
                 if not any(w["s"] < e - 0.05 and w["e"] > s + 0.05 for w in words):
-                    words.append({"text": txt.strip(",.").lower(), "s": round(s, 3), "e": round(max(e, s + 0.25), 3), "filler": True})
+                    words.append({"text": txt.strip(",.").lower(), "s": round(s, 3), "e": round(max(e, s + (0.12 if stumble else 0.25)), 3), "filler": True, **({"stumble": True} if stumble else {})})
                 else:   # Whisper folded the um into a neighbouring word: split it off so cutting it removes its audio
-                    e = round(max(e, s + 0.25), 3)
+                    e = round(max(e, s + (0.12 if stumble else 0.25)), 3)
                     for w in words:
                         if w["s"] < e - 0.05 and w["e"] > s + 0.05 and not w.get("filler"):
                             if w["s"] >= s - 0.05: w["s"] = round(min(e, w["e"] - 0.05), 3)   # starts with the um: start after it
                             elif w["e"] <= e + 0.05: w["e"] = round(s, 3)  # word ends with the um: end before it
-                    words.append({"text": "um", "s": round(s, 3), "e": e, "filler": True})
+                    words.append({"text": txt.strip(",.").lower() if stumble else "um", "s": round(s, 3), "e": e, "filler": True, **({"stumble": True} if stumble else {})})
         words.sort(key=lambda w: w["s"])
     keep = proposal["proposedCut"]
     proposed_cut = [i for i, w in enumerate(words) if not w.get("filler") and
                     not any(a <= (w["s"] + w["e"]) / 2 <= b for a, b in keep)]
+    # Added by By Mel Ross (0.26.0): false starts (doubled words, restarted phrases, broken-off words, a sentence said twice)
+    # are added to the proposed cut and labelled on the page. The person unticks any they want to keep.
+    import false_starts
+    false = false_starts.find(words, proposed_cut)
+    proposed_cut = sorted(set(proposed_cut) | {i for f in false for i in f["w"]})
+    json.dump([{**f, "text": " ".join(words[i]["text"] for i in f["w"]), "at": words[f["w"][0]]["s"]} for f in false], open(reel / "false_starts.json", "w"), indent=1)
     # pauses Claude keeps on purpose: after a question or exclamation, or longer than 0.8 s after a sentence end
     keep_pauses = [i for i in range(len(words) - 1) if re.search(r"[?!]$", words[i]["text"]) or
                    (re.search(r"[.]$", words[i]["text"]) and words[i + 1]["s"] - words[i]["e"] > 0.8)]
@@ -103,13 +114,16 @@ def export(reel, proposal, out):
     reel_json = {"title": proposal["title"], "srcDur": float(subprocess.run(["ffprobe", "-v", "error", "-show_entries",
                  "format=duration", "-of", "csv=p=0", str(raw_clip(reel))], capture_output=True, text=True).stdout),
                  "speed": pacing(brand)["speed"], "pacing": pacing(brand), "words": words, "proposedCut": proposed_cut, "keepPauses": keep_pauses,
-                 "captions": caps, "board": board, "sfxOn": brand.get("sfx", "subtle") != "none",
+                 "captions": caps, "board": board, "falseStarts": false, "sfxOn": brand.get("sfx", "subtle") != "none",
                  "colors": {k: brand.get("colors", {}).get(k, d_) for k, d_ in (("main", "#141414"), ("pop", "#B9C8A5"), ("light", "#FFFFFF"))},   # 0.16.0: the color box starts from these
                  "style": {"capSize": brand["captions"].get("size", 104), "capY": brand["captions"].get("y", 1250),
                            "mode": mode, "editorial": brand["captions"].get("style") == "editorial",
                            "cap": brand["colors"].get("caption", "#FFFFFF"), "acc": (brand.get("caption_highlight") or {}).get("text") or brand["colors"].get("caption_accent", "#FF7DB8"),
                            "accBg": (brand.get("caption_highlight") or {}).get("bg") or "none",   # 0.23.0: the box behind the highlighted word
-                           "main": brand["colors"]["main"], "case": brand["captions"].get("case", "lower")},
+                           "main": brand["colors"]["main"], "case": brand["captions"].get("case", "lower"),
+                           # 0.26.0: captions high or low, and the 3 zones a caption can be moved to (same numbers as build_reel.py)
+                           "layout": (json.load(open(reel / "edit.json")) if (reel / "edit.json").exists() else {}).get("layout") or brand.get("layout") or "captions-low",
+                           "zones": {"top": brand["captions"].get("y_high", 290), "middle": 900, "bottom": brand["captions"].get("y", 1250)}},
                  "grade": brand.get("grade"),
                  # Added by By Mel Ross (0.9.0): the themes this machine has, for the page's "Look for this reel" picker
                  "themes": [{"id": n, "name": json.load(open(p / "theme.json")).get("name", n), "summary": json.load(open(p / "theme.json")).get("summary", "")}
@@ -118,6 +132,7 @@ def export(reel, proposal, out):
                  # Added by By Mel Ross (0.10.1): the brand's graphics amount, for the dial on the Graphics tab
                  "graphicsAmount": {"minimal": "few", "balanced": "some", "busy": "lots"}.get(brand.get("graphics", "balanced"), "some")}
     P = node(reel_json, {"cut": proposed_cut})
+    if false: print(f"FALSE STARTS: {len(false)} found and added to the proposed cut (listed in false_starts.json). They show on the review page as \"false start\"; tell the person to untick any they want to keep.")
     print(f"{len(words)} words ({sum(1 for w in words if w.get('filler'))} fillers), {len(caps)} captions, {len(board)} graphics, "
           f"proposed cut {P['cutDur']:.1f}s, {len(P['pauses'])} pauses ({len(keep_pauses)} kept on purpose)")
     json.dump(reel_json, open(out / "reel.json", "w"))
@@ -143,11 +158,12 @@ def do_import(reel, review):
     json.dump({"source": raw_clip(reel).name, "audio": "voice.wav", "keep": [[round(a, 3), round(b, 3)] for a, b in P["spans"]]},
               open(reel / "edl.json", "w"))
     caps = [{"start": round(c["start"], 3), "end": round(c["end"], 3),
-             "words": [{"text": re.sub(r"[.,!?;:]+$", "", w["text"]), "t": round(w["t"], 3), "accent": w["accent"]} for w in c["words"]]}
+             "words": [{"text": re.sub(r"[.,!?;:]+$", "", w["text"]), "t": round(w["t"], 3), "accent": w["accent"]} for w in c["words"]],
+             **({"pos": c["pos"]} if c.get("pos") in ("top", "middle", "bottom", "hide") else {})}   # 0.26.0: moved on the review page
             for c in P["captions"] if not c.get("gone")]
     cards, changes, places = [], [], []
     WHERE = {"center": "the middle of the screen, even where it covers part of the face", "top-center": "the top, above the head", "top-left": "the top left", "top-right": "the top right",
-             "middle-left": "left of the face", "middle-right": "right of the face", "lower": "lower, just above the captions"}
+             "middle-left": "left of the face", "middle-right": "right of the face", "lower": "the bottom, in the lower third (move the captions to the top for that moment if they would overlap)"}
     for g in P["graphics"]:
         if g.get("gone") or g["state"] == "d": continue
         note = ((d.get("board") or {}).get(g["id"]) or {}).get("note")
@@ -174,6 +190,7 @@ def do_import(reel, review):
     if isinstance(d.get("colors"), dict):                                    # 0.16.0: colors for this reel, picked on the review page
         _col = {k: v for k, v in d["colors"].items() if k in ("main", "pop", "light") and isinstance(v, str) and re.fullmatch(r"#[0-9a-fA-F]{6}", v)}
         if _col: out["colors"] = _col
+    if d.get("layout") in ("captions-high", "captions-low"): out["layout"] = d["layout"]   # 0.26.0: captions above the head or at the bottom
     if isinstance(d.get("highlight"), dict):                                 # 0.23.0: caption colors picked on the review page
         sys.path.insert(0, str(Path(__file__).resolve().parent)); import theme as _th
         _hl = _th._highlight(d["highlight"])

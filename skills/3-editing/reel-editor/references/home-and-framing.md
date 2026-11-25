@@ -48,3 +48,7 @@ The Instagram cover areas (top 220 px, bottom 420 px, right 150 px of 1080 x 192
 ## Adding a kind of reel
 
 Build the format first. Then set its `"status"` to `"ready"` in `assets/formats.json` and give it `styles`, each with the words the request should carry in `ask`. Add how to carry it out to this file. No "coming soon" tiles.
+
+## Pick a look (0.26.0)
+
+After the kind of reel, the home page shows **Pick a look (optional)**: the themes, the arched title with a sparkle wave (H20), and **See all the looks**, which opens the Style Menu gallery at `/looks` on the home page server. Picks are kept in `~/reels/.home-picks.json` and written into the request ("Use H3 (...) and the Bold theme."). Read the IDs as Style Menu looks (`references/style-menu.md`).

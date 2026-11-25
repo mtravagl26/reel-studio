@@ -103,6 +103,17 @@ function captions(f, r) {
 function card(f, c) {
   const kind = c.type;
   if (kind === "title") return title(f, c);
+  if (kind === "arctitle") {   // Added by By Mel Ross (0.26.0): words arched over the head, a line under it, gold sparkles behind a waving hand
+    const d = el("div"); d.style.cssText = "inset:0";
+    const stars = c.trail ? [[640, 1180, 34], [720, 1100, 26], [790, 1030, 30], [850, 960, 22], [900, 900, 18], [600, 1230, 20]].map(([x, y, r]) => `<text x="${x}" y="${y}" font-size="${r * 2}" fill="#F2C14E" text-anchor="middle">✦</text>`).join("") : "";
+    const t = String(c.text || "").replace(/[<&]/g, "");
+    d.innerHTML = `<svg viewBox="0 0 1080 1920" width="100%" height="100%" style="position:absolute;inset:0"><defs><path id="am${t.length}" d="M 150 560 Q 540 120 930 560"/></defs>`
+      + `<text font-size="120" font-weight="800" fill="#0d2b2d" opacity=".35" transform="translate(8 12)"><textPath href="#am${t.length}" startOffset="50%" text-anchor="middle">${t}</textPath></text>`
+      + `<text font-size="120" font-weight="800" fill="#fff"><textPath href="#am${t.length}" startOffset="50%" text-anchor="middle">${t}</textPath></text>`
+      + `<text x="300" y="250" font-size="44" fill="#F2C14E">✦</text><text x="760" y="230" font-size="36" fill="#F2C14E">✦</text>`
+      + (c.sub ? `<text x="540" y="1220" font-size="90" font-weight="900" fill="#fff" text-anchor="middle">${String(c.sub).replace(/[<&]/g, "")}</text>` : "") + stars + `</svg>`;
+    f.append(d); return;
+  }
   if (kind === "note") {
     const n = el("div", "paper hand"); n.style.cssText = "left:22%;right:22%;top:9%;padding:5cqw 3cqw 4cqw;font-size:8.5cqw;font-weight:600;text-align:center;line-height:1.1;transform:rotate(-3deg);white-space:pre-line";
     n.textContent = String(c.text || "").split("/").map((x) => x.trim()).join("\n");
@@ -195,7 +206,7 @@ function refresh() {
 let saving = null;
 function save() {
   if (!M.canSave) return;
-  clearTimeout(saving); saving = setTimeout(() => { fetch("/api/style-picks", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ids: [...picks], extras: [...extras], theme }) }).catch(() => {}); }, 300);
+  clearTimeout(saving); saving = setTimeout(() => { fetch(M.saveUrl || "/api/style-picks", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ids: [...picks], extras: [...extras], theme }) }).catch(() => {}); }, 300);
 }
 function toggle(look) {
   if (picks.has(look.id)) picks.delete(look.id);
@@ -206,7 +217,7 @@ function toggle(look) {
 function build() {
   if (!M || !Array.isArray(M.looks)) { $("#empty").hidden = false; return; }
   const usable = M.looks.filter((l) => USABLE.has(l.status)), main = $("#main");
-  $("#sub").textContent = `${usable.length} looks, ${(M.extras || []).length} animations${M.reel ? " · " + M.reel : ""}`; $("#back").hidden = !M.canSave;
+  $("#sub").textContent = `${usable.length} looks, ${(M.extras || []).length} animations${M.reel ? " · " + M.reel : ""}`; $("#back").hidden = !M.canSave; if (M.back) $("#back").textContent = M.back;   // 0.26.0: opened from the home page
   for (const id of [...picks]) if (!usable.some((l) => l.id === id)) picks.delete(id);
   const groups = [...new Set(usable.map((l) => l.group))];
   for (const g of groups) {
@@ -217,6 +228,7 @@ function build() {
       c.append(sketch(look), el("div", "id", look.id), el("div", "nm", look.name));
       if (look.status === "partial" && look.missing) c.append(el("div", "note", "Not included yet: " + look.missing));
       if (look.status === "cut-choice") c.append(el("div", "need", "A cutting choice. No graphic."));
+      if (look.needs) c.append(el("div", "need", look.needs + "."));   // 0.26.0: e.g. the sparkle wave needs a Mac
       const need = look.recipe && look.recipe.needs_photos; if (need) c.append(el("div", "need", need === 1 ? "Needs 1 photo from you." : `Needs ${need} photos from you.`));
       const b = el("button", "", "Add"); b.type = "button"; b.addEventListener("click", () => toggle(look)); c.append(b); grid.append(c);
     }

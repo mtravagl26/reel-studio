@@ -19,6 +19,8 @@ Propose cuts for:
 - fillers: um, uh, like (as filler), kind of, sort of, basically, essentially, you know
 - long pauses (only if measured; most people pause less than you'd think)
 
+False starts (0.26.0): `review_sync.py export` runs `scripts/false_starts.py` on every reel and adds what it finds to the proposed cut: a word said twice within 1 s, a phrase started and restarted with the same 2-4 words (the first try goes), a word broken off before a pause and said again, and a sentence said twice in a row (the earlier take goes). They are listed in `<reel>/false_starts.json` and labelled on the review page; the person unticks any to keep. Words people repeat on purpose ("knock knock", "never never") are left alone. When `fillers.json` exists, a word the filler pass heard twice is added as a removable word too. Still read the transcript yourself: the finder only sees what Whisper wrote down.
+
 Never cut without their yes. Never cut a word you can't cut cleanly; leave it in and say so.
 
 ## edl.json

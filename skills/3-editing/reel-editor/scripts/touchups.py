@@ -104,7 +104,10 @@ def collect(reel):
     was = [(s, w) for s, w in _words(base["edit"], tl_base)]
     fixes = []
     for src, w in _words(cur, tl_cur):
-        b = next((bw for bs, bw in was if abs(bs - src) <= EPS * speed + 1e-6), None)
+        # 0.26.0: two words can start within EPS of each other ("start with" said fast). Compare with the same word if it is
+        # there, else the nearest one; taking the first in range made the neighbour look "fixed" and copied its text over.
+        cand = sorted(((abs(bs - src), bw) for bs, bw in was if abs(bs - src) <= EPS * speed + 1e-6), key=lambda x: x[0])
+        b = next((bw for _, bw in cand if bw.get("text") == w.get("text")), cand[0][1] if cand else None)
         if b and (b.get("text") != w.get("text") or bool(b.get("accent")) != bool(w.get("accent"))):
             fixes.append({"src": src, "text": w.get("text"), "accent": bool(w.get("accent")), "was": b.get("text")})
     t = {"speed": speed, "dropped": dropped, "words": fixes,
@@ -189,7 +192,8 @@ def apply(touch, edit, keep, speed):
     if sounds: edit["sfx_events"] = sorted(sounds, key=lambda x: x.get("t") or 0)
     now = _words(edit, tl); fixed = 0
     for f in touch["words"]:
-        near = [(abs(s - f["src"]), w) for s, w in now if abs(s - f["src"]) <= EPS * speed + 1e-6]
+        near = sorted(((abs(s - f["src"]), w) for s, w in now if abs(s - f["src"]) <= EPS * speed + 1e-6), key=lambda x: x[0])   # 0.26.0: nearest first
+        if f.get("was") is not None and any(w.get("text") == f["text"] for _, w in near[:1]): continue   # already says it: nothing to do
         was = f.get("was")
         if was is not None:
             # 0.16.0: a fix goes on the word it was made on, never on a neighbour. When the word at that moment is a different

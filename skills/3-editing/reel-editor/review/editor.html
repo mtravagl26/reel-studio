@@ -23,6 +23,11 @@ label.f { display: block; font-size: 13px; color: #5b6b69; margin: 10px 0 4px; }
 .banner { margin: 8px 0; padding: 10px 12px; border-radius: 12px; background: #fbe7d6; color: #6b3410; font-size: 14px; }
 .banner.ok { background: #e9efe1; color: #2c3b1f; } .banner.bad { background: #f8dcdc; color: var(--bad); } .banner.info { background: #dfeaf3; color: #1d4a6b; }
 .banner ul { margin: 4px 0 0 18px; padding: 0; }
+/* Added by By Mel Ross (0.26.0): what Instagram draws over a Reel (Meta's ad guidance: top 14%, bottom 20 to 35%, about 6% at the sides) */
+.igzone{position:absolute;inset:0;pointer-events:none;z-index:6;display:none;font:600 10px/1.2 system-ui,sans-serif;color:#fff}
+.igzone.on{display:block}
+.igzone i{position:absolute;left:0;right:0;background:repeating-linear-gradient(135deg,rgba(180,40,40,.38) 0 8px,rgba(180,40,40,.2) 8px 16px);display:flex;align-items:center;justify-content:center;text-align:center;font-style:normal}
+.igzone .t{top:0;height:14%}.igzone .b{bottom:0;height:20%}.igzone .r{top:45%;bottom:20%;left:auto;width:12%}
 .vwrap { position: relative; margin: 10px auto 0; width: min(100%, 360px); aspect-ratio: 9 / 16; background: #000; border-radius: 14px; overflow: hidden; }
 .vwrap video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
 #ov { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
@@ -115,8 +120,8 @@ summary .tipb{margin-right:auto}
 <div id="status"></div>
 <div id="notes"></div>
 
-<div class="vwrap"><video id="v" playsinline controls preload="metadata"></video><iframe id="live" title="Live preview of your changes" tabindex="-1" aria-hidden="true" style="display:none"></iframe><div id="ov"></div></div>
-<div class="livebar"><label class="row" style="gap:8px"><span class="sw"><input type="checkbox" id="liveOn" checked><i></i></span><b>Live preview</b></label><span id="livemsg" class="small"></span></div>
+<div class="vwrap"><video id="v" playsinline controls preload="metadata"></video><iframe id="live" title="Live preview of your changes" tabindex="-1" aria-hidden="true" style="display:none"></iframe><div id="ov"></div><div class="igzone" id="igzone" aria-hidden="true"><i class="t">Instagram: name, audio</i><i class="b">Instagram: caption, buttons</i><i class="r">likes</i></div></div>
+<div class="livebar"><label class="row" style="gap:8px"><span class="sw"><input type="checkbox" id="liveOn" checked><i></i></span><b>Live preview</b></label><span id="livemsg" class="small"></span><label class="row small" style="gap:6px;margin-left:auto"><input type="checkbox" id="igon"> Show what Instagram covers</label></div>
 <div class="vbar"><span id="clock">0:00.0</span><span class="grow"></span><button id="nowBtn" class="sm" title="Copies the moment the video is paused at into the start time of the item you have open">Mark time</button><select id="ver" style="width:auto"></select></div>
 <div id="tl"><div id="tli"></div></div>
 <div class="tlkey"><span><i style="background:#f3e9b8;border:1px solid #dccf8f"></i>captions</span><span><i style="background:#0d2b2d"></i>text and cards</span><span><i style="background:#e7a23b"></i>pictures, GIFs, clips</span><span><i style="background:#7a4fa3;border-radius:50%"></i>sounds</span><span><i style="background:none;border-left:2px dashed #c0392b;width:0"></i>a cut</span></div>
@@ -136,7 +141,8 @@ summary .tipb{margin-right:auto}
   <hr style="border:0;border-top:1px solid var(--line);margin:14px 0">
   <label class="f">Special effect</label>
   <button id="addOrbit" data-a="orbit-open" style="width:100%">+ Make pictures circle my head</button>
-  <p class="help" style="margin-top:8px">1 to 6 of your pictures fly in a ring around your head for a few seconds.</p><div id="orbitPick"></div></div></details>
+  <p class="help" style="margin-top:8px">1 to 6 of your pictures fly in a ring around your head for a few seconds.</p><div id="orbitPick"></div>
+  <p class="help" style="margin-top:10px"><a href="/styles">See every look you can add</a>: hook titles, caption styles, lists, the arched title with a sparkle wave and more. Pick them there and hand the request to Claude.</p></div></details>
 <details id="s-sfx"><summary>Sound effects <small id="sfxn"></small></summary><div class="sec"><div id="sfxmaster"></div><div id="sfx"></div><button id="addSfx" class="sage" style="width:100%;margin-top:8px">+ Add a sound at this point in the video</button></div></details>
 <details id="s-set"><summary>Settings</summary><div class="sec" id="settings"></div></details>
 <details id="s-ver"><summary>Versions <small id="vern"></small></summary><div class="sec" id="versions"></div></details>
@@ -483,7 +489,12 @@ function renderSettings() {
     <label class="f">How loud the sounds are</label><div class="seg">${["quieter", "normal", "louder"].map((k) => `<button class="${S.sfxVol === k ? "on" : ""}" data-a="sfx-vol" data-v="${k}" data-s="reel">${k[0].toUpperCase() + k.slice(1)}</button>`).join("")}</div>
     <p class="help" style="margin:8px 0">Sounds already sit under your voice and dip while you talk. For every reel: <button class="sm" data-a="sfx-vol" data-v="quieter" data-s="all">quieter</button> <button class="sm" data-a="sfx-vol" data-v="normal" data-s="all">normal</button> <button class="sm" data-a="sfx-vol" data-v="louder" data-s="all">louder</button> (now ${S.sfxVolAll}).</p>
     ${S.hasFinal ? `<button class="sm" data-a="remix">Update the sound on my finished reel</button><p class="help" style="margin:6px 0 12px">Keeps the picture and mixes the sound again in about 20 seconds. Use it after changing sound settings, or on a reel rendered before 0.25.0. Anything else needs Re-render.</p>` : ""}</details>`;
-  $("#settings").innerHTML = themeBox + colorBox + hlBox + `<label class="f">Where text goes by default (every reel)</label><div class="seg"><button class="${L === "front" ? "on" : ""}" data-a="default" data-v="front">In front of me</button><button class="${L === "behind" ? "on" : ""}" data-a="default" data-v="behind">Behind me</button></div>
+  // Added by By Mel Ross (0.26.0): where captions sit
+  const hi = S.layout === "captions-high";
+  const layBox = `<label class="f">Where captions sit</label>
+    <div class="seg"><button class="${hi ? "" : "on"}" data-a="layout" data-v="captions-low" data-s="reel">At the bottom</button><button class="${hi ? "on" : ""}" data-a="layout" data-v="captions-high" data-s="reel">Above my head</button></div>
+    <p class="help" style="margin:8px 0">${hi ? "Captions sit above your head and text graphics move to the lower third." : "Captions sit at the bottom and text graphics sit near the top."} For every reel: <button class="sm" data-a="layout" data-v="captions-low" data-s="all">bottom</button> <button class="sm" data-a="layout" data-v="captions-high" data-s="all">above my head</button> (now ${S.layoutAll === "captions-high" ? "above my head" : "bottom"}). To move captions for part of a reel, use the Captions tab on the review page.</p><hr style="border:0;border-top:1px solid var(--line);margin:14px 0">`;
+  $("#settings").innerHTML = themeBox + colorBox + layBox + hlBox + `<label class="f">Where text goes by default (every reel)</label><div class="seg"><button class="${L === "front" ? "on" : ""}" data-a="default" data-v="front">In front of me</button><button class="${L === "behind" ? "on" : ""}" data-a="default" data-v="behind">Behind me</button></div>
     <p class="help" style="margin-top:8px">Text sits in the top area above your head. This only sets the layer new text starts on; you can change any single piece of text. ${S.hasTextDefault ? "" : "(Not saved in the brand file yet: the built-in default is in front.)"}</p>`;
 }
 function renderVersions() {
@@ -554,6 +565,9 @@ document.addEventListener("click", async (e) => {
     toast("Getting it from GIPHY…");
     try { const j = await post("/api/giphy-add", { id: el.dataset.v, kind: giphy.kind }); await addPopup(j.upload.src); } catch (er) { toast(er.message, true); }
   }
+  else if (a === "layout") {   // 0.26.0
+    try { await post("/api/layout", { layout: el.dataset.v, scope: el.dataset.s }); toast(`Captions ${el.dataset.v === "captions-high" ? "above your head" : "at the bottom"} for ${el.dataset.s === "all" ? "every reel" : "this reel"}`); } catch (er) { toast(er.message, true); }
+  }
   else if (a === "sfx-vol") {   // 0.25.0
     try { await post("/api/sfx-volume", { level: el.dataset.v, scope: el.dataset.s }); toast(`Sounds ${el.dataset.v} for ${el.dataset.s === "all" ? "every reel" : "this reel"}. Press "Update the sound" to hear it.`); } catch (er) { toast(er.message, true); }
   }
@@ -590,6 +604,7 @@ document.addEventListener("change", async (e) => {
   else if (a === "range") op({ op: "card_set", i, set: { [el.dataset.f]: el.value } }, `c${cid(i)}:${el.dataset.f}`);
   else if (a === "sfx-set") op({ op: "sfx_set", i, set: { [el.dataset.f]: el.value } }, `s${sid(i)}:${el.dataset.f}`);
 });
+document.addEventListener("change", (e) => { if (e.target.id === "igon") $("#igzone").classList.toggle("on", e.target.checked); });   // 0.26.0
 // Added by By Mel Ross (0.23.0): the highlighted-word sample follows the pickers before you save.
 function lum(h) { const c = [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16) / 255).map((x) => x <= 0.03928 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4); return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]; }
 function contrast(a, b) { const x = lum(a), y = lum(b); return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05); }

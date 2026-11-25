@@ -103,6 +103,7 @@ What the engine gained for these (all in `scripts/build_reel.py`):
 | H17 | List promise with the number in colour | built | `{"type": "title", "text": "the *5* tools / I'd give anyone", "align": "center", "y": 95, "size": 130, "color": "#FFFFFF"}` |
 | H18 | Hype claim hook | planned | A claim that one thing has ended another, in a white box. Common, and it draws comments by overstating. |
 | H19 | Question label above the head | built | `{"type": "tag", "text": "what most people do", "y": 130}` |
+| H20 | Arched title with a sparkle wave (0.26.0) | built | `{"type": "arctitle", "text": "Series name", "sub": "part one", "trail": true}`. The sparkles need a Mac; see `references/hand-trail.md`. |
 | C6 | White label-box single word | built | brand: `{"colors": {"caption": "#000000"}, "captions": {"size": 96, "y": 1250, "case": "sentence", "mode": "word", "bg": "#FFFFFF"}}` |
 | C7 | Quiet mid-lower white phrase | built | brand: `{"captions": {"size": 54, "y": 1130, "case": "sentence", "mode": "phrase"}}` |
 | C8 | Bold word with soft shadow | built | brand: `{"colors": {"caption": "#FFFFFF"}, "captions": {"size": 120, "y": 1250, "case": "sentence", "mode": "word"}}` |
