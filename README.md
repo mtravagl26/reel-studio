@@ -159,7 +159,7 @@ Want to start from an example? [`brand/`](brand) holds By Mel Ross's brand:
 Useful `brand.json` settings this version adds:
 
 - `"enhance"`: the studio look. `{"on": true, "strength": 1, "color": 1, "exposure": 1, "denoise": 1, "sharpen": 1, "background": 1, "warmth": 1}`; each amount is a multiplier (1 default, 0 off, 2 double) and `"on": false` turns it off. See [look-and-layers](skills/3-editing/reel-editor/references/look-and-layers.md).
-- `"mix"`: `{"voice": 0, "music": -14, "duck": -10, "effects": 0}` in dB, for levels. Set the track with `"music": "~/reels/music/calm/soft piano.mp3"` (or `"none"`), and `"music_start"` to skip a track's intro. See [music](skills/3-editing/reel-editor/references/music.md) and See [sound-and-mix](skills/3-editing/reel-editor/references/sound-and-mix.md).
+- `"mix"`: `{"voice": 0, "music": -14, "duck": -10, "effects": 0}`, the levels in dB. Pick the track itself with a separate top-level `"music": "~/reels/music/calm/soft piano.mp3"` (or `"none"`), and set `"music_start"` to skip a track's intro. See [music](skills/3-editing/reel-editor/references/music.md) and [sound-and-mix](skills/3-editing/reel-editor/references/sound-and-mix.md).
 - `"sfx_volume"`: a level change per sound effect, e.g. `{"pop": -3}`.
 
 - `"zoom"`: `{"scale": 1.04, "seconds": 2.5, "ease": "sine.inOut", "every": 6}` is the gentle default. For quick punch-ins use `{"scale": 1.07, "seconds": 0.22, "ease": "power3.out", "every": 2.2}`.
