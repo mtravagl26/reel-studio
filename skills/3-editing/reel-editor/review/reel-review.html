@@ -118,6 +118,7 @@ textarea{min-height:80px;resize:vertical}
 .cw .x:hover{background:var(--line)}
 .cw .x.acc{font-style:italic;color:var(--accent);background:var(--accent-soft)}
 .cw .flag{font-size:12px;color:var(--warn)}
+.words{display:grid;gap:6px;margin:8px 0}.words label{display:grid;gap:3px}.words input,.words textarea{font:inherit;padding:8px;border-radius:8px;border:1.5px solid var(--line);width:100%;box-sizing:border-box}
 .w.fs{text-decoration-color:#b3261e}.fsl{font-size:11px;font-weight:700;color:#b3261e;background:#fbe9e7;border-radius:999px;padding:1px 7px;margin:0 4px;align-self:center}
 .tools{display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end}
 .tools button{font:600 12px var(--f-mono);border:1.5px solid var(--line);background:var(--surface);color:var(--ink);border-radius:8px;padding:3px 7px;cursor:pointer}
@@ -155,6 +156,7 @@ code{font:500 13px var(--f-mono);background:var(--accent-soft);border-radius:6px
 .steps .step{display:inline-flex;align-items:center;min-height:36px;padding:0 12px;border-radius:999px;border:1.5px solid #e1dccf;background:#fff;color:#0d2b2d;text-decoration:none}
 .steps .step[aria-current="step"]{background:#0d2b2d;border-color:#0d2b2d;color:#f5f2ec}
 .steps .step.off{opacity:.55}
+.embedded .steps{display:none}
 .builtnote{max-width:1200px;margin:12px auto 0;padding:10px 16px;border-radius:12px;background:#fbe7d6;color:#6b3410;font-size:14px}
 .builtnote a{color:inherit;font-weight:700}
 @media (min-width:1232px){.builtnote{padding-inline:14px}}
@@ -164,14 +166,14 @@ code{font:500 13px var(--f-mono);background:var(--accent-soft);border-radius:6px
 #tipbox{position:fixed;z-index:9999;max-width:min(300px,calc(100vw - 24px));background:#0d2b2d;color:#f5f2ec;font:400 14px/1.45 system-ui,sans-serif;padding:10px 12px;border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.25)}
 </style>
 
+<script>if (window.top !== window && /[?&]embed=1/.test(location.search)) document.documentElement.classList.add("embedded");</script>
 <nav class="steps" aria-label="Reel Studio steps">
   <span class="brand">Reel Studio</span>
-  <a class="step off" data-step="review" title="Ask Claude to open the review page">1 Review</a>
-  <a class="step off" data-step="touchups" title="Ask Claude to open the editor page">2 Touch-ups</a>
-  <a class="step off" data-step="cover" title="Ask Claude to open my thumbnail studio">3 Cover</a>
-  <a class="step off" data-step="caption" title="Ask Claude to open the caption page">4 Caption</a>
+  <a class="step off" data-step="edit" title="Ask Claude to open the editor page">1 Edit</a>
+  <a class="step off" data-step="cover" title="Ask Claude to open my thumbnail studio">2 Cover</a>
+  <a class="step off" data-step="caption" title="Ask Claude to open the caption page">3 Caption</a>
 </nav>
-<p class="builtnote" id="builtnote" hidden>This reel is already built. To change it, use <a href="/touchups">2 Touch-ups</a>. You can still redo the cut here: when it's built again, your touch-ups come along wherever their moment is still in the reel.</p>
+<p class="builtnote" id="builtnote" hidden>This reel is already built. To change it, use <a href="/edit#touch" target="_top">Touch-ups</a>. You can still redo the cut here: when it's built again, your touch-ups come along wherever their moment is still in the reel.</p>
 <div class="wrap">
   <aside class="side">
     <h1>Review the cut</h1>
@@ -317,7 +319,7 @@ function setSteps(here, links) {
     else if (k === "cover" && u && !local) el.title = "The cover page opens on your Mac, not on your phone";
   });
 }
-setSteps("review");
+setSteps("edit");
 const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
 const v = $("#v"), ov = $("#ov");
 const fmt = t => `${Math.floor(t / 60)}:${(Math.max(0, t) % 60).toFixed(1).padStart(4, "0")}`;
@@ -612,6 +614,32 @@ function placeText(g) {
   if (w >= 1000 && h >= 1800) return "Full screen";
   const mid = y + h / 2; return (mid < 700 ? "Top, above your head" : mid < 1250 ? "Middle" : "Lower third") + (w < 600 ? (x + w / 2 < 540 ? ", left" : ", right") : "");
 }
+// Added by By Mel Ross (0.28.0): change a graphic's words on the review page. Saved as board[id].set; the import writes them
+// into the card, so no note to Claude is needed for a typo or a better word.
+const WORD_FIELDS = { title: [["text", "Words"]], tag: [["text", "Words"]], cta: [["text", "Words"]], note: [["text", "Words"]], quote: [["text", "Words"]],
+  arctitle: [["text", "Arched words"], ["sub", "Line under it"]], card: [["title", "List title"], ["rows", "Rows, one per line"]], chips: [["title", "Title"]],
+  stat: [["value", "The number"], ["label", "Words above it"], ["delta", "The change"]], xlist: [["items", "Lines, one per line"]], shot: [["label", "Label"]] };
+function wordsBox(g) {
+  const box = document.createElement("div"); box.className = "words";
+  const set = (S.board[g.id] || {}).set || {};
+  for (const [f, name] of WORD_FIELDS[g.type]) {
+    const list = f === "rows" || f === "items", now = f in set ? set[f] : g[f];
+    if (now == null && f === "delta") continue;
+    const lab = document.createElement("label"); lab.className = "lede"; lab.textContent = name;
+    const inp = document.createElement(list ? "textarea" : "input"); if (!list) inp.type = "text";
+    inp.value = list ? (now || []).join("\n") : (now ?? ""); inp.maxLength = list ? 300 : 80; if (list) inp.rows = Math.max(3, (now || []).length);
+    inp.dataset.wf = f; inp.setAttribute("aria-label", `${name} for ${g.id}`);
+    inp.addEventListener("change", () => mutate(() => {
+      const cur = { ...(S.board[g.id] || {}) }, s2 = { ...(cur.set || {}) };
+      const v = list ? inp.value.split("\n").map(x => x.trim()).filter(Boolean).slice(0, 6) : inp.value.trim();
+      const orig = g[f]; if (JSON.stringify(v) === JSON.stringify(orig) || (!list && !v && f !== "sub" && f !== "delta")) delete s2[f]; else s2[f] = v;
+      if (Object.keys(s2).length) cur.set = s2; else delete cur.set; S.board[g.id] = cur;
+    }));
+    lab.appendChild(inp); box.appendChild(lab);
+  }
+  if (Object.keys(set).length) { const n = document.createElement("p"); n.className = "lede"; n.textContent = "New words saved. They go in at the next build."; box.appendChild(n); }
+  return box;
+}
 function renderGraphics() {
   const box = $("#cards"); box.textContent = ""; const n = { k: 0, c: 0, d: 0 };
   for (const g of GFX) {
@@ -642,6 +670,7 @@ function renderGraphics() {
     }
     body.append(kind, what, meta, seg);
     if (st !== "d" && !g.gone) body.appendChild(placer(S.board[g.id] || {}, (k, v) => mutate(() => { const cur = { ...(S.board[g.id] || {}) }; if (v) cur[k] = v; else delete cur[k]; S.board[g.id] = cur; })));
+    if (st !== "d" && !g.gone && WORD_FIELDS[g.type]) body.appendChild(wordsBox(g));   // 0.28.0: change the words here
     if (st === "c") {
       const inp = document.createElement("input"); inp.type = "text"; inp.id = "note-" + g.id; inp.placeholder = "What should change?"; inp.value = (S.board[g.id] || {}).note || "";
       inp.addEventListener("input", () => { S.board[g.id] = { ...(S.board[g.id] || { state: "c" }), note: inp.value }; queueSave(); });
@@ -1084,7 +1113,7 @@ function renderAll() {
     db.doc("builds/latest").onSnapshot(s => { B = s.exists ? s.data() : null; if (R) renderPreview(); if (tab === "preview") showTab("preview"); }, () => {});
     recompute();
     $("#reelname").textContent = `${R.title} · raw ${fmt(R.srcDur)} → reel ${fmt(P.cutDur)}`; setPos(0);
-    setSteps("review", { cover: R.thumbnailUrl, touchups: R.editorUrl, ...(window.REEL_STUDIO_LINKS || {}) });
+    setSteps("edit", { cover: R.thumbnailUrl, edit: (() => { try { return R.editorUrl ? new URL("/edit", R.editorUrl).href : null; } catch { return null; } })(), ...(window.REEL_STUDIO_LINKS || {}) });
     $("#lookslink").hidden = !window.REEL_STUDIO_LINKS;   // the looks page is served by the local Reel Studio link only
     if (window.REEL_STUDIO_LINKS) fetch("/api/stage").then(r => r.json()).then(st => { $("#builtnote").hidden = !st.built; }).catch(() => {});
     $("#brand").value = S.brandRequest || "";

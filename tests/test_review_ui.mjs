@@ -69,11 +69,14 @@ try {
   if (!up) throw new Error("the studio server didn't start on port " + port);
 
   // ---- 1 Review: the one link opens the review page while the reel is not built
+  // 0.28.0: the one link opens the Edit page, on The cut while the reel is not built
   await open("/");
+  await until(`document.querySelector("#t-cut")?.getAttribute("aria-selected") === "true" && document.querySelector("#f-cut")?.getAttribute("src") === "/review?embed=1"`, "the Edit page on The cut");
+  await open("/review");
   await until(`location.pathname === "/review" && /UI test reel/.test(document.querySelector("#reelname")?.textContent || "")`, "the review page to load the reel");
   assert.equal(await text("h1"), "Review the cut");
-  assert.equal(await text('.steps [aria-current="step"]'), "1 Review");
-  assert.equal(await js(`document.querySelector('.steps [data-step="touchups"]').getAttribute("href")`), "/touchups");
+  assert.equal(await text('.steps [aria-current="step"]'), "1 Edit");
+  assert.equal(await js(`document.querySelector('.steps [data-step="caption"]').getAttribute("href")`), "/caption");
   assert.equal(await js(`document.querySelector("#builtnote").hidden`), true, "no 'already built' note yet");
   assert.equal(await js(`getComputedStyle(document.body).backgroundColor`), "rgb(245, 242, 236)", "cream page");
   const words = `[...document.querySelectorAll(".w")].filter((e) => !e.classList.contains("filler"))`;
@@ -104,9 +107,11 @@ try {
 
   // ---- 2 Touch-ups
   await open("/");
+  await until(`document.querySelector("#t-touch")?.getAttribute("aria-selected") === "true"`, "the Edit page on Touch-ups once built");
+  await open("/touchups");
   await until(`document.querySelector("h1")?.textContent === "Touch-ups" && document.querySelector("#caps .w")`, "the touch-ups page");
-  assert.equal(await text('.steps [aria-current="step"]'), "2 Touch-ups");
-  assert.equal(await js(`document.querySelector('.steps [data-step="review"]').getAttribute("href")`), "/review");
+  assert.equal(await text('.steps [aria-current="step"]'), "1 Edit");
+  assert.equal(await js(`document.querySelector('.steps [data-step="caption"]').getAttribute("href")`), "/caption");
   await js(`document.querySelectorAll("details").forEach((d) => (d.open = true))`);
   assert.equal(await js(`document.querySelector("#themePick").value`), "editorial", "the theme picked in review shows here");
   assert.match(await text("#giphy"), /not set up yet/, "GIPHY stays off without a key");

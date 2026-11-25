@@ -208,7 +208,7 @@ test("the three pages share one step bar and one palette, and load nothing from 
   for (const f of ["reel-review.html", "thumbnail.html", "editor.html"]) {
     const html = fs.readFileSync(path.join(review, f), "utf8");
     assert.match(html, /class="steps"/, `${f}: step bar`);
-    for (const k of ["review", "cover", "touchups"]) assert.ok(html.includes(`data-step="${k}"`), `${f}: step ${k}`);
+    for (const k of ["edit", "cover", "caption"]) assert.ok(html.includes(`data-step="${k}"`), `${f}: step ${k}`);   // 0.28.0: 1 Edit, 2 Cover, 3 Caption
     assert.ok(/#f5f2ec/i.test(html) && /#0d2b2d/i.test(html), `${f}: cream and teal`);
     assert.ok(!/ED84B0|FFF8FB/i.test(html), `${f}: no leftover pink`);
     // the one outside address is GIPHY, on the touch-ups page, and only when the person has set a key and presses Search
@@ -363,8 +363,8 @@ test("studio server: an unbuilt reel opens on the review page, saves decisions, 
   for (let i = 0; i < 60 && !/Reel Studio for/.test(out); i++) await new Promise((r) => setTimeout(r, 100));
   const base = `http://127.0.0.1:${port}`;
   try {
-    const home0 = await fetch(base + "/", { redirect: "manual" });
-    assert.equal(home0.status, 302); assert.equal(home0.headers.get("location"), "/review");
+    const home0 = await fetch(base + "/", { redirect: "manual" });   // 0.28.0: the one link opens the Edit page, which shows The cut first
+    assert.equal(home0.status, 200); assert.match(await home0.text(), /The cut[\s\S]*Touch-ups/);
     const page = await (await fetch(base + "/review")).text();
     assert.ok(page.includes("shim.js") && page.includes("REEL_STUDIO_LINKS") && page.includes('"/touchups"'), "review page gets the storage shim and the step links");
     assert.deepEqual(await (await fetch(base + "/api/stage")).json(), { reel: "r1", built: false, review: true });
@@ -435,4 +435,58 @@ test("server: lists the themes, sets one for this reel or every reel, and keeps 
     const g = await post("/api/giphy-add", { id: "abc123XYZ" });
     assert.equal(g.ok, false); assert.match(g.error, /no GIPHY key/);
   });
+});
+
+// Added by By Mel Ross (0.28.0): background music, Add a look, and the words of added looks.
+test("touch-ups: background music from the music folder, a look added at the playhead, its words editable", { skip: skipReason }, async () => {
+  await withServer(async ({ base, reel, home, dir, get, post }) => {
+    let s = await (await get("/api/state")).json();
+    assert.deepEqual(s.music.tracks, []); assert.equal(s.music.track, "");
+    const mp3 = path.join(dir, "soft piano.mp3"); ff(["-f", "lavfi", "-i", "sine=f=330:d=3", "-c:a", "libmp3lame", mp3]);
+    const up = await post("/api/music-upload?name=" + encodeURIComponent("soft piano.mp3"), null, fs.readFileSync(mp3));
+    assert.equal(up.ok, true, up.error); assert.equal(up.name, "soft piano.mp3");
+    assert.equal((await post("/api/music-upload?name=notes.txt", null, Buffer.from("hi"))).ok, false, "only music files");
+    fs.mkdirSync(path.join(home, "music", "calm")); fs.copyFileSync(mp3, path.join(home, "music", "calm", "rain.mp3"));
+    s = (await post("/api/music", { track: "calm/rain.mp3" })).state;
+    assert.equal(s.music.track, "calm/rain.mp3"); assert.deepEqual(s.music.tracks.map((t) => [t.name, t.mood]), [["soft piano.mp3", ""], ["calm/rain.mp3", "calm"]]);
+    let edit = JSON.parse(fs.readFileSync(path.join(reel, "edit.json"), "utf8"));
+    assert.equal(path.resolve(edit.music.replace(/^~/, process.env.HOME)), path.join(home, "music", "calm", "rain.mp3"));
+    s = (await post("/api/music", { level: "softer", start: 3.5 })).state; assert.equal(s.music.level, "softer"); assert.equal(s.music.start, 3.5);
+    edit = JSON.parse(fs.readFileSync(path.join(reel, "edit.json"), "utf8")); assert.equal(edit.mix.music, -20); assert.equal(edit.music_start, 3.5);
+    for (const bad of ["../brand.json", "calm/../../x.mp3", ".hidden.mp3", "nope.mp3"]) assert.equal((await post("/api/music", { track: bad })).ok, false, bad);
+    assert.equal((await get("/music/" + encodeURIComponent("calm/rain.mp3"))).headers.get("content-type"), "audio/mpeg");
+    assert.equal((await get("/music/" + encodeURIComponent("../brand.json"))).status, 404);
+    await post("/api/music", { track: "soft piano.mp3", scope: "all" });
+    assert.match(JSON.parse(fs.readFileSync(path.join(home, "brand.json"), "utf8")).music, /soft piano\.mp3$/);
+    s = (await post("/api/music", { track: "" })).state; assert.equal(s.music.track, "", "No music on this reel even with an every-reel track");
+    assert.equal(JSON.parse(fs.readFileSync(path.join(reel, "edit.json"), "utf8")).music, "none");
+    // Add a look at the playhead
+    assert.ok(s.addLooks.some((l) => l.id === "L8") && !s.addLooks.some((l) => l.id.startsWith("C")), "hooks and layouts only");
+    const add = await post("/api/look-add", { id: "L8", t: 5 }); assert.equal(add.ok, true, add.error);
+    const card = add.state.edit.cards.find((c) => c.look === "L8"); assert.equal(card.type, "stat"); assert.equal(card.start, 5);
+    assert.equal((await post("/api/look-add", { id: "C3", t: 2 })).ok, false, "a caption look isn't a card");
+    const i = add.state.edit.cards.indexOf(add.state.edit.cards.find((c) => c.look === "L8"));
+    const set = await post("/api/op", { op: { op: "card_set", i, set: { value: "1,200", label: "followers", delta: "" } } });
+    assert.equal(set.ok, true, set.error); assert.equal(set.state.edit.cards[i].value, "1,200");
+  });
+  const ed = fs.readFileSync(path.join(review, "editor.html"), "utf8");
+  for (const t of ["Background music", "Add a look at this point in the video", "data-drag=", "data-dragv", "Start the track at", "Use this track for every reel"]) assert.ok(ed.includes(t), t);
+});
+
+test("mixer: a reel can say no music, and the music dips under sound effects (0.28.0)", { skip: skipReason }, () => {
+  const mx = fs.readFileSync(path.join(skill, "scripts", "mix_audio.py"), "utf8");
+  assert.match(mx, /if music == "none": music = None/); assert.match(mx, /for e in events:\n\s+k0 = int/); assert.match(mx, /music_start/);
+});
+
+test("home page: an empty music folder offers 3 starter tracks made on this computer (0.28.0)", { skip: skipReason }, async () => {
+  const home = tmp("starters"), port = 4950 + Math.floor(Math.random() * 40);
+  const srv = spawn("node", [path.join(review, "home-server.mjs"), "--port", String(port)], { env: { ...process.env, REELS_HOME: home }, stdio: "ignore" });
+  try {
+    const base = `http://127.0.0.1:${port}`;
+    for (let k = 0; k < 40; k++) { try { await fetch(base + "/"); break; } catch { await new Promise((r) => setTimeout(r, 150)); } }
+    const j = await (await fetch(base + "/api/music-starters", { method: "POST", headers: { Origin: base } })).json();
+    assert.equal(j.ok, true, j.error); assert.deepEqual(j.music.map((t) => t.name).sort(), ["bright/bright bed.wav", "calm/calm bed.wav", "warm/warm bed.wav"]);
+    assert.equal((await fetch(base + "/music/" + encodeURIComponent("calm/calm bed.wav"))).headers.get("content-type"), "audio/wav");
+  } finally { srv.kill(); }
+  assert.match(fs.readFileSync(path.join(review, "home.html"), "utf8"), /Make 3 starter tracks/);
 });

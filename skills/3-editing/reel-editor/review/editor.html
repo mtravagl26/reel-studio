@@ -38,6 +38,8 @@ label.f { display: block; font-size: 13px; color: #5b6b69; margin: 10px 0 4px; }
 #ov .box { position: absolute; border: 2px dashed #fff; background: rgba(185,200,165,.25); display: flex; align-items: center; justify-content: center; overflow: hidden; }
 #ov .box img { width: 100%; height: 100%; object-fit: contain; display: block; }
 #ov .pill { position: absolute; left: 0; right: 0; text-align: center; }
+#ov [data-dragv] { pointer-events: auto; cursor: grab; touch-action: none; }
+.mk.gfx { cursor: grab; touch-action: pan-y; } .mk.gfx.dragging { opacity: .7; outline: 2px solid var(--ink); z-index: 3; }
 #ov .pill span { display: inline-block; background: rgba(28,22,34,.55); border: 1.5px dashed #fff; color: #fff; border-radius: 99px; padding: 3px 12px; font-weight: 700; white-space: nowrap; }
 .row { display: flex; gap: 8px; align-items: center; } .row > * { min-width: 0; }
 .grow { flex: 1; }
@@ -93,6 +95,7 @@ summary::-webkit-details-marker { display: none; } summary small { font-weight: 
 .steps .step{display:inline-flex;align-items:center;min-height:36px;padding:0 12px;border-radius:999px;border:1.5px solid #e1dccf;background:#fff;color:#0d2b2d;text-decoration:none}
 .steps .step[aria-current="step"]{background:#0d2b2d;border-color:#0d2b2d;color:#f5f2ec}
 .steps .step.off{opacity:.55}
+.embedded .steps{display:none}
 body.unbuilt > :not(nav):not(header):not(#unbuilt), body.unbuilt header button { display: none !important; }
 .banner a { color: inherit; }
 .lede { margin: 8px 0 0; font-size: 14px; color: #5b6b69; }
@@ -103,12 +106,12 @@ summary .tipb{margin-right:auto}
 #tipbox{position:fixed;z-index:9999;max-width:min(300px,calc(100vw - 24px));background:#0d2b2d;color:#f5f2ec;font:400 14px/1.45 system-ui,sans-serif;padding:10px 12px;border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.25)}
 </style></head>
 <body>
+<script>if (window.top !== window && /[?&]embed=1/.test(location.search)) document.documentElement.classList.add("embedded");</script>
 <nav class="steps" aria-label="Reel Studio steps">
   <span class="brand">Reel Studio</span>
-  <a class="step off" data-step="review" title="Ask Claude to open the review page">1 Review</a>
-  <a class="step off" data-step="touchups" title="Ask Claude to open the editor page">2 Touch-ups</a>
-  <a class="step off" data-step="cover" title="Ask Claude to open my thumbnail studio">3 Cover</a>
-  <a class="step off" data-step="caption" title="Ask Claude to open the caption page">4 Caption</a>
+  <a class="step off" data-step="edit" title="Ask Claude to open the editor page">1 Edit</a>
+  <a class="step off" data-step="cover" title="Ask Claude to open my thumbnail studio">2 Cover</a>
+  <a class="step off" data-step="caption" title="Ask Claude to open the caption page">3 Caption</a>
 </nav>
 <header>
   <div class="t"><h1>Touch-ups</h1><small id="sub"></small></div>
@@ -142,8 +145,9 @@ summary .tipb{margin-right:auto}
   <label class="f">Special effect</label>
   <button id="addOrbit" data-a="orbit-open" style="width:100%">+ Make pictures circle my head</button>
   <p class="help" style="margin-top:8px">1 to 6 of your pictures fly in a ring around your head for a few seconds.</p><div id="orbitPick"></div>
+  <div id="addlook" style="margin-top:12px"></div>
   <p class="help" style="margin-top:10px"><a href="/styles">See every look you can add</a>: hook titles, caption styles, lists, the arched title with a sparkle wave and more. Pick them there and hand the request to Claude.</p></div></details>
-<details id="s-sfx"><summary>Sound effects <small id="sfxn"></small></summary><div class="sec"><div id="sfxmaster"></div><div id="sfx"></div><button id="addSfx" class="sage" style="width:100%;margin-top:8px">+ Add a sound at this point in the video</button></div></details>
+<details id="s-sfx"><summary>Music and sound effects <small id="sfxn"></small></summary><div class="sec"><div id="sfxmaster"></div><div id="sfx"></div><button id="addSfx" class="sage" style="width:100%;margin-top:8px">+ Add a sound at this point in the video</button></div></details>
 <details id="s-set"><summary>Settings</summary><div class="sec" id="settings"></div></details>
 <details id="s-ver"><summary>Versions <small id="vern"></small></summary><div class="sec" id="versions"></div></details>
 <div id="toast"></div>
@@ -179,7 +183,7 @@ async function op(o, key, msg) { try { const j = await post("/api/op", { op: o, 
 async function load() {
   S = await (await fetch("/api/state")).json();
   if (S.built === false) {   // the reel has not been built yet: nothing to touch up
-    document.body.classList.add("unbuilt"); $("#sub").textContent = S.reel; setSteps("touchups", S.links);
+    document.body.classList.add("unbuilt"); $("#sub").textContent = S.reel; setSteps("edit", S.links);
     $("#unbuilt").hidden = false; setTimeout(load, 4000); return;
   }
   if (document.body.classList.contains("unbuilt")) { document.body.classList.remove("unbuilt"); $("#unbuilt").hidden = true; }
@@ -191,7 +195,7 @@ const dur = () => S.total;
 
 // ------------------------------------------------------------------ render
 function render() {
-  $("#sub").textContent = `${S.reel} · ${fmt(S.total)} long · ${S.edit.cards.length} cards`; setSteps("touchups", S.links);
+  $("#sub").textContent = `${S.reel} · ${fmt(S.total)} long · ${S.edit.cards.length} cards`; setSteps("edit", S.links);
   $("#undo").disabled = !S.canUndo || running(); $("#undo").title = S.undoLabel ? `Undo: ${S.undoLabel}` : "";
   $("#render").disabled = running(); $("#render").textContent = running() ? "Rendering…" : "Re-render";
   renderStatus(); renderVideo(); renderTimeline(); renderCaps(); renderPieces(); renderCards(); renderPopups(); renderSfx(); renderSettings(); renderVersions(); drawOverlay();
@@ -245,14 +249,28 @@ function renderTimeline() {
   for (const c of S.edit.cards.slice().sort((a, b) => a.start - b.start)) {
     const end = c.end ?? c.start + 2, low = c.start < lastEnd - 0.05; if (!low) lastEnd = end;
     const label = c.text || c.title || c.label || (c.src ? String(Array.isArray(c.src) ? c.src[0] : c.src).replace(/^popups\/[^-]*-/, "").replace(/\.clip\.mp4$/, "") : c.type);
-    h += `<div class="mk gfx${c.type === "popup" || c.type === "orbit" ? " pop" : ""}${low ? " g2" : ""}${c.off ? " off" : ""}" style="left:${x(c.start)}px;width:${Math.max(x(end) - x(c.start) - 2, 16)}px" title="${esc(label)}">${esc(label)}</div>`;
+    h += `<div class="mk gfx${c.type === "popup" || c.type === "orbit" ? " pop" : ""}${low ? " g2" : ""}${c.off ? " off" : ""}" data-drag="${esc(c.id)}" style="left:${x(c.start)}px;width:${Math.max(x(end) - x(c.start) - 2, 16)}px" title="${esc(label)}">${esc(label)}</div>`;
   }
   for (const e of S.edit.sfx_events) h += `<div class="mk sfx${e.off ? " off" : ""}" style="left:${x(e.t)}px" title="${esc(e.name)}"></div>`;
   h += `<div class="ph" id="ph" style="left:${x(v.currentTime || 0)}px"></div>`;
   const inner = $("#tli"); inner.style.width = W + "px"; inner.innerHTML = h;
   const rc = $("#receipt"); rc.hidden = !(S.receipt || []).length; $("#receiptList").innerHTML = (S.receipt || []).map((l) => `<li>${esc(l.text)}</li>`).join("");
 }
-$("#tl").addEventListener("click", (e) => { const r = $("#tli").getBoundingClientRect(); v.currentTime = Math.max(0, Math.min((e.clientX - r.left) / PX, v.duration || S.total)); });
+// Added by By Mel Ross (0.28.0): drag a graphic along the timeline to move when it shows (its length stays the same)
+let dragged = false;
+$("#tl").addEventListener("pointerdown", (e) => {
+  const blk = e.target.closest("[data-drag]"); if (!blk || S.busy) return;
+  const i = cidx(blk.dataset.drag); if (i < 0) return;
+  const c = S.edit.cards[i], len = (c.end ?? c.start + 2) - c.start, x0 = e.clientX, left0 = blk.offsetLeft;
+  let t = c.start; dragged = false; blk.setPointerCapture(e.pointerId); blk.classList.add("dragging");
+  const move = (ev) => { const dx = ev.clientX - x0; if (Math.abs(dx) > 3) dragged = true; if (!dragged) return;
+    t = Math.round(Math.max(0, Math.min(S.total - 0.3, c.start + dx / PX)) * 10) / 10; blk.style.left = left0 + (t - c.start) * PX + "px"; $("#clock").textContent = fmt(t); };
+  const up = async () => { blk.removeEventListener("pointermove", move); blk.classList.remove("dragging");
+    if (!dragged || Math.abs(t - c.start) < 0.05) return;
+    await op({ op: "card_set", i, set: { start: t, end: Math.min(+(t + len).toFixed(2), S.total) } }, null, `Moved to ${fmt(t)}`); };
+  blk.addEventListener("pointermove", move); blk.addEventListener("pointerup", up, { once: true });
+});
+$("#tl").addEventListener("click", (e) => { if (dragged) { dragged = false; return; } const r = $("#tli").getBoundingClientRect(); v.currentTime = Math.max(0, Math.min((e.clientX - r.left) / PX, v.duration || S.total)); });
 v.addEventListener("timeupdate", () => {
   const t = v.currentTime; $("#clock").textContent = fmt(t);
   const ph = $("#ph"); if (ph) { ph.style.left = t * PX + "px";      // keep the playhead in view while it plays
@@ -320,6 +338,9 @@ function cardHtml(c, i) {
         <label class="f">Line under it (optional)</label><input type="text" maxlength="30" data-a="set" data-i="${i}" data-f="sub" value="${esc(c.sub || "")}" placeholder="e.g. part one" />`;
       if (c.trail) h += `<p class="help">Gold sparkles follow your hand while the words arrive. They need a Mac to track your hand.</p>`;
     }
+    const WORDS = { stat: [["value", "The number"], ["label", "Words above it"], ["delta", "The change (optional)"]], page: [["label", "Label"]], tiles: [["label", "Title"]] };   // 0.28.0
+    if (WORDS[c.type]) h += WORDS[c.type].map(([f, name]) => `<label class="f">${name}</label><input type="text" data-a="set" data-i="${i}" data-f="${f}" value="${esc(c[f] ?? "")}" />`).join("");
+    if (c.type === "xlist") h += `<label class="f">Lines (one per line, up to 6)</label><textarea rows="${Math.max((c.items || []).length, 3)}" data-a="items" data-i="${i}" style="width:100%;box-sizing:border-box;font:inherit;padding:10px;border-radius:10px;border:1.5px solid var(--line)">${esc((c.items || []).join("\n"))}</textarea>`;
     if (c.type === "card") {   // 0.16.0: a list's title and rows can be changed here
       h += `<label class="f">List title</label><input type="text" data-a="set" data-i="${i}" data-f="title" value="${esc(c.title || "")}" />
         <label class="f">Rows (one per line, up to 6)</label><textarea rows="${Math.max((c.rows || []).length, 3)}" data-a="rows" data-i="${i}" style="width:100%;box-sizing:border-box;font:inherit;padding:10px;border:1.5px solid var(--line);border-radius:12px">${esc((c.rows || []).map((r) => typeof r === "string" ? r : r?.text ?? "").join("\n"))}</textarea>`;
@@ -484,7 +505,27 @@ function renderSettings() {
     <div class="seg" style="margin-top:8px"><button class="on" data-a="hl-save" data-v="reel">Use for this reel</button><button data-a="hl-save" data-v="all">Use for every reel</button></div>
     ${hMine ? `<button class="sm" data-a="hl-reset" style="margin-top:8px">Back to my usual</button>` : ""}
     <p class="help" style="margin-top:8px">${hMine ? "This reel has its own caption colors." : "This reel uses your usual caption colors."} A highlighted word is one you marked in the Captions list. Pick, then press a button.</p><hr style="border:0;border-top:1px solid var(--line);margin:14px 0">`;
-  $("#sfxmaster").innerHTML = `<label class="f">Sounds when graphics appear</label><div class="seg"><button class="${S.sfxOn ? "on" : ""}" data-a="sfx-master" data-v="on" data-s="reel">On</button><button class="${S.sfxOn ? "" : "on"}" data-a="sfx-master" data-v="off" data-s="reel">Off</button></div>
+  // Added by By Mel Ross (0.28.0): add a look from the Style Menu at the playhead
+  if ($("#addlook")) $("#addlook").innerHTML = (S.addLooks || []).length ? `<label class="f">Add a look at this point in the video</label>
+    <div class="row" style="gap:8px"><select id="lookpick" style="flex:1;padding:10px;border-radius:10px;border:1.5px solid var(--line);font:inherit">${["Hooks", "Layouts"].map((g) => `<optgroup label="${g}">${S.addLooks.filter((l) => (l.group || "").startsWith(g.slice(0, 4))).map((l) => `<option value="${esc(l.id)}">${esc(l.id)} ${esc(l.name)}</option>`).join("")}</optgroup>`).join("")}</select>
+    <button class="sm" data-a="look-add">Add</button></div>
+    <p class="help" style="margin-top:6px">Pause where you want it, pick a look, press Add. It comes in with sample words: tap it in the list to change them.</p>` : "";
+  // Added by By Mel Ross (0.28.0): background music for this reel
+  const MU = S.music || { tracks: [], track: "", level: "normal" };
+  const musicBox = `<label class="f">Background music</label>
+    <select data-a="music-track" style="width:100%;padding:10px;border-radius:10px;border:1.5px solid var(--line);font:inherit">
+      <option value="" ${MU.track ? "" : "selected"}>No music</option>${[...new Set(MU.tracks.map((t) => t.mood))].map((m) => `<optgroup label="${esc(m || "My tracks")}">${MU.tracks.filter((t) => t.mood === m).map((t) => `<option value="${esc(t.name)}" ${t.name === MU.track ? "selected" : ""}>${esc(t.name.replace(/^[^/]*\//, "").replace(/\.[^.]+$/, ""))}</option>`).join("")}</optgroup>`).join("")}</select>
+    ${!MU.tracks.length ? `<p class="help">Your music folder is empty. Ask Claude: "help me add background music", or add a track below.</p>` : ""}
+    ${MU.missing ? `<p class="help" style="color:#b3261e">The track "${esc(MU.track)}" isn't in your music folder any more, so the reel plays without music. Pick another.</p>` : ""}
+    ${MU.track ? `<audio controls src="/music/${encodeURIComponent(MU.track)}" style="width:100%;margin-top:8px"></audio>
+    <div class="seg" style="margin-top:8px">${["softer", "normal", "louder"].map((k) => `<button class="${MU.level === k ? "on" : ""}" data-a="music-level" data-v="${k}">${k[0].toUpperCase() + k.slice(1)}</button>`).join("")}</div>
+    <label class="f">Start the track at (seconds)</label><div class="row" style="gap:8px"><input type="number" id="mstart" min="0" max="600" step="0.5" value="${MU.start}" style="width:90px"><button class="sm" data-a="music-start">Save</button><button class="sm" data-a="music-start-here">Where the player above is</button></div>
+    <p class="help" style="margin:6px 0">Skip a slow intro: play the track above, pause where it gets good, press "Where the player above is".</p>
+    <button class="sm" data-a="music-all" style="margin-top:4px">Use this track for every reel</button>${MU.everyReel ? ` <span class="help">Every reel now: ${esc(MU.everyReel)}</span>` : ""}` : ""}
+    <p class="help" style="margin:8px 0">The music dips while you talk and under each sound effect. Tracks live in ${esc(MU.dir || "~/reels/music")}. <label style="text-decoration:underline;cursor:pointer"><input type="file" id="addtrack" accept=".mp3,.m4a,.wav,.aac,.ogg,.flac,audio/*" hidden>Add a track</label>. Use music you're allowed to use, like tracks from Pixabay Music or Mixkit.</p>
+    ${S.hasFinal ? `<button class="sm" data-a="remix">Update the sound on my finished reel</button><p class="help" style="margin:6px 0 12px">Hear a music change in about 20 seconds, without rendering the picture again.</p>` : ""}
+    <hr style="border:0;border-top:1px solid var(--line);margin:14px 0">`;
+  $("#sfxmaster").innerHTML = musicBox + `<label class="f">Sounds when graphics appear</label><div class="seg"><button class="${S.sfxOn ? "on" : ""}" data-a="sfx-master" data-v="on" data-s="reel">On</button><button class="${S.sfxOn ? "" : "on"}" data-a="sfx-master" data-v="off" data-s="reel">Off</button></div>
     <p class="help" style="margin:8px 0">${S.sfxOn ? "Each graphic plays a short sound as it comes on." : "Graphics come on silently in this reel."} For every reel you make: <button class="sm" data-a="sfx-master" data-v="on" data-s="all">always on</button> <button class="sm" data-a="sfx-master" data-v="off" data-s="all">always off</button> (now ${S.sfxAll ? "on" : "off"}). Sounds you place by hand below always play.</p>
     <p class="help" style="margin:8px 0"><b>Your voice and the sounds are balanced for you on every render.</b> Nothing to set.</p>
     <details style="margin:4px 0 12px"><summary class="small" style="cursor:pointer">Adjust the balance (optional)</summary>
@@ -513,10 +554,28 @@ function drawOverlay() {
   if (c.type === "popup") {
     const m = S.media[c.src] || { w: 1, h: 1 }, b = popupBox(c, m.w, m.h);
     ov.innerHTML = `<div class="box" style="left:${b.left * k}px;top:${b.top * k}px;width:${b.w * k}px;height:${b.h * k}px;transform:rotate(${c.rotate || 0}deg)">${isClip(c.src) ? `<video src="/files/${esc(c.src)}#t=${Number(c.from || 0) + 0.5}" muted playsinline preload="metadata" style="width:100%;height:100%;object-fit:cover;border-radius:${28 * k}px"></video>` : `<img src="/files/${esc(c.src)}" alt="">`}</div>`;
-  } else if (c.type === "tag" || c.type === "title" || c.type === "cta") {
-    ov.innerHTML = `<div class="pill" style="top:${(c.y ?? 130) * k}px"><span style="font-size:${Math.max(8, 36 * k)}px">${esc(c.text)}</span></div>`;
+  } else if (Y_DEFAULT[c.type] != null) {   // 0.28.0: more text graphics show where they sit, and can be dragged up or down
+    const label = c.text || c.title || c.label || c.value || TYPE_NAME[c.type] || c.type;
+    ov.innerHTML = `<div class="pill" style="top:${(c.y ?? Y_DEFAULT[c.type]) * k}px"><span style="font-size:${Math.max(8, 36 * k)}px">${esc(label)}</span></div>`;
   } else ov.innerHTML = "";
+  const tgt = ov.querySelector(".box, .pill span"); if (tgt) { tgt.dataset.dragv = "1"; tgt.title = "Drag to move it"; }
 }
+const Y_DEFAULT = { tag: 130, title: 360, cta: 1360, note: 210, quote: 150, chips: 130, columns: 110, stat: 1080, shot: 130 };
+// Added by By Mel Ross (0.28.0): drag the selected graphic on the video. Pills and text move up or down; a popup moves anywhere.
+$("#ov").addEventListener("pointerdown", (e) => {
+  const tgt = e.target.closest("[data-dragv]"); if (!tgt || placing || S.busy) return;
+  e.preventDefault(); e.stopPropagation();
+  const i = cidx(selCard), c = S.edit.cards[i], el = tgt.classList.contains("box") ? tgt : tgt.parentElement, r = $("#ov").getBoundingClientRect(), k = 1080 / r.width;
+  const x0 = e.clientX, y0 = e.clientY, l0 = el.offsetLeft, t0 = el.offsetTop; let dx = 0, dy = 0;
+  tgt.setPointerCapture(e.pointerId); $("#ov").style.pointerEvents = "auto";
+  const move = (ev) => { dx = ev.clientX - x0; dy = ev.clientY - y0; el.style.top = t0 + dy + "px"; if (c.type === "popup") el.style.left = l0 + dx + "px"; };
+  const up = async () => { tgt.removeEventListener("pointermove", move); $("#ov").style.pointerEvents = "";
+    if (Math.abs(dx) + Math.abs(dy) < 4) return;
+    if (c.type === "popup") { const cx = Math.round((l0 + dx + el.offsetWidth / 2) * k), cy = Math.round((t0 + dy + el.offsetHeight / 2) * k);
+      await op({ op: "card_set", i, set: { pos: "custom", x: Math.max(-200, Math.min(1280, cx)), y: Math.max(0, Math.min(1920, cy)) } }, `c${cid(i)}:place`, "Moved"); }
+    else await op({ op: "card_set", i, set: { y: Math.max(0, Math.min(1800, Math.round((t0 + dy) * k))) } }, `c${cid(i)}:place`, "Moved"); };
+  tgt.addEventListener("pointermove", move); tgt.addEventListener("pointerup", up, { once: true });
+});
 $("#ov").addEventListener("click", async (e) => {
   if (!placing) return;
   const r = $("#ov").getBoundingClientRect(), k = 1080 / r.width, x = Math.round((e.clientX - r.left) * k), y = Math.round((e.clientY - r.top) * k), i = cidx(placing.id), c = S.edit.cards[i];
@@ -567,6 +626,19 @@ document.addEventListener("click", async (e) => {
     toast("Getting it from GIPHY…");
     try { const j = await post("/api/giphy-add", { id: el.dataset.v, kind: giphy.kind }); await addPopup(j.upload.src); } catch (er) { toast(er.message, true); }
   }
+  else if (a === "look-add") {   // 0.28.0
+    try { const r = await post("/api/look-add", { id: $("#lookpick").value, t: now() }); toast(`Added ${r.name} at ${fmt(now())}`); } catch (er) { toast(er.message, true); }
+  }
+  else if (a === "music-start" || a === "music-start-here") {   // 0.28.0: where the track starts
+    const au = document.querySelector("#sfxmaster audio"), s = a === "music-start-here" ? (au ? +au.currentTime.toFixed(1) : 0) : +$("#mstart").value;
+    try { await post("/api/music", { start: s }); toast(`The track starts at ${s} s. Press "Update the sound" to hear it.`); } catch (er) { toast(er.message, true); }
+  }
+  else if (a === "music-all") {
+    try { await post("/api/music", { track: S.music.track, scope: "all" }); toast("This track now plays under every reel. Pick another, or No music, on any reel."); } catch (er) { toast(er.message, true); }
+  }
+  else if (a === "music-level") {   // 0.28.0
+    try { await post("/api/music", { level: el.dataset.v }); toast(`Music ${el.dataset.v}. Press "Update the sound" to hear it.`); } catch (er) { toast(er.message, true); }
+  }
   else if (a === "layout") {   // 0.26.0
     try { await post("/api/layout", { layout: el.dataset.v, scope: el.dataset.s }); toast(`Captions ${el.dataset.v === "captions-high" ? "above your head" : "at the bottom"} for ${el.dataset.s === "all" ? "every reel" : "this reel"}`); } catch (er) { toast(er.message, true); }
   }
@@ -601,11 +673,23 @@ document.addEventListener("change", async (e) => {
   } else if (a === "toggle") op({ op: "card_set", i, set: { off: !el.checked } }, null, el.checked ? "On" : "Off");
   else if (a === "sfx-toggle") op({ op: "sfx_set", i, set: { off: !el.checked } }, null, el.checked ? "On" : "Off");
   else if (a === "frame") op({ op: "card_set", i, set: { frame: el.checked } }, null);
+  else if (a === "items") op({ op: "card_set", i, set: { items: el.value.split("\n") } }, null, "Lines saved: re-render to see it");   // 0.28.0
   else if (a === "rows") op({ op: "card_set", i, set: { rows: el.value.split("\n") } }, null, "List saved: re-render to see it");
   else if (a === "loop") op({ op: "card_set", i, set: { loop: el.checked } }, null);
   else if (a === "set") op({ op: "card_set", i, set: { [el.dataset.f]: el.value } }, `c${cid(i)}:${el.dataset.f}`);
   else if (a === "range") op({ op: "card_set", i, set: { [el.dataset.f]: el.value } }, `c${cid(i)}:${el.dataset.f}`);
   else if (a === "sfx-set") op({ op: "sfx_set", i, set: { [el.dataset.f]: el.value } }, `s${sid(i)}:${el.dataset.f}`);
+});
+document.addEventListener("change", async (e) => {   // 0.28.0: background music: pick a track, or add one to the music folder
+  if (e.target.dataset?.a === "music-track") {
+    try { await post("/api/music", { track: e.target.value }); toast(e.target.value ? "Music picked. Press \"Update the sound\" to hear it in the reel." : "No music for this reel"); } catch (er) { toast(er.message, true); }
+  }
+  if (e.target.id === "addtrack" && e.target.files[0]) {
+    const f = e.target.files[0]; toast("Adding " + f.name + "...");
+    try { const r = await fetch("/api/music-upload?name=" + encodeURIComponent(f.name), { method: "POST", body: f }), j = await r.json(); if (!j.ok) throw new Error(j.error);
+      await post("/api/music", { track: j.name }); toast(`Added "${j.name}" and picked it for this reel`); } catch (er) { toast(er.message, true); }
+    e.target.value = "";
+  }
 });
 document.addEventListener("change", (e) => { if (e.target.id === "igon") $("#igzone").classList.toggle("on", e.target.checked); });   // 0.26.0
 // Added by By Mel Ross (0.23.0): the highlighted-word sample follows the pickers before you save.
@@ -752,8 +836,8 @@ const TIPS = [
  ],
  [
   "summary",
-  "Sound effects",
-  "Short sounds such as a pop or a whoosh, placed at an exact moment. Your voice stays as it is."
+  "Music and sound effects",
+  "Soft background music from your music folder, and short sounds such as a pop or a whoosh. Your voice stays on top."
  ],
  [
   "summary",

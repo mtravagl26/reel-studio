@@ -15,6 +15,7 @@ import crypto from "node:crypto";
 import { spawn, spawnSync } from "node:child_process";
 import { SHIM, DOCS, WRITABLE, trusted } from "./review-shim.mjs";
 import { lookPreviews } from "./look-preview.mjs";
+import * as MUSIC from "./music.mjs";
 import { fileURLToPath } from "node:url";
 import * as core from "./editor-core.mjs";
 
@@ -24,7 +25,7 @@ const PORT = Number(args[args.indexOf("--port") + 1]) || 4792;
 const LAN = args.includes("--lan");
 // Added by By Mel Ross: addresses of the other two Reel Studio pages, shown as links in the step bar (both optional).
 const flag = (n) => { const i = args.indexOf(n); return i >= 0 && /^https?:\/\//.test(args[i + 1] || "") ? args[i + 1] : null; };
-const LINKS = { review: flag("--review-url") || "/review", touchups: "/touchups", cover: flag("--cover-url"), caption: "/caption" };
+const LINKS = { review: flag("--review-url") || "/review", touchups: "/touchups", edit: "/edit", cover: flag("--cover-url"), caption: "/caption" };   // 0.28.0: edit = review + touch-ups on one page
 const KEY = LAN ? crypto.randomBytes(9).toString("base64url") : null;
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const SKILL = path.resolve(HERE, "..");
@@ -250,6 +251,55 @@ function setLayout(body) {
   else if (v === (brand.layout || "captions-low")) delete edit.layout; else edit.layout = v;
   writeJSON(P.edit, edit);
 }
+// Added by By Mel Ross (0.28.0): add a look from the Style Menu at the playhead. The look's recipe card(s) go in as they are
+// (they come from assets/style-menu.json, not from the page), moved so the first starts at t; several cards keep their spacing.
+const ADDABLE = (l) => ["built", "partial"].includes(l.status) && l.group !== "Captions" && l.recipe && ["hook", "layout"].includes(l.recipe.slot) && (l.recipe.card || l.recipe.cards) && !l.recipe.needs_photos;
+function addableLooks() { return menuLooks().filter(ADDABLE).map((l) => ({ id: l.id, name: l.name, group: l.group, does: l.does })); }
+function addLook(body) {
+  requireIdle();
+  const look = menuLooks().find((l) => l.id === String(body.id || ""));
+  if (!look || !ADDABLE(look)) throw new Error("that look can't be added here");
+  const dur = masterDuration() || 600, t = Math.max(0, Math.min(+body.t || 0, dur - 0.5));
+  const src = JSON.parse(JSON.stringify(look.recipe.cards || [look.recipe.card])), t0 = Math.min(...src.map((c) => +c.start || 0));
+  const edit = readJSON(P.edit, {}); edit.cards = edit.cards || [];
+  snapshot("add look " + look.id, null, false);
+  for (const c of src) {
+    const len = Math.max(0.8, (+c.end || (+c.start || 0) + 3) - (+c.start || 0));
+    c.start = +(t + ((+c.start || 0) - t0)).toFixed(2); c.end = +Math.min(c.start + len, dur).toFixed(2);
+    edit.cards.push({ id: core.genId(), ...c, look: look.id });
+  }
+  edit.cards.sort((a, b) => a.start - b.start);
+  writeJSON(P.edit, edit);
+  return { added: src.length, name: look.name };
+}
+// Added by By Mel Ross (0.28.0): background music for this reel: a track from ~/reels/music or none, and how loud it sits.
+const MUSIC_LVL = { softer: -20, normal: -14, louder: -10 };
+function setMusic(body) {
+  requireIdle();
+  const edit = readJSON(P.edit, {});
+  snapshot("background music", null, true);
+  if ("track" in body && body.scope !== "all") {
+    const t = String(body.track || "");
+    if (!t) edit.music = "none";
+    else { if (!MUSIC.trackPath(HOME, t)) throw new Error("that track isn't in your music folder"); edit.music = path.join(MUSIC.musicDir(HOME), t).replace(os.homedir(), "~"); }
+  }
+  if ("start" in body) { const s = Math.round(+body.start * 10) / 10; if (!(s >= 0 && s <= 600)) throw new Error("start the track between 0 and 600 seconds"); if (s) edit.music_start = s; else delete edit.music_start; }
+  if (body.scope === "all") {   // this track for every reel (brand.json); this reel follows it
+    const brand = brandJSON(), t = String(body.track ?? "");
+    if (t && !MUSIC.trackPath(HOME, t)) throw new Error("that track isn't in your music folder");
+    if (t) brand.music = path.join(MUSIC.musicDir(HOME), t).replace(os.homedir(), "~"); else delete brand.music;
+    writeJSON(P.brand, brand); delete edit.music;
+  }
+  if ("level" in body) { if (!(body.level in MUSIC_LVL)) throw new Error("pick softer, normal or louder"); edit.mix = { ...(edit.mix || {}), music: MUSIC_LVL[body.level] }; }
+  writeJSON(P.edit, edit);
+}
+function musicNow(edit, brand) {
+  const m = edit.music || brand.music || "";
+  const abs = m && m !== "none" ? path.resolve(REEL, String(m).replace(/^~(?=\/)/, os.homedir())) : "", root = MUSIC.musicDir(HOME) + path.sep;
+  const name = abs ? (abs.startsWith(root) ? abs.slice(root.length).split(path.sep).join("/") : path.basename(abs)) : "";
+  const lv = edit.mix?.music ?? brand.mix?.music ?? -14;
+  return { track: name, start: +(edit.music_start ?? brand.music_start ?? 0) || 0, everyReel: brand.music ? path.basename(String(brand.music)) : "", mine: !!edit.music, missing: !!name && !MUSIC.trackPath(HOME, name) && !fs.existsSync(path.resolve(REEL, String(m).replace(/^~(?=\/)/, os.homedir()))), level: lv <= -17 ? "softer" : lv >= -11 ? "louder" : "normal", tracks: MUSIC.tracks(HOME), dir: MUSIC.musicDir(HOME).replace(os.homedir(), "~") };
+}
 const volName = (v) => (v <= -3 ? "quieter" : v >= 2 ? "louder" : "normal");
 function setTheme(body) {
   requireIdle();
@@ -462,6 +512,7 @@ function view() {
     textDefault: brand.text_default || { layer: "front", position: "above" }, hasTextDefault: !!brand.text_default,
     themes: listThemes(), theme: { reel: edit.theme || null, all: brand.theme || null }, giphy: !!giphyKey(),
     sfxOn: (edit.sfx ?? brand.sfx ?? "subtle") !== "none", sfxAll: (brand.sfx ?? "subtle") !== "none",
+    music: musicNow(edit, brand), addLooks: addableLooks(),
     layout: edit.layout || brand.layout || "captions-low", layoutAll: brand.layout || "captions-low",
     sfxVol: volName(edit.mix?.effects ?? brand.mix?.effects ?? 0), sfxVolAll: volName(brand.mix?.effects ?? 0), hasFinal: exists(P.final),
     colors: { reel: edit.colors || null, all: { main: brand.colors?.main || "#141414", pop: brand.colors?.pop || "#B9C8A5", light: brand.colors?.light || "#FFFFFF" } },
@@ -667,11 +718,21 @@ function capCta(d, x) {
   if (d.ask === "save") return "Save this so you can find it later."; if (d.ask === "share") return "Send this to someone who needs it.";
   if (d.keyword && d.gift) return `Comment ${d.keyword} and I'll send you ${d.gift}.`; return d.keyword ? `Comment ${d.keyword} and I'll send it to you.` : "";
 }
-const capText = (d, x) => [x.hook, x.body, capCta(d, x), x.hashtags.join(" ")].filter(Boolean).join("\n\n");
+// 0.28.0: a music track that needs credit (a line in ~/reels/music/CREDITS.txt: "calm/track.mp3: Title Kevin MacLeod (incompetech.com) ...")
+// gets its credit line in the caption, before the hashtags.
+function musicCredit() {
+  try {
+    const m = musicNow(readJSON(P.edit, {}), brandJSON()).track; if (!m) return "";
+    const lines = fs.readFileSync(path.join(MUSIC.musicDir(HOME), "CREDITS.txt"), "utf8").split("\n");
+    const hit = lines.find((l) => { const k = l.split(":")[0].trim(); return k && (k === m || k === path.basename(m)); });
+    return hit ? "Music: " + hit.slice(hit.indexOf(":") + 1).trim().slice(0, 200) : "";
+  } catch { return ""; }
+}
+const capText = (d, x) => [x.hook, x.body, capCta(d, x), musicCredit(), x.hashtags.join(" ")].filter(Boolean).join("\n\n");
 function capView() {
   let d = null; try { d = capClean(JSON.parse(fs.readFileSync(capFile(), "utf8"))); } catch { /* none yet */ }
   let said = ""; try { said = (readJSON(P.edit, {}).captions || []).flatMap((c) => (c.words || []).map((w) => w.text)).join(" ").slice(0, 600); } catch { /* not built */ }
-  return { reel: path.basename(REEL), caption: d && d.drafts.length ? d : null, keyword: d?.keyword || "", gift: d?.gift || "", limits: CAP_LIMITS, said, links: LINKS,
+  return { reel: path.basename(REEL), credit: musicCredit(), caption: d && d.drafts.length ? d : null, keyword: d?.keyword || "", gift: d?.gift || "", limits: CAP_LIMITS, said, links: LINKS,
     settings: { tone: d?.tone || "mine", emoji: d?.emoji || 0, ask: d?.ask || "keyword", more: d?.more || "" }, tones: CAP_TONES, written: d?.written || null,
     ask: `Write the Instagram captions for the reel "${path.basename(REEL)}" and give me the Caption page link.` };
 }
@@ -799,10 +860,9 @@ const server = http.createServer(async (req, res) => {
       else if (!(req.headers.cookie || "").split(/;\s*/).includes(`rk=${KEY}`)) { res.writeHead(403).end("missing or wrong key"); return; }
     }
     initBuilt();   // the reel may have been built since this server started
-    if (p === "/" || p === "/index.html") {   // one link: the touch-ups page once the reel is built, the review page before that
-      if (built()) return sendFile(req, res, path.join(HERE, "editor.html"));
-      res.writeHead(302, { Location: "/review" }).end(); return;
-    }
+    // 0.28.0: one link, one page. /edit holds the review page (the cut, before the first build) and the touch-ups page
+    // (after it) as 2 tabs, and opens on the one that fits. /review and /touchups still work on their own.
+    if (p === "/" || p === "/index.html" || p === "/edit") return sendFile(req, res, path.join(HERE, "edit.html"));
     if (p === "/favicon.ico") { res.writeHead(204); return res.end(); }   // no icon: answer quietly so the page shows no failed request
     if (p === "/touchups") return sendFile(req, res, path.join(HERE, "editor.html"));
     if (p === "/caption") return sendFile(req, res, path.join(HERE, "caption.html"));   // 0.20.0: step 4
@@ -812,7 +872,7 @@ const server = http.createServer(async (req, res) => {
       catch (e) { return json(res, 400, { ok: false, error: String(e.message || e) }); }
     }
     if (p === "/review") {
-      const links = `<script>window.REEL_STUDIO_LINKS=${JSON.stringify({ touchups: LINKS.touchups, cover: LINKS.cover, caption: LINKS.caption }).replace(/</g, "\\u003c")}</script>`;
+      const links = `<script>window.REEL_STUDIO_LINKS=${JSON.stringify({ touchups: LINKS.touchups, edit: LINKS.edit, cover: LINKS.cover, caption: LINKS.caption }).replace(/</g, "\\u003c")}</script>`;
       const html = fs.readFileSync(path.join(HERE, "reel-review.html"), "utf8")
         .replace('<script src="core.js"></script>', links + '<script src="shim.js"></script><script src="core.js"></script>');
       res.writeHead(200, { "Content-Type": TYPES[".html"], "Cache-Control": "no-store" }).end(html); return;
@@ -882,6 +942,9 @@ const server = http.createServer(async (req, res) => {
         if (p === "/api/op") { const b = JSON.parse((await readBody(req, 2e6)).toString() || "{}"); return json(res, 200, { ok: true, ...doOp(b), state: view() }); }
         if (p === "/api/undo") { requireIdle(); const what = undo(); return json(res, 200, { ok: true, undid: what, state: view() }); }
         if (p === "/api/render") { startRender(); return json(res, 200, { ok: true, job }); }
+        if (p === "/api/look-add") { const b = JSON.parse((await readBody(req, 1e4)).toString() || "{}"); const r = addLook(b); return json(res, 200, { ok: true, ...r, state: view() }); }   // 0.28.0
+        if (p === "/api/music") { const b = JSON.parse((await readBody(req, 1e4)).toString() || "{}"); setMusic(b); return json(res, 200, { ok: true, state: view() }); }   // 0.28.0
+        if (p === "/api/music-upload") { const name = await MUSIC.upload(HOME, req, url.searchParams.get("name")); return json(res, 200, { ok: true, name }); }
         if (p === "/api/layout") { const b = JSON.parse((await readBody(req, 1e4)).toString() || "{}"); setLayout(b); return json(res, 200, { ok: true, state: view() }); }
         if (p === "/api/remix") { startRender({ soundOnly: true }); return json(res, 200, { ok: true, job }); }   // 0.25.0: sound only
         if (p === "/api/sfx-volume") { const b = JSON.parse((await readBody(req, 1e4)).toString() || "{}"); setSfxVolume(b); return json(res, 200, { ok: true, state: view() }); }
@@ -902,6 +965,7 @@ const server = http.createServer(async (req, res) => {
       res.writeHead(404).end(); return;
     }
     if (p === "/api/live" && req.method === "GET") return json(res, 200, { ok: true, live });
+    if (req.method === "GET" && p.startsWith("/music/")) return MUSIC.serveTrack(HOME, p.slice(7), res);   // 0.28.0: hear a track
     if (p.startsWith("/live/")) {   // the built page and its files, for the live preview
       const file = path.resolve(LIVE, "." + p.slice(5)), rel = path.relative(LIVE, file);
       if (rel.startsWith("..") || path.isAbsolute(rel)) { res.writeHead(403).end(); return; }

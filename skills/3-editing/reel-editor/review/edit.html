@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<!-- Added by By Mel Ross (0.28.0): one page for editing a reel. The cut (the review page) and the touch-ups are 2 tabs here,
+     so the link Claude gives is always the same and the step bar has one Edit step. Each tab is the existing page, shown
+     inside this one; /review and /touchups still open on their own. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Reel Studio: Edit</title>
+<style>
+:root{--ink:#0d2b2d;--paper:#f5f2ec;--line:#e1dccf;--mute:#5b6b69}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--paper);color:var(--ink);font:16px/1.4 "Libre Franklin",system-ui,-apple-system,sans-serif}
+body{display:flex;flex-direction:column}
+.steps{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:10px 14px;border-bottom:1px solid var(--line);background:#fff}
+.steps .brand{font-weight:800;margin-right:6px}
+.steps .step{display:inline-flex;align-items:center;min-height:36px;padding:0 12px;border-radius:999px;border:1.5px solid var(--line);background:#fff;color:var(--ink);text-decoration:none}
+.steps .step[aria-current="step"]{background:var(--ink);border-color:var(--ink);color:var(--paper)}
+.steps .step.off{opacity:.55}
+.tabs{display:flex;gap:6px;padding:10px 14px 0;border-bottom:1px solid var(--line)}
+.tabs button{font:inherit;font-weight:700;border:1.5px solid var(--line);border-bottom:none;background:#fff;color:var(--ink);padding:10px 16px;border-radius:12px 12px 0 0;cursor:pointer;min-height:44px}
+.tabs button[aria-selected="true"]{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+.tabs button small{display:block;font-weight:500;font-size:12px;opacity:.8}
+.hint{padding:6px 14px;font-size:14px;color:var(--mute)}
+iframe{flex:1;width:100%;border:0;background:var(--paper)}
+iframe[hidden]{display:none}
+</style>
+</head>
+<body>
+<nav class="steps" aria-label="Reel Studio steps">
+  <span class="brand">Reel Studio</span>
+  <a class="step" aria-current="step">1 Edit</a>
+  <a class="step off" data-step="cover" title="Ask Claude to open my thumbnail studio">2 Cover</a>
+  <a class="step off" data-step="caption" title="Ask Claude to open the caption page">3 Caption</a>
+</nav>
+<div class="tabs" role="tablist" aria-label="Edit">
+  <button type="button" role="tab" id="t-cut" aria-controls="f-cut" aria-selected="false">The cut<small>what stays, captions, graphics, then build</small></button>
+  <button type="button" role="tab" id="t-touch" aria-controls="f-touch" aria-selected="false">Touch-ups<small>small fixes on the built reel</small></button>
+</div>
+<p class="hint" id="hint"></p>
+<iframe id="f-cut" title="The cut" hidden></iframe>
+<iframe id="f-touch" title="Touch-ups" hidden></iframe>
+<script>
+const $ = (s) => document.querySelector(s);
+let stage = { built: false, review: true };
+function show(which) {
+  for (const [k, t, f, src] of [["cut", "#t-cut", "#f-cut", "/review?embed=1"], ["touch", "#t-touch", "#f-touch", "/touchups?embed=1"]]) {
+    const on = k === which; $(t).setAttribute("aria-selected", String(on)); $(f).hidden = !on;
+    if (on && !$(f).getAttribute("src")) $(f).setAttribute("src", src);
+  }
+  $("#hint").textContent = which === "cut"
+    ? (stage.built ? "The reel is built. Changing the cut here starts a new build; for small fixes, use Touch-ups." : "Decide what stays, then press Build. Touch-ups opens after the first build.")
+    : (stage.built ? "Fix words, move graphics, change sounds and music, then re-render." : "Touch-ups opens after the first build. Start with The cut.");
+  history.replaceState(null, "", "#" + which);
+}
+$("#t-cut").addEventListener("click", () => show("cut"));
+$("#t-touch").addEventListener("click", () => show("touch"));
+(async () => {
+  try { stage = await (await fetch("/api/stage")).json(); } catch { /* the page still works */ }
+  if (!stage.review) $("#t-cut").hidden = true;
+  const want = location.hash.slice(1);
+  show(want === "cut" || want === "touch" ? want : stage.built || !stage.review ? "touch" : "cut");
+  try {
+    const s = await (await fetch("/api/state")).json(), links = (s.state || s).links || {};
+    document.querySelectorAll(".steps .step[data-step]").forEach((el) => { const u = links[el.dataset.step]; if (typeof u === "string" && /^(https?:\/\/[\w.\-\[\]:]+(:\d+)?)?\/[\w\-\/?=&.%]*$/.test(u)) { el.href = u; el.classList.remove("off"); el.removeAttribute("title"); } });
+  } catch { /* links stay off */ }
+})();
+// a build that finishes in The cut: offer Touch-ups
+setInterval(async () => { try { const s = await (await fetch("/api/stage")).json(); if (s.built && !stage.built) { stage = s; if ($("#f-cut").hidden === false) $("#hint").textContent = "Built. Small fixes now go in Touch-ups."; } } catch {} }, 5000);
+</script>
+</body>
+</html>
