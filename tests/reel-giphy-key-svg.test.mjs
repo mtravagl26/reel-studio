@@ -21,7 +21,7 @@ test("the pages save a GIPHY key to this computer, keep other keys, and take SVG
   let out = ""; p.stdout.on("data", (d) => (out += d)); p.stderr.on("data", (d) => (out += d));
   for (let i = 0; i < 100 && !/Reel Studio for/.test(out); i++) await new Promise((r) => setTimeout(r, 100));
   const base = `http://127.0.0.1:${port}`;
-  const save = (key, headers = {}) => fetch(base + "/api/giphy-key-save", { method: "POST", headers: { "content-type": "application/json", ...headers }, body: JSON.stringify({ key }) });
+  const save = (key, headers = {}, agree = true) => fetch(base + "/api/giphy-key-save", { method: "POST", headers: { "content-type": "application/json", ...headers }, body: JSON.stringify({ key, agree }) });
   const up = (name, body) => fetch(base + "/api/review-upload?name=" + encodeURIComponent(name), { method: "POST", body });
   try {
     assert.match(out, /Reel Studio for/, "server started: " + out);
@@ -30,14 +30,21 @@ test("the pages save a GIPHY key to this computer, keep other keys, and take SVG
       const r = await save(bad); assert.equal(r.status, 400, JSON.stringify(bad)); assert.equal((await r.json()).ok, false);
     }
     assert.equal(fs.readFileSync(envFile, "utf8"), "ELEVENLABS_API_KEY=keepme\nGIPHY_API_KEY=\n", "a refused key changes nothing");
+    // GIPHY is opt-in (license review 2026-11-17): a good key without the warning box ticked is refused and nothing is written.
+    const noAgree = await save("AbCdEfGh1234567890abcdefGHIJKLmn", {}, false);
+    assert.equal(noAgree.status, 400); assert.match((await noAgree.json()).error, /GIPHY warning/);
+    assert.equal(fs.readFileSync(envFile, "utf8"), "ELEVENLABS_API_KEY=keepme\nGIPHY_API_KEY=\n", "no tick, nothing saved");
     assert.equal((await save("AbCdEfGh1234567890abcdefGHIJKLmn", { origin: "https://example.test", "sec-fetch-site": "cross-site" })).status, 403, "another site can't set the key");
     const ok = await (await save("  GIPHY_API_KEY=AbCdEfGh1234567890abcdefGHIJKLmn ")).json();
     assert.deepEqual(ok, { ok: true, tested: false }, "pasting the whole line works too");
-    assert.equal(fs.readFileSync(envFile, "utf8"), "ELEVENLABS_API_KEY=keepme\nGIPHY_API_KEY=AbCdEfGh1234567890abcdefGHIJKLmn\n");
+    assert.equal(fs.readFileSync(envFile, "utf8"), "ELEVENLABS_API_KEY=keepme\nGIPHY_API_KEY=AbCdEfGh1234567890abcdefGHIJKLmn\nGIPHY_OPT_IN=1\n");
     assert.equal(fs.statSync(envFile).mode & 0o777, 0o600, "only the person can read the file");
     assert.deepEqual(await (await fetch(base + "/api/review-giphy-key")).json(), { key: "AbCdEfGh1234567890abcdefGHIJKLmn" }, "search works without restarting the link");
     await save("ZZZZEfGh1234567890abcdefGHIJKLmn");
     assert.equal(fs.readFileSync(envFile, "utf8").match(/GIPHY_API_KEY=/g).length, 1, "a new key replaces the old one");
+    assert.equal(fs.readFileSync(envFile, "utf8").match(/GIPHY_OPT_IN=1/g).length, 1, "the opt-in is written once");
+    fs.writeFileSync(envFile, "ELEVENLABS_API_KEY=keepme\nGIPHY_API_KEY=AbCdEfGh1234567890abcdefGHIJKLmn\n");
+    assert.deepEqual(await (await fetch(base + "/api/review-giphy-key")).json(), { key: null }, "a key saved before the opt-in stays off until the box is ticked");
 
     const svg = `<?xml version="1.0"?><svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="300" viewBox="0 0 100 50" onload="alert(1)">
       <script>alert(2)</script><foreignObject><body xmlns="http://www.w3.org/1999/xhtml"><iframe src="https://example.test"></iframe></body></foreignObject>
@@ -60,6 +67,8 @@ test("the pages save a GIPHY key to this computer, keep other keys, and take SVG
 test("both pages ask for the GIPHY key themselves and accept SVG files", () => {
   const rv = fs.readFileSync(path.join(review, "reel-review.html"), "utf8"), ed = fs.readFileSync(path.join(review, "editor.html"), "utf8");
   for (const [n, h] of [["review", rv], ["touch-ups", ed]]) {
+    assert.match(h, /GIPHY's rules say apps should not store copies of GIPHY content/, n + ": the full warning before it is turned on");
+    assert.match(h, /a reel you post with one may (go against|conflict with)/, n); assert.match(h, /Powered By/, n); assert.match(h, /agree/, n + ": the tick box is sent");
     assert.match(h, /\/api\/giphy-key-save/, n); assert.match(h, /Paste your GIPHY key/, n); assert.match(h, /API \(not SDK\)/, n);
     assert.match(h, /type\s*=\s*"password"/, n + ": the key is hidden while typed"); assert.match(h, /\.svg/, n);
     assert.doesNotMatch(h, /tell Claude "add my GIPHY key"|set up GIPHY for the reel editor/, n + ": no trip back to chat");

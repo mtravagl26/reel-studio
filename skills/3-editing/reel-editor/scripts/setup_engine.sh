@@ -28,8 +28,10 @@ done
 # Modified by By Mel Ross: the bigger sound-effects library (34 more, original synthesis, see assets/sfx-manifest.json).
 python3 "$(dirname "$0")/make_sfx.py" --out "$E/sfx"
 # HyperFrames catalog motions (carousels, captions, charts, social cards): fetched from HyperFrames, not shipped in this repo.
+# Modified by By Mel Ross: registry pinned to the v0.8.145 tag (same as the renderer), not main. An older engine/hf/hyperframes.json is moved to the tag.
 H="$E/hf"; mkdir -p "$H"
-[ -f "$H/hyperframes.json" ] || printf '%s' '{"$schema":"https://hyperframes.heygen.com/schema/hyperframes.json","registry":"https://raw.githubusercontent.com/heygen-com/hyperframes/main/registry","paths":{"blocks":"compositions","components":"compositions/components","assets":"assets"}}' > "$H/hyperframes.json"
+[ -f "$H/hyperframes.json" ] || printf '%s' '{"$schema":"https://hyperframes.heygen.com/schema/hyperframes.json","registry":"https://raw.githubusercontent.com/heygen-com/hyperframes/v0.8.145/registry","paths":{"blocks":"compositions","components":"compositions/components","assets":"assets"}}' > "$H/hyperframes.json"
+grep -q 'hyperframes/main/registry' "$H/hyperframes.json" 2>/dev/null && sed -i.bak 's#hyperframes/main/registry#hyperframes/v0.8.145/registry#' "$H/hyperframes.json" && rm -f "$H/hyperframes.json.bak"
 [ -f "$H/package.json" ] || echo '{"name":"engine","private":true,"type":"module"}' > "$H/package.json"
 for m in caption-camera-follow carousel-vision-1 carousel-path-1 carousel-circle-1 carousel-orbit-1 hw-arrow hw-underline \
          oversized-cursor notification-stack code-terminal-run chat-message yt-comment-card instagram-follow count-up \

@@ -9,14 +9,14 @@ Runs once, before the first edit. Output: `~/reels/brand.md` (for people and for
 - **One question at a time.** Plain language, no jargon. Most people installing this are not technical.
 - Offer 2-4 concrete options where you can, plus "something else".
 - If they say "I don't know", suggest a sensible choice from what they've already told you and move on. Don't stall.
-- If they share a reel they love, look at it (download it with `yt-dlp` if you can, or ask for a screenshot) and pull colors, caption style and pacing from it.
+- If they want to show you a reel they love, ask for a screenshot (or two or three) first and pull colors, caption style and pacing from it. Only download a reel with `yt-dlp` if it is their own, or they say they have permission to download it: downloading someone else's reel can break the platform's rules and the creator's copyright.
 - At the end, show a short summary and ask "anything to change?" before writing the files.
 - **After the summary, tell them the camera settings, once:** film upright in 1080p at 30 fps with HDR off (iPhone: Settings > Camera > Record Video > 1080p HD at 30 fps, HDR Video off). 4K at 60 fps is 8 times the data for a reel that is built at 1080p, so every step is slower; 4K is only worth it for a big zoom on the face. Don't ask a question about it. Just say it.
 
 ## The questions
 
 1. **What's your account about, and who's watching?** (one sentence each)
-2. **Show me a reel you wish you'd made.** A link or screenshot. This is the best single input. Ask what they like about it.
+2. **Show me a reel you wish you'd made.** A screenshot first (a link is fine for their own reel). This is the best single input. Ask what they like about it.
 3. **Brand colors.** Hex codes if they have them, or describe them ("soft pink and black"). Ask which one is the pop color.
 4. **Colors or styles you never want.** (e.g. "no black text", "no neon")
 5. **Fonts.** Headline font and body font if they have them. If not, offer 3 free pairs that fit their vibe (e.g. Google Fonts). Note: CapCut can only use fonts in its own library or the person's CapCut brand kit.

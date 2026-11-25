@@ -264,7 +264,15 @@ function setTheme(body) {
 
 // ---- GIPHY (Added by By Mel Ross, 0.9.0): the person's own key, kept where the ElevenLabs key is. The page searches GIPHY itself;
 // this only fetches the one GIF they tapped into the reel's popups folder, and notes where it came from.
+// Modified by By Mel Ross (license review 2026-11-17): GIPHY is opt-in. The key only counts once the person has ticked the
+// warning box (GIPHY_OPT_IN=1 in the same file, or in the environment). A key saved before this change stays off until they do.
+function envLine(name) {
+  try { for (const line of fs.readFileSync(path.join(os.homedir(), ".config/reels/.env"), "utf8").split("\n")) if (line.startsWith(name + "=")) return line.split("=").slice(1).join("=").trim(); } catch { /* no file */ }
+  return "";
+}
+function giphyOptedIn() { return (process.env.GIPHY_OPT_IN || envLine("GIPHY_OPT_IN")) === "1"; }
 function giphyKey() {
+  if (!giphyOptedIn()) return "";
   if (process.env.GIPHY_API_KEY) return process.env.GIPHY_API_KEY.trim();
   try { for (const line of fs.readFileSync(path.join(os.homedir(), ".config/reels/.env"), "utf8").split("\n")) if (line.startsWith("GIPHY_API_KEY=")) return line.split("=").slice(1).join("=").trim(); } catch { /* no file */ }
   return "";
@@ -274,6 +282,7 @@ function giphyKey() {
 const ENV_FILE = () => path.join(os.homedir(), ".config/reels/.env");
 async function giphySaveKey(body) {
   const key = String(body.key || "").trim().replace(/^GIPHY_API_KEY=/, "").replace(/^["']|["']$/g, "");
+  if (body.agree !== true) throw new Error("tick the box to say you have read the GIPHY warning first");
   if (!key) throw new Error("paste your GIPHY key in the box first");
   if (!/^[A-Za-z0-9]{16,64}$/.test(key)) throw new Error("that doesn't look like a GIPHY key: it is one run of letters and numbers, about 32 long, with no spaces");
   let tested = false;
@@ -284,8 +293,8 @@ async function giphySaveKey(body) {
     tested = !!(r && r.ok);
   }
   const f = ENV_FILE(); fs.mkdirSync(path.dirname(f), { recursive: true, mode: 0o700 });
-  let lines = []; try { lines = fs.readFileSync(f, "utf8").split("\n").filter((l) => l.trim() && !l.startsWith("GIPHY_API_KEY=")); } catch { /* new file */ }
-  lines.push(`GIPHY_API_KEY=${key}`);
+  let lines = []; try { lines = fs.readFileSync(f, "utf8").split("\n").filter((l) => l.trim() && !l.startsWith("GIPHY_API_KEY=") && !l.startsWith("GIPHY_OPT_IN=")); } catch { /* new file */ }
+  lines.push(`GIPHY_API_KEY=${key}`, "GIPHY_OPT_IN=1");
   fs.writeFileSync(f + ".tmp", lines.join("\n") + "\n", { mode: 0o600 }); fs.renameSync(f + ".tmp", f); fs.chmodSync(f, 0o600);
   if (process.env.GIPHY_API_KEY) process.env.GIPHY_API_KEY = key;   // a key set when the link started would otherwise hide the new one
   return { tested };
