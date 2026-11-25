@@ -177,6 +177,21 @@ function card(f, c) {
     if (c.label) { const l = el("div", "", String(c.label).toUpperCase()); l.style.cssText = "left:6%;top:4%;font-size:3.4cqw;letter-spacing:.14em;color:#0d2b2d;font-weight:600"; f.append(l); }
     return;
   }
+  if (kind === "roundup") {   // Added by By Mel Ross: the Roundup layout (split L11, slide L1, chapter L25)
+    if (c.look === "chapter") {
+      const bg = el("div"); bg.style.cssText = "inset:0;border-radius:inherit;background:#0d2b2d"; f.append(bg);
+      if (c.number) { const n = el("div", "tx", c.number); n.style.cssText = "top:40%;font-size:4cqw;letter-spacing:.2em;text-align:center;color:#f5f2ec;text-shadow:none"; f.append(n); }
+      const t = el("div", "tx serif", c.text || "item"); t.style.cssText = "top:45%;font-size:10cqw;text-align:center;font-weight:500;color:#f5f2ec;text-shadow:none"; f.append(t); return;
+    }
+    if (c.look === "slide") {
+      const bg = el("div"); bg.style.cssText = "inset:0;border-radius:inherit;background:#e9ecdf"; f.append(bg);
+      const sc = el("div", "paper", "your screen"); sc.style.cssText = "left:8%;right:8%;top:8%;height:60%;background:#fff;font-size:5cqw;display:flex;align-items:center;justify-content:center"; f.append(sc);
+      const w = el("div"); w.style.cssText = "right:5%;bottom:24%;width:28%;height:20%;border-radius:3cqw;border:.8cqw solid #fff;background:#7d9197;box-shadow:0 1cqw 3cqw #0005"; f.append(w); return;
+    }
+    const top = el("div", "paper", "your screen"); top.style.cssText = "left:4%;right:4%;top:2%;height:46%;background:#fff;border-radius:3cqw;font-size:5cqw;display:flex;align-items:center;justify-content:center"; f.append(top);
+    if (c.label) { const l = el("div", "", c.label); l.style.cssText = "left:7%;top:4%;padding:.6cqw 2.4cqw;border-radius:99px;background:#B9C8A5;font-size:3.4cqw;font-weight:600;color:#0d2b2d"; f.append(l); }
+    return;
+  }
   if (kind === "sticker") { const p = el("div"); p.style.cssText = `left:${px((c.x || 540) - (c.size || 200) / 2)};top:${pct((c.y || 400) - (c.size || 200) / 2)};width:${px(c.size || 200)};height:${px(c.size || 200)};border-radius:22%;background:#B9C8A5;box-shadow:0 1cqw 3cqw #0004`; f.append(p); return; }
   const d = el("div", "paper", kind || "card"); d.style.cssText = "left:12%;right:12%;top:58%;padding:3cqw;font-size:5cqw;text-align:center"; f.append(d);
 }

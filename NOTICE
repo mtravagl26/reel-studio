@@ -112,7 +112,7 @@ Added by By Mel Ross in 0.4.0 (November 2026), in skills/3-editing/reel-editor.
 - package.json and .claude-plugin/plugin.json version 0.4.0.
 
 Added by By Mel Ross in 0.5.0 (November 2026), in skills/3-editing/reel-editor unless a path says otherwise.
-- Style Menu: references/style-menu.md and assets/style-menu.json (59 looks called by ID: hooks H1-H19, captions C1-C16, layouts L1-L24, each
+- Style Menu: references/style-menu.md and assets/style-menu.json (61 looks called by ID: hooks H1-H20, captions C1-C16, layouts L1-L25, each
   with its status and the setting or card that produces it); new card types "polaroids", "xlist", "stat" and "tiles", a "caption" and a soft
   exit on "popup" cards, and an "overline" and "align" on "title" cards in scripts/build_reel.py (the generic looks are named after common
   patterns in short-form reels; no footage, text, code or images from any reel were copied); scripts/storyboard.py (stills of two to four

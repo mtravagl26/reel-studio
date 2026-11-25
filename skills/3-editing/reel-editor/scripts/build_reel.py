@@ -73,6 +73,14 @@ edit.json (written by auto_edit.py, then Claude marks accents and adds cards):
      edit.json "cutout": {"include_dark": [[x,y,w,h]], "include": [...], "exclude": [...], "matte": "my-matte.mp4"} fixes a matte for this footage
      (include_dark adds only the dark pixels in a box, e.g. a microphone in front of the speaker) or brings your own white-on-black matte video
      (any segmentation tool, same length as master.mp4). See references/look-and-layers.md.
+  {type:"roundup", look: "split" | "slide" | "chapter", ...}   (Added by By Mel Ross) the Roundup layout, one card per item in a "what I used this month" reel:
+     split   {src: "screens/tool.mov", label?: "Granola", fit?: "contain" | "cover", face_y?: 30}   their picture or screen recording in a rounded panel
+             in the top half, their face (the main clip) filling the bottom half. face_y = where the face sits in the clip (% from the top).
+     slide   {src: "screens/tool.mov", corner?: "bottom-right" | "bottom-left" | "top-right" | "top-left", inset_size?: 300, label?}   the picture or
+             recording fills the screen, their face in a small window (kept above the bottom area Instagram covers).
+     chapter {text: "Granola", number?: "01", sub?: "notes that write themselves", bg?: "#hex", color?: "#hex"}   a plain colour screen with the
+             item's name in the serif font (brand.json fonts.serif, else Georgia); no picture of them; captions step aside ("quiet": false keeps them).
+     src can be a picture, GIF or video clip (from?, loop? as for popup). Video clips are prepared at 720 px wide, like popups.
   {type:"note", text:"line / line", y?, rotate?, size?}   (Added by By Mel Ross, 0.11.0) a handwritten note on a taped scrap of paper
   Material kits (kit.py): with "kit" set, card / tag / note are built from the kit's paper, tape, label and stickers. "kit": false on a card keeps it plain.
   Image paths: relative to the reel folder, or to ~/reels/assets/, or absolute.
@@ -843,6 +851,64 @@ for i, c in enumerate(edit.get("cards", [])):
                   f'tl.fromTo("#{cid} .pf",{{y:300}},{{y:0,duration:0.5,ease:"back.out(1.4)"}},{q(a + 0.08)});'
                   f'tl.to("#{cid}",{{clipPath:"inset(0% 0% 100% 0%)",duration:0.25,ease:"power3.in"}},{q(b - 0.25)});tl.set("#{cid}",{{autoAlpha:0}},{q(b)});')
         sfx("swish", a - 0.08, -12)
+    elif kind == "roundup":
+        # Added by By Mel Ross (Roundup layout, Style Menu L1 + L11 + chapter cards). One card, three looks for a "what I used this month" reel:
+        #   "split"   their picture or screen recording in the top half, their face (the main clip) in the bottom half
+        #   "slide"   the picture or recording fills the screen, with their face in a small window
+        #   "chapter" a plain colour screen with the item's name in a serif font, no picture of them
+        look = c.get("look", "split")
+        if look not in ("split", "slide", "chapter"):
+            print(f"warning: roundup card {i}: look {look!r} is not split, slide or chapter - skipped"); continue
+        asset = None
+        if look != "chapter":
+            if not c.get("src"):
+                print(f"warning: roundup card {i} ({look}) needs a picture or screen recording in \"src\" - skipped"); continue
+            asset = popup_asset(c["src"], max(b - a, 0.5), c.get("from", 0), c.get("loop", False))
+            if not asset: continue
+        bgc = c.get("bg", MAIN if look == "chapter" else LIGHT)
+        fg = c.get("color", LIGHT if look == "chapter" else MAIN)
+        fy = numf(c.get("face_y"), 30)                                  # where the face sits in the clip, % from the top (bottom half / window crop)
+        cam = (f'<video id="{cid}v" src="master.mp4" muted playsinline data-start="{q(a)}" data-duration="{q(b - a)}" data-media-start="{q(a)}" '
+               f'data-track-index="{9 + i}" style="object-position:50% {fy:.0f}%"></video>')
+        media = ""
+        if asset:
+            mkind, ppath, iw, ih = asset
+            mfit = c.get("fit", "contain" if look == "split" else "cover")
+            mfit = mfit if mfit in ("contain", "cover") else "contain"
+            media = (f'<video id="{cid}m" src="{ppath}" muted playsinline data-start="{q(a)}" data-duration="{q(b - a)}" data-track-index="{60 + i}" style="object-fit:{mfit}"></video>'
+                     if mkind in ("video", "clip") else f'<img src="{ppath}" style="object-fit:{mfit}" />')
+        lab = (f'<div class="rlabel" style="{font("body", 34)};background:{POP};color:{c.get("label_color", MAIN)}">{esc(str(c["label"]))}</div>' if c.get("label") else "")
+        if look == "split":
+            mid.append(f'<div id="{cid}" class="rup rsplit" style="opacity:0;visibility:hidden;background:{bgc}">'
+                       f'<div class="rtop">{media}{lab}</div><div class="rface">{cam}</div></div>')
+            js.append(f'tl.set("#{cid}",{{autoAlpha:1}},{q(a)});tl.fromTo("#{cid} .rtop",{{y:-1000}},{{y:0,duration:0.45,ease:"power3.out"}},{q(a)});'
+                      f'tl.to("#{cid} .rtop",{{y:-1000,duration:0.3,ease:"power3.in"}},{q(b - 0.3)});tl.set("#{cid}",{{autoAlpha:0}},{q(b)});')
+            sfx("swish", a - 0.08, -12)
+        elif look == "slide":
+            corner = c.get("corner", "bottom-right")
+            iwid = int(numf(c.get("inset_size"), 300)); ihgt = int(iwid * 4 / 3)
+            left = 48 if "left" in corner else W - iwid - 48
+            top = 150 if corner.startswith("top") else H - 440 - ihgt   # keeps the window above the bottom ~420 px Instagram covers
+            mid.append(f'<div id="{cid}" class="rup rslide" style="opacity:0;visibility:hidden;background:{bgc}">'
+                       f'<div class="rfull">{media}</div>{lab}<div class="rinset" style="left:{left}px;top:{top}px;width:{iwid}px;height:{ihgt}px">{cam}</div></div>')
+            cover(a, b, top - 40, top + ihgt + 40)
+            js.append(f'tl.set("#{cid}",{{autoAlpha:1}},{q(a)});tl.fromTo("#{cid}",{{clipPath:"inset(0% 0% 100% 0%)"}},{{clipPath:"inset(0% 0% 0% 0%)",duration:0.3,ease:"power3.out"}},{q(a)});'
+                      f'tl.fromTo("#{cid} .rinset",{{scale:0.4,opacity:0}},{{scale:1,opacity:1,duration:0.45,ease:"back.out(1.6)"}},{q(a + 0.15)});'
+                      f'tl.to("#{cid}",{{clipPath:"inset(100% 0% 0% 0%)",duration:0.25,ease:"power3.in"}},{q(b - 0.25)});tl.set("#{cid}",{{autoAlpha:0}},{q(b)});')
+            sfx("swish", a - 0.08, -12)
+        else:
+            name = str(c.get("text") or c.get("title") or "")
+            if not name: print(f"warning: roundup card {i} (chapter) has no \"text\" - skipped"); continue
+            px = int(numf(c.get("size"), 128 if len(name) <= 14 else 104))
+            num = (f'<div class="rnum" style="{font("body", 40)};color:{fg}">{esc(str(c["number"]))}</div>' if c.get("number") not in (None, "") else "")
+            sub_ = (f'<div class="rsub" style="{font("body", 44)};color:{fg}">{esc(str(c["sub"]))}</div>' if c.get("sub") else "")
+            mid.append(f'<div id="{cid}" class="rup rchap" style="opacity:0;visibility:hidden;background:{bgc}"><div class="rcw">{num}'
+                       f'<div class="rname" style="{font("serif", px)};color:{fg}">{esc(name)}</div>{sub_}</div></div>')
+            if c.get("quiet", True): quiet.append((a, b))
+            js.append(f'tl.set("#{cid}",{{autoAlpha:1}},{q(a)});tl.fromTo("#{cid}",{{opacity:0}},{{opacity:1,duration:0.2}},{q(a)});'
+                      f'tl.fromTo("#{cid} .rcw",{{y:60,opacity:0}},{{y:0,opacity:1,duration:0.55,ease:"power3.out"}},{q(a + 0.1)});'
+                      f'tl.to("#{cid}",{{opacity:0,duration:0.2}},{q(b - 0.2)});tl.set("#{cid}",{{autoAlpha:0}},{q(b)});')
+            sfx("swish", a - 0.05, -14)
     elif kind == "motion":
         src = next((f for f in (HF / "compositions").rglob(f"{c['name']}.html")), None)
         if not src:
@@ -1169,6 +1235,18 @@ html, body {{ margin: 0; background: #000; overflow: hidden; }}
 .ti {{ width: 44%; aspect-ratio: 1; border-radius: 30%; display: flex; align-items: center; justify-content: center; box-sizing: border-box; }}
 .tt {{ line-height: 1.08; letter-spacing: -.01em; }}
 .page {{ position: absolute; inset: 0; }}
+.rup {{ position: absolute; inset: 0; overflow: hidden; }}
+.rup video, .rup img {{ width: 100%; height: 100%; display: block; object-fit: cover; }}
+.rtop {{ position: absolute; left: 36px; right: 36px; top: 36px; height: 888px; border-radius: 34px; overflow: hidden; background: #fff; box-shadow: 0 20px 50px rgba(0,0,0,.18); }}
+.rface {{ position: absolute; left: 0; right: 0; top: 960px; bottom: 0; overflow: hidden; }}
+.rfull {{ position: absolute; inset: 0; }}
+.rinset {{ position: absolute; overflow: hidden; border: 8px solid #fff; border-radius: 30px; box-shadow: 0 20px 50px rgba(0,0,0,.35); transform-origin: 50% 50%; }}
+.rlabel {{ position: absolute; left: 28px; top: 28px; padding: 10px 22px; border-radius: 40px; letter-spacing: .02em; box-shadow: 0 6px 18px rgba(0,0,0,.15); }}
+.rslide .rlabel {{ left: 48px; top: 150px; }}
+.rchap .rcw {{ position: absolute; left: 90px; right: 90px; top: 50%; transform: translateY(-58%); text-align: center; }}
+.rname {{ line-height: 1.02; letter-spacing: -.02em; }}
+.rnum {{ letter-spacing: .2em; margin-bottom: 26px; opacity: .8; }}
+.rsub {{ margin-top: 26px; line-height: 1.2; opacity: .85; }}
 .pt {{ position: absolute; left: 0; right: 0; top: 150px; text-align: center; line-height: .9; letter-spacing: -.04em; padding: 0 60px; }}
 .pf {{ position: absolute; left: 190px; top: 560px; width: 700px; height: 1240px; overflow: hidden; border: 12px solid #fff; border-radius: 34px; box-shadow: 0 30px 70px rgba(0,0,0,.28); }}
 .pf video {{ width: 100%; height: 100%; object-fit: cover; display: block; }}

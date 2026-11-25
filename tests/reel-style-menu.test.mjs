@@ -9,11 +9,11 @@ import { ff, haveFfmpeg, havePython, py, run, root, skill, skipReason, tmp } fro
 
 const read = (...p) => fs.readFileSync(path.join(skill, ...p), "utf8");
 const menu = JSON.parse(read("assets", "style-menu.json"));
-const IDS = Object.keys(menu.looks);   // the menu decides which IDs exist (60 looks: H1-H20, C1-C16, L1-L24)
+const IDS = Object.keys(menu.looks);   // the menu decides which IDs exist (61 looks: H1-H20, C1-C16, L1-L25)
 
 // ------------------------------------------------------------------------------------------------------ the menu itself
 test("style menu: every ID is in the JSON and in the Markdown table, with a known status", () => {
-  assert.equal(IDS.length, 60);
+  assert.equal(IDS.length, 61);
   for (const id of IDS) assert.match(id, /^[HCL]\d+$/, `${id} is a hook, caption or layout ID`);
   const md = read("references", "style-menu.md");
   for (const id of IDS) {
@@ -266,6 +266,7 @@ test("every usable look's recipe builds, alone, with its own caption settings an
       if (c.type === "polaroids") c.src = Array.from({ length: r.needs_photos || 3 }, (_, j) => `shots/${"abc"[j % 3]}.png`);
       else if (["popup", "sticker"].includes(c.type)) c.src = `shots/${"abc"[k++ % 3]}.png`;
       else if (c.type === "page" && r.needs_photos) c.bg = "shots/a.png";
+      else if (c.type === "roundup" && r.needs_photos) c.src = "shots/a.png";
       return c;
     });
     const reel = makeReel(cards, { brand: { ...brand, colors: { main: "#0d2b2d", pop: "#B9C8A5", light: "#f5f2ec", ...(brand.colors || {}) } }, captions: caps });
@@ -281,7 +282,10 @@ test("every usable look's recipe builds, alone, with its own caption settings an
   assert.match(got.H15, /font-style:italic/); assert.doesNotMatch(got.H15.match(/class="tl" style="[^"]*"/)[0], /text-stroke/, "serif lines carry no outline");
   assert.match(got.C6, /class="cap capbg"[\s\S]*?<span class="cb" style="background:#FFFFFF/); assert.match(got.C10, /class="cb" style="background:rgba\(0,0,0,\.62\)/);
   assert.match(got.C9, /class="acc" style="[^"]*font-style:italic/);
-  assert.match(got.L10, /class="page pblur"[\s\S]*class="pbg"/); assert.match(got.L11, /class="plabel"[^>]*>APP NAME/);
+  assert.match(got.L10, /class="page pblur"[\s\S]*class="pbg"/); assert.match(got.L11, /class="rup rsplit"[\s\S]*class="rtop"[\s\S]*app name[\s\S]*class="rface"><video[^>]*src="master\.mp4"/);
+  assert.match(got.L1, /class="rup rslide"[\s\S]*class="rfull"><img[\s\S]*class="rinset"[^>]*><video[^>]*src="master\.mp4"/);
+  assert.match(got.L25, /class="rup rchap"[\s\S]*class="rnum"[^>]*>01<[\s\S]*class="rname" style="font-family:Georgia/);
+  assert.doesNotMatch(got.L25.match(/<div id="k0" class="rup rchap"[\s\S]*?<\/div><\/div><\/div>/)[0], /<video|<img/, "no picture of the speaker on a chapter card");
   assert.equal((got.L12.match(/class="pl"/g) || []).length, 6, "the cloud takes 6 pictures");
   assert.equal((got.L14.match(/class="tile" style="left:50px/g) || []).length, 4, "a column down the left side");
   assert.equal((got.L15.match(/class="colc"/g) || []).length, 3); assert.equal((got.L17.match(/class="chip"/g) || []).length, 5);
@@ -294,4 +298,26 @@ test("the pages and the storyboard handle a look made of several cards", () => {
   assert.match(page, /for \(const c of r\.cards \|\| \(r\.card \? \[r\.card\] : \[\]\)\) card\(f, c\)/);
   for (const k of ["quote", "columns", "chips", "page", "cta", "tag", "sticker"]) assert.match(page, new RegExp(`kind === "${k}"`), `the looks page draws a ${k}`);
   assert.match(sb, /look_cards = r\.get\("cards"\)/); assert.match(sb, /accent == "first"/);
+});
+
+// Added by By Mel Ross: the Roundup layout (card "roundup": split L11, slide L1, chapter L25) for a "what I used this month" reel.
+test("roundup card: split puts the picture on top and the face below, slide puts the face in a corner window, chapter is serif on plain colour", { skip: skipReason }, () => {
+  const c = makeReel([
+    { type: "roundup", look: "chapter", number: "01", text: "Granola", sub: "notes that write themselves", start: 0.1, end: 0.9 },
+    { type: "roundup", look: "split", src: "shots/a.png", label: "Granola", face_y: 35, start: 1, end: 2 },
+    { type: "roundup", look: "slide", src: "shots/b.png", corner: "top-left", inset_size: 240, start: 2, end: 3 },
+    { type: "roundup", look: "slide", start: 3, end: 3.5 },
+    { type: "roundup", look: "sideways", src: "shots/c.png", start: 3, end: 3.5 },
+  ], { captions: [{ start: 0.2, end: 0.8, words: [{ text: "hidden", t: 0.2 }] }, { start: 1.2, end: 1.9, words: [{ text: "shown", t: 1.2 }] }] });
+  const { r, html } = buildOf(c);
+  assert.match(html, /id="k0" class="rup rchap"[^>]*background:#0d2b2d/, "chapter on the brand's main colour");
+  assert.match(html, /class="rname" style="font-family:Georgia[^"]*;color:#f5f2ec">Granola</, "the name in the serif font, light on dark");
+  assert.match(html, /class="rsub"[^>]*>notes that write themselves</);
+  assert.match(html, /id="k1" class="rup rsplit"[\s\S]*?class="rtop"><img src="img\/[^"]+"[\s\S]*?class="rlabel"[^>]*>Granola<\/div><\/div><div class="rface"><video id="k1v" src="master\.mp4"[^>]*data-media-start="1(\.0)?"[^>]*object-position:50% 35%/);
+  assert.match(html, /id="k2" class="rup rslide"[\s\S]*?class="rinset" style="left:48px;top:150px;width:240px;height:320px"><video id="k2v" src="master\.mp4"/);
+  assert.match(r.stdout, /roundup card 3 \(slide\) needs a picture or screen recording/); assert.match(r.stdout, /look 'sideways' is not split, slide or chapter/);
+  assert.doesNotMatch(html, /id="k3"|id="k4"/);
+  assert.doesNotMatch(html, />hidden</, "captions step aside for the chapter card");
+  assert.match(html, />shown</);
+  const css = html.match(/\.rface \{[^}]*\}/)[0]; assert.match(css, /top: 960px/, "the face fills the bottom half");
 });

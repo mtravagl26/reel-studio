@@ -378,7 +378,7 @@ export function syncCheck(captions, heard) {
 // One place that says it: how much was cut, the speed, the captions, each kind of graphic, the sounds. Counted from the reel's
 // own files, never estimated. `srcDur` is the length of the clip as filmed (null when it can't be read: the cut line then
 // leaves out the before/after). Used by the touch-ups page and by `node review/receipt.mjs <reel>` at delivery.
-const KIND_NAME = { title: ["title", "titles"], card: ["list", "lists"], tag: ["label", "labels"], xlist: ["check list", "check lists"], stat: ["number card", "number cards"],
+const KIND_NAME = { title: ["title", "titles"], card: ["list", "lists"], tag: ["label", "labels"], xlist: ["check list", "check lists"], roundup: ["roundup screen", "roundup screens"], stat: ["number card", "number cards"],
   note: ["taped note", "taped notes"], cta: ["closing button", "closing buttons"], image: ["picture", "pictures"], shot: ["website shot", "website shots"],
   polaroids: ["photo stack", "photo stacks"], tiles: ["tile row", "tile rows"], orbit: ["ring of pictures", "rings of pictures"], motion: ["animation", "animations"],
   follow: ["written-out line", "written-out lines"], split: ["split screen", "split screens"] };

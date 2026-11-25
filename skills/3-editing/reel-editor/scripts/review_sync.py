@@ -96,7 +96,7 @@ def export(reel, proposal, out):
     board = []
     ENTRANCE_SFX = {"title": ("snap", -11), "block": ("swish", -12), "card": ("swish", -13), "tag": ("pop", -14), "note": ("swish", -13), "cta": ("coin", -12),
                     "shot": ("swish", -12), "image": ("swish", -13), "sticker": ("pop", -13), "popup": ("pop", -13), "orbit": ("whoosh", -15), "polaroids": ("swish", -13),
-                    "xlist": ("swish", -13), "stat": ("pop", -13), "tiles": ("swish", -13), "page": ("swish", -12), "motion": ("swish", -12), "follow": ("sparkle", -12)}   # the first sound each card type plays in build_reel.py
+                    "xlist": ("swish", -13), "stat": ("pop", -13), "tiles": ("swish", -13), "page": ("swish", -12), "motion": ("swish", -12), "follow": ("sparkle", -12), "roundup": ("swish", -12)}   # the first sound each card type plays in build_reel.py
     for c in proposal["cards"]:
         hits = [i for i, w in enumerate(words) if norm(w["text"]) == norm(c["anchor"]) and w["s"] >= c.get("after", 0)]
         if not hits: print("warning: anchor not found:", c["id"], c["anchor"]); continue

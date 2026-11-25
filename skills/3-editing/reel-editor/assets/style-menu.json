@@ -155,9 +155,22 @@
   "L1": {
    "name": "Screen recording + small face cam",
    "group": "Layouts",
-   "status": "not-built",
-   "needs": "screen-recording footage",
-   "recipe": null
+   "status": "built",
+   "version": "v1",
+   "build": "now",
+   "does": "Your picture or screen recording fills the screen; your face sits in a small rounded window in a corner, kept clear of the bottom of the screen where the app's buttons sit.",
+   "when": "Showing a tool or a slide full size while you talk over it (Roundup layout).",
+   "build_note": "card `roundup` with `look: \"slide\"` (corner, inset_size); src = a picture, GIF or video clip.",
+   "needs": "a picture or screen recording from you",
+   "recipe": {
+    "slot": "layout",
+    "needs_photos": 1,
+    "card": {
+     "type": "roundup",
+     "look": "slide",
+     "label": "app name"
+    }
+   }
   },
   "L2": {
    "name": "Tilted polaroid stack",
@@ -848,22 +861,22 @@
   "L11": {
    "name": "Top asset panel + face below",
    "group": "Layouts",
-   "status": "partial",
+   "status": "built",
    "version": "v1",
-   "build": "assets",
-   "does": "The top half is a rounded panel holding the app icon or screen; your face fills the bottom half; a small label names the panel.",
-   "when": "Explaining a tool in one line each. Keeps your face on screen the whole time.",
-   "build_note": "`page` card (background image + clip framed) with your screenshot or logo; small label added.",
-   "needs": "your own picture(s): a logo, a screenshot, a GIF or photos",
+   "build": "now",
+   "does": "The top half is a rounded panel holding your picture or screen recording; your face fills the bottom half; a small label names the panel.",
+   "when": "Explaining a tool in one line each. Keeps your face on screen the whole time (Roundup layout).",
+   "build_note": "card `roundup` with `look: \"split\"` (label, fit, face_y); src = a picture, GIF or video clip.",
+   "needs": "a picture or screen recording from you",
    "recipe": {
     "slot": "layout",
     "needs_photos": 1,
     "card": {
-     "type": "page",
+     "type": "roundup",
+     "look": "split",
      "label": "app name"
     }
-   },
-   "missing": "the picture fills the whole background behind the title area; a separate top panel with your face filling the bottom half is not built"
+   }
   },
   "L12": {
    "name": "Photo-card cloud above the head",
@@ -1160,6 +1173,25 @@
     }
    }
   },
+  "L25": {
+   "name": "Chapter card: item name in serif",
+   "group": "Layouts",
+   "status": "built",
+   "version": "v1",
+   "build": "now",
+   "does": "A full-frame plain colour screen with the next item's name in a serif font (optional small number above, short line under). No picture of you.",
+   "when": "Between items in a roundup or list reel, so each new item gets its own beat (Roundup layout).",
+   "build_note": "card `roundup` with `look: \"chapter\"` (text, number, sub, bg, color); captions step aside while it is up.",
+   "recipe": {
+    "slot": "layout",
+    "card": {
+     "type": "roundup",
+     "look": "chapter",
+     "text": "the next tool",
+     "number": "01"
+    }
+   }
+  },
   "H20": {
    "name": "Arched title with a sparkle wave",
    "group": "Hooks",
@@ -1183,5 +1215,5 @@
    }
   }
  },
- "v1_added": "H6-H19, C6-C16 and L10-L23 were added as ideas and built in 0.19.0 (H18, C14 and L18 stay 'planned': not recommended). They describe common patterns in short-form reels in general terms; no footage, text, code or images from any reel were copied. H20 (arched title with a sparkle wave) was added in 0.26.0."
+ "v1_added": "H6-H19, C6-C16 and L10-L23 were added as ideas and built in 0.19.0 (H18, C14 and L18 stay 'planned': not recommended). They describe common patterns in short-form reels in general terms; no footage, text, code or images from any reel were copied. H20 (arched title with a sparkle wave) was added in 0.26.0. L25 (chapter card) and the Roundup layout (L1 and L11 built with card `roundup`) were added on 2026-11-25."
 }

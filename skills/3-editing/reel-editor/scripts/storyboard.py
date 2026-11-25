@@ -134,7 +134,7 @@ for name, ids in options:
             if n_ == 0: card.update({k: v for k, v in content.get(i, {}).items()})
             if srcs:
                 if card["type"] == "polaroids": card["src"] = srcs
-                elif card["type"] in ("popup", "sticker", "image", "shot"): card["src"] = srcs.pop(0) if len(srcs) > 1 else srcs[0]
+                elif card["type"] in ("popup", "sticker", "image", "shot", "roundup"): card["src"] = srcs.pop(0) if len(srcs) > 1 else srcs[0]
                 elif card["type"] == "page" and card.get("bg") != "blur": card["bg"] = srcs[0]
             slot = r.get("slot", "layout")
             if look_t is not None: t = look_t

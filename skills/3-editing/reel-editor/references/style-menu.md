@@ -28,6 +28,8 @@ Defaults for every look: sage palette (`#B9C8A5` highlight, a deeper sage `SAGE_
 | L8 | Stat card pop | built | card `stat` (below) |
 | L9 | Photo sticker beside your face | built | card `popup` with `caption` (below) |
 | L24 | Taped note (was L10 before the 58-look menu) | built | card `note`; uses the material kit's paper and tape when one is on (`references/material-kits.md`) |
+| L1 | Screen recording + small face cam | built | `{"type": "roundup", "look": "slide", "label": "app name"}` + needs 1 picture or screen recording from them (Roundup layout, below) |
+| L25 | Chapter card: item name in serif | built | `{"type": "roundup", "look": "chapter", "text": "the next tool", "number": "01"}` (Roundup layout, below) |
 
 ### Not built yet (do not offer)
 
@@ -36,7 +38,6 @@ Defaults for every look: sage palette (`#B9C8A5` highlight, a deeper sage `SAGE_
 | H1 | Logo-swap title | not built | needs two logo images (not supplied) |
 | H4 | Series title, phone-in-frame | not built | needs a logo and a phone-card layout |
 | C4 | Black on white for screen recordings | not built | needs screen-recording footage |
-| L1 | Screen recording + small face cam | not built | needs screen-recording footage |
 | L3 | Beige dotted paper card, one word | not built | nearest is the paper-grid skill (edit-video pipeline), not this editor |
 | L5 | Caps label + parenthetical + big number | not built | nearest is the `count-up` motion card |
 
@@ -116,7 +117,7 @@ What the engine gained for these (all in `scripts/build_reel.py`):
 | C15 | One bold white word, no highlight | built | brand: `{"colors": {"caption": "#FFFFFF"}, "captions": {"size": 96, "y": 1180, "case": "sentence", "mode": "word"}}` |
 | C16 | Caption doubles as counter | cut-choice | The running caption carries the count, such as "1 of 5", so the rhythm of a list is built into the words. A writing choice: the count is typed into the captions. |
 | L10 | Inset card over a blurred, enlarged self | built | `{"type": "page", "bg": "blur"}` |
-| L11 | Top asset panel + face below | partial | `{"type": "page", "label": "app name"}` + needs 1 picture(s) from them Not included: the picture fills the whole background behind the title area; a separate top panel with your face filling the bottom half is not built |
+| L11 | Top asset panel + face below | built | `{"type": "roundup", "look": "split", "label": "app name"}` + needs 1 picture or screen recording from them (Roundup layout, below) |
 | L12 | Photo-card cloud above the head | built | `{"type": "polaroids", "layout": "cloud", "y": 60}` + needs 6 picture(s) from them |
 | L13 | Logo chips either side of the face | built | `{"type": "popup", "pos": "middle-left", "size": 170, "frame": false, "caption": "writing"}` + `{"type": "popup", "pos": "middle-right", "size": 170, "frame": false, "caption": "images"}` + needs 2 picture(s) from them |
 | L14 | Vertical icon list beside the face | built | `{"type": "tiles", "layout": "column", "tiles": [{"label": "one", "icon": "star"}, {"label": "two", "icon": "chart"}, {"label": "three", "icon": "people"}, {"label": "four", "icon": "doc"}]}` |
@@ -129,6 +130,24 @@ What the engine gained for these (all in `scripts/build_reel.py`):
 | L21 | Comment-keyword end line | built | `{"type": "cta", "text": "comment GUIDE and I'll send it"}` |
 | L22 | Small top-left statement block | built | `{"type": "title", "text": "one idea / that stays up / the whole reel", "font": "body", "align": "left", "y": 100, "size": 54, "color": "#FFFFFF", "quiet": false}` |
 | L23 | Two-line caps title, second line in accent | built | `{"type": "title", "text": "before you grow / *fix the basics*", "align": "center", "y": 95, "size": 120, "color": "#FFFFFF"}` |
+
+## The Roundup layout (L1 + L11 + L25)
+
+One layout for a "what I used this month" reel with one presenter: each item gets a chapter card, then the item on screen with your face. Card `roundup`, three looks:
+
+| look | What you see | Fields |
+|---|---|---|
+| `chapter` (L25) | Plain colour screen, the item's name in the serif font, no picture of you. Captions step aside | `text`, `number` ("01"), `sub`, `bg`, `color`, `size` |
+| `split` (L11) | Your picture or screen recording in a rounded panel in the top half; your face fills the bottom half | `src`, `label`, `fit` (`contain` default, or `cover`), `face_y` (where the face sits in your clip, % from the top, default 30) |
+| `slide` (L1) | The picture or recording fills the screen; your face in a small window | `src`, `corner` (`bottom-right` default), `inset_size` (window width, default 300), `label`, `fit` (`cover` default) |
+
+`src` is a picture, a GIF or a video clip (a screen recording you made), relative to the reel folder; `from` and `loop` work as for `popup`. Video clips are prepared at 720 px wide, the same as popups. Pair it with C10 (dark pill captions), H19 (name tag above the head) and L21 (comment-keyword end line), which are already built. Example for one item:
+
+```json
+{"type": "roundup", "look": "chapter", "number": "01", "text": "Granola", "start": 4.0, "end": 5.6},
+{"type": "roundup", "look": "split", "src": "screens/granola.mov", "label": "Granola", "start": 5.6, "end": 11.0},
+{"type": "roundup", "look": "slide", "src": "screens/granola-notes.png", "start": 11.0, "end": 14.5}
+```
 
 ## Show me on my clip, and Put it here (0.27.0)
 
