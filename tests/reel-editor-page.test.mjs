@@ -490,3 +490,19 @@ test("home page: an empty music folder offers 3 starter tracks made on this comp
   } finally { srv.kill(); }
   assert.match(fs.readFileSync(path.join(review, "home.html"), "utf8"), /Make 3 starter tracks/);
 });
+
+test("Edit page: When captions appear sets caption_lead for this reel or every reel (0.29.0)", { skip: skipReason }, async () => {
+  await withServer(async ({ reel, home, get, post }) => {
+    let s = await (await get("/api/state")).json(); assert.equal(s.captionLead, 0);
+    s = (await post("/api/caption-lead", { lead: 0.2 })).state; assert.equal(s.captionLead, 0.2);
+    assert.equal(JSON.parse(fs.readFileSync(path.join(reel, "edit.json"), "utf8")).caption_lead, 0.2);
+    s = (await post("/api/caption-lead", { lead: 0.1, scope: "all" })).state; assert.equal(s.captionLeadAll, 0.1); assert.equal(s.captionLead, 0.1);
+    assert.equal(JSON.parse(fs.readFileSync(path.join(home, "brand.json"), "utf8")).caption_lead, 0.1);
+    assert.equal(JSON.parse(fs.readFileSync(path.join(reel, "edit.json"), "utf8")).caption_lead, undefined);
+    s = (await post("/api/caption-lead", { lead: 7 })).state; assert.equal(s.captionLead, 0.5, "capped at 0.5 s");
+    s = (await post("/api/caption-lead", { lead: "x", scope: "all" })).state; assert.equal(s.captionLeadAll, 0);
+    assert.equal(JSON.parse(fs.readFileSync(path.join(home, "brand.json"), "utf8")).caption_lead, undefined);
+  });
+  const html = fs.readFileSync(path.join(review, "editor.html"), "utf8");
+  assert.match(html, /When captions appear/); assert.match(html, /\/api\/caption-lead/);
+});

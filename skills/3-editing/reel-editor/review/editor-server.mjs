@@ -251,6 +251,17 @@ function setLayout(body) {
   else if (v === (brand.layout || "captions-low")) delete edit.layout; else edit.layout = v;
   writeJSON(P.edit, edit);
 }
+// Added by By Mel Ross (0.29.0): show captions earlier, for word times that run late. 0 to 0.5 s, for this reel (edit.json
+// "caption_lead") or every reel (brand.json).
+function setCaptionLead(body) {
+  requireIdle();
+  const v = Math.round(Math.min(0.5, Math.max(0, Number(body.lead) || 0)) * 100) / 100, scope = body.scope === "all" ? "all" : "reel";
+  snapshot("caption timing", null, true);
+  const edit = readJSON(P.edit, {}), brand = brandJSON();
+  if (scope === "all") { if (v) brand.caption_lead = v; else delete brand.caption_lead; delete edit.caption_lead; writeJSON(P.brand, brand); }
+  else if (v === (Number(brand.caption_lead) || 0)) delete edit.caption_lead; else edit.caption_lead = v;
+  writeJSON(P.edit, edit);
+}
 // Added by By Mel Ross (0.28.0): add a look from the Style Menu at the playhead. The look's recipe card(s) go in as they are
 // (they come from assets/style-menu.json, not from the page), moved so the first starts at t; several cards keep their spacing.
 const ADDABLE = (l) => ["built", "partial"].includes(l.status) && l.group !== "Captions" && l.recipe && ["hook", "layout"].includes(l.recipe.slot) && (l.recipe.card || l.recipe.cards) && !l.recipe.needs_photos;
@@ -514,6 +525,7 @@ function view() {
     sfxOn: (edit.sfx ?? brand.sfx ?? "subtle") !== "none", sfxAll: (brand.sfx ?? "subtle") !== "none",
     music: musicNow(edit, brand), addLooks: addableLooks(),
     layout: edit.layout || brand.layout || "captions-low", layoutAll: brand.layout || "captions-low",
+    captionLead: Number(edit.caption_lead ?? brand.caption_lead) || 0, captionLeadAll: Number(brand.caption_lead) || 0,
     sfxVol: volName(edit.mix?.effects ?? brand.mix?.effects ?? 0), sfxVolAll: volName(brand.mix?.effects ?? 0), hasFinal: exists(P.final),
     colors: { reel: edit.colors || null, all: { main: brand.colors?.main || "#141414", pop: brand.colors?.pop || "#B9C8A5", light: brand.colors?.light || "#FFFFFF" } },
     highlight: (() => { let all = {}, reel = null; try { all = cleanHighlight(brand.caption_highlight); } catch {} try { reel = edit.caption_highlight ? cleanHighlight(edit.caption_highlight) : null; } catch {} return { reel, all, base: highlightBase(edit, brand), handwritten: !!(edit.caption_colors || edit.caption_style) }; })(),
@@ -945,6 +957,7 @@ const server = http.createServer(async (req, res) => {
         if (p === "/api/look-add") { const b = JSON.parse((await readBody(req, 1e4)).toString() || "{}"); const r = addLook(b); return json(res, 200, { ok: true, ...r, state: view() }); }   // 0.28.0
         if (p === "/api/music") { const b = JSON.parse((await readBody(req, 1e4)).toString() || "{}"); setMusic(b); return json(res, 200, { ok: true, state: view() }); }   // 0.28.0
         if (p === "/api/music-upload") { const name = await MUSIC.upload(HOME, req, url.searchParams.get("name")); return json(res, 200, { ok: true, name }); }
+        if (p === "/api/caption-lead") { const b = JSON.parse((await readBody(req, 1e4)).toString() || "{}"); setCaptionLead(b); return json(res, 200, { ok: true, state: view() }); }
         if (p === "/api/layout") { const b = JSON.parse((await readBody(req, 1e4)).toString() || "{}"); setLayout(b); return json(res, 200, { ok: true, state: view() }); }
         if (p === "/api/remix") { startRender({ soundOnly: true }); return json(res, 200, { ok: true, job }); }   // 0.25.0: sound only
         if (p === "/api/sfx-volume") { const b = JSON.parse((await readBody(req, 1e4)).toString() || "{}"); setSfxVolume(b); return json(res, 200, { ok: true, state: view() }); }
