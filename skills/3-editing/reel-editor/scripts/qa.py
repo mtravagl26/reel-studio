@@ -71,6 +71,26 @@ else:
     print("cover     not made yet (cover.py, step 7: every reel gets one)")
     unmeasured.append("cover size (no cover yet)")
 
+# Added by By Mel Ross (0.29.0): caption timing. Each highlighted word's time (minus "caption_lead") against the start of its
+# sound in master.mp4, the voice on the same clock as the captions. Only words after a pause are measured.
+try:
+    _ed = json.load(open(reel / "edit.json")) if (reel / "edit.json").exists() else {}
+    _ws = [w["t"] for c in _ed.get("captions", []) if not c.get("off") for w in c.get("words", []) if "t" in w]
+    if _ws and (reel / "master.mp4").exists():
+        sys.path.insert(0, str(Path(__file__).resolve().parent)); import word_timing as _wt
+        _lead = float(_ed["caption_lead"] if "caption_lead" in _ed else brand.get("caption_lead") or 0)
+        _r = _wt.lag(reel / "master.mp4", [t - _lead for t in _ws])
+        print("captions  " + _wt.say(_r, "timing"))
+        if _r["median"] is None: unmeasured.append("caption timing (too few pauses to measure)")
+        else:
+            measured.append(f"caption timing ({_r['median']:+.2f} s, {_r['n']} words)")
+            if abs(_r["median"]) >= 0.2: fails.append("caption timing")
+            elif _r["median"] >= 0.08: print(f"          captions run {_r['median']:.2f} s late: try \"caption_lead\": {min(0.3, round(_r['median'], 1))}")
+    else:
+        unmeasured.append("caption timing (no captions or no master.mp4)")
+except Exception as e:   # the check must never stop QA
+    print("captions  timing NOT CHECKED:", e); unmeasured.append("caption timing (the check could not run)")
+
 exp = reel / "expected.txt"
 if exp.exists():
     tok = lambda s: re.sub(r"[^a-z0-9' ]", " ", s.lower()).split()

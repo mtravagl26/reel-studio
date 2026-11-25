@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """Word-timed transcript for a clip: ElevenLabs Scribe when a key is set (tight word timing, keeps "um"/"uh"),
-else the free local Whisper via HyperFrames. Writes a flat word list: [{"text","start","end"}, ...].
+else the free local Whisper via HyperFrames, with its word times lined up by whisper-cli's word alignment (0.29.0). Writes a flat word list: [{"text","start","end"}, ...].
 Usage: python3 transcribe.py <video-or-audio> <out.json>
 Key: ELEVENLABS_API_KEY in the environment or in ~/.config/reels/.env (never pasted into chat)."""
 import json, os, subprocess, sys, tempfile, urllib.error, urllib.request, uuid
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 # Modified by By Mel Ross: HyperFrames pinned to the version render.sh uses, telemetry off unless you opt in.
 os.environ.setdefault("HYPERFRAMES_NO_TELEMETRY", "1"); os.environ.setdefault("DO_NOT_TRACK", "1")
 from pathlib import Path
@@ -55,5 +56,19 @@ else:
                  "\nThe first run downloads the speech model (about 500 MB) from huggingface.co, so it needs internet. "
                  "Or add ELEVENLABS_API_KEY to ~/.config/reels/.env to use Scribe.")
     words = json.load(open(d / "transcript.json"))
-    print(f"transcribed with local Whisper (no ElevenLabs key): {len(words)} words - timing can drift ~0.3 s")
+    print(f"transcribed with local Whisper (no ElevenLabs key): {len(words)} words")
+    # Added by By Mel Ross (0.29.0): local Whisper's word times run late, by a different amount per word. Line them up with
+    # whisper-cli's word alignment; if that can't run, keep the times and say so.
+    import word_timing
+    words, msg = word_timing.retime(src, words)
+    print("word times:", msg)
 json.dump(words, open(out, "w"))
+try:   # 0.29.0: how late the word starts run against the audio, so late captions are caught on every reel
+    import word_timing
+    r = word_timing.lag(src, [w["start"] for w in words])
+    print(word_timing.say(r))
+    if r["median"] is not None and r["median"] >= 0.08:
+        print(f"TIP (tell them once): captions would show about {r['median']:.1f} s after the word. "
+              f'"caption_lead": {min(0.3, round(r["median"], 1))} in brand.json, or "When captions appear" on the Edit page, shows them earlier.')
+except Exception as e:
+    print("word starts: NOT CHECKED:", e)

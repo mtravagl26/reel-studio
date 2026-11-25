@@ -536,7 +536,10 @@ function renderSettings() {
   const hi = S.layout === "captions-high";
   const layBox = `<label class="f">Where captions sit</label>
     <div class="seg"><button class="${hi ? "" : "on"}" data-a="layout" data-v="captions-low" data-s="reel">At the bottom</button><button class="${hi ? "on" : ""}" data-a="layout" data-v="captions-high" data-s="reel">Above my head</button></div>
-    <p class="help" style="margin:8px 0">${hi ? "Captions sit above your head and text graphics move to the lower third." : "Captions sit at the bottom and text graphics sit near the top."} For every reel: <button class="sm" data-a="layout" data-v="captions-low" data-s="all">bottom</button> <button class="sm" data-a="layout" data-v="captions-high" data-s="all">above my head</button> (now ${S.layoutAll === "captions-high" ? "above my head" : "bottom"}). To move captions for part of a reel, use the Captions tab on the review page.</p><hr style="border:0;border-top:1px solid var(--line);margin:14px 0">`;
+    <p class="help" style="margin:8px 0">${hi ? "Captions sit above your head and text graphics move to the lower third." : "Captions sit at the bottom and text graphics sit near the top."} For every reel: <button class="sm" data-a="layout" data-v="captions-low" data-s="all">bottom</button> <button class="sm" data-a="layout" data-v="captions-high" data-s="all">above my head</button> (now ${S.layoutAll === "captions-high" ? "above my head" : "bottom"}). To move captions for part of a reel, use the Captions tab on the review page.</p>
+    <label class="f">When captions appear</label>
+    <div class="seg">${[[0, "On the word"], [0.1, "0.1 s early"], [0.2, "0.2 s early"], [0.3, "0.3 s early"]].map(([v, t]) => `<button class="${Math.abs((S.captionLead || 0) - v) < 0.001 ? "on" : ""}" data-a="lead" data-v="${v}" data-s="reel">${t}</button>`).join("")}</div>
+    <p class="help" style="margin:8px 0">If captions show up after you say the word, pick an earlier one and re-render. For every reel: ${[0, 0.1, 0.2].map((v) => `<button class="sm" data-a="lead" data-v="${v}" data-s="all">${v ? v + " s early" : "on the word"}</button>`).join(" ")} (now ${S.captionLeadAll ? S.captionLeadAll + " s early" : "on the word"}).</p><hr style="border:0;border-top:1px solid var(--line);margin:14px 0">`;
   $("#settings").innerHTML = themeBox + colorBox + layBox + hlBox + `<label class="f">Where text goes by default (every reel)</label><div class="seg"><button class="${L === "front" ? "on" : ""}" data-a="default" data-v="front">In front of me</button><button class="${L === "behind" ? "on" : ""}" data-a="default" data-v="behind">Behind me</button></div>
     <p class="help" style="margin-top:8px">Text sits in the top area above your head. This only sets the layer new text starts on; you can change any single piece of text. ${S.hasTextDefault ? "" : "(Not saved in the brand file yet: the built-in default is in front.)"}</p>`;
 }
@@ -638,6 +641,9 @@ document.addEventListener("click", async (e) => {
   }
   else if (a === "music-level") {   // 0.28.0
     try { await post("/api/music", { level: el.dataset.v }); toast(`Music ${el.dataset.v}. Press "Update the sound" to hear it.`); } catch (er) { toast(er.message, true); }
+  }
+  else if (a === "lead") {   // 0.29.0
+    try { await post("/api/caption-lead", { lead: Number(el.dataset.v), scope: el.dataset.s }); toast(`Captions ${Number(el.dataset.v) ? el.dataset.v + " s early" : "on the word"} for ${el.dataset.s === "all" ? "every reel" : "this reel"}. Re-render to see it.`); } catch (er) { toast(er.message, true); }
   }
   else if (a === "layout") {   // 0.26.0
     try { await post("/api/layout", { layout: el.dataset.v, scope: el.dataset.s }); toast(`Captions ${el.dataset.v === "captions-high" ? "above your head" : "at the bottom"} for ${el.dataset.s === "all" ? "every reel" : "this reel"}`); } catch (er) { toast(er.message, true); }

@@ -1004,6 +1004,13 @@ if brand.get("require_carousel") and not edit.get("no_carousel_ok") and not any(
 
 # ---- captions -----------------------------------------------------------------------------------------------------
 cap_json = []
+# Added by By Mel Ross (0.29.0): "caption_lead" (seconds, 0 to 0.5) shows every caption and every highlighted word that much
+# earlier, for word times that run late. edit.json wins over brand.json. Captions only; graphics keep their times.
+LEAD = min(0.5, max(0.0, numf(edit["caption_lead"] if "caption_lead" in edit else brand.get("caption_lead"), 0.0)))
+if LEAD:
+    for c in edit.get("captions", []):
+        c["start"], c["end"] = max(0.0, c["start"] - LEAD), max(0.05, c["end"] - LEAD)
+        for w in c["words"]: w["t"] = max(c["start"], w["t"] - LEAD)
 def cap_y(c):
     """Where this caption goes (0.26.0): its own "pos" or "y", else the layout's zone; moved to the other zone when a graphic
     covers it for that stretch, and hidden when both zones are covered. None = hidden."""
@@ -1060,7 +1067,7 @@ if HT and not CAPCUT:
     _norm = lambda w: re.sub(r"[^a-z0-9']", "", w.lower())
     for e_, h in enumerate(HT):
         if "word" in h:
-            hits = [w["t"] for c in edit.get("captions", []) for w in c["words"] if _norm(w["text"]) == _norm(h["word"])]
+            hits = [w["t"] + LEAD for c in edit.get("captions", []) for w in c["words"] if _norm(w["text"]) == _norm(h["word"])]   # the spoken time, not the early caption
             occ = int(h.get("occurrence", 1)) - 1
             if occ >= len(hits): print(f"hand trail: the word {h['word']!r} is not in the captions - skipped"); continue
             t0 = hits[occ] - float(h.get("lead", 0.0)); t1 = hits[occ] + float(h.get("seconds", 1.4))

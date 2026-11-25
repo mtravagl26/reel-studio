@@ -124,3 +124,44 @@ test("home page: the looks gallery saves picks, and they go into the request", {
     assert.match(await (await fetch(base + "/")).text(), /"picks":\{"ids":\["H20"\]/);
   } finally { srv.kill(); }
 });
+
+test("word timing: whisper-cli's aligned times replace late Whisper times, and the check measures them against the audio (0.29.0)", { skip: skipReason }, () => {
+  const dir = tmp("wordtiming"), home = path.join(dir, "home"), bin = path.join(dir, "bin");
+  fs.mkdirSync(path.join(home, ".cache/hyperframes/whisper/models"), { recursive: true }); fs.mkdirSync(bin);
+  fs.writeFileSync(path.join(home, ".cache/hyperframes/whisper/models/ggml-small.en.bin"), "stand-in");
+  // a stand-in whisper-cli: refuses to align unless flash attention is off, then writes the -ojf JSON with t_dtw
+  fs.writeFileSync(path.join(bin, "whisper-cli"), `#!/usr/bin/env python3
+import json, sys
+a = sys.argv
+assert "-nfa" in a and a[a.index("-dtw") + 1] == "small.en", a
+toks = [{"text": "[_BEG_]", "t_dtw": -1}] + [{"text": " " + w, "t_dtw": int(k * 100 + 100)} for k, w in enumerate(["one", "two", "three", "four", "five"])]
+json.dump({"transcription": [{"tokens": toks}]}, open(a[a.index("-of") + 1] + ".json", "w"))
+`, { mode: 0o755 });
+  const wav = path.join(dir, "v.wav");
+  ff(["-f", "lavfi", "-i", "aevalsrc='" + [1, 2, 3, 4, 5].map((k) => `sin(2*PI*220*t)*between(t,${k},${k + 0.4})`).join("+") + "+0.001*random(0)':s=16000:d=6", wav]);
+  const late = ["one", "two", "three", "four", "five"].map((w, k) => ({ text: w, start: k + 1.3, end: k + 1.6 }));
+  const words = path.join(dir, "w.json"); fs.writeFileSync(words, JSON.stringify(late));
+  const r = spawnSync("python3", [path.join(skill, "scripts", "word_timing.py"), "retime", wav, words], { encoding: "utf8", env: { ...process.env, HOME: home, PATH: bin + ":" + process.env.PATH } });
+  assert.equal(r.status, 0, r.stderr);
+  assert.match(r.stdout, /5 of 5 words moved/); assert.match(r.stdout, /word starts: on time/);
+  assert.deepEqual(JSON.parse(fs.readFileSync(words, "utf8")).map((w) => w.start), [1, 2, 3, 4, 5]);
+  const c = spawnSync("python3", [path.join(skill, "scripts", "word_timing.py"), "check", wav, words], { encoding: "utf8" });
+  fs.writeFileSync(words, JSON.stringify(late));
+  const c2 = spawnSync("python3", [path.join(skill, "scripts", "word_timing.py"), "check", wav, words], { encoding: "utf8" });
+  assert.match(c.stdout, /on time/); assert.match(c2.stdout, /0\.30 s late on average/);
+  // no whisper-cli: the words are kept as they were, with a reason
+  fs.writeFileSync(words, JSON.stringify(late));
+  const n = spawnSync("python3", [path.join(skill, "scripts", "word_timing.py"), "retime", wav, words], { encoding: "utf8", env: { ...process.env, HOME: dir, PATH: "/usr/bin:/bin" } });
+  assert.match(n.stdout, /isn't installed yet/); assert.equal(JSON.parse(fs.readFileSync(words, "utf8"))[0].start, 1.3);
+});
+
+test("caption_lead shows captions earlier; edit.json wins over brand.json (0.29.0)", { skip: skipReason }, () => {
+  const at = (html, k) => Number(html.match(new RegExp(`"#c${k}",\\{autoAlpha:1\\},([\\d.]+)\\)`))[1]);
+  const base = build({}), lead = build({ edit: { caption_lead: 0.2 } }), all = build({ brand: { caption_lead: 0.3 } }), off = build({ brand: { caption_lead: 0.3 }, edit: { caption_lead: 0 } }), big = build({ edit: { caption_lead: 9 } });
+  assert.equal(at(base.html, 1), 1.1);
+  assert.ok(Math.abs(at(lead.html, 1) - 0.9) < 0.001, "0.2 s earlier for this reel");
+  assert.ok(Math.abs(at(all.html, 2) - 1.8) < 0.001, "brand.json sets it for every reel");
+  assert.equal(at(off.html, 1), 1.1, "this reel can say 0");
+  assert.ok(Math.abs(at(big.html, 1) - 0.6) < 0.001, "capped at 0.5 s");
+  assert.equal(at(lead.html, 0), 0, "never before 0");
+});

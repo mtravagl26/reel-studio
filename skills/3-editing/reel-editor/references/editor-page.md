@@ -24,6 +24,7 @@ This is separate from the Reel Review page (`serve.mjs`, the "which words to cut
 
 | On the page | Written to |
 |---|---|
+| When captions appear (on the word, or 0.1 to 0.3 s early; 0.29.0) | `edit.json` `"caption_lead"`, or `brand.json` for every reel. `build_reel.py` shows every caption and highlighted word that much earlier; graphics keep their times. `/api/caption-lead` |
 | Fix a caption word (optional: "always fix this word") | `edit.json` captions; the checkbox also adds a `vocabulary.corrections` entry (and the term) to `brand.json` |
 | Keep / drop a piece of the cut | `edl.json` `keep` + everything in `edit.json` moves to match; `editor/state.json` keeps what was removed so it can come back |
 | Pills, titles, stickers on/off, text, start/end, height | `edit.json` cards (`"off": true` leaves a card out of the render) |
