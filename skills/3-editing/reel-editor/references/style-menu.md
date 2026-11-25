@@ -129,3 +129,9 @@ What the engine gained for these (all in `scripts/build_reel.py`):
 | L21 | Comment-keyword end line | built | `{"type": "cta", "text": "comment GUIDE and I'll send it"}` |
 | L22 | Small top-left statement block | built | `{"type": "title", "text": "one idea / that stays up / the whole reel", "font": "body", "align": "left", "y": 100, "size": 54, "color": "#FFFFFF", "quiet": false}` |
 | L23 | Two-line caps title, second line in accent | built | `{"type": "title", "text": "before you grow / *fix the basics*", "align": "center", "y": 95, "size": 120, "color": "#FFFFFF"}` |
+
+## Show me on my clip, and Put it here (0.27.0)
+
+The looks gallery (the reel link's `/styles`, and `/looks` on the home page) has **Show me on my clip**. It runs `scripts/look_preview.py`, which makes storyboard stills of the picks on the person's own footage in about 30 seconds: a cut reel as it is; a reel not cut yet, or the last clip checked on the home page, as a throw-away reel-sized copy of its first stretch with stand-in captions (from `transcript.json` when there is one). With no `brand.json` yet, the example brand stands in and the page says so. Nothing in the reel or the clip is written; previews go to `~/reels/.look-previews/` (the last 6 are kept).
+
+On the reel link, a picked layout look also gets **Where**: Claude picks the moment, or one of the reel's lines. Picks are saved in `style-picks.json` as `"at": {"L8": 31.2}` and the request says `Put L8 at the line "..." (0:31)`; before the first cut the time is in the raw clip and the request says so. Put the card on that line in `edit.json`.

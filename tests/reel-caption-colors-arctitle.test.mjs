@@ -93,3 +93,21 @@ test("the pages: a caption colors box on both, a save route, and the arched titl
   assert.deepEqual(core.cleanCardFields("arctitle", { text: " New words ", sub: "" }, 10), { text: "New words", sub: "" });
   assert.throws(() => core.cleanCardFields("arctitle", { y: 10 }, 10), /can't be changed/);
 });
+
+test("caption box and size (0.27.0): picked on the pages, the older caption_style still works, bad values are ignored", { skip: skipReason }, async () => {
+  const box = (html) => html.match(/<span class="cb" style="background:([^;]+);/)?.[1] || null;
+  const px = (html) => Number(html.match(/<div id="c0" class="cap[^"]*" style="top:\d+px;[^"]*font-size:(\d+)px/)?.[1]);
+  const plain = makeReel({ edit: { captions: caps } }).html;
+  assert.equal(box(plain), null);
+  const picked = makeReel({ edit: { captions: caps, caption_highlight: { box: "#FFFFFF", size: 140, words: "#0D2B2D" } } }).html;
+  assert.equal(box(picked), "#FFFFFF"); assert.ok(px(picked) > px(plain), `${px(picked)} > ${px(plain)}`);
+  const old = makeReel({ edit: { captions: caps, caption_style: { bg: "rgba(0,0,0,.6)", size: 130, y: 1100 } } });
+  assert.equal(box(old.html), "rgba(0,0,0,.6)"); assert.match(old.html, /id="c0" class="cap[^"]*" style="top:1100px/);
+  const off = makeReel({ edit: { captions: caps, caption_highlight: { box: "none" } }, brand: { captions: { bg: "#FFFFFF" } } }).html;
+  assert.equal(box(off), null, "this reel can take the box off");
+  const bad = makeReel({ edit: { captions: caps, caption_highlight: { box: "url(x)", size: 999 }, caption_style: { bg: "red;x", size: "big" } } }).html;
+  assert.equal(box(bad), null); assert.equal(px(bad), px(plain));
+  const core = fs.readFileSync(path.join(review, "editor.html"), "utf8"), rv = fs.readFileSync(path.join(review, "reel-review.html"), "utf8");
+  for (const t of ["Put a box behind all the words", 'id="cSize"', "Caption colors and size"]) assert.ok(core.includes(t), t);
+  for (const t of ["Box behind all the words", "Caption size", "Caption colors and size"]) assert.ok(rv.includes(t), t);
+});

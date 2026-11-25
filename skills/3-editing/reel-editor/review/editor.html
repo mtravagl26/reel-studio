@@ -472,13 +472,15 @@ function renderSettings() {
     ${mine ? `<button class="sm" data-a="colors-reset" style="margin-top:8px">Back to my brand colors</button>` : ""}
     <p class="help" style="margin-top:8px">${mine ? "This reel has its own colors." : "This reel uses your brand colors."} Every look uses these 3 colors, so changing them changes any look. Pick, press a button, then re-render to see it.</p><hr style="border:0;border-top:1px solid var(--line);margin:14px 0">`;
   // Added by By Mel Ross (0.23.0): the highlighted caption word: text color, and a box behind it you can switch on.
-  const H = { ...S.highlight.base, ...S.highlight.all, ...(S.highlight.reel || {}) }, hMine = !!(S.highlight.reel || S.edit.caption_colors), hBox = H.bg && H.bg !== "none";
+  const H = { ...S.highlight.base, ...S.highlight.all, ...(S.highlight.reel || {}) }, hMine = !!(S.highlight.reel || S.highlight.handwritten), cBox = H.box && H.box !== "none", hBox = H.bg && H.bg !== "none";
   const pick = (id, val, name, off) => `<label style="display:block;text-align:center"><input type="color" id="${id}" value="${esc(val)}" ${off ? "disabled" : ""} style="width:100%;height:48px;padding:0;border:1.5px solid var(--line);border-radius:12px;background:#fff"><span class="small" style="display:block"><b>${name}</b></span></label>`;
-  const hlBox = `<label class="f">Caption colors</label>
-    <div id="hlsample" style="background:#5d6b63;border-radius:12px;padding:14px;text-align:center;font:800 26px/1.2 var(--f-body, system-ui);color:${esc(H.words)}">this is the <span id="hlword" style="color:${esc(H.text)};${hBox ? `background:${esc(H.bg)};` : ""}padding:.02em .2em .08em;border-radius:.16em">word</span></div>
+  const hlBox = `<label class="f">Caption colors and size</label>
+    <div id="hlsample" style="background:#5d6b63;border-radius:12px;padding:14px;text-align:center;font:800 26px/1.2 var(--f-body, system-ui);color:${esc(H.words)}"><span class="cb2" style="${cBox ? `background:${esc(H.box)};` : ""}padding:.05em .25em;border-radius:.2em;box-decoration-break:clone;-webkit-box-decoration-break:clone">this is the <span id="hlword" style="color:${esc(H.text)};${hBox ? `background:${esc(H.bg)};` : ""}padding:.02em .2em .08em;border-radius:.16em">word</span></span></div>
     <div class="grid3" style="margin-top:8px">${pick("hlWords", H.words, "Words")}${pick("hlText", H.text, "Highlighted word")}${pick("hlBg", hBox ? H.bg : "#FFFFFF", "Box", !hBox)}</div>
     <label style="display:flex;align-items:center;gap:8px;margin-top:8px"><input type="checkbox" id="hlOn" ${hBox ? "checked" : ""}><span class="small"><b>Put a box behind the highlighted word</b></span></label>
-    <p class="help" id="hlwarn" style="margin-top:8px;color:#b3261e" hidden>The highlighted word and its box are too close in color. The word will be hard to read.</p>
+    <div class="grid3" style="margin-top:8px;align-items:center"><label style="display:flex;align-items:center;gap:8px;grid-column:span 2"><input type="checkbox" id="cbOn" ${cBox ? "checked" : ""}><span class="small"><b>Put a box behind all the words</b></span></label>${pick("cbColor", cBox && /^#/.test(H.box) ? H.box : "#FFFFFF", "Box behind all", !cBox)}</div>
+    <label class="f" style="margin-top:8px">Caption size <span class="small" id="csz">${H.size}</span></label><input type="range" id="cSize" min="60" max="160" step="2" value="${H.size}" style="width:100%">
+    <p class="help" id="hlwarn" style="margin-top:8px;color:#b3261e" hidden>Some of these colors are too close to read: a word and the box behind it.</p>
     <div class="seg" style="margin-top:8px"><button class="on" data-a="hl-save" data-v="reel">Use for this reel</button><button data-a="hl-save" data-v="all">Use for every reel</button></div>
     ${hMine ? `<button class="sm" data-a="hl-reset" style="margin-top:8px">Back to my usual</button>` : ""}
     <p class="help" style="margin-top:8px">${hMine ? "This reel has its own caption colors." : "This reel uses your usual caption colors."} A highlighted word is one you marked in the Captions list. Pick, then press a button.</p><hr style="border:0;border-top:1px solid var(--line);margin:14px 0">`;
@@ -578,7 +580,8 @@ document.addEventListener("click", async (e) => {
     try { await post("/api/sfx", { on: el.dataset.v === "on", scope: el.dataset.s }); toast(`Sound effects ${el.dataset.v} for ${el.dataset.s === "all" ? "every reel" : "this reel"}. Press "Update the sound" to hear it.`); } catch (er) { toast(er.message, true); }
   }
   else if (a === "hl-save" || a === "hl-reset") {   // 0.23.0: the highlighted caption word
-    const highlight = a === "hl-reset" ? {} : { words: $("#hlWords").value, text: $("#hlText").value, bg: $("#hlOn").checked ? $("#hlBg").value : "none" };
+    const highlight = a === "hl-reset" ? {} : { words: $("#hlWords").value, text: $("#hlText").value, bg: $("#hlOn").checked ? $("#hlBg").value : "none",
+      box: $("#cbOn").checked ? $("#cbColor").value : "none", size: +$("#cSize").value };   // 0.27.0: box behind all the words, caption size
     try { await post("/api/caption-highlight", { highlight, scope: a === "hl-reset" ? "reel" : el.dataset.v }); toast(a === "hl-reset" ? "Back to your usual caption colors" : el.dataset.v === "all" ? "Saved for every reel" : "Saved for this reel"); } catch (er) { toast(er.message, true); }
   }
   else if (a === "colors-save" || a === "colors-reset") {   // 0.16.0
@@ -611,15 +614,19 @@ function contrast(a, b) { const x = lum(a), y = lum(b); return (Math.max(x, y) +
 function hlSample() {
   const w = $("#hlword"); if (!w) return;
   const on = $("#hlOn").checked; $("#hlBg").disabled = !on;
+  const cb = $("#cbOn").checked; $("#cbColor").disabled = !cb; $("#csz").textContent = $("#cSize").value;
+  $("#hlsample").querySelector(".cb2")?.style.setProperty("background", cb ? $("#cbColor").value : "none");
+  $("#hlsample").style.fontSize = Math.round(26 * $("#cSize").value / 96) + "px";
   $("#hlsample").style.color = $("#hlWords").value; w.style.color = $("#hlText").value; w.style.background = on ? $("#hlBg").value : "none";
-  $("#hlwarn").hidden = !(on && contrast($("#hlText").value, $("#hlBg").value) < 2.5);
+  $("#hlwarn").hidden = !((on && contrast($("#hlText").value, $("#hlBg").value) < 2.5) || (cb && contrast($("#hlWords").value, $("#cbColor").value) < 2.5) || (cb && !on && contrast($("#hlText").value, $("#cbColor").value) < 2.5));
 }
 document.addEventListener("input", (e) => {
   if (e.target.id === "hlOn" && e.target.checked) {   // switching the box on: the word's color becomes the box, and the word turns to whichever of main, black or white reads best on it
     const bg = $("#hlText").value, main = (S.colors.reel || {}).main || S.colors.all.main;
     $("#hlBg").value = bg; $("#hlText").value = contrast(main, bg) >= 4 ? main : contrast("#000000", bg) >= contrast("#ffffff", bg) ? "#000000" : "#ffffff";
   }
-  if (["hlWords", "hlText", "hlBg", "hlOn"].includes(e.target.id)) hlSample();
+  if (e.target.id === "cbOn" && e.target.checked && contrast($("#hlWords").value, $("#cbColor").value) < 3) $("#hlWords").value = (S.colors.reel || {}).main || S.colors.all.main;   // white words on a white box: words go dark
+  if (["hlWords", "hlText", "hlBg", "hlOn", "cbOn", "cbColor", "cSize"].includes(e.target.id)) hlSample();
 });
 document.addEventListener("input", (e) => { const el = e.target; if (el.dataset?.a === "range") { const l = el.previousElementSibling; if (l) l.textContent = l.textContent.replace(/:.*$/, `: ${el.value}${el.dataset.f === "size" ? "px wide" : el.dataset.f === "period" ? " seconds" : "°"}`); } });
 document.addEventListener("keydown", (e) => { if (e.key === "Enter" && e.target.id === "wtext") document.querySelector('[data-a="word-save"]')?.click(); });
@@ -771,7 +778,7 @@ const TIPS = [
  [
   "label.f",
   "Caption colors",
-  "The color of your caption words, the color of a highlighted word, and a colored box you can put behind it. A highlighted word is one you marked in the Captions list."
+  "The caption size, a box behind all the words, the color of your caption words, the color of a highlighted word, and a colored box you can put behind it. A highlighted word is one you marked in the Captions list."
  ],
  [
   "label.f",

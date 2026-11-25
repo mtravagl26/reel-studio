@@ -14,6 +14,7 @@ import os from "node:os";
 import crypto from "node:crypto";
 import { spawn, spawnSync } from "node:child_process";
 import { SHIM, DOCS, WRITABLE, trusted } from "./review-shim.mjs";
+import { lookPreviews } from "./look-preview.mjs";
 import { fileURLToPath } from "node:url";
 import * as core from "./editor-core.mjs";
 
@@ -127,7 +128,18 @@ function menuLooks() {
   return Object.entries(looks).map(([id, l]) => ({ id, name: l.name, group: l.group, status: l.status, missing: l.missing || null, needs: l.needs || null, does: l.does || null, recipe: l.recipe || null }));
 }
 const menuExtras = () => (readJSON(path.join(SKILL, "assets", "style-extras.json"), {}).extras) || [];   // 0.10.1: animations and moving extras
-function stylePicks() { const p = readJSON(PICKS_FILE, {}); return { ids: Array.isArray(p.ids) ? p.ids : [], extras: Array.isArray(p.extras) ? p.extras : [], theme: typeof p.theme === "string" ? p.theme : "" }; }
+function stylePicks() { const p = readJSON(PICKS_FILE, {}); return { ids: Array.isArray(p.ids) ? p.ids : [], extras: Array.isArray(p.extras) ? p.extras : [], theme: typeof p.theme === "string" ? p.theme : "", at: p.at && typeof p.at === "object" ? p.at : {} }; }
+// Added by By Mel Ross (0.27.0): the lines of this reel, so a picked look can be put on a line ("Put it here"). Cut times when
+// the reel is cut (edit.json captions), raw-clip times before that (review_reel.json). "when" says which.
+function lookLines() {
+  const ed = readJSON(P.edit, {}), caps = Array.isArray(ed.captions) ? ed.captions : [];
+  if (caps.length && exists(P.master)) return { when: "cut", lines: caps.filter((c) => c && Array.isArray(c.words) && c.words.length).map((c) => ({ t: +(+c.start).toFixed(2), text: c.words.map((w) => w.text).join(" ").slice(0, 80) })) };
+  const rr = readJSON(path.join(REEL, "review_reel.json"), null);
+  if (rr && Array.isArray(rr.captions) && Array.isArray(rr.words))
+    return { when: "raw", lines: rr.captions.filter((c) => Array.isArray(c.w) && c.w.length && rr.words[c.w[0]]).map((c) => ({ t: +(+rr.words[c.w[0]].s).toFixed(2), text: c.w.map((i) => (rr.words[i] || {}).text || "").join(" ").slice(0, 80) })) };
+  return { when: null, lines: [] };
+}
+const LOOKP = lookPreviews({ scripts: SCRIPTS, home: HOME, env: childEnv(), tag: path.basename(REEL).replace(/[^\w.-]+/g, "_") });
 function setStylePicks(body) {
   const ok = new Set(menuLooks().filter((l) => USABLE_LOOK.has(l.status)).map((l) => l.id));
   const ids = [...new Set((Array.isArray(body.ids) ? body.ids : []).map(String))].filter((i) => ok.has(i)).slice(0, 40);
@@ -135,11 +147,14 @@ function setStylePicks(body) {
   if (theme && !listThemes().some((t) => t.id === theme)) throw new Error("unknown theme");
   const okx = new Set(menuExtras().map((x) => x.id));
   const extras = [...new Set((Array.isArray(body.extras) ? body.extras : []).map(String))].filter((i) => okx.has(i));
-  writeJSON(PICKS_FILE, { ids, extras, theme });
-  return { ids, extras, theme };
+  const at = {};   // 0.27.0: "Put it here": a picked look's line, as a time
+  for (const [k, v] of Object.entries(body.at && typeof body.at === "object" ? body.at : {})) if (ids.includes(k) && Number.isFinite(+v) && +v >= 0 && +v < 36000) at[k] = +(+v).toFixed(2);
+  writeJSON(PICKS_FILE, { ids, extras, theme, at });
+  return { ids, extras, theme, at };
 }
 function stylePage() {
-  const data = { reel: path.basename(REEL), looks: menuLooks(), extras: menuExtras(), themes: listThemes(), picks: stylePicks(), canSave: true };
+  const data = { reel: path.basename(REEL), looks: menuLooks(), extras: menuExtras(), themes: listThemes(), picks: stylePicks(), canSave: true,
+    preview: true, previewUrl: "/api/look-preview", ...lookLines() };   // 0.27.0: "Show me on my clip" and "Put it here"
   return fs.readFileSync(path.join(HERE, "style-menu.html"), "utf8").replace("/*MENU*/null", () => JSON.stringify(data).replace(/</g, "\\u003c"));
 }
 // Added by By Mel Ross (0.16.0): the color box. 3 colors (main, pop, light) for this reel only (edit.json "colors") or for every
@@ -161,6 +176,9 @@ function cleanHighlight(h) {
   const out = {};
   if (h && h.words != null && h.words !== "") { if (!HEX.test(String(h.words))) throw new Error("a color must look like #B9C8A5"); out.words = String(h.words).toUpperCase(); }
   if (h && h.text != null && h.text !== "") { if (!HEX.test(String(h.text))) throw new Error("a color must look like #B9C8A5"); out.text = String(h.text).toUpperCase(); }
+  // 0.27.0: a box behind all the words ("none" = no box) and the caption size, 60 to 160
+  if (h && h.box != null && h.box !== "") { if (h.box !== "none" && !HEX.test(String(h.box))) throw new Error("a color must look like #B9C8A5"); out.box = h.box === "none" ? "none" : String(h.box).toUpperCase(); }
+  if (h && h.size != null && h.size !== "") { const n = Math.round(+h.size); if (!(n >= 60 && n <= 160)) throw new Error("the caption size goes from 60 to 160"); out.size = n; }
   if (h && h.bg != null && h.bg !== "") { if (h.bg !== "none" && !HEX.test(String(h.bg))) throw new Error("a color must look like #B9C8A5"); out.bg = h.bg === "none" ? "none" : String(h.bg).toUpperCase(); }
   return out;
 }
@@ -169,7 +187,7 @@ function setHighlight(body) {
   const scope = body.scope === "all" ? "all" : "reel", got = cleanHighlight(body.highlight);
   snapshot("highlighted word", null, true);
   const edit = readJSON(P.edit, {}), brand = brandJSON();
-  delete edit.caption_colors;   // the hand-written form of the same setting: the page's pick replaces it
+  delete edit.caption_colors; delete edit.caption_style;   // the hand-written forms of the same setting: the page's pick replaces them
   if (scope === "reel") { if (Object.keys(got).length) edit.caption_highlight = got; else delete edit.caption_highlight; }
   else { if (!Object.keys(got).length) throw new Error("pick a color first"); brand.caption_highlight = { ...(brand.caption_highlight || {}), ...got }; delete edit.caption_highlight; writeJSON(P.brand, brand); }
   writeJSON(P.edit, edit);
@@ -177,7 +195,7 @@ function setHighlight(body) {
 // What the highlighted word looks like before any pick: the theme's choice when a theme sets one, else the brand's.
 function highlightBase(edit, brand) {
   const c = brand.colors || {}, pop = edit.colors?.pop || c.pop || "#B9C8A5", main = edit.colors?.main || c.main || "#141414";
-  let text = c.caption_accent || pop, words = c.caption || "#FFFFFF";
+  let text = c.caption_accent || pop, words = c.caption || "#FFFFFF", box = brand.captions?.bg || "none", size = +brand.captions?.size || 96;
   const tok = (v, d) => v === "@pop" ? pop : v === "@main" ? main : v === "@light" ? (edit.colors?.light || c.light || "#FFFFFF") : HEX.test(String(v || "")) ? v : d;
   const old = edit.caption_colors && typeof edit.caption_colors === "object" ? edit.caption_colors : {};
   const name = edit.theme || brand.theme;
@@ -186,12 +204,16 @@ function highlightBase(edit, brand) {
       const t = readJSON(path.join(dir, name, "theme.json"), null), v = t?.brand?.colors?.caption_accent;
       if (!t) continue;
       text = tok(v, text); words = tok(t?.brand?.colors?.caption, words);
+      if (t?.brand?.captions?.bg) box = t.brand.captions.bg; if (+t?.brand?.captions?.size) size = +t.brand.captions.size;
       break;
     }
   }
   if (HEX.test(String(old.caption_accent || ""))) text = old.caption_accent;   // written by hand before the pages had this
   if (HEX.test(String(old.caption || ""))) words = old.caption;
-  return { words: String(words).toUpperCase(), text: String(text).toUpperCase(), bg: "none" };
+  const cs = edit.caption_style && typeof edit.caption_style === "object" ? edit.caption_style : {};   // older hand-written form, one reel
+  if (cs.bg) box = cs.bg; if (+cs.size >= 60 && +cs.size <= 160) size = +cs.size;
+  if (box !== "none" && !HEX.test(String(box))) box = String(box);   // a theme's see-through box (rgba) is shown as it is
+  return { words: String(words).toUpperCase(), text: String(text).toUpperCase(), bg: "none", box: HEX.test(String(box)) ? String(box).toUpperCase() : box, size: Math.round(size) };
 }
 // Added by By Mel Ross (0.19.0): sound effects on or off, for this reel (edit.json "sfx") or every reel (brand.json "sfx").
 function setSfx(body) {
@@ -443,7 +465,7 @@ function view() {
     layout: edit.layout || brand.layout || "captions-low", layoutAll: brand.layout || "captions-low",
     sfxVol: volName(edit.mix?.effects ?? brand.mix?.effects ?? 0), sfxVolAll: volName(brand.mix?.effects ?? 0), hasFinal: exists(P.final),
     colors: { reel: edit.colors || null, all: { main: brand.colors?.main || "#141414", pop: brand.colors?.pop || "#B9C8A5", light: brand.colors?.light || "#FFFFFF" } },
-    highlight: (() => { let all = {}, reel = null; try { all = cleanHighlight(brand.caption_highlight); } catch {} try { reel = edit.caption_highlight ? cleanHighlight(edit.caption_highlight) : null; } catch {} return { reel, all, base: highlightBase(edit, brand) }; })(),
+    highlight: (() => { let all = {}, reel = null; try { all = cleanHighlight(brand.caption_highlight); } catch {} try { reel = edit.caption_highlight ? cleanHighlight(edit.caption_highlight) : null; } catch {} return { reel, all, base: highlightBase(edit, brand), handwritten: !!(edit.caption_colors || edit.caption_style) }; })(),
     hasMaster: exists(P.master), cutsStale, dirty: meta.edit_hash !== editHash(), canUndo: history().length > 0, undoLabel: history().slice(-1)[0]?.replace(/^[\d_-]+?-(?=[A-Za-z])/, "") || null,
     video: renders.length ? renders[renders.length - 1].phone : null, prepping, links: LINKS, built: true,
   };
@@ -795,6 +817,12 @@ const server = http.createServer(async (req, res) => {
         .replace('<script src="core.js"></script>', links + '<script src="shim.js"></script><script src="core.js"></script>');
       res.writeHead(200, { "Content-Type": TYPES[".html"], "Cache-Control": "no-store" }).end(html); return;
     }
+    if (p === "/api/look-preview" && req.method === "GET") return json(res, 200, { ok: true, ...LOOKP.state() });   // 0.27.0
+    if (p === "/api/look-preview" && req.method === "POST") {
+      try { LOOKP.start(REEL, JSON.parse((await readBody(req, 1e5)).toString() || "{}")); return json(res, 200, { ok: true, ...LOOKP.state() }); }
+      catch (e) { return json(res, 400, { ok: false, error: String(e.message || e) }); }
+    }
+    if (p === "/look-preview.jpg") { const f = LOOKP.image(); if (!f) { res.writeHead(404).end(); return; } res.writeHead(200, { "Content-Type": "image/jpeg", "Cache-Control": "no-store" }); fs.createReadStream(f).pipe(res); return; }
     if (p === "/styles") { res.writeHead(200, { "Content-Type": TYPES[".html"], "Cache-Control": "no-store" }).end(stylePage()); return; }
     if (p === "/api/style-picks") {   // works before the reel is built: looks are picked first
       if (req.method === "GET") return json(res, 200, stylePicks());

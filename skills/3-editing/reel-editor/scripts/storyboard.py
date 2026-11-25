@@ -81,6 +81,7 @@ def subst(o):
     return o
 
 def capy_of(b):
+    if (edit0.get("layout") or b.get("layout")) == "captions-high": return b.get("captions", {}).get("y_high", 290)   # 0.27.0: captions above the head
     return b.get("captions", {}).get("y", 1250)
 
 def rechunk_words(caps):
@@ -107,10 +108,11 @@ notes, rows = [], []
 for name, ids in options:
     work = out / "work" / name; (work / "home").mkdir(parents=True)
     brand = copy.deepcopy(brand0); caps = copy.deepcopy(caps0)
+    cards, used, skipped = [], [], []        # 0.27.0: set for every option (they were only set when a theme was missing, so every run stopped)
     if name in THEMES:
         sys.path.insert(0, str(SKILL / "scripts")); import theme as _theme
         brand = _theme.load_brand(HOME, name=THEMES[name]); brand.pop("theme", None)
-        if not brand.get("_theme"): notes.append(f"Option {name}: theme {THEMES[name]!r} not found, shown with your brand as it is"); cards = []; used, skipped = [], []
+        if not brand.get("_theme"): notes.append(f"Option {name}: theme {THEMES[name]!r} not found, shown with your brand as it is")
     slot_hook = 0; slot_lay = 1 if len(moments) > 1 else 0; accent = False; word_mode = False
     styled = [i for i in ids if MENU[i].get("recipe") and (MENU[i]["recipe"].get("brand"))]
     if len(styled) > 1: notes.append(f"Option {name}: {', '.join(styled)} all set the caption look; the last one wins")
@@ -156,11 +158,11 @@ for name, ids in options:
     for sub in ("fonts", "assets"):
         if (HOME / sub).exists(): os.symlink(HOME / sub, work / "home" / sub)
     for f in ("master.mp4",):
-        subprocess.run(["cp", "-c", str(reel / f), str(work / f)], check=True)
+        if subprocess.run(["cp", "-c", str(reel / f), str(work / f)], capture_output=True).returncode: shutil.copyfile(reel / f, work / f)   # -c (a clone) is Mac only
     for f in ("master_transcript.json",):
         if (reel / f).exists(): shutil.copy(reel / f, work / f)
     for sub in ("shots", "popups"):
-        if (reel / sub).exists(): subprocess.run(["cp", "-Rc", str(reel / sub), str(work / sub)], check=False)
+        if (reel / sub).exists() and subprocess.run(["cp", "-Rc", str(reel / sub), str(work / sub)], capture_output=True).returncode: shutil.copytree(reel / sub, work / sub, dirs_exist_ok=True)
     edit = {k: v for k, v in edit0.items() if k not in ("cards", "sfx_events")}
     edit["captions"], edit["cards"] = caps, cards
     json.dump(edit, open(work / "edit.json", "w"), indent=1)

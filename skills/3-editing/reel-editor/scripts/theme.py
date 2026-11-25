@@ -78,6 +78,9 @@ def _highlight(v):
     hexc = lambda x: isinstance(x, str) and re.fullmatch(r"#[0-9a-fA-F]{6}", x)
     out = {}
     if hexc(v.get("words")): out["words"] = v["words"]
+    # 0.27.0: a box behind all the caption words, and the caption size
+    if hexc(v.get("box")) or v.get("box") == "none" or (isinstance(v.get("box"), str) and re.fullmatch(r"rgba\(\s*\d{1,3}\s*,\s*\d{1,3}\s*,\s*\d{1,3}\s*,\s*(0|1|0?\.\d+)\s*\)", v["box"])): out["box"] = v["box"]
+    if isinstance(v.get("size"), (int, float)) and not isinstance(v.get("size"), bool) and 60 <= v["size"] <= 160: out["size"] = int(v["size"])
     if hexc(v.get("text")): out["text"] = v["text"]
     if hexc(v.get("bg")) or v.get("bg") == "none": out["bg"] = v["bg"]
     return out
@@ -85,6 +88,13 @@ def _highlight(v):
 
 def _with_highlight(brand, hl):
     brand["caption_highlight"] = hl
+    if "box" in hl or "size" in hl:                                   # 0.27.0: the caption box and size picked on the pages
+        caps = dict(brand.get("captions") or {})
+        if hl.get("box") == "none": caps.pop("bg", None)
+        elif hl.get("box"): caps["bg"] = hl["box"]
+        if hl.get("size"): caps["size"] = hl["size"]
+        brand["captions"] = caps
+    if hl.get("y"): brand["captions"] = {**(brand.get("captions") or {}), "y": hl["y"]}   # only from the older caption_style
     if hl.get("words"): brand["colors"] = {**(brand.get("colors") or {}), "caption": hl["words"]}
     return brand
 
@@ -111,7 +121,11 @@ def load_brand(home=None, reel=None, name=None, quiet=False):
     # (this reel). Laid on after the theme, never under it, with or without a theme. edit.json "caption_colors": {"caption",
     # "caption_accent"} is the same thing written by hand before the pages had it; it is still read, under caption_highlight.
     _old = _edit.get("caption_colors") if isinstance(_edit.get("caption_colors"), dict) else {}
-    hl = {**_highlight(brand.get("caption_highlight")), **_highlight({"words": _old.get("caption"), "text": _old.get("caption_accent")}), **_highlight(_edit.get("caption_highlight"))}
+    # edit.json "caption_style": {"bg", "size", "y"} is an older hand-written form of the caption box and size (one reel); still read
+    _cs = _edit.get("caption_style") if isinstance(_edit.get("caption_style"), dict) else {}
+    _csy = {"y": int(_cs["y"])} if isinstance(_cs.get("y"), (int, float)) and not isinstance(_cs.get("y"), bool) and 100 <= _cs["y"] <= 1800 else {}
+    hl = {**_highlight(brand.get("caption_highlight")), **_highlight({"words": _old.get("caption"), "text": _old.get("caption_accent")}),
+          **_highlight({"box": _cs.get("bg"), "size": _cs.get("size")}), **_csy, **_highlight(_edit.get("caption_highlight"))}
     if name is None and reel is not None: name = _edit.get("theme")
     name = name or brand.get("theme")
     if not name or name == "none": return _with_highlight(brand, hl)

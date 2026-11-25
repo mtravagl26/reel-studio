@@ -507,6 +507,8 @@ for i, c in enumerate(edit.get("cards", [])):
             extra += (f'<div class="tl tlab" style="{font("body", 46)};letter-spacing:0;text-align:{c.get("align", "center")};padding-top:26px;-webkit-text-stroke:0">'
                       f'<span style="background:{LIGHT};color:{MAIN};padding:8px 26px;border-radius:40px">{l1}</span><span style="color:{c.get("color", MAIN)};padding:0 18px">|</span>'
                       f'<span style="background:{POP};color:{MAIN};padding:8px 26px;border-radius:40px">{l2}</span></div>')
+        _ty = int(numf(c.get("y"), brand.get("title_y", 360)))   # 0.27.0: captions in the same spot move aside for the title (when it doesn't hide them)
+        cover(a, b, _ty, _ty + int(sum(sizes) * 1.0) + (90 if c.get("overline") else 0) + (90 if c.get("sub") or c.get("labels") else 0))
         back.append(f'<div id="{cid}" class="title" style="{font(tfont, sizes[0])}{ital};top:{c.get("y", brand.get("title_y", 360))}px;color:{c.get("color", MAIN)};letter-spacing:{brand.get("title_tracking", -0.045) if tfont == "head" else -0.01}em;line-height:{.88 if tfont == "head" else 1.04}">'
                     + (f'<div class="tl ol" style="{font(c.get("overline_font", "hand"), c.get("overline_size", 78))};color:{c.get("overline_color", LIGHT)};letter-spacing:0;text-align:{c.get("align", "left")};padding-bottom:6px">{esc(c["overline"])}</div>' if c.get("overline") else "")   # Style Menu H3/L7: a small handwritten (or italic serif) line above the headline
                     + "".join(f'<div class="tl" style="font-size:{px}px;text-align:{c.get("align") or (("left", "right")[j % 2] if len(lines) > 1 else "center")}{st(px)}">{mark(x)}</div>' for j, (x, px) in enumerate(zip(lines, sizes))) + extra + "</div>")

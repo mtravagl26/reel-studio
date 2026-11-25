@@ -119,7 +119,8 @@ def export(reel, proposal, out):
                  "style": {"capSize": brand["captions"].get("size", 104), "capY": brand["captions"].get("y", 1250),
                            "mode": mode, "editorial": brand["captions"].get("style") == "editorial",
                            "cap": brand["colors"].get("caption", "#FFFFFF"), "acc": (brand.get("caption_highlight") or {}).get("text") or brand["colors"].get("caption_accent", "#FF7DB8"),
-                           "accBg": (brand.get("caption_highlight") or {}).get("bg") or "none",   # 0.23.0: the box behind the highlighted word
+                           "accBg": (brand.get("caption_highlight") or {}).get("bg") or "none",
+                           "capBox": brand["captions"].get("bg") or "none",   # 0.27.0: a box behind all the words   # 0.23.0: the box behind the highlighted word
                            "main": brand["colors"]["main"], "case": brand["captions"].get("case", "lower"),
                            # 0.26.0: captions high or low, and the 3 zones a caption can be moved to (same numbers as build_reel.py)
                            "layout": (json.load(open(reel / "edit.json")) if (reel / "edit.json").exists() else {}).get("layout") or brand.get("layout") or "captions-low",
