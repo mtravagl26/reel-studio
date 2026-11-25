@@ -83,7 +83,12 @@ def _highlight(v):
     return out
 
 
-def _with_highlight(brand, hl):
+def _with_highlight(brand, hl, style=None):
+    # 0.26.0 (Added by By Mel Ross): edit.json "caption_style": {"bg": "#FFFFFF", "size": 72, "y": ..} changes the captions for one reel
+    # (a box behind the words, a bigger size) without touching brand.json. Laid on after the theme.
+    if isinstance(style, dict):
+        allowed = {k: v for k, v in style.items() if k in ("bg", "size", "y", "case", "mode", "tracking")}
+        if allowed: brand["captions"] = {**(brand.get("captions") or {}), **allowed}
     brand["caption_highlight"] = hl
     if hl.get("words"): brand["colors"] = {**(brand.get("colors") or {}), "caption": hl["words"]}
     return brand
@@ -114,11 +119,11 @@ def load_brand(home=None, reel=None, name=None, quiet=False):
     hl = {**_highlight(brand.get("caption_highlight")), **_highlight({"words": _old.get("caption"), "text": _old.get("caption_accent")}), **_highlight(_edit.get("caption_highlight"))}
     if name is None and reel is not None: name = _edit.get("theme")
     name = name or brand.get("theme")
-    if not name or name == "none": return _with_highlight(brand, hl)
+    if not name or name == "none": return _with_highlight(brand, hl, _edit.get("caption_style"))
     folder = available(home).get(name) if NAME_OK.match(str(name)) else None
     if not folder:
         if not quiet: print(f"warning: theme {name!r} not found (have: {', '.join(available(home)) or 'none'}); using brand.json as it is")
-        return _with_highlight(brand, hl)
+        return _with_highlight(brand, hl, _edit.get("caption_style"))
     theme = json.load(open(folder / "theme.json"))
     colors = brand.get("colors", {})
     out = merge(brand, _tokens(theme.get("brand", {}), colors))
@@ -128,7 +133,7 @@ def load_brand(home=None, reel=None, name=None, quiet=False):
     if sfx_own is not None: out["sfx"] = sfx_own
     else: out.pop("sfx", None)
     out["_theme"] = {"name": name, "dir": str(folder), "css": theme.get("css", []), "cards": _tokens(theme.get("cards", {}), colors)}
-    return _with_highlight(out, hl)
+    return _with_highlight(out, hl, _edit.get("caption_style"))
 
 
 def css_for(brand, families):
