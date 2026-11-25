@@ -58,12 +58,41 @@ function reels() {
   }).filter(Boolean).sort((a, b) => b.when - a.when).slice(0, 12);
 }
 
+// Added by By Mel Ross (0.26.0): looks on the home page. A first-time user picks a theme or looks before the first edit, and
+// the picks go into the request to Claude. The looks gallery is the same page as the reel link's /styles; picks are kept in
+// ~/reels/.home-picks.json, so they stay picked for the next reel too.
+const THEME_OK = /^[a-z0-9][a-z0-9-]{0,40}$/, PICKS = path.join(HOME, ".home-picks.json"), USABLE = new Set(["built", "partial", "cut-choice"]);
+function themes() {
+  const out = new Map();
+  for (const dir of [path.join(SKILL, "themes"), path.join(HOME, "themes")]) {
+    let names = []; try { names = fs.readdirSync(dir).sort(); } catch { continue; }
+    for (const n of names) { const t = THEME_OK.test(n) && readJSON(path.join(dir, n, "theme.json"), null); if (t) out.set(n, { id: n, name: String(t.name || n).slice(0, 40), summary: String(t.summary || "").slice(0, 200) }); }
+  }
+  return [...out.values()];
+}
+const looks = () => Object.entries(readJSON(path.join(SKILL, "assets", "style-menu.json"), {}).looks || {}).map(([id, l]) => ({ id, name: l.name, group: l.group, status: l.status, missing: l.missing || null, needs: l.needs || null, does: l.does || null, recipe: l.recipe || null }));
+const extras = () => readJSON(path.join(SKILL, "assets", "style-extras.json"), {}).extras || [];
+function picks() { const p = readJSON(PICKS, {}); return { ids: Array.isArray(p.ids) ? p.ids : [], extras: Array.isArray(p.extras) ? p.extras : [], theme: typeof p.theme === "string" ? p.theme : "" }; }
+function setPicks(body) {
+  const ok = new Set(looks().filter((l) => USABLE.has(l.status)).map((l) => l.id)), okx = new Set(extras().map((x) => x.id));
+  const theme = String(body.theme || ""); if (theme && !themes().some((t) => t.id === theme)) throw new Error("unknown theme");
+  const out = { ids: [...new Set((Array.isArray(body.ids) ? body.ids : []).map(String))].filter((i) => ok.has(i)).slice(0, 40),
+    extras: [...new Set((Array.isArray(body.extras) ? body.extras : []).map(String))].filter((i) => okx.has(i)), theme };
+  fs.mkdirSync(HOME, { recursive: true }); fs.writeFileSync(PICKS, JSON.stringify(out)); return out;
+}
+function looksPage() {
+  const data = { reel: null, looks: looks(), extras: extras(), themes: themes(), picks: picks(), canSave: true, saveUrl: "/api/home-picks", back: "Back to the start" };
+  return fs.readFileSync(path.join(HERE, "style-menu.html"), "utf8").replace("/*MENU*/null", () => JSON.stringify(data).replace(/</g, "\\u003c"));
+}
+
 function page() {
   const formats = (readJSON(path.join(SKILL, "assets", "formats.json"), {}).formats || []).filter((f) => f.status === "ready");
   // audit 3: every checked clip is kept, and nothing ever removed them. The page now says how much is there.
   let kept = { count: 0, bytes: 0 };
   try { for (const n of fs.readdirSync(INBOX)) if (VIDEO.has(path.extname(n).toLowerCase())) { kept.count++; kept.bytes += fs.statSync(path.join(INBOX, n)).size; } } catch {}
-  const data = { formats, reels: reels(), inbox: INBOX.replace(os.homedir(), "~"), kept, brand: fs.existsSync(path.join(HOME, "brand.json")) };
+  const all = looks(), names = Object.fromEntries(all.map((l) => [l.id, l.name]));
+  const data = { formats, reels: reels(), inbox: INBOX.replace(os.homedir(), "~"), kept, brand: fs.existsSync(path.join(HOME, "brand.json")),
+    themes: themes(), picks: picks(), lookNames: names, lookCount: all.filter((l) => USABLE.has(l.status)).length };
   return fs.readFileSync(path.join(HERE, "home.html"), "utf8").replace("/*HOME*/null", () => JSON.stringify(data).replace(/</g, "\\u003c"));
 }
 
@@ -72,6 +101,11 @@ const server = http.createServer(async (req, res) => {
     if (!trusted(req, PORT, false)) { res.writeHead(403, { "Content-Type": "text/plain" }).end("This page only answers the browser on this computer."); return; }
     const url = new URL(req.url, `http://127.0.0.1:${PORT}`), p = url.pathname;
     if (req.method === "GET" && p === "/") { res.writeHead(200, { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store" }).end(page()); return; }
+    if (req.method === "GET" && p === "/looks") { res.writeHead(200, { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store" }).end(looksPage()); return; }
+    if (req.method === "POST" && p === "/api/home-picks") {
+      let body = ""; for await (const c of req) { body += c; if (body.length > 1e5) return json(res, 413, { ok: false, error: "too big" }); }
+      try { return json(res, 200, { ok: true, picks: setPicks(JSON.parse(body || "{}")) }); } catch (e) { return json(res, 400, { ok: false, error: e.message }); }
+    }
     if (req.method === "GET" && p === "/favicon.ico") { res.writeHead(204).end(); return; }
     if (req.method === "GET" && p.startsWith("/frame/")) {
       const name = decodeURIComponent(p.slice(7));

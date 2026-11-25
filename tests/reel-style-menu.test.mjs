@@ -9,11 +9,11 @@ import { ff, haveFfmpeg, havePython, py, run, root, skill, skipReason, tmp } fro
 
 const read = (...p) => fs.readFileSync(path.join(skill, ...p), "utf8");
 const menu = JSON.parse(read("assets", "style-menu.json"));
-const IDS = Object.keys(menu.looks);   // the menu decides which IDs exist (59 looks: H1-H19, C1-C16, L1-L24)
+const IDS = Object.keys(menu.looks);   // the menu decides which IDs exist (60 looks: H1-H20, C1-C16, L1-L24)
 
 // ------------------------------------------------------------------------------------------------------ the menu itself
 test("style menu: every ID is in the JSON and in the Markdown table, with a known status", () => {
-  assert.equal(IDS.length, 59);
+  assert.equal(IDS.length, 60);
   for (const id of IDS) assert.match(id, /^[HCL]\d+$/, `${id} is a hook, caption or layout ID`);
   const md = read("references", "style-menu.md");
   for (const id of IDS) {

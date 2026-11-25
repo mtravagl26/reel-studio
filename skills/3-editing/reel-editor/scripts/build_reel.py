@@ -137,6 +137,24 @@ CAP_ACC_BG = _HL.get("bg") if _HL.get("bg") not in (None, "none") else None
 CAPS = brand.get("captions", {})
 CASE = CAPS.get("case", "lower")
 CAP_PX, CAP_Y = CAPS.get("size", 96), CAPS.get("y", 1250)
+# Added by By Mel Ross (0.26.0): where captions and graphics sit. brand.json or edit.json "layout": "captions-high" puts the
+# captions above the head (under Instagram's top bar) and moves the text graphics that normally sit at the top down to the lower
+# third, above Instagram's buttons. Each caption can also say where it goes: "pos": "top" | "middle" | "bottom" | "hide"
+# (set on the review page for part of a reel). When a graphic covers the captions they move to the other zone for that stretch.
+CAP_ZONES = {"top": 290, "middle": 900, "bottom": 1250}
+LAYOUT = edit.get("layout") or brand.get("layout") or "captions-low"
+if LAYOUT == "captions-high": CAP_Y = CAPS.get("y_high", CAP_ZONES["top"])
+else: CAP_ZONES["bottom"] = CAP_Y
+CAP_H = 230                                   # room a caption takes up, 2 lines
+covers = []                                   # (start, end, top, bottom): graphics that sit where captions are; captions move aside
+def cover(a, b, top, bottom): covers.append((a, b, top, bottom))
+if LAYOUT == "captions-high":                 # text graphics with no height of their own go to the lower third
+    _LOW = {"tag": 1180, "quote": 1060, "chips": 1200, "note": 1080, "columns": 1000, "shot": 760}
+    for _c in edit["cards"]:
+        _t = _c.get("type")
+        if "y" in _c or _c.get("layer") == "behind": continue
+        if _t in _LOW: _c["y"] = _LOW[_t]
+        elif _t == "card": _c["y"] = max(760, 1580 - 110 * (len(_c.get("rows", [])) + 1) - 60)
 LIST_DOT = brand.get("list_dot", True)        # 0.22.0: the little dot in a list card's header; "list_dot": false in brand.json (or a theme) turns it off, a card's own "dot" wins
 W, H, FPS = 1080, 1920, 30                     # authored at 1080x1920; 4K brands render with --resolution portrait-4k
 SAFE = 900                                     # guardrail: no text line may be wider than this (90 px margin each side)
@@ -545,7 +563,7 @@ for i, c in enumerate(edit.get("cards", [])):
     elif kind == "card":
         rows = c.get("rows", [])
         rt = c.get("row_times") or [a + 0.45 + 0.35 * j for j in range(len(rows))]
-        if "y" in c and numf(c["y"], 150) + 110 * (len(rows) + 1) > CAP_Y - 40: quiet.append((a, b))   # 0.19.0: a list moved down over the caption zone: captions step aside
+        _top = numf(c.get("y"), 150); cover(a, b, _top, _top + 110 * (len(rows) + 1) + 40)   # 0.26.0: captions under it move to the other zone
         paper = mat("paper")
         if paper and not c.get("glass") and c.get("kit", True):
             # Added by By Mel Ross (0.11.0): with a kit, the list is a sheet of real paper, taped at the top, rows numbered with stickers
@@ -565,6 +583,7 @@ for i, c in enumerate(edit.get("cards", [])):
             sfx("pop", t, -16, "lots")
         sfx("swish", a - 0.05, -13)
     elif kind == "tag":
+        cover(a, b, c.get("y", 300), c.get("y", 300) + 140)   # 0.26.0: captions under it move to the other zone
         lab = mat("label") if not c.get("glass") and c.get("kit", True) else ""     # a theme's tag color does not block the kit; "kit": false does
         if lab:   # Added by By Mel Ross (0.11.0): with a kit, the label is a real tag or sticker shape with the words on it
             front.append(f'<div id="{cid}" class="tagw" style="top:{c.get("y", 300)}px"><span class="tag ktag" style="background-image:url({lab});color:{c.get("text_color") or INK or MAIN};{font("head", 58)}">{esc(case(c["text"]))}</span></div>')
@@ -579,6 +598,7 @@ for i, c in enumerate(edit.get("cards", [])):
         lines = [l.strip() for l in str(c.get("text", "")).split("/") if l.strip()][:4] or [""]
         px = min(max(int(numf(c.get("size"), 64)), 30), fit(max(lines, key=len), 64, 80))
         if c.get("marks", True): lines[0] = "\u201c" + lines[0]; lines[-1] = lines[-1] + "\u201d"
+        cover(a, b, int(numf(c.get("y"), 150)), int(numf(c.get("y"), 150)) + 380)
         front.append(f'<div id="{cid}" class="quotew" style="top:{int(numf(c.get("y"), 150))}px"><div class="quote" style="{font("head", px)};color:{c.get("color", MAIN)}">' + "".join(f"<div>{esc(l)}</div>" for l in lines) + "</div></div>")
         show(f"#{cid}", a, b)
         js.append(f'tl.fromTo("#{cid} .quote",{{scale:0.9,y:-24,opacity:0}},{{scale:1,y:0,opacity:1,duration:0.36,ease:"back.out(1.6)"}},{q(a)});')
@@ -595,6 +615,7 @@ for i, c in enumerate(edit.get("cards", [])):
             hp = min(64, int(cw_ / (max(len(str(col.get("title", ""))), 1) * 0.5))); ip = min(48, int(cw_ / (max([len(x) for x in items] + [1]) * 0.46)))
             cells += (f'<div id="{cid}c{j}" class="colc" style="width:{cw_}px;color:{ink}"><div style="{font("hand", hp)};border-bottom:4px solid {ink};margin:0 18px 10px;padding-bottom:4px">{esc(str(col.get("title", "")))}</div>'
                       + "".join(f'<div style="{font("hand", ip)};line-height:1.25">{esc(x)}</div>' for x in items) + "</div>")
+        cover(a, b, int(numf(c.get("y"), 110)), int(numf(c.get("y"), 110)) + 420)   # 0.26.0: captions under it move to the other zone
         front.append(f'<div id="{cid}" class="colw" style="top:{int(numf(c.get("y"), 110))}px;background:{LIGHT}">{cells}</div>')
         show(f"#{cid}", a, b)
         js.append(f'tl.fromTo("#{cid}",{{y:-120,opacity:0}},{{y:0,opacity:1,duration:0.4,ease:"power3.out"}},{q(a)});')
@@ -607,6 +628,7 @@ for i, c in enumerate(edit.get("cards", [])):
         n_ = max(2, min(int(numf(c.get("n"), 5)), 7)); ttl = case(str(c.get("title", ""))).upper()
         px = fit(ttl, 88, 60) if ttl else 0; cs = int(min(120, (900 - 22 * (n_ - 1)) / n_))
         ct = c.get("chip_times") or [a + 0.5 + (max(b - a - 1.0, 0.6) / n_) * j for j in range(n_)]
+        cover(a, b, int(numf(c.get("y"), 130)), int(numf(c.get("y"), 130)) + 200)   # 0.26.0: captions under it move to the other zone
         front.append(f'<div id="{cid}" class="chipw" style="top:{int(numf(c.get("y"), 130))}px">'
                      + (f'<div class="chipt" style="{font("head", px)};color:{c.get("color", "#FFFFFF")}">{esc(ttl)}</div>' if ttl else "")
                      + '<div class="chiprow">' + "".join(f'<span id="{cid}n{j}" class="chip" style="width:{cs}px;height:{cs}px;{font("head", int(cs * 0.5))};background:{LIGHT};color:{MAIN}">{j + 1}</span>' for j in range(n_)) + "</div></div>")
@@ -622,6 +644,7 @@ for i, c in enumerate(edit.get("cards", [])):
         px = min(max(int(numf(c.get("size"), 96)), 30), fit(max(lines, key=len), 96, 70)); rot = numf(c.get("rotate"), -3)
         paper = mat("paper") if c.get("kit", True) else ""; tape = mat("tape") if c.get("kit", True) else ""
         tw = (((KIT or {}).get("materials") or {}).get("tape") or {}).get("width") or 260
+        cover(a, b, int(numf(c.get("y"), 210)), int(numf(c.get("y"), 210)) + 300)   # 0.26.0: captions under it move to the other zone
         front.append(f'<div id="{cid}" class="notew" style="top:{int(numf(c.get("y"), 210))}px"><div class="note{" knote" if paper else ""}" style="{f"background-image:url({paper});" if paper else f"background:{LIGHT};"}color:{(INK if paper else None) or MAIN};{font("hand", px)}">'
                      + (f'<img class="ktape" src="{tape}" style="width:{tw}px;margin-left:{-tw // 2}px" />' if tape else '<i class="ptape"></i>')
                      + "".join(f"<div>{esc(case(l))}</div>" for l in lines) + "</div></div>")
@@ -635,12 +658,13 @@ for i, c in enumerate(edit.get("cards", [])):
         # too close, the CAPS word gets the highlight as a marker behind it and keeps the main text color.
         hi = f"color:{POP}" if _contrast(POP, LIGHT) >= 3 else f"background:{POP};color:{MAIN};padding:0 .22em;border-radius:.2em"
         inner = " ".join(f'<span style="{hi}">{esc(w)}</span>' if w.isupper() and len(w) > 1 else esc(case(w)) for w in words)
+        cover(a, b, c.get("y", 1360), c.get("y", 1360) + 150)   # 0.26.0: captions under it move to the other zone
         front.append(f'<div id="{cid}" class="ctaw" style="top:{c.get("y", 1360)}px"><span class="cta" style="{font("head", 78)};color:{MAIN};background:{LIGHT}">{inner}</span></div>')
         show(f"#{cid}", a, b)
         js.append(f'tl.fromTo("#{cid} .cta",{{scale:0.5,y:60,opacity:0}},{{scale:1,y:0,opacity:1,duration:0.5,ease:"back.out(2.4)"}},{q(a)});')
         sfx("coin", a + 0.1, -12)
     elif kind == "shot":
-        if c.get("y", 130) + 700 > CAP_Y: quiet.append((a, b))         # screenshot covers the caption zone: captions step aside
+        cover(a, b, c.get("y", 130), c.get("y", 130) + 700)            # 0.26.0: a screenshot over the captions moves them aside
         front.append(f'<div id="{cid}" class="shot" style="top:{c.get("y", 130)}px"><div class="bar"><i style="background:#FF5F57"></i><i style="background:#FEBC2E"></i><i style="background:#28C840"></i>'
                      f'<span style="{font("body", 30)}">{esc(c.get("label", ""))}</span></div><div class="vp"><img src="{img(c["src"])}" /></div></div>')
         show(f"#{cid}", a, b)
@@ -833,7 +857,7 @@ for i, c in enumerate(edit.get("cards", [])):
             vars_.setdefault("background", "transparent")
         x, y, bw, bh = c.get("box", [0, 160, W, int(W * nh / nw)])
         sc = bw / nw
-        if y + bh * 0.7 > CAP_Y: quiet.append((a, b))   # motion sits over the caption zone: captions step aside
+        cover(a, b, y, y + bh * 0.7)                      # 0.26.0: motion over the captions moves them aside
         vals = html.escape(json.dumps(vars_), quote=True)
         mid.append(f'<div id="{cid}" class="clip" data-composition-id="{comp_id}" data-composition-src="{rel}" data-variable-values="{vals}" '
                    f'data-start="{q(a)}" data-duration="{q(b - a)}" data-track-index="{40 + i}" data-width="{nw}" data-height="{nh}" '
@@ -978,8 +1002,20 @@ if brand.get("require_carousel") and not edit.get("no_carousel_ok") and not any(
 
 # ---- captions -----------------------------------------------------------------------------------------------------
 cap_json = []
+def cap_y(c):
+    """Where this caption goes (0.26.0): its own "pos" or "y", else the layout's zone; moved to the other zone when a graphic
+    covers it for that stretch, and hidden when both zones are covered. None = hidden."""
+    if c.get("pos") == "hide": return None
+    y = int(numf(c.get("y"), CAP_ZONES.get(c.get("pos"), CAP_Y)))
+    hit = lambda yy: any(a + 0.05 < c["end"] and c["start"] < b - 0.05 and top < yy + CAP_H and yy < bot for a, b, top, bot in covers)
+    if not hit(y): return y
+    for alt in (CAP_ZONES["top"], CAP_ZONES["bottom"], CAP_ZONES["middle"]):
+        if alt != y and not hit(alt): return alt
+    return None
 for i, c in enumerate(edit.get("captions", [])):
     if any(a - 0.05 <= c["start"] < b for a, b in quiet): continue
+    c["y"] = cap_y(c)
+    if c["y"] is None: continue
     ws = c["words"]
     plain = c.get("plain")                                             # "before" captions: basic white sans, no brand styling
     cap_json.append({"start": c["start"], "end": c["end"], "over_light": False,

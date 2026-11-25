@@ -20,6 +20,11 @@ h1{font-size:24px;line-height:1.15;margin:0;color:var(--ink);letter-spacing:-.3p
 .player video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block}
 .overlay{position:absolute;inset:0;pointer-events:none;overflow:hidden}
 .gbox{position:absolute;border:2px dashed rgba(255,255,255,.9);background:rgba(185,200,165,.38);border-radius:10px;display:flex;align-items:flex-start;justify-content:center;font:700 11px var(--f-body);color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.6);padding:4px;box-sizing:border-box;background-size:cover;background-position:top center}
+/* Added by By Mel Ross (0.26.0): what Instagram draws over a Reel (Meta's ad guidance: top 14%, bottom 20 to 35%, about 6% at the sides) */
+.igzone{position:absolute;inset:0;pointer-events:none;z-index:6;display:none;font:600 10px/1.2 system-ui,sans-serif;color:#fff}
+.igzone.on{display:block}
+.igzone i{position:absolute;left:0;right:0;background:repeating-linear-gradient(135deg,rgba(180,40,40,.38) 0 8px,rgba(180,40,40,.2) 8px 16px);display:flex;align-items:center;justify-content:center;text-align:center;font-style:normal}
+.igzone .t{top:0;height:14%}.igzone .b{bottom:0;height:20%}.igzone .r{top:45%;bottom:20%;left:auto;width:12%}
 .capov{position:absolute;left:5%;right:5%;overflow:visible;text-align:center;line-height:1.02;text-shadow:0 2px 10px rgba(0,0,0,.4)}
 .capov .a{display:inline}
 .capov.ed .a{display:block;line-height:.95}
@@ -113,6 +118,7 @@ textarea{min-height:80px;resize:vertical}
 .cw .x:hover{background:var(--line)}
 .cw .x.acc{font-style:italic;color:var(--accent);background:var(--accent-soft)}
 .cw .flag{font-size:12px;color:var(--warn)}
+.w.fs{text-decoration-color:#b3261e}.fsl{font-size:11px;font-weight:700;color:#b3261e;background:#fbe9e7;border-radius:999px;padding:1px 7px;margin:0 4px;align-self:center}
 .tools{display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end}
 .tools button{font:600 12px var(--f-mono);border:1.5px solid var(--line);background:var(--surface);color:var(--ink);border-radius:8px;padding:3px 7px;cursor:pointer}
 .tools button:hover{border-color:var(--accent)}
@@ -174,7 +180,9 @@ code{font:500 13px var(--f-mono);background:var(--accent-soft);border-radius:6px
       <video id="v" playsinline preload="metadata"></video>
       <div class="overlay" id="ov"></div>
       <div class="clock" id="clock" hidden></div>
+      <div class="igzone" id="igzone" aria-hidden="true"><i class="t">Instagram: name, audio</i><i class="b">Instagram: caption, buttons</i><i class="r">likes</i></div>
     </div>
+    <label class="lede" style="display:flex;gap:6px;align-items:center;justify-content:center;margin:6px 0"><input type="checkbox" id="igon"> Show what Instagram covers</label>
     <div class="ctl">
       <button class="b quiet" id="back5" type="button" aria-label="Back 5 seconds">−5s</button>
       <button class="b primary" id="rough" type="button" title="Plays your clip and skips everything you have cut">Play rough cut</button>
@@ -237,6 +245,7 @@ code{font:500 13px var(--f-mono);background:var(--accent-soft);border-radius:6px
         <div class="ctl"><button class="b quiet" id="hlreset" type="button" hidden>Back to my usual</button></div>
         <p class="lede" id="hlnote"></p>
       </div>
+      <div class="look" id="capspots"></div>
       <div class="tally" id="captally"></div>
       <div class="caps" id="caps"><div class="empty">Captions appear here once the reel loads.</div></div>
     </section>
@@ -314,7 +323,7 @@ const v = $("#v"), ov = $("#ov");
 const fmt = t => `${Math.floor(t / 60)}:${(Math.max(0, t) % 60).toFixed(1).padStart(4, "0")}`;
 let R = null, B = null, S = blank(), P = null, CAPS = [], GFX = [];
 let tab = "cuts", ref = null, saving = Promise.resolve(), timer = null, undo = [], mode = "idle", loop = null;
-function blank() { return { theme: null, colors: null, highlight: null, sfxAll: null, cut: null, restoredFillers: [], restoredPauses: [], trimmedPauses: [], captions: null, board: {}, wanted: [], amount: null, sfxOff: {}, notes: {}, brandRequest: "", revisions: [], buildRequest: null }; }
+function blank() { return { theme: null, colors: null, highlight: null, layout: null, sfxAll: null, cut: null, restoredFillers: [], restoredPauses: [], trimmedPauses: [], captions: null, board: {}, wanted: [], amount: null, sfxOff: {}, notes: {}, brandRequest: "", revisions: [], buildRequest: null }; }
 
 // ---------- saving, undo ----------
 const pill = (t, err) => { $("#save").textContent = t; $("#save").classList.toggle("err", !!err); $("#retry").hidden = !err; };
@@ -412,6 +421,7 @@ function renderHighlight() {
   $("#hlreset").hidden = !S.highlight;
   $("#hlnote").textContent = (S.highlight ? "This reel has its own caption colors. " : "This reel uses your usual caption colors. ") + "Play the video to see it on your captions. To change it for every reel, use Settings on the Touch-ups page.";
 }
+$("#igon").addEventListener("change", (e) => $("#igzone").classList.toggle("on", e.target.checked));   // 0.26.0
 $("#hlreset").addEventListener("click", () => mutate(() => { S.highlight = null; }));
 $("#reset").addEventListener("click", () => {
   const box = $("#resetbox"); box.textContent = "";
@@ -474,7 +484,7 @@ function overlay(c) {
   if (!R || tab === "preview" || c == null || (mode !== "rough" && mode !== "roughPaused")) { highlight(null); return; }
   for (const g of GFX) if (!g.gone && g.state !== "d" && c >= g.start && c < g.end) ov.appendChild(box(g, true));
   const cap = CAPS.find(x => !x.gone && c >= x.start && c < x.end);
-  if (cap) { const el = capEl(cap); ov.appendChild(el); fitCap(el); }
+  if (cap && cap.pos !== "hide") { const el = capEl(cap); ov.appendChild(el); fitCap(el); }
   highlight(c, cap);
 }
 function box(g, label) {
@@ -489,7 +499,7 @@ function capEl(cap) {
   const st = R.style, W = $("#player").clientWidth, one = cap.words.length === 1;
   const el = document.createElement("div"); el.className = "capov" + (st.editorial && !one ? " ed" : "");
   const base = st.capSize / 1080 * W * (one ? 1.35 : 1);
-  Object.assign(el.style, { top: st.capY / 19.2 + "%", fontFamily: "rb, var(--f-body)", fontSize: base + "px", color: hlNow().words || st.cap });
+  Object.assign(el.style, { top: capTop(cap) / 19.2 + "%", fontFamily: "rb, var(--f-body)", fontSize: base + "px", color: hlNow().words || st.cap });
   for (const w of cap.words) {
     const s = document.createElement("span");
     if (w.accent) { const hl = hlNow(); s.className = "a"; Object.assign(s.style, { fontFamily: "ra, Georgia, serif", fontStyle: "italic", color: hl.text, fontSize: (st.editorial ? 1.7 : 1.12) + "em" });
@@ -514,6 +524,9 @@ function renderCuts() {
   const tx = $("#tx"); tx.textContent = "";
   const cut = new Set(S.cut || R.proposedCut), fb = new Set(S.restoredFillers);
   const pz = new Map(P.pauses.map(p => [p.after, p]));
+  // 0.26.0: false starts found by the editor, labelled so the person can see why a word is cut
+  const FS = new Map(); for (const f of R.falseStarts || []) f.w.forEach((i, k) => FS.set(i, { f, last: k === f.w.length - 1 }));
+  const FSNAME = { doubled: "doubled word", restart: "false start", "cut-off": "broken-off word", retake: "said twice" };
   const sents = []; let cur = [];
   R.words.forEach((w, i) => { cur.push(i); if (/[.?!]$/.test(w.text) || i === R.words.length - 1) { sents.push(cur); cur = []; } });
   for (const idx of sents) {
@@ -526,8 +539,11 @@ function renderCuts() {
       const w = R.words[i], s = document.createElement("span");
       s.className = "w" + (w.filler ? " filler" + (fb.has(i) ? " back" : "") : cut.has(i) ? " cut" : "");
       s.tabIndex = 0; s.setAttribute("role", "button"); s.dataset.i = i; s.textContent = w.text;
-      s.title = w.filler ? (fb.has(i) ? "Filler kept (tap to remove again)" : "Filler removed automatically (tap to keep)") : "";
+      s.title = w.filler ? (w.stumble ? (fb.has(i) ? "Repeated word kept (tap to remove again)" : "Repeated word removed automatically (tap to keep)") : fb.has(i) ? "Filler kept (tap to remove again)" : "Filler removed automatically (tap to keep)") : "";
+      const fs = FS.get(i);
+      if (fs) { s.classList.add("fs"); s.title = `${FSNAME[fs.f.kind] || "false start"}: ${fs.f.why}. ${cut.has(i) ? "Tap to keep it" : "Kept. Tap to cut it"}`; }
       ws.appendChild(s);
+      if (fs && fs.last) { const l = document.createElement("span"); l.className = "fsl"; l.textContent = FSNAME[fs.f.kind] || "false start"; ws.appendChild(l); }
       const p = pz.get(i);
       if (p) {
         const b = document.createElement("button"); b.type = "button"; b.className = "pz" + (p.kept ? " kept" : "");
@@ -544,7 +560,8 @@ function renderCuts() {
     row.append(ts, ws); tx.appendChild(row);
   }
   const words = [...cut].length, fills = R.words.filter((w, i) => w.filler && !fb.has(i)).length, pt = P.pauses.filter(p => !p.kept).length;
-  $("#ctally").innerHTML = `<span>reel <b>${fmt(P.cutDur)}</b></span><span><b>${words}</b> words cut</span><span><b>${fills}</b> fillers removed</span><span><b>${pt}</b> of ${P.pauses.length} pauses trimmed</span>`;
+  const nfs = (R.falseStarts || []).filter(f => f.w.some(i => cut.has(i))).length;
+  $("#ctally").innerHTML = `<span>reel <b>${fmt(P.cutDur)}</b></span><span><b>${words}</b> words cut</span>${(R.falseStarts || []).length ? `<span><b>${nfs}</b> of ${R.falseStarts.length} false starts cut</span>` : ""}<span><b>${fills}</b> fillers removed</span><span><b>${pt}</b> of ${P.pauses.length} pauses trimmed</span>`;
 }
 (function wireCuts() {
   const tx = $("#tx"); let drag = null;
@@ -621,7 +638,7 @@ function renderGraphics() {
 }
 const box_ = g => box(g, false);
 // Where a graphic goes (Added by By Mel Ross, 0.16.0): chosen here, before the build. "As planned" leaves it to the plan.
-const WHERE = [["", "Where: as planned"], ["center", "Middle (covers part of my face)"], ["top-center", "Top, above my head"], ["top-left", "Top left"], ["top-right", "Top right"], ["middle-left", "Left of my face"], ["middle-right", "Right of my face"], ["lower", "Lower, above the captions"]];
+const WHERE = [["", "Where: as planned"], ["center", "Middle (covers part of my face)"], ["top-center", "Top, above my head"], ["top-left", "Top left"], ["top-right", "Top right"], ["middle-left", "Left of my face"], ["middle-right", "Right of my face"], ["lower", "Bottom (lower third)"]];
 const LAYER = [["", "Layer: as planned"], ["front", "In front of my face"], ["behind", "Behind my head (Mac only)"]];
 function placer(cur, set) {
   const row = document.createElement("div"); row.className = "placer";
@@ -789,6 +806,34 @@ $("#addform").addEventListener("submit", e => {
 });
 
 // ---------- 3. captions ----------
+// Added by By Mel Ross (0.26.0): where captions sit. The layout puts them all at the bottom or above the head; a stretch of
+// captions can be moved to the top, the middle or the bottom, or hidden. Whole captions only, so nothing jumps mid-line.
+const ZONE_NAME = { top: "top", middle: "middle", bottom: "bottom", hide: "hidden" };
+function layoutNow() { return S.layout || (R && R.style && R.style.layout) || "captions-low"; }
+function capTop(cap) {
+  const z = (R && R.style && R.style.zones) || { top: 290, middle: 900, bottom: R ? R.style.capY : 1250 };
+  if (cap && z[cap.pos] != null) return z[cap.pos];
+  return layoutNow() === "captions-high" ? z.top : z.bottom;
+}
+let capPick = null;   // null = not choosing; [] = waiting for the first caption; [ci] = waiting for the last; [a, b] = choose a spot
+function renderCapSpots() {
+  const el = $("#capspots"); if (!el || !R) return;
+  const high = layoutNow() === "captions-high";
+  const moved = CAPS.filter(c => !c.gone && c.pos).length;
+  let h = `<label>Where captions sit</label><div class="ctl"><button class="b${high ? " quiet" : ""}" type="button" data-lay="captions-low">At the bottom</button><button class="b${high ? "" : " quiet"}" type="button" data-lay="captions-high">Above my head</button></div>
+    <p class="lede">${high ? "Captions sit above your head. Text graphics move to the lower third." : "Captions sit at the bottom. Text graphics sit near the top."} This is for this reel. For every reel, use Settings on the Touch-ups page. When a graphic covers the captions, they move to the other spot for that moment.</p>`;
+  if (capPick == null) h += `<div class="ctl"><button class="b quiet" type="button" id="capmove">Move some captions</button>${moved ? `<button class="b quiet" type="button" id="capclear">Put all ${moved} back</button>` : ""}</div>`;
+  else if (capPick.length < 2) h += `<p class="lede"><b>${capPick.length ? "Now tap the last caption to move." : "Tap the first caption to move."}</b> Tap its time on the left.</p><div class="ctl"><button class="b quiet" type="button" id="capcancel">Cancel</button></div>`;
+  else h += `<p class="lede"><b>Move captions ${capPick[0] + 1} to ${capPick[1] + 1} to:</b></p><div class="ctl">${["top", "middle", "bottom", "hide"].map(p => `<button class="b quiet" type="button" data-spot="${p}">${p === "hide" ? "Hide them" : p[0].toUpperCase() + p.slice(1)}</button>`).join("")}<button class="b quiet" type="button" data-spot="">Usual spot</button><button class="b quiet" type="button" id="capcancel">Cancel</button></div>`;
+  el.innerHTML = h;
+  el.querySelectorAll("[data-lay]").forEach(b => b.addEventListener("click", () => mutate(() => { S.layout = b.dataset.lay === (R.style.layout || "captions-low") ? null : b.dataset.lay; })));
+  const on = (id, fn) => { const b = el.querySelector("#" + id); if (b) b.addEventListener("click", fn); };
+  on("capmove", () => { capPick = []; renderCaptions(); });
+  on("capcancel", () => { capPick = null; renderCaptions(); });
+  on("capclear", () => mutate(() => { for (const c of capsEditable()) delete c.pos; }));
+  el.querySelectorAll("[data-spot]").forEach(b => b.addEventListener("click", () => { const [a, z] = capPick; capPick = null;
+    mutate(() => { const arr = capsEditable(); for (let k = Math.min(a, z); k <= Math.max(a, z); k++) { if (b.dataset.spot) arr[k].pos = b.dataset.spot; else delete arr[k].pos; } }); }));
+}
 function capsEditable() { if (!S.captions) S.captions = JSON.parse(JSON.stringify(R.captions)); return S.captions; }
 function renderCaptions() {
   const box = $("#caps"); box.textContent = "";
@@ -803,7 +848,10 @@ function renderCaptions() {
       cw.textContent = src.text || src.w.map(i => R.words[i].text).join(" ");
       row.append(ts, cw, document.createElement("span")); box.appendChild(row); continue;
     }
-    ts.innerHTML = `<span class="tc">${fmt(c.start)}</span>`; ts.addEventListener("click", () => playRough(c.start));
+    ts.innerHTML = `<span class="tc">${fmt(c.start)}</span>`;
+    ts.addEventListener("click", () => { if (capPick == null) return playRough(c.start); capPick.push(c.ci); if (capPick.length === 2) capPick.sort((x, y) => x - y); renderCaptions(); });
+    if (capPick != null && capPick.includes(c.ci)) row.classList.add("now");
+    if (capPick && capPick.length === 2 && c.ci > capPick[0] && c.ci < capPick[1]) row.classList.add("now");
     c.words.forEach((w, k) => {
       const b = document.createElement("button"); b.type = "button"; b.className = "x" + (w.accent ? " acc" : ""); b.textContent = w.text;
       b.title = w.accent ? "Accent (tap for plain)" : "Tap to make this an accent";
@@ -814,6 +862,7 @@ function renderCaptions() {
       }));
       cw.appendChild(b);
     });
+    if (c.pos) { const f = document.createElement("span"); f.className = "flag"; f.textContent = c.pos === "hide" ? "hidden" : "moved to the " + ZONE_NAME[c.pos]; cw.appendChild(f); }
     if (c.overlapFixed) { const f = document.createElement("span"); f.className = "flag"; f.textContent = "shortened so it doesn't overlap the next"; cw.appendChild(f); }
     const tools = document.createElement("div"); tools.className = "tools";
     const tool = (label, title, fn) => { const b = document.createElement("button"); b.type = "button"; b.textContent = label; b.title = title; b.addEventListener("click", fn); tools.appendChild(b); };
@@ -837,6 +886,7 @@ function renderCaptions() {
     }));
     row.append(ts, cw, tools); box.appendChild(row);
   }
+  renderCapSpots();
   const acc = live.reduce((n, c) => n + c.words.filter(w => w.accent).length, 0);
   $("#captally").innerHTML = `<span><b>${live.length}</b> captions</span><span><b>${CAPS.length - live.length}</b> cut out with their words</span><span><b>${acc}</b> accent words</span>`;
 }
@@ -985,7 +1035,7 @@ function renderCover() {
 
 function renderAll() {
   renderCuts(); renderGraphics(); renderWanted(); renderCaptions(); renderHighlight(); renderSound(); renderPreview(); renderCover();
-  const sent = { cuts: S.cut != null, graphics: Object.keys(S.board).length || (S.wanted || []).length || S.amount, captions: S.captions != null || S.highlight != null, sound: Object.keys(S.sfxOff).length };
+  const sent = { cuts: S.cut != null, graphics: Object.keys(S.board).length || (S.wanted || []).length || S.amount, captions: S.captions != null || S.highlight != null || S.layout != null, sound: Object.keys(S.sfxOff).length };
   $$(".tab").forEach(b => { const d = b.querySelector(".dot"); if (d) d.hidden = !sent[b.dataset.tab]; });
 }
 

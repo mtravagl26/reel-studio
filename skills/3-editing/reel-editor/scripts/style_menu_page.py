@@ -16,7 +16,7 @@ def page(home):
     looks = json.load(open(SKILL / "assets" / "style-menu.json"))["looks"]
     data = {"reel": None, "canSave": False, "picks": {"ids": [], "extras": [], "theme": ""},
             "extras": json.load(open(SKILL / "assets" / "style-extras.json"))["extras"],
-            "looks": [{"id": i, "name": l["name"], "group": l["group"], "status": l["status"], "missing": l.get("missing"), "does": l.get("does"), "recipe": l.get("recipe")} for i, l in looks.items()],
+            "looks": [{"id": i, "name": l["name"], "group": l["group"], "status": l["status"], "missing": l.get("missing"), "needs": l.get("needs"), "does": l.get("does"), "recipe": l.get("recipe")} for i, l in looks.items()],
             "themes": [{"id": n, "name": t.get("name", n), "summary": t.get("summary", "")}
                        for n, t in ((n, json.load(open(d / "theme.json"))) for n, d in sorted(_theme.available(home).items()))]}
     html = (SKILL / "review" / "style-menu.html").read_text()

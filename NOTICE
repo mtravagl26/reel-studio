@@ -169,3 +169,7 @@ Added by By Mel Ross in 0.19.0 (November 2026), in skills/3-editing/reel-editor.
 - Sound effects follow the voice (0.25.0): scripts/mix_audio.py sets the effects from the voice's measured loudness, dips them
   while the voice speaks and keeps every effect's peak under the voice's; the touch-ups page sets quieter / normal / louder and
   can update the sound of a finished reel without rendering the picture again (review/editor.html, review/editor-server.mjs).
+- Layout, looks and false starts (0.26.0): captions above the head or at the bottom ("layout"), captions moved or hidden for part
+  of a reel ("pos"), captions moving aside for a graphic instead of vanishing, an overlay of what Instagram covers, a Pick a look
+  step and looks gallery on the home page, look H20, scripts/false_starts.py, and a fix to caption fixes carried through a re-import
+  (scripts/touchups.py).

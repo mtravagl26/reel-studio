@@ -1159,7 +1159,29 @@
      "text": "the fix / is boring"
     }
    }
+  },
+  "H20": {
+   "name": "Arched title with a sparkle wave",
+   "group": "Hooks",
+   "status": "built",
+   "version": "v1",
+   "build": "now",
+   "does": "Your series name curves over your head and wipes in, with a short line under it. Gold sparkles follow your hand as you wave it across the screen.",
+   "when": "The open of a series reel, like \"Demystifying AI, part one\". Wave your hand across the frame while you say the name.",
+   "build_note": "`arctitle` card with `trail`; see references/hand-trail.md. The sparkles need a Mac (Apple Vision tracks the hand); without one the arched title builds alone.",
+   "needs": "Needs a Mac for the sparkles",
+   "recipe": {
+    "slot": "hook",
+    "card": {
+     "type": "arctitle",
+     "text": "Series name",
+     "sub": "part one",
+     "trail": true,
+     "start": 0.3,
+     "end": 3.2
+    }
+   }
   }
  },
- "v1_added": "H6-H19, C6-C16 and L10-L23 were added as ideas and built in 0.19.0 (H18, C14 and L18 stay 'planned': not recommended). They describe common patterns in short-form reels in general terms; no footage, text, code or images from any reel were copied."
+ "v1_added": "H6-H19, C6-C16 and L10-L23 were added as ideas and built in 0.19.0 (H18, C14 and L18 stay 'planned': not recommended). They describe common patterns in short-form reels in general terms; no footage, text, code or images from any reel were copied. H20 (arched title with a sparkle wave) was added in 0.26.0."
 }
