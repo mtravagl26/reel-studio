@@ -26,16 +26,31 @@ Usage: python3 mix_audio.py <reel-folder> [--video final.mp4] [--out final_ln.mp
   --stems-dir  also writes voice.wav, music_ducked.wav, sfx.wav (the three stems as they enter the mix) for inspection
 Standard library + ffmpeg only.
 """
+
 import array, json, math, os, re, struct, subprocess, sys, tempfile, wave
 from pathlib import Path
 
 SR = 48000
 HERE = Path(__file__).resolve().parent
-ENGINE = Path(os.environ.get("REEL_ENGINE") or HERE.parent / "engine")      # REEL_ENGINE: for tests
-DEFAULTS = {"voice": 0.0, "music": -14.0, "duck": -10.0, "effects": 0.0, "lufs": -16.0, "true_peak": -2.0,
-            "hold": 0.45, "attack": 0.12, "release": 0.6, "fade_in": 0.5, "fade_out": 1.2,
-            "effects_follow_voice": True, "effects_ref": -16.0, "effects_duck": -6.0, "effects_under_peak": 3.0}
-FR = 0.01            # envelope step: 10 ms
+ENGINE = Path(os.environ.get("REEL_ENGINE") or HERE.parent / "engine")  # REEL_ENGINE: for tests
+DEFAULTS = {
+    "voice": 0.0,
+    "music": -14.0,
+    "duck": -10.0,
+    "effects": 0.0,
+    "lufs": -16.0,
+    "true_peak": -2.0,
+    "hold": 0.45,
+    "attack": 0.12,
+    "release": 0.6,
+    "fade_in": 0.5,
+    "fade_out": 1.2,
+    "effects_follow_voice": True,
+    "effects_ref": -16.0,
+    "effects_duck": -6.0,
+    "effects_under_peak": 3.0,
+}
+FR = 0.01  # envelope step: 10 ms
 
 
 def sh(cmd, **kw):
@@ -47,14 +62,23 @@ def dur_of(p):
 
 
 def has_audio(p):
-    return bool(sh(["ffprobe", "-v", "error", "-select_streams", "a", "-show_entries", "stream=index", "-of", "csv=p=0", p]).stdout.strip())
+    return bool(
+        sh(
+            ["ffprobe", "-v", "error", "-select_streams", "a", "-show_entries", "stream=index", "-of", "csv=p=0", p]
+        ).stdout.strip()
+    )
 
 
 # ---- voice activity -> music gain envelope ------------------------------------------------------------------------
 def pcm16(path, sr=16000):
-    raw = subprocess.run(["ffmpeg", "-v", "error", "-i", str(path), "-vn", "-ac", "1", "-ar", str(sr), "-f", "s16le", "-"],
-                         check=True, capture_output=True).stdout
-    a = array.array("h"); a.frombytes(raw[: len(raw) // 2 * 2]); return a
+    raw = subprocess.run(
+        ["ffmpeg", "-v", "error", "-i", str(path), "-vn", "-ac", "1", "-ar", str(sr), "-f", "s16le", "-"],
+        check=True,
+        capture_output=True,
+    ).stdout
+    a = array.array("h")
+    a.frombytes(raw[: len(raw) // 2 * 2])
+    return a
 
 
 def speech_mask(a, sr=16000):
@@ -62,27 +86,33 @@ def speech_mask(a, sr=16000):
     hop, win = int(sr * FR), int(sr * 0.03)
     lev = []
     for i in range(0, max(len(a) - win, 1), hop):
-        seg = a[i:i + win]
+        seg = a[i : i + win]
         ms = sum(x * x for x in seg) / max(len(seg), 1)
-        lev.append(10 * math.log10(max(ms, 1.0) / 32768 ** 2))
-    if not lev: return []
-    s = sorted(lev); floor, top = s[len(s) // 10], s[int(len(s) * 0.95)]
+        lev.append(10 * math.log10(max(ms, 1.0) / 32768**2))
+    if not lev:
+        return []
+    s = sorted(lev)
+    floor, top = s[len(s) // 10], s[int(len(s) * 0.95)]
     thr = max(floor + 9.0, top - 24.0, -62.0)
     return [v > thr for v in lev]
 
 
 def close_gaps(mask, hold, pre=0.1, post=0.15):
     """Speech runs separated by less than `hold` seconds are one run (no pumping between words); runs are widened a little."""
-    n = len(mask); out = mask[:]
+    n = len(mask)
+    out = mask[:]
     i = 0
     while i < n:
         if mask[i]:
             j = i
-            while j < n and mask[j]: j += 1
+            while j < n and mask[j]:
+                j += 1
             k = j
-            while k < n and not mask[k]: k += 1
+            while k < n and not mask[k]:
+                k += 1
             if k < n and (k - j) * FR < hold:
-                for x in range(j, k): out[x] = True
+                for x in range(j, k):
+                    out[x] = True
             i = j
         else:
             i += 1
@@ -90,7 +120,8 @@ def close_gaps(mask, hold, pre=0.1, post=0.15):
     a, b = int(pre / FR), int(post / FR)
     for i, v in enumerate(out):
         if v:
-            for x in range(max(0, i - a), min(n, i + b + 1)): w[x] = True
+            for x in range(max(0, i - a), min(n, i + b + 1)):
+                w[x] = True
     return w
 
 
@@ -100,8 +131,10 @@ def gain_curve(mask, duck_db, attack, release):
     tgt = [duck_db if v else 0.0 for v in mask]
     up, down = depth * FR / max(release, FR), depth * FR / max(attack, FR)
     g = tgt[:]
-    for i in range(1, len(g)): g[i] = min(g[i], g[i - 1] + up)            # rises slowly
-    for i in range(len(g) - 2, -1, -1): g[i] = min(g[i], g[i + 1] + down)  # starts falling before the voice comes in
+    for i in range(1, len(g)):
+        g[i] = min(g[i], g[i - 1] + up)  # rises slowly
+    for i in range(len(g) - 2, -1, -1):
+        g[i] = min(g[i], g[i + 1] + down)  # starts falling before the voice comes in
     return g
 
 
@@ -110,7 +143,10 @@ def write_gain_wav(path, g_db, total):
     g_db = (g_db + [g_db[-1] if g_db else 0.0] * n)[:n]
     a = array.array("h", (int(round(min(1.0, 10 ** (v / 20)) * 32767)) for v in g_db))
     with wave.open(str(path), "wb") as w:
-        w.setnchannels(1); w.setsampwidth(2); w.setframerate(int(1 / FR)); w.writeframes(a.tobytes())
+        w.setnchannels(1)
+        w.setsampwidth(2)
+        w.setframerate(int(1 / FR))
+        w.writeframes(a.tobytes())
     return n
 
 
@@ -119,17 +155,28 @@ def read_wav_mono(path):
     with wave.open(str(path), "rb") as w:
         ch, sw, sr, n = w.getnchannels(), w.getsampwidth(), w.getframerate(), w.getnframes()
         raw = w.readframes(n)
-    if sw != 2: raise ValueError(f"{path}: only 16-bit wav supported")
-    a = array.array("h"); a.frombytes(raw)
-    if ch > 1: a = array.array("h", (sum(a[i:i + ch]) // ch for i in range(0, len(a) - ch + 1, ch)))
-    if sr != SR: raise ValueError(f"{path}: expected {SR} Hz, got {sr}")
+    if sw != 2:
+        raise ValueError(f"{path}: only 16-bit wav supported")
+    a = array.array("h")
+    a.frombytes(raw)
+    if ch > 1:
+        a = array.array("h", (sum(a[i : i + ch]) // ch for i in range(0, len(a) - ch + 1, ch)))
+    if sr != SR:
+        raise ValueError(f"{path}: expected {SR} Hz, got {sr}")
     return a
 
 
 def write_wav_f32(path, x, sr=SR):
     data = array.array("f", x).tobytes()
-    hdr = b"RIFF" + struct.pack("<I", 36 + len(data)) + b"WAVE" + b"fmt " + struct.pack("<IHHIIHH", 16, 3, 1, sr, sr * 4, 4, 32) \
-        + b"data" + struct.pack("<I", len(data))
+    hdr = (
+        b"RIFF"
+        + struct.pack("<I", 36 + len(data))
+        + b"WAVE"
+        + b"fmt "
+        + struct.pack("<IHHIIHH", 16, 3, 1, sr, sr * 4, 4, 32)
+        + b"data"
+        + struct.pack("<I", len(data))
+    )
     Path(path).write_bytes(hdr + data)
 
 
@@ -142,20 +189,26 @@ def sfx_stem(events, total, path, shift_db=0.0, cap_db=None):
     for e in events:
         f = ENGINE / "sfx" / f"{e['name']}.wav"
         if not f.exists():
-            print(f"warning: sound effect {e['name']!r} not found in engine/sfx - skipped"); continue
-        if f not in cache: cache[f] = read_wav_mono(f)
+            print(f"warning: sound effect {e['name']!r} not found in engine/sfx - skipped")
+            continue
+        if f not in cache:
+            cache[f] = read_wav_mono(f)
         w = cache[f]
         db = float(e.get("db", 0)) + shift_db
         if cap_db is not None:
             pk = max((abs(x) for x in w), default=0)
             top = db + (20 * math.log10(pk / 32768) if pk else -99.0)
-            if top > cap_db: db -= top - cap_db; sfx_stem.capped += 1
+            if top > cap_db:
+                db -= top - cap_db
+                sfx_stem.capped += 1
         g = 10 ** (db / 20) / 32768
         s = int(float(e["t"]) * SR)
-        if s < 0 or s >= n: continue
+        if s < 0 or s >= n:
+            continue
         ln = min(len(w), n - s)
-        if e.get("dur"): ln = min(ln, int(float(e["dur"]) * SR))
-        tail = min(ln, int(0.02 * SR)) if ln < len(w) else 0          # cut-short effect: 20 ms fade so it doesn't click
+        if e.get("dur"):
+            ln = min(ln, int(float(e["dur"]) * SR))
+        tail = min(ln, int(0.02 * SR)) if ln < len(w) else 0  # cut-short effect: 20 ms fade so it doesn't click
         for i in range(ln):
             fade = (ln - i) / tail if tail and ln - i < tail else 1.0
             buf[s + i] += w[i] * g * fade
@@ -170,63 +223,130 @@ def voice_peaks(a, mask, sr=16000):
     hop, pk = int(sr * FR), []
     for k, v in enumerate(mask):
         if v:
-            seg = a[k * hop:(k + 1) * hop]
-            if seg: pk.append(max(abs(x) for x in seg))
-    if not pk: return None
-    pk.sort(); p = pk[int(len(pk) * 0.95)]
+            seg = a[k * hop : (k + 1) * hop]
+            if seg:
+                pk.append(max(abs(x) for x in seg))
+    if not pk:
+        return None
+    pk.sort()
+    p = pk[int(len(pk) * 0.95)]
     return 20 * math.log10(max(p, 1) / 32768)
 
 
 def loudnorm_stats(src, extra=""):
-    r = subprocess.run(["ffmpeg", "-hide_banner", "-nostats", "-i", str(src), "-af", f"{extra}loudnorm=I=-14:TP=-1.5:LRA=11:print_format=json",
-                        "-f", "null", "-"], capture_output=True, text=True)
+    r = subprocess.run(
+        [
+            "ffmpeg",
+            "-hide_banner",
+            "-nostats",
+            "-i",
+            str(src),
+            "-af",
+            f"{extra}loudnorm=I=-14:TP=-1.5:LRA=11:print_format=json",
+            "-f",
+            "null",
+            "-",
+        ],
+        capture_output=True,
+        text=True,
+    )
     m = re.search(r"\{.*?\}", r.stderr, re.S)
     return json.loads(m.group(0)) if m else None
 
 
 def measure(src):
     """Integrated loudness and true peak (EBU R128), plus whether the waveform reaches full scale (clipping)."""
-    r = subprocess.run(["ffmpeg", "-hide_banner", "-nostats", "-i", str(src), "-vn", "-af", "ebur128=peak=true", "-f", "null", "-"],
-                       capture_output=True, text=True).stderr
+    r = subprocess.run(
+        ["ffmpeg", "-hide_banner", "-nostats", "-i", str(src), "-vn", "-af", "ebur128=peak=true", "-f", "null", "-"],
+        capture_output=True,
+        text=True,
+    ).stderr
     I = re.findall(r"\bI:\s+(-?[\d.]+) LUFS", r)
     tp = re.findall(r"Peak:\s+(-?[\d.]+) dBFS", r)
-    r2 = subprocess.run(["ffmpeg", "-hide_banner", "-nostats", "-i", str(src), "-vn", "-af", "astats=measure_perchannel=none", "-f", "null", "-"],
-                        capture_output=True, text=True).stderr
+    r2 = subprocess.run(
+        [
+            "ffmpeg",
+            "-hide_banner",
+            "-nostats",
+            "-i",
+            str(src),
+            "-vn",
+            "-af",
+            "astats=measure_perchannel=none",
+            "-f",
+            "null",
+            "-",
+        ],
+        capture_output=True,
+        text=True,
+    ).stderr
     pk = re.findall(r"Peak level dB:\s+(-?[\d.]+|-inf)", r2)
     peak = float(pk[-1]) if pk and pk[-1] != "-inf" else -99.0
-    return {"lufs": float(I[-1]) if I else None, "true_peak_db": float(tp[-1]) if tp else None,
-            "clipped_samples": 1 if peak >= -0.05 else 0}
+    return {
+        "lufs": float(I[-1]) if I else None,
+        "true_peak_db": float(tp[-1]) if tp else None,
+        "clipped_samples": 1 if peak >= -0.05 else 0,
+    }
 
 
 def main():
     args = sys.argv[1:]
-    if not args: sys.exit(__doc__)
+    if not args:
+        sys.exit(__doc__)
     reel = Path(args[0]).expanduser().resolve()
     opt = lambda k, d=None: args[args.index(k) + 1] if k in args else d
-    video = reel / opt("--video", "final.mp4"); out = reel / opt("--out", "final_ln.mp4")
+    video = reel / opt("--video", "final.mp4")
+    out = reel / opt("--out", "final_ln.mp4")
     stems = Path(opt("--stems-dir")).expanduser() if opt("--stems-dir") else None
     home = Path(os.environ.get("REELS_HOME", "~/reels")).expanduser()
-    sys.path.insert(0, str(Path(__file__).resolve().parent)); import theme as _theme
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    import theme as _theme
+
     brand = _theme.load_brand(home, reel, quiet=True) if (home / "brand.json").exists() else {}
     edit = json.load(open(reel / "edit.json")) if (reel / "edit.json").exists() else {}
     cfg = {**DEFAULTS, **brand.get("mix", {}), **edit.get("mix", {})}
     music = edit.get("music") or brand.get("music")
-    if music == "none": music = None                  # 0.28.0: this reel has no music even when brand.json gives every reel some
+    # 0.28.0: this reel has no music even when brand.json gives every reel some
+    if music == "none":
+        music = None
     music = Path(os.path.expanduser(music)) if music else None
-    if music and not music.is_absolute() and (reel / music).exists(): music = reel / music
+    if music and not music.is_absolute() and (reel / music).exists():
+        music = reel / music
     if music and not music.exists():
-        print(f"warning: music file not found, mixing without it: {music}"); music = None
+        print(f"warning: music file not found, mixing without it: {music}")
+        music = None
     ev_path = reel / "sfx_events.json"
     events = json.load(open(ev_path)) if ev_path.exists() else []
 
     voice_src = reel / "master.mp4"
-    if cfg.get("legacy") or not voice_src.exists() or not has_audio(voice_src): voice_src = video   # legacy: effects are already inside final.mp4
+    # legacy: effects are already inside final.mp4
+    if cfg.get("legacy") or not voice_src.exists() or not has_audio(voice_src):
+        voice_src = video
     total = dur_of(video)
-    tmp = Path(tempfile.mkdtemp(prefix="mix_")); report = {"music": bool(music), "effects": 0}
+    tmp = Path(tempfile.mkdtemp(prefix="mix_"))
+    report = {"music": bool(music), "effects": 0}
     try:
         voice = tmp / "voice.wav"
-        sh(["ffmpeg", "-v", "error", "-y", "-i", voice_src, "-vn", "-ac", "2", "-ar", SR, "-t", f"{total:.3f}",
-            "-af", f"apad=whole_dur={total:.3f},volume={cfg['voice']}dB", voice])
+        sh(
+            [
+                "ffmpeg",
+                "-v",
+                "error",
+                "-y",
+                "-i",
+                voice_src,
+                "-vn",
+                "-ac",
+                "2",
+                "-ar",
+                SR,
+                "-t",
+                f"{total:.3f}",
+                "-af",
+                f"apad=whole_dur={total:.3f},volume={cfg['voice']}dB",
+                voice,
+            ]
+        )
         inputs, graph, mix_in = ["-i", voice], ["[0:a]anull[v]"], ["[v]"]
         n_in = 1
         gain = None
@@ -242,87 +362,219 @@ def main():
             mask = close_gaps(speech_mask(pcm16(voice)), cfg["hold"])
             # 0.28.0: the music also steps back under each sound effect, so an effect in a pause is heard over the music
             for e in events:
-                k0 = int(float(e.get("t", 0)) / FR); k1 = k0 + int(0.6 / FR)
-                for k in range(max(0, k0), min(len(mask), k1)): mask[k] = True
+                k0 = int(float(e.get("t", 0)) / FR)
+                k1 = k0 + int(0.6 / FR)
+                for k in range(max(0, k0), min(len(mask), k1)):
+                    mask[k] = True
             gain = tmp / "gain.wav"
             g = gain_curve(mask, cfg["duck"], cfg["attack"], cfg["release"])
             write_gain_wav(gain, g, total)
             speaking = sum(mask) * FR
-            report.update({"voice_lufs": round(vlufs, 1), "music_gap_level_lu": cfg["music"], "music_under_voice_lu": cfg["music"] + cfg["duck"],
-                           "speech_seconds": round(speaking, 1), "gap_seconds": round(total - speaking, 1)})
-            ms = max(0.0, float(edit.get("music_start") or brand.get("music_start") or 0))   # 0.28.0: skip a long intro
+            report.update(
+                {
+                    "voice_lufs": round(vlufs, 1),
+                    "music_gap_level_lu": cfg["music"],
+                    "music_under_voice_lu": cfg["music"] + cfg["duck"],
+                    "speech_seconds": round(speaking, 1),
+                    "gap_seconds": round(total - speaking, 1),
+                }
+            )
+            ms = max(0.0, float(edit.get("music_start") or brand.get("music_start") or 0))  # 0.28.0: skip a long intro
             inputs += ["-stream_loop", "-1", *(["-ss", f"{ms:.2f}"] if ms else []), "-i", music, "-i", gain]
             fo = max(0.0, total - cfg["fade_out"])
-            graph += [f"[1:a]atrim=0:{total:.3f},asetpts=PTS-STARTPTS,aformat=channel_layouts=stereo,aresample={SR},volume={mgain:.2f}dB,"
-                      f"afade=t=in:d={cfg['fade_in']},afade=t=out:st={fo:.3f}:d={cfg['fade_out']}[m0]",
-                      f"[2:a]aresample={SR},pan=stereo|c0=c0|c1=c0[g]",
-                      "[m0][g]amultiply[m]"]
-            mix_in.append("[m]"); n_in += 2
+            graph += [
+                f"[1:a]atrim=0:{total:.3f},asetpts=PTS-STARTPTS,aformat=channel_layouts=stereo,aresample={SR},volume={mgain:.2f}dB,"
+                f"afade=t=in:d={cfg['fade_in']},afade=t=out:st={fo:.3f}:d={cfg['fade_out']}[m0]",
+                f"[2:a]aresample={SR},pan=stereo|c0=c0|c1=c0[g]",
+                "[m0][g]amultiply[m]",
+            ]
+            mix_in.append("[m]")
+            n_in += 2
         if events:
             sx = tmp / "sfx.wav"
             follow = cfg.get("effects_follow_voice", True) is not False
             shift, cap, sgain = 0.0, None, None
             if follow:
                 # 0.25.0: effects follow the voice. Its level sets theirs, they dip while it speaks, and none peaks over it.
-                vp = pcm16(voice); vmask = speech_mask(vp)
-                if vlufs is not None: shift = max(-24.0, min(3.0, vlufs - cfg["effects_ref"]))
+                vp = pcm16(voice)
+                vmask = speech_mask(vp)
+                if vlufs is not None:
+                    shift = max(-24.0, min(3.0, vlufs - cfg["effects_ref"]))
                 vpk = voice_peaks(vp, vmask)
-                if vpk is not None: cap = vpk - cfg["effects_under_peak"]
+                if vpk is not None:
+                    cap = vpk - cfg["effects_under_peak"]
                 if any(vmask) and cfg["effects_duck"]:
                     sgain = tmp / "sfx_gain.wav"
-                    write_gain_wav(sgain, gain_curve(close_gaps(vmask, 0.2, 0.05, 0.08), cfg["effects_duck"], 0.03, 0.25), total)
+                    write_gain_wav(
+                        sgain, gain_curve(close_gaps(vmask, 0.2, 0.05, 0.08), cfg["effects_duck"], 0.03, 0.25), total
+                    )
                 if vlufs is not None and vlufs < -22:
-                    print(f"note: the voice track is quiet ({vlufs:.1f} LUFS; the editor expects about -16). "
-                          f"Sound effects were turned down {abs(shift):.1f} dB to stay under it.")
+                    print(
+                        f"note: the voice track is quiet ({vlufs:.1f} LUFS; the editor expects about -16). "
+                        f"Sound effects were turned down {abs(shift):.1f} dB to stay under it."
+                    )
             report["effects"] = sfx_stem(events, total, sx, shift, cap)
-            report.update({"effects_follow_voice": follow, "effects_shift_db": round(shift, 1), "effects_duck_db": cfg["effects_duck"] if sgain else 0,
-                           "effects_peak_cap_db": round(cap, 1) if cap is not None else None, "effects_capped": sfx_stem.capped,
-                           **({"voice_lufs": round(vlufs, 1)} if vlufs is not None else {})})
+            report.update(
+                {
+                    "effects_follow_voice": follow,
+                    "effects_shift_db": round(shift, 1),
+                    "effects_duck_db": cfg["effects_duck"] if sgain else 0,
+                    "effects_peak_cap_db": round(cap, 1) if cap is not None else None,
+                    "effects_capped": sfx_stem.capped,
+                    **({"voice_lufs": round(vlufs, 1)} if vlufs is not None else {}),
+                }
+            )
             inputs += ["-i", sx]
             idx = n_in
             if sgain:
                 inputs += ["-i", sgain]
-                graph += [f"[{idx}:a]aformat=channel_layouts=stereo,volume={cfg['effects']}dB[s0]",
-                          f"[{idx + 1}:a]aresample={SR},pan=stereo|c0=c0|c1=c0[sg]", "[s0][sg]amultiply[s]"]
+                graph += [
+                    f"[{idx}:a]aformat=channel_layouts=stereo,volume={cfg['effects']}dB[s0]",
+                    f"[{idx + 1}:a]aresample={SR},pan=stereo|c0=c0|c1=c0[sg]",
+                    "[s0][sg]amultiply[s]",
+                ]
                 n_in += 2
             else:
                 graph.append(f"[{idx}:a]aformat=channel_layouts=stereo,volume={cfg['effects']}dB[s]")
                 n_in += 1
             mix_in.append("[s]")
         mixed = tmp / "mix.wav"
-        graph.append("".join(mix_in) + f"amix=inputs={len(mix_in)}:duration=longest:normalize=0,atrim=0:{total:.3f},"
-                     "alimiter=limit=0.89:attack=5:release=60:level=disabled[mix]")
-        sh(["ffmpeg", "-v", "error", "-y", *inputs, "-filter_complex", ";".join(graph), "-map", "[mix]", "-c:a", "pcm_f32le", "-ar", SR, mixed])
+        graph.append(
+            "".join(mix_in) + f"amix=inputs={len(mix_in)}:duration=longest:normalize=0,atrim=0:{total:.3f},"
+            "alimiter=limit=0.89:attack=5:release=60:level=disabled[mix]"
+        )
+        sh(
+            [
+                "ffmpeg",
+                "-v",
+                "error",
+                "-y",
+                *inputs,
+                "-filter_complex",
+                ";".join(graph),
+                "-map",
+                "[mix]",
+                "-c:a",
+                "pcm_f32le",
+                "-ar",
+                SR,
+                mixed,
+            ]
+        )
 
         if stems:
             stems.mkdir(parents=True, exist_ok=True)
             sh(["ffmpeg", "-v", "error", "-y", "-i", voice, stems / "voice.wav"])
             if music:
                 g2 = [f for f in graph if f.startswith("[1:a]") or f.startswith("[2:a]") or f.startswith("[m0]")]
-                sh(["ffmpeg", "-v", "error", "-y", "-stream_loop", "-1", "-i", music, "-i", gain, "-filter_complex",
-                    ";".join(g2).replace("[1:a]", "[0:a]").replace("[2:a]", "[1:a]"), "-map", "[m]", "-t", f"{total:.3f}", "-c:a", "pcm_s16le", stems / "music_ducked.wav"])
-            if events: sh(["ffmpeg", "-v", "error", "-y", "-i", tmp / "sfx.wav", "-c:a", "pcm_s16le", stems / "sfx.wav"])   # before the dip under the voice
+                sh(
+                    [
+                        "ffmpeg",
+                        "-v",
+                        "error",
+                        "-y",
+                        "-stream_loop",
+                        "-1",
+                        "-i",
+                        music,
+                        "-i",
+                        gain,
+                        "-filter_complex",
+                        ";".join(g2).replace("[1:a]", "[0:a]").replace("[2:a]", "[1:a]"),
+                        "-map",
+                        "[m]",
+                        "-t",
+                        f"{total:.3f}",
+                        "-c:a",
+                        "pcm_s16le",
+                        stems / "music_ducked.wav",
+                    ]
+                )
+            # before the dip under the voice
+            if events:
+                sh(["ffmpeg", "-v", "error", "-y", "-i", tmp / "sfx.wav", "-c:a", "pcm_s16le", stems / "sfx.wav"])
 
         # two-pass loudness normalisation, then the finished audio is muxed under the untouched video
         tgt, tp = cfg["lufs"], cfg["true_peak"]
-        r = subprocess.run(["ffmpeg", "-hide_banner", "-nostats", "-i", mixed, "-af", f"loudnorm=I={tgt}:TP={tp}:LRA=7:print_format=json", "-f", "null", "-"],
-                           capture_output=True, text=True)
+        r = subprocess.run(
+            [
+                "ffmpeg",
+                "-hide_banner",
+                "-nostats",
+                "-i",
+                mixed,
+                "-af",
+                f"loudnorm=I={tgt}:TP={tp}:LRA=7:print_format=json",
+                "-f",
+                "null",
+                "-",
+            ],
+            capture_output=True,
+            text=True,
+        )
         st = json.loads(re.search(r"\{.*?\}", r.stderr, re.S).group(0))
-        ln = (f"loudnorm=I={tgt}:TP={tp}:LRA=7:measured_I={st['input_i']}:measured_TP={st['input_tp']}:measured_LRA={st['input_lra']}:"
-              f"measured_thresh={st['input_thresh']}:offset={st['target_offset']}:linear=true")
-        sh(["ffmpeg", "-v", "error", "-y", "-i", video, "-i", mixed, "-map", "0:v", "-map", "1:a", "-c:v", "copy",
-            "-af", ln + f",alimiter=limit={10 ** (tp / 20):.3f}:level=disabled", "-ar", SR, "-c:a", "aac", "-b:a", "256k", "-shortest", "-movflags", "+faststart", out])
+        ln = (
+            f"loudnorm=I={tgt}:TP={tp}:LRA=7:measured_I={st['input_i']}:measured_TP={st['input_tp']}:measured_LRA={st['input_lra']}:"
+            f"measured_thresh={st['input_thresh']}:offset={st['target_offset']}:linear=true"
+        )
+        sh(
+            [
+                "ffmpeg",
+                "-v",
+                "error",
+                "-y",
+                "-i",
+                video,
+                "-i",
+                mixed,
+                "-map",
+                "0:v",
+                "-map",
+                "1:a",
+                "-c:v",
+                "copy",
+                "-af",
+                ln + f",alimiter=limit={10 ** (tp / 20):.3f}:level=disabled",
+                "-ar",
+                SR,
+                "-c:a",
+                "aac",
+                "-b:a",
+                "256k",
+                "-shortest",
+                "-movflags",
+                "+faststart",
+                out,
+            ]
+        )
         res = measure(out)
-        report.update({"lufs": res["lufs"], "true_peak_db": res["true_peak_db"], "clipped_samples": res["clipped_samples"],
-                       "target_lufs": tgt, "max_true_peak_db": tp, "levels": {k: cfg[k] for k in ("voice", "music", "duck", "effects")}})
-        ok = res["lufs"] is not None and abs(res["lufs"] - tgt) <= 1.0 and (res["true_peak_db"] is None or res["true_peak_db"] <= -1.0) and res["clipped_samples"] == 0
+        report.update(
+            {
+                "lufs": res["lufs"],
+                "true_peak_db": res["true_peak_db"],
+                "clipped_samples": res["clipped_samples"],
+                "target_lufs": tgt,
+                "max_true_peak_db": tp,
+                "levels": {k: cfg[k] for k in ("voice", "music", "duck", "effects")},
+            }
+        )
+        ok = (
+            res["lufs"] is not None
+            and abs(res["lufs"] - tgt) <= 1.0
+            and (res["true_peak_db"] is None or res["true_peak_db"] <= -1.0)
+            and res["clipped_samples"] == 0
+        )
         report["pass"] = bool(ok)
         (reel / "mix_report.json").write_text(json.dumps(report, indent=1) + "\n")
-        print(f"mix: {res['lufs']} LUFS (target {tgt}), true peak {res['true_peak_db']} dBTP (limit -1.0), clipped samples {res['clipped_samples']}, "
-              f"music {'yes' if music else 'no'}, effects {report['effects']}  ->  {'PASS' if ok else 'CHECK'}")
+        print(
+            f"mix: {res['lufs']} LUFS (target {tgt}), true peak {res['true_peak_db']} dBTP (limit -1.0), clipped samples {res['clipped_samples']}, "
+            f"music {'yes' if music else 'no'}, effects {report['effects']}  ->  {'PASS' if ok else 'CHECK'}"
+        )
         print(out)
     finally:
-        import shutil; shutil.rmtree(tmp, ignore_errors=True)
+        import shutil
+
+        shutil.rmtree(tmp, ignore_errors=True)
 
 
 if __name__ == "__main__":

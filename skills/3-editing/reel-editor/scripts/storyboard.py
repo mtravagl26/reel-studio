@@ -21,6 +21,7 @@ to touch an existing non-empty folder). Stills only: no cut, no render, no audio
 and skipped. Needs ffmpeg, Node (npx hyperframes) and Chrome (for the tile sheet), the same as the rest of the editor.
 GEMINI_API_KEY is removed from the environment for the snapshot step so no frame is ever sent to an outside service.
 """
+
 import argparse, copy, html, json, os, re, shutil, subprocess, sys
 from pathlib import Path
 
@@ -29,11 +30,17 @@ HOME = Path(os.environ.get("REELS_HOME", "~/reels")).expanduser()
 MENU = json.load(open(SKILL / "assets/style-menu.json"))["looks"]
 
 ap = argparse.ArgumentParser()
-ap.add_argument("reel"); ap.add_argument("--out", required=True)
-ap.add_argument("--option", action="append", default=[]); ap.add_argument("--at"); ap.add_argument("--content"); ap.add_argument("--photos"); ap.add_argument("--title")
+ap.add_argument("reel")
+ap.add_argument("--out", required=True)
+ap.add_argument("--option", action="append", default=[])
+ap.add_argument("--at")
+ap.add_argument("--content")
+ap.add_argument("--photos")
+ap.add_argument("--title")
 a = ap.parse_args()
 
-reel = Path(a.reel).expanduser().resolve(); out = Path(a.out).expanduser().resolve()
+reel = Path(a.reel).expanduser().resolve()
+out = Path(a.out).expanduser().resolve()
 if not (reel / "master.mp4").exists() or not (reel / "edit.json").exists():
     sys.exit(f"{reel} needs master.mp4 and edit.json (a reel that has been cut and has an edit)")
 if out == reel or reel in out.parents or out in reel.parents:
@@ -46,43 +53,70 @@ if not 1 <= len(a.option) <= 4:
 options, THEMES = [], {}
 for spec in a.option:
     m = re.match(r"^\s*([A-Za-z0-9]+)\s*=\s*(.+)$", spec)
-    if not m: sys.exit(f"bad option {spec!r}: use NAME=ID,ID,...")
+    if not m:
+        sys.exit(f"bad option {spec!r}: use NAME=ID,ID,...")
     ids = [x.strip().upper() for x in m.group(2).split(",") if x.strip()]
-    for x in [i for i in ids if i.startswith("THEME:")]:               # Added by By Mel Ross (themes): "A=theme:bold" or "A=theme:bold,L8"
-        THEMES[m.group(1).upper()] = x.split(":", 1)[1].lower(); ids.remove(x)
+    # Added by By Mel Ross (themes): "A=theme:bold" or "A=theme:bold,L8"
+    for x in [i for i in ids if i.startswith("THEME:")]:
+        THEMES[m.group(1).upper()] = x.split(":", 1)[1].lower()
+        ids.remove(x)
     for i in ids:
-        if i not in MENU: sys.exit(f"unknown Style Menu ID {i!r} in option {m.group(1)}")
+        if i not in MENU:
+            sys.exit(f"unknown Style Menu ID {i!r} in option {m.group(1)}")
     options.append((m.group(1).upper(), ids))
 
 content = json.load(open(a.content)) if a.content else {}
 photos = [str(Path(p).expanduser().resolve()) for p in (a.photos or "").split(",") if p.strip()]
 edit0 = json.load(open(reel / "edit.json"))
 brand0 = json.load(open(HOME / "brand.json"))
-dur = float(subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", str(reel / "master.mp4")], capture_output=True, text=True, check=True).stdout) - 0.02
+dur = (
+    float(
+        subprocess.run(
+            ["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", str(reel / "master.mp4")],
+            capture_output=True,
+            text=True,
+            check=True,
+        ).stdout
+    )
+    - 0.02
+)
 
 # ---- moments -------------------------------------------------------------------------------------------------------------
 caps0 = edit0.get("captions", [])
 if a.at:
     moments = [float(x) for x in a.at.split(",")]
 else:
-    mids = [(c["start"] + c["end"]) / 2 for c in caps0] or [dur * f for f in (.12, .38, .62, .88)]
-    moments = [min(mids, key=lambda m: abs(m - dur * f)) for f in (.12, .38, .62, .88)]
+    mids = [(c["start"] + c["end"]) / 2 for c in caps0] or [dur * f for f in (0.12, 0.38, 0.62, 0.88)]
+    moments = [min(mids, key=lambda m: abs(m - dur * f)) for f in (0.12, 0.38, 0.62, 0.88)]
 moments = sorted({round(m, 2) for m in moments})
-if not 2 <= len(moments) <= 5: sys.exit("use 2-5 moments")
+if not 2 <= len(moments) <= 5:
+    sys.exit("use 2-5 moments")
+
 
 def deep(dst, patch):
     for k, v in patch.items():
-        if isinstance(v, dict) and isinstance(dst.get(k), dict): deep(dst[k], v)
-        else: dst[k] = copy.deepcopy(v)
+        if isinstance(v, dict) and isinstance(dst.get(k), dict):
+            deep(dst[k], v)
+        else:
+            dst[k] = copy.deepcopy(v)
+
+
 def subst(o):
-    if isinstance(o, str): return o.replace("{skill}", str(SKILL)).replace("{reels}", str(HOME))
-    if isinstance(o, dict): return {k: subst(v) for k, v in o.items()}
-    if isinstance(o, list): return [subst(v) for v in o]
+    if isinstance(o, str):
+        return o.replace("{skill}", str(SKILL)).replace("{reels}", str(HOME))
+    if isinstance(o, dict):
+        return {k: subst(v) for k, v in o.items()}
+    if isinstance(o, list):
+        return [subst(v) for v in o]
     return o
 
+
 def capy_of(b):
-    if (edit0.get("layout") or b.get("layout")) == "captions-high": return b.get("captions", {}).get("y_high", 290)   # 0.27.0: captions above the head
+    # 0.27.0: captions above the head
+    if (edit0.get("layout") or b.get("layout")) == "captions-high":
+        return b.get("captions", {}).get("y_high", 290)
     return b.get("captions", {}).get("y", 1250)
+
 
 def rechunk_words(caps):
     """One caption per word, timed from the reel's own caption words (each word lasts until the next one starts)."""
@@ -91,118 +125,245 @@ def rechunk_words(caps):
         ws = c["words"]
         for k, w in enumerate(ws):
             nxt = ws[k + 1]["t"] if k + 1 < len(ws) else c["end"]
-            out_.append({"start": round(w["t"], 2), "end": round(max(nxt, w["t"] + 0.2), 2), "words": [{**w, "accent": False}]})
+            out_.append(
+                {"start": round(w["t"], 2), "end": round(max(nxt, w["t"] + 0.2), 2), "words": [{**w, "accent": False}]}
+            )
     return out_
+
+
 def auto_accent(caps):
     """Demo accent: the longest word (5+ letters) of each caption. Keeps the reel's own accents if it has any."""
-    if any(w.get("accent") for c in caps for w in c["words"]): return caps
+    if any(w.get("accent") for c in caps for w in c["words"]):
+        return caps
     for c in caps:
-        ws = c["words"]; best = max(range(len(ws)), key=lambda k: len(re.sub(r"\W", "", ws[k]["text"])))
-        if len(re.sub(r"\W", "", ws[best]["text"])) >= 5: ws[best]["accent"] = True
+        ws = c["words"]
+        best = max(range(len(ws)), key=lambda k: len(re.sub(r"\W", "", ws[k]["text"])))
+        if len(re.sub(r"\W", "", ws[best]["text"])) >= 5:
+            ws[best]["accent"] = True
     return caps
 
+
 env = {**os.environ, "HYPERFRAMES_NO_TELEMETRY": "1", "DO_NOT_TRACK": "1"}
-env.pop("GEMINI_API_KEY", None)                     # snapshot would otherwise describe frames with an outside vision service
+# snapshot would otherwise describe frames with an outside vision service
+env.pop("GEMINI_API_KEY", None)
 out.mkdir(parents=True)
 notes, rows = [], []
 for name, ids in options:
-    work = out / "work" / name; (work / "home").mkdir(parents=True)
-    brand = copy.deepcopy(brand0); caps = copy.deepcopy(caps0)
-    cards, used, skipped = [], [], []        # 0.27.0: set for every option (they were only set when a theme was missing, so every run stopped)
+    work = out / "work" / name
+    (work / "home").mkdir(parents=True)
+    brand = copy.deepcopy(brand0)
+    caps = copy.deepcopy(caps0)
+    # 0.27.0: set for every option (they were only set when a theme was missing, so every run stopped)
+    cards, used, skipped = [], [], []
     if name in THEMES:
-        sys.path.insert(0, str(SKILL / "scripts")); import theme as _theme
-        brand = _theme.load_brand(HOME, name=THEMES[name]); brand.pop("theme", None)
-        if not brand.get("_theme"): notes.append(f"Option {name}: theme {THEMES[name]!r} not found, shown with your brand as it is")
-    slot_hook = 0; slot_lay = 1 if len(moments) > 1 else 0; accent = False; word_mode = False
+        sys.path.insert(0, str(SKILL / "scripts"))
+        import theme as _theme
+
+        brand = _theme.load_brand(HOME, name=THEMES[name])
+        brand.pop("theme", None)
+        if not brand.get("_theme"):
+            notes.append(f"Option {name}: theme {THEMES[name]!r} not found, shown with your brand as it is")
+    slot_hook = 0
+    slot_lay = 1 if len(moments) > 1 else 0
+    accent = False
+    word_mode = False
     styled = [i for i in ids if MENU[i].get("recipe") and (MENU[i]["recipe"].get("brand"))]
-    if len(styled) > 1: notes.append(f"Option {name}: {', '.join(styled)} all set the caption look; the last one wins")
+    if len(styled) > 1:
+        notes.append(f"Option {name}: {', '.join(styled)} all set the caption look; the last one wins")
     for i in ids:
-        L = MENU[i]; r = L.get("recipe")
+        L = MENU[i]
+        r = L.get("recipe")
         if not r or L["status"] in ("not-built", "cut-choice"):
-            skipped.append(i); notes.append(f"Option {name}: {i} ({L['name']}) is {L['status']}: {L.get('needs') or L.get('does', '')}"); continue
-        if r.get("brand"): deep(brand, subst(r["brand"]))
-        if r.get("accent"): accent = r["accent"] if r["accent"] == "first" else (accent or True)
-        if r.get("mode") == "word": word_mode = True
+            skipped.append(i)
+            notes.append(f"Option {name}: {i} ({L['name']}) is {L['status']}: {L.get('needs') or L.get('does', '')}")
+            continue
+        if r.get("brand"):
+            deep(brand, subst(r["brand"]))
+        if r.get("accent"):
+            accent = r["accent"] if r["accent"] == "first" else (accent or True)
+        if r.get("mode") == "word":
+            word_mode = True
         # Added by By Mel Ross (0.19.0): a look can be more than one card ("cards"); each picture card takes the next photo.
         look_cards = r.get("cards") or ([r["card"]] if r.get("card") else [])
         if look_cards and r.get("needs_photos") and not photos:
-            skipped.append(i); notes.append(f"Option {name}: {i} needs photos (--photos) and none were given: skipped"); continue
+            skipped.append(i)
+            notes.append(f"Option {name}: {i} needs photos (--photos) and none were given: skipped")
+            continue
         srcs = [photos[k % len(photos)] for k in range(r.get("needs_photos") or 0)] if photos else []
         look_t = None
         for n_, rc in enumerate(look_cards):
             card = copy.deepcopy(subst(rc))
-            if n_ == 0: card.update({k: v for k, v in content.get(i, {}).items()})
+            if n_ == 0:
+                card.update({k: v for k, v in content.get(i, {}).items()})
             if srcs:
-                if card["type"] == "polaroids": card["src"] = srcs
-                elif card["type"] in ("popup", "sticker", "image", "shot"): card["src"] = srcs.pop(0) if len(srcs) > 1 else srcs[0]
-                elif card["type"] == "page" and card.get("bg") != "blur": card["bg"] = srcs[0]
+                if card["type"] == "polaroids":
+                    card["src"] = srcs
+                elif card["type"] in ("popup", "sticker", "image", "shot"):
+                    card["src"] = srcs.pop(0) if len(srcs) > 1 else srcs[0]
+                elif card["type"] == "page" and card.get("bg") != "blur":
+                    card["bg"] = srcs[0]
             slot = r.get("slot", "layout")
-            if look_t is not None: t = look_t
-            elif "at" in content and i in content["at"]: t = float(content["at"][i])
-            elif slot == "hook": t = moments[slot_hook]
+            if look_t is not None:
+                t = look_t
+            elif "at" in content and i in content["at"]:
+                t = float(content["at"][i])
+            elif slot == "hook":
+                t = moments[slot_hook]
             else:
-                t = moments[min(slot_lay, len(moments) - 1)]; slot_lay += 1
+                t = moments[min(slot_lay, len(moments) - 1)]
+                slot_lay += 1
             look_t = t
             card["start"], card["end"] = round(max(t - 1.6, 0), 2), round(min(t + 2.4, dur), 2)
-            if card["type"] == "xlist" and "row_times" not in card: card["row_times"] = [round(card["start"] + 0.3 + 0.22 * j, 2) for j in range(len(card["items"]))]
-            if card["type"] == "tiles" and "tile_times" not in card: card["tile_times"] = [round(card["start"] + 0.3 + 0.18 * j, 2) for j in range(len(card["tiles"]))]
-            if card["type"] == "title": card["start"] = round(max(t - 1.2, 0), 2); card["quiet"] = card.get("quiet", True) and capy_of(brand) < 600   # a top caption (C1, y 150) would sit on the title: captions step aside like in a real build
+            if card["type"] == "xlist" and "row_times" not in card:
+                card["row_times"] = [round(card["start"] + 0.3 + 0.22 * j, 2) for j in range(len(card["items"]))]
+            if card["type"] == "tiles" and "tile_times" not in card:
+                card["tile_times"] = [round(card["start"] + 0.3 + 0.18 * j, 2) for j in range(len(card["tiles"]))]
+            # a top caption (C1, y 150) would sit on the title: captions step aside like in a real build
+            if card["type"] == "title":
+                card["start"] = round(max(t - 1.2, 0), 2)
+                card["quiet"] = card.get("quiet", True) and capy_of(brand) < 600
             cards.append(card)
         used.append(i)
-    if word_mode: caps = rechunk_words(caps)
-    if accent == "first" and not word_mode:   # 0.19.0 (Style Menu C9): the whole first phrase carries the highlight
+    if word_mode:
+        caps = rechunk_words(caps)
+    if accent == "first" and not word_mode:  # 0.19.0 (Style Menu C9): the whole first phrase carries the highlight
         for k_, c_ in enumerate(caps):
-            for w_ in c_["words"]: w_["accent"] = k_ == 0
-    elif accent and not word_mode: caps = auto_accent(caps)
+            for w_ in c_["words"]:
+                w_["accent"] = k_ == 0
+    elif accent and not word_mode:
+        caps = auto_accent(caps)
     json.dump(brand, open(work / "home/brand.json", "w"), indent=1)
     for sub in ("fonts", "assets"):
-        if (HOME / sub).exists(): os.symlink(HOME / sub, work / "home" / sub)
+        if (HOME / sub).exists():
+            os.symlink(HOME / sub, work / "home" / sub)
     for f in ("master.mp4",):
-        if subprocess.run(["cp", "-c", str(reel / f), str(work / f)], capture_output=True).returncode: shutil.copyfile(reel / f, work / f)   # -c (a clone) is Mac only
+        # -c (a clone) is Mac only
+        if subprocess.run(["cp", "-c", str(reel / f), str(work / f)], capture_output=True).returncode:
+            shutil.copyfile(reel / f, work / f)
     for f in ("master_transcript.json",):
-        if (reel / f).exists(): shutil.copy(reel / f, work / f)
+        if (reel / f).exists():
+            shutil.copy(reel / f, work / f)
     for sub in ("shots", "popups"):
-        if (reel / sub).exists() and subprocess.run(["cp", "-Rc", str(reel / sub), str(work / sub)], capture_output=True).returncode: shutil.copytree(reel / sub, work / sub, dirs_exist_ok=True)
+        if (reel / sub).exists() and subprocess.run(
+            ["cp", "-Rc", str(reel / sub), str(work / sub)], capture_output=True
+        ).returncode:
+            shutil.copytree(reel / sub, work / sub, dirs_exist_ok=True)
     edit = {k: v for k, v in edit0.items() if k not in ("cards", "sfx_events")}
     edit["captions"], edit["cards"] = caps, cards
     json.dump(edit, open(work / "edit.json", "w"), indent=1)
     e2 = {**env, "REELS_HOME": str(work / "home")}
-    b = subprocess.run([sys.executable, str(SKILL / "scripts/build_reel.py"), str(work)], capture_output=True, text=True, env=e2)
-    if b.returncode: sys.exit(f"build failed for option {name}:\n{b.stdout[-800:]}{b.stderr[-1500:]}")
+    b = subprocess.run(
+        [sys.executable, str(SKILL / "scripts/build_reel.py"), str(work)], capture_output=True, text=True, env=e2
+    )
+    if b.returncode:
+        sys.exit(f"build failed for option {name}:\n{b.stdout[-800:]}{b.stderr[-1500:]}")
     for line in b.stdout.splitlines():
-        if line.startswith(("note:", "warning:")): notes.append(f"Option {name}: {line}")
+        if line.startswith(("note:", "warning:")):
+            notes.append(f"Option {name}: {line}")
     shots = out / f"stills_{name}"
-    s = subprocess.run(["npx", "-y", "hyperframes@0.8.145", "snapshot", str(work / "proj"), "--at", ",".join(str(m) for m in moments), "--no-end", "--describe", "false", "-o", str(shots)],
-                       capture_output=True, text=True, env=e2)
+    s = subprocess.run(
+        [
+            "npx",
+            "-y",
+            "hyperframes@0.8.145",
+            "snapshot",
+            str(work / "proj"),
+            "--at",
+            ",".join(str(m) for m in moments),
+            "--no-end",
+            "--describe",
+            "false",
+            "-o",
+            str(shots),
+        ],
+        capture_output=True,
+        text=True,
+        env=e2,
+    )
     pngs = sorted(shots.glob("frame-*.png"))
-    if s.returncode or len(pngs) != len(moments): sys.exit(f"snapshot failed for option {name}:\n{(s.stdout + s.stderr)[-1500:]}")
-    rows.append({"name": name, "ids": ids, "used": used, "skipped": skipped, "frames": [p.name for p in pngs], "dir": shots.name})
+    if s.returncode or len(pngs) != len(moments):
+        sys.exit(f"snapshot failed for option {name}:\n{(s.stdout + s.stderr)[-1500:]}")
+    rows.append(
+        {
+            "name": name,
+            "ids": ids,
+            "used": used,
+            "skipped": skipped,
+            "frames": [p.name for p in pngs],
+            "dir": shots.name,
+        }
+    )
     print(f"option {name}: {', '.join(used) or 'no looks'} -> {len(pngs)} stills")
 
 # ---- tile sheet ----------------------------------------------------------------------------------------------------------
-CW = 300; CH = 533; GAP = 10; LAB = 62
+CW = 300
+CH = 533
+GAP = 10
+LAB = 62
 cols = len(moments)
 cells = []
 for r_i, row in enumerate(rows):
-    ids_txt = " + ".join(([f'{THEMES[row["name"]].capitalize()} theme'] if row["name"] in THEMES else []) + row["used"]) or "plain"
-    names = ", ".join(MENU[i]["name"] for i in row["used"]) + (f' | skipped: {", ".join(row["skipped"])}' if row["skipped"] else "")
+    ids_txt = (
+        " + ".join(([f'{THEMES[row["name"]].capitalize()} theme'] if row["name"] in THEMES else []) + row["used"])
+        or "plain"
+    )
+    names = ", ".join(MENU[i]["name"] for i in row["used"]) + (
+        f' | skipped: {", ".join(row["skipped"])}' if row["skipped"] else ""
+    )
     lab = f'Option {row["name"]}: {ids_txt}<small>{html.escape(names)}</small>'
     cells.append(f'<div class="lab" style="grid-column:1/{cols + 1}">{lab}</div>')
     for k, f in enumerate(row["frames"]):
         cells.append(f'<div class="c"><img src="{row["dir"]}/{f}"/><span>{moments[k]:g}s</span></div>')
-W = cols * CW + (cols + 1) * GAP; Hh = GAP + (len(rows) * (LAB + CH + GAP)) + (44 if a.title else 0)
-sheet = (f'<!doctype html><meta charset="utf-8"><style>body{{margin:0;background:#f5f2ec;font:600 24px -apple-system,Helvetica,sans-serif;color:#0d2b2d}}'
-         f'.g{{display:grid;grid-template-columns:repeat({cols},{CW}px);gap:{GAP}px;padding:{GAP}px}}.lab{{height:{LAB}px;line-height:30px;white-space:nowrap;overflow:hidden}}.lab small{{display:block;font:500 15px/18px -apple-system,sans-serif;opacity:.7;white-space:normal;height:32px;overflow:hidden}}'
-         f'.c{{position:relative;width:{CW}px;height:{CH}px;overflow:hidden;border-radius:8px;background:#000}}.c img{{width:{CW}px;height:{CH}px;object-fit:cover;display:block}}'
-         f'.c span{{position:absolute;right:8px;bottom:6px;font:600 16px -apple-system,sans-serif;color:#fff;background:rgba(0,0,0,.5);padding:2px 8px;border-radius:10px}}</style>'
-         + (f'<div style="padding:10px 14px 0;font-size:22px">{html.escape(a.title)}</div>' if a.title else "") + f'<div class="g">{"".join(cells)}</div>')
+W = cols * CW + (cols + 1) * GAP
+Hh = GAP + (len(rows) * (LAB + CH + GAP)) + (44 if a.title else 0)
+sheet = (
+    f'<!doctype html><meta charset="utf-8"><style>body{{margin:0;background:#f5f2ec;font:600 24px -apple-system,Helvetica,sans-serif;color:#0d2b2d}}'
+    f".g{{display:grid;grid-template-columns:repeat({cols},{CW}px);gap:{GAP}px;padding:{GAP}px}}.lab{{height:{LAB}px;line-height:30px;white-space:nowrap;overflow:hidden}}.lab small{{display:block;font:500 15px/18px -apple-system,sans-serif;opacity:.7;white-space:normal;height:32px;overflow:hidden}}"
+    f".c{{position:relative;width:{CW}px;height:{CH}px;overflow:hidden;border-radius:8px;background:#000}}.c img{{width:{CW}px;height:{CH}px;object-fit:cover;display:block}}"
+    f".c span{{position:absolute;right:8px;bottom:6px;font:600 16px -apple-system,sans-serif;color:#fff;background:rgba(0,0,0,.5);padding:2px 8px;border-radius:10px}}</style>"
+    + (f'<div style="padding:10px 14px 0;font-size:22px">{html.escape(a.title)}</div>' if a.title else "")
+    + f'<div class="g">{"".join(cells)}</div>'
+)
 (out / "sheet.html").write_text(sheet)
-chrome = next((c for c in ["/Applications/Google Chrome.app/Contents/MacOS/Google Chrome", "/Applications/Chromium.app/Contents/MacOS/Chromium",
-                           "/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge", shutil.which("google-chrome") or "", shutil.which("chromium") or ""] if c and os.access(c, os.X_OK)), None)
-if not chrome: sys.exit("no Chrome/Chromium/Edge found: the stills are in the stills_* folders, only the tiled sheet is missing")
-subprocess.run([chrome, "--headless=new", "--disable-gpu", "--hide-scrollbars", "--force-device-scale-factor=1", f"--window-size={W},{Hh}", f"--screenshot={out / 'storyboard.png'}", (out / "sheet.html").as_uri()],
-               capture_output=True, check=True)
-subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", str(out / "storyboard.png"), "-q:v", "2", str(out / "storyboard.jpg")], check=True)
-json.dump({"reel": str(reel), "moments": moments, "options": rows, "notes": notes}, open(out / "storyboard.json", "w"), indent=1)
-for n in notes: print("note:", n)
+chrome = next(
+    (
+        c
+        for c in [
+            "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+            "/Applications/Chromium.app/Contents/MacOS/Chromium",
+            "/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge",
+            shutil.which("google-chrome") or "",
+            shutil.which("chromium") or "",
+        ]
+        if c and os.access(c, os.X_OK)
+    ),
+    None,
+)
+if not chrome:
+    sys.exit("no Chrome/Chromium/Edge found: the stills are in the stills_* folders, only the tiled sheet is missing")
+subprocess.run(
+    [
+        chrome,
+        "--headless=new",
+        "--disable-gpu",
+        "--hide-scrollbars",
+        "--force-device-scale-factor=1",
+        f"--window-size={W},{Hh}",
+        f"--screenshot={out / 'storyboard.png'}",
+        (out / "sheet.html").as_uri(),
+    ],
+    capture_output=True,
+    check=True,
+)
+subprocess.run(
+    ["ffmpeg", "-v", "error", "-y", "-i", str(out / "storyboard.png"), "-q:v", "2", str(out / "storyboard.jpg")],
+    check=True,
+)
+json.dump(
+    {"reel": str(reel), "moments": moments, "options": rows, "notes": notes},
+    open(out / "storyboard.json", "w"),
+    indent=1,
+)
+for n in notes:
+    print("note:", n)
 print(f"storyboard: {out / 'storyboard.jpg'}  (stills only; nothing was rendered or written to {reel.name})")

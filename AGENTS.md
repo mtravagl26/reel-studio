@@ -52,3 +52,7 @@ authorize it.
 - The brand lives in `~/reels/brand.json` + `brand.md`; `brand/` holds the editable
   example. The brand file wins over any default in a skill.
 - `reel-editor` keeps its MIT `LICENSE` beside it; keep that file with the skill.
+- **Code style for the reel editor** (0.30.0). Python is formatted with `black -l 120`; put a long
+  comment on its own line above the code, not after it. A page's code lives in its own file
+  (`review/review.js`, `review/editor.js`), not inside the HTML. New helpers that don't need the
+  build's shared state go in their own module (as `scripts/reel_assets.py` does), not in `build_reel.py`.

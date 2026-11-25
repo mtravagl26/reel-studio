@@ -475,7 +475,7 @@ test("touch-ups: background music from the music folder, a look added at the pla
 
 test("mixer: a reel can say no music, and the music dips under sound effects (0.28.0)", { skip: skipReason }, () => {
   const mx = fs.readFileSync(path.join(skill, "scripts", "mix_audio.py"), "utf8");
-  assert.match(mx, /if music == "none": music = None/); assert.match(mx, /for e in events:\n\s+k0 = int/); assert.match(mx, /music_start/);
+  assert.match(mx, /if music == "none":\s+music = None/); assert.match(mx, /for e in events:\n\s+k0 = int/); assert.match(mx, /music_start/);
 });
 
 test("home page: an empty music folder offers 3 starter tracks made on this computer (0.28.0)", { skip: skipReason }, async () => {

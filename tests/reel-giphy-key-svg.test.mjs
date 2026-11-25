@@ -153,7 +153,7 @@ test("live preview: the server builds the reel page in its own folder, serves it
   const ed = pageText(path.join(review, "editor.html")), srv = fs.readFileSync(path.join(review, "editor-server.mjs"), "utf8"), build = fs.readFileSync(path.join(skill, "scripts", "build_reel.py"), "utf8");
   for (const t of ['id="live"', 'id="liveOn"', "/api/live", "reelLive.sync(v.currentTime", "liveSoon()"]) assert.ok(ed.includes(t), t);
   for (const t of ["proj_live", "REEL_PROJ_DIR: tmpDir", "window.reelLive=", 'p.startsWith("/live/")', "A render is running. The live preview comes back"]) assert.ok(srv.includes(t), t);
-  assert.match(build, /if os\.environ\.get\("REEL_PROJ_DIR"\): proj = Path\(os\.environ\["REEL_PROJ_DIR"\]\)/); assert.match(build, /ASSET_CACHE = reel \/ "\.asset-cache"/);
+  assert.match(build, /if os\.environ\.get\("REEL_PROJ_DIR"\):\s+proj = Path\(os\.environ\["REEL_PROJ_DIR"\]\)/); assert.match(build, /ASSET_CACHE = reel \/ "\.asset-cache"/);
   assert.doesNotMatch(srv.split("const LIVE_DRIVER")[1].split("`;")[0], /https?:\/\//, "the driver loads nothing from outside");
 });
 
