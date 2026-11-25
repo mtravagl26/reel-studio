@@ -203,6 +203,21 @@ function setSfx(body) {
   else if (on === ((brand.sfx ?? "subtle") !== "none")) delete edit.sfx; else edit.sfx = on ? "subtle" : "none";
   writeJSON(P.edit, edit);
 }
+// Added by By Mel Ross (0.25.0): how loud the sound effects are, for this reel (edit.json "mix.effects") or every reel (brand.json).
+const SFX_VOL = { quieter: -6, normal: 0, louder: 4 };
+function setSfxVolume(body) {
+  requireIdle();
+  if (!(body.level in SFX_VOL)) throw new Error("pick quieter, normal or louder");
+  const v = SFX_VOL[body.level], scope = body.scope === "all" ? "all" : "reel";
+  snapshot("sound effects volume", null, true);
+  const edit = readJSON(P.edit, {}), brand = brandJSON();
+  if (scope === "all") { brand.mix = { ...(brand.mix || {}), effects: v }; if (edit.mix) delete edit.mix.effects; writeJSON(P.brand, brand); }
+  else if (v === (brand.mix?.effects ?? 0)) { if (edit.mix) delete edit.mix.effects; }
+  else edit.mix = { ...(edit.mix || {}), effects: v };
+  if (edit.mix && !Object.keys(edit.mix).length) delete edit.mix;
+  writeJSON(P.edit, edit);
+}
+const volName = (v) => (v <= -3 ? "quieter" : v >= 2 ? "louder" : "normal");
 function setTheme(body) {
   requireIdle();
   const name = String(body.name || ""), scope = body.scope === "reel" ? "reel" : "all";
@@ -414,6 +429,7 @@ function view() {
     textDefault: brand.text_default || { layer: "front", position: "above" }, hasTextDefault: !!brand.text_default,
     themes: listThemes(), theme: { reel: edit.theme || null, all: brand.theme || null }, giphy: !!giphyKey(),
     sfxOn: (edit.sfx ?? brand.sfx ?? "subtle") !== "none", sfxAll: (brand.sfx ?? "subtle") !== "none",
+    sfxVol: volName(edit.mix?.effects ?? brand.mix?.effects ?? 0), sfxVolAll: volName(brand.mix?.effects ?? 0), hasFinal: exists(P.final),
     colors: { reel: edit.colors || null, all: { main: brand.colors?.main || "#141414", pop: brand.colors?.pop || "#B9C8A5", light: brand.colors?.light || "#FFFFFF" } },
     highlight: (() => { let all = {}, reel = null; try { all = cleanHighlight(brand.caption_highlight); } catch {} try { reel = edit.caption_highlight ? cleanHighlight(edit.caption_highlight) : null; } catch {} return { reel, all, base: highlightBase(edit, brand) }; })(),
     hasMaster: exists(P.master), cutsStale, dirty: meta.edit_hash !== editHash(), canUndo: history().length > 0, undoLabel: history().slice(-1)[0]?.replace(/^[\d_-]+?-(?=[A-Za-z])/, "") || null,
@@ -490,9 +506,12 @@ const tailReason = (txt) => {   // the last readable lines of a failed step: no 
   return (errs.length ? errs : lines).slice(-4).join(" | ").slice(0, 500);
 };
 
-async function runRender() {
+async function runRender(opts = {}) {
   const st = loadState(), meta = loadMeta(st), env = childEnv(), steps = [];
   const needCut = meta.cut_key !== cutKeyNow(st) || !exists(P.master);
+  // 0.25.0: sound only. The picture in final.mp4 is kept; the sound list is rebuilt and the voice, music and effects are mixed
+  // again from master.mp4. About 20 seconds instead of a full render. Used when only sound settings changed.
+  const soundOnly = !!opts.soundOnly && !needCut && exists(P.final);
   fs.writeFileSync(P.log, `render started ${new Date().toISOString()}\n`);
   const version = Math.max(0, ...listRenders().map((r) => r.v), meta.version || 0) + 1;
   setJob({ state: "running", step: needCut ? "cut" : "render", version, startedAt: new Date().toISOString(), finishedAt: null, error: null, steps: [], notes: [], qa: null, sync: null });
@@ -503,9 +522,21 @@ async function runRender() {
       const r = await step("cut", "python3", [path.join(SCRIPTS, "cut.py"), REEL], env); steps.push({ name: "cut", secs: r.secs, ok: r.code === 0 }); setJob({ steps });
       if (r.code !== 0) return fail("cut", r);
     }
-    setJob({ step: "render" });
-    const r = await step("render", "bash", [path.join(SCRIPTS, "render.sh"), REEL], env); steps.push({ name: "render", secs: r.secs, ok: r.code === 0 }); setJob({ steps });
-    if (r.code !== 0) return fail("render", r);
+    let r;
+    if (soundOnly) {
+      setJob({ step: "sound" });
+      const b = await step("sound list", "python3", [path.join(SCRIPTS, "build_reel.py"), REEL], env);
+      if (b.code !== 0) return fail("sound list", b);
+      r = await step("sound", "python3", [path.join(SCRIPTS, "mix_audio.py"), REEL, "--video", "final.mp4", "--out", "final_ln.mp4"], env);
+      steps.push({ name: "sound", secs: b.secs + r.secs, ok: r.code === 0 }); setJob({ steps });
+      if (r.code !== 0) return fail("sound", r);
+      fs.renameSync(path.join(REEL, "final_ln.mp4"), P.final);
+      r = { ...r, out: b.out + "\n" + r.out };
+    } else {
+      setJob({ step: "render" });
+      r = await step("render", "bash", [path.join(SCRIPTS, "render.sh"), REEL], env); steps.push({ name: "render", secs: r.secs, ok: r.code === 0 }); setJob({ steps });
+      if (r.code !== 0) return fail("render", r);
+    }
     const buildNotes = r.out.split(/\r?\n/).filter((l) => /^(note|warning):/.test(l.trim())).map((l) => l.trim());
     const mixLine = (r.out.match(/^mix: .*$/m) || [""])[0];
     setJob({ step: "checks", notes: buildNotes, mix: mixLine });
@@ -522,7 +553,7 @@ async function runRender() {
       "-c:v", "libx264", "-preset", "medium", "-crf", "26", "-pix_fmt", "yuv420p", ...tag, "-tag:v", "avc1", "-c:a", "aac", "-b:a", "128k", "-movflags", "+faststart", phone], env);
     if (f.code !== 0) return fail("phone copy", f);
     const rec = { v: version, at: new Date().toISOString(), full: `renders/v${v}.mp4`, phone: `renders/v${v}-phone.mp4`, len: durOf(full), notes: buildNotes, qa: job.qa, mix: mixLine,
-      sync, recut: needCut, what: `${(readJSON(P.edit, {}).cards || []).filter((c) => !c.off).length} cards, ${core.keptSpans(st).length} pieces` };
+      sync, recut: needCut, ...(soundOnly ? { soundOnly: true } : {}), what: `${soundOnly ? "sound only, " : ""}${(readJSON(P.edit, {}).cards || []).filter((c) => !c.off).length} cards, ${core.keptSpans(st).length} pieces` };
     writeJSON(path.join(P.renders, `v${v}.json`), rec);
     fs.writeFileSync(path.join(P.renders, `v${v}-edit.json`), editBefore); fs.copyFileSync(P.edl, path.join(P.renders, `v${v}-edl.json`));
     writeJSON(P.meta, { cut_key: cutKeyNow(st), edit_hash: editHash(), version, at: rec.at });
@@ -533,11 +564,13 @@ async function runRender() {
     setJob({ state: "failed", error: String(e.message || e), finishedAt: new Date().toISOString() });
   }
 }
-function startRender() {
+function startRender(opts = {}) {
   if (job.state === "running" || job.state === "queued") throw new Error("A render is already running.");
+  if (opts.soundOnly && !exists(P.final)) throw new Error("There's no finished reel yet: render it once first.");
+  if (opts.soundOnly) { const st = loadState(); if (loadMeta(st).cut_key !== cutKeyNow(st) || !exists(P.master)) throw new Error("The cuts changed since the last render, so the picture has to be made again: press Re-render."); }
   lastSnap = null;
   setJob({ state: "queued", step: "queued", steps: [], error: null });
-  runRender().catch((e) => setJob({ state: "failed", error: String(e.message || e), finishedAt: new Date().toISOString() }));   // 0.18.0: a surprise here must not stop the server
+  runRender(opts).catch((e) => setJob({ state: "failed", error: String(e.message || e), finishedAt: new Date().toISOString() }));   // 0.18.0: a surprise here must not stop the server
 }
 
 // ---- build from the review page (Added by By Mel Ross, 0.18.0) -----------------------------------------------------------------------
@@ -809,6 +842,8 @@ const server = http.createServer(async (req, res) => {
         if (p === "/api/op") { const b = JSON.parse((await readBody(req, 2e6)).toString() || "{}"); return json(res, 200, { ok: true, ...doOp(b), state: view() }); }
         if (p === "/api/undo") { requireIdle(); const what = undo(); return json(res, 200, { ok: true, undid: what, state: view() }); }
         if (p === "/api/render") { startRender(); return json(res, 200, { ok: true, job }); }
+        if (p === "/api/remix") { startRender({ soundOnly: true }); return json(res, 200, { ok: true, job }); }   // 0.25.0: sound only
+        if (p === "/api/sfx-volume") { const b = JSON.parse((await readBody(req, 1e4)).toString() || "{}"); setSfxVolume(b); return json(res, 200, { ok: true, state: view() }); }
         if (p === "/api/live") { const b = JSON.parse((await readBody(req, 1e4)).toString() || "{}"); return json(res, 200, { ok: true, live: startLive(!!b.force) }); }
         if (p === "/api/sfx") { const b = JSON.parse((await readBody(req, 1e4)).toString() || "{}"); setSfx(b); return json(res, 200, { ok: true, state: view() }); }
         if (p === "/api/colors") { const b = JSON.parse((await readBody(req, 1e5)).toString() || "{}"); setColors(b); return json(res, 200, { ok: true, state: view() }); }
