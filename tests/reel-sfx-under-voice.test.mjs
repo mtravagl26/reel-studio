@@ -5,7 +5,7 @@ import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
-import { ff, meanDb, py, skipReason, tmp } from "./reel-helpers.mjs";
+import { ff, meanDb, py, skipReason, tmp, pageText } from "./reel-helpers.mjs";
 
 const review = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "skills", "3-editing", "reel-editor", "review");
 
@@ -54,7 +54,7 @@ test("the louder/quieter setting still moves the effects", { skip: skipReason },
 });
 
 test("the touch-ups page has the effects volume and an update-the-sound-only button", () => {
-  const ed = fs.readFileSync(path.join(review, "editor.html"), "utf8"), srv = fs.readFileSync(path.join(review, "editor-server.mjs"), "utf8");
+  const ed = pageText(path.join(review, "editor.html")), srv = fs.readFileSync(path.join(review, "editor-server.mjs"), "utf8");
   for (const t of ['data-a="sfx-vol"', "quieter", "louder", "How loud the sounds are", 'data-a="remix"', "dip while you talk"]) assert.ok(ed.includes(t), t);
   assert.match(srv, /"\/api\/sfx-volume"/); assert.match(srv, /"\/api\/remix"/); assert.match(srv, /soundOnly/);
 });

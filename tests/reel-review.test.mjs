@@ -6,7 +6,7 @@ import { spawn } from "node:child_process";
 import path from "node:path";
 import test from "node:test";
 import { createRequire } from "node:module";
-import { ff, py, skill, skipReason, tmp } from "./reel-helpers.mjs";
+import { ff, py, skill, skipReason, tmp, pageText } from "./reel-helpers.mjs";
 import * as core from "../skills/3-editing/reel-editor/review/editor-core.mjs";
 
 const NAMES = ["alpha", "beta", "gamma", "delta", "epsilon", "zeta", "eta", "theta", "iota", "kappa", "lambda", "mu"];
@@ -184,7 +184,7 @@ test("review page: Build preview imports the choices, runs the build steps, and 
     assert.equal((await fetch(base + latest.url)).status, 200);
     assert.ok(fs.existsSync(path.join(c.reel, "final.mp4")) && fs.existsSync(path.join(c.reel, "edl.json")));
   } finally { p.kill(); }
-  const rv = fs.readFileSync(path.join(skill, "review", "reel-review.html"), "utf8");
+  const rv = pageText(path.join(skill, "review", "reel-review.html"));
   for (const t of ["Build now without those", "I'll tell Claude", "/api/review-build", "function needsClaude", "Step 2 of 4"]) assert.ok(rv.includes(t), t);
 });
 
@@ -197,6 +197,6 @@ test("words changed on the review page go into the card (0.28.0); bad values are
   assert.equal(read(c.reel, "edit.json").cards.find((x) => x.id === "g1").text.length, 80);
   c.imp({ board: { g1: { set: { text: "" } } } });
   assert.equal(read(c.reel, "edit.json").cards.find((x) => x.id === "g1").text, "hello", "empty words keep the old ones");
-  const rv = fs.readFileSync(path.join(skill, "review", "reel-review.html"), "utf8");
+  const rv = pageText(path.join(skill, "review", "reel-review.html"));
   for (const t of ["WORD_FIELDS", "function wordsBox", "New words saved"]) assert.ok(rv.includes(t), t);
 });

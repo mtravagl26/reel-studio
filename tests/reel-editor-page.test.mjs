@@ -7,7 +7,7 @@ import path from "node:path";
 import test from "node:test";
 import http from "node:http";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { ff, haveVp9, py, run, skill, skipReason, tmp } from "./reel-helpers.mjs";
+import { ff, haveVp9, py, run, skill, skipReason, tmp, pageText } from "./reel-helpers.mjs";
 
 const review = path.join(skill, "review");
 const core = await import(pathToFileURL(path.join(review, "editor-core.mjs")).href);
@@ -206,7 +206,7 @@ test("review/core.js loads with require() from inside the repo", async () => {
 
 test("the three pages share one step bar and one palette, and load nothing from the internet", () => {
   for (const f of ["reel-review.html", "thumbnail.html", "editor.html"]) {
-    const html = fs.readFileSync(path.join(review, f), "utf8");
+    const html = pageText(path.join(review, f));
     assert.match(html, /class="steps"/, `${f}: step bar`);
     for (const k of ["edit", "cover", "caption"]) assert.ok(html.includes(`data-step="${k}"`), `${f}: step ${k}`);   // 0.28.0: 1 Edit, 2 Cover, 3 Caption
     assert.ok(/#f5f2ec/i.test(html) && /#0d2b2d/i.test(html), `${f}: cream and teal`);
@@ -258,7 +258,7 @@ test("receipt: counts cuts, speed, captions, each kind of graphic and sounds fro
 });
 
 test("timeline: the page has the strip, the lanes and the receipt panel", () => {
-  const html = fs.readFileSync(path.join(review, "editor.html"), "utf8");
+  const html = pageText(path.join(review, "editor.html"));
   for (const need of ['id="tli"', 'id="receipt"', "/api/strip.jpg?v=", "/api/wave.png?v=", 'class="mk cap"', "cutmark", "const PX = 56"]) assert.ok(html.includes(need), need);
 });
 
@@ -469,13 +469,13 @@ test("touch-ups: background music from the music folder, a look added at the pla
     const set = await post("/api/op", { op: { op: "card_set", i, set: { value: "1,200", label: "followers", delta: "" } } });
     assert.equal(set.ok, true, set.error); assert.equal(set.state.edit.cards[i].value, "1,200");
   });
-  const ed = fs.readFileSync(path.join(review, "editor.html"), "utf8");
+  const ed = pageText(path.join(review, "editor.html"));
   for (const t of ["Background music", "Add a look at this point in the video", "data-drag=", "data-dragv", "Start the track at", "Use this track for every reel"]) assert.ok(ed.includes(t), t);
 });
 
 test("mixer: a reel can say no music, and the music dips under sound effects (0.28.0)", { skip: skipReason }, () => {
   const mx = fs.readFileSync(path.join(skill, "scripts", "mix_audio.py"), "utf8");
-  assert.match(mx, /if music == "none": music = None/); assert.match(mx, /for e in events:\n\s+k0 = int/); assert.match(mx, /music_start/);
+  assert.match(mx, /if music == "none":\s+music = None/); assert.match(mx, /for e in events:\n\s+k0 = int/); assert.match(mx, /music_start/);
 });
 
 test("home page: an empty music folder offers 3 starter tracks made on this computer (0.28.0)", { skip: skipReason }, async () => {
@@ -503,6 +503,6 @@ test("Edit page: When captions appear sets caption_lead for this reel or every r
     s = (await post("/api/caption-lead", { lead: "x", scope: "all" })).state; assert.equal(s.captionLeadAll, 0);
     assert.equal(JSON.parse(fs.readFileSync(path.join(home, "brand.json"), "utf8")).caption_lead, undefined);
   });
-  const html = fs.readFileSync(path.join(review, "editor.html"), "utf8");
+  const html = pageText(path.join(review, "editor.html"));
   assert.match(html, /When captions appear/); assert.match(html, /\/api\/caption-lead/);
 });

@@ -24,6 +24,7 @@ assets/fonts/, then ~/reels/fonts/.
   python3 theme.py list                      the themes this machine has
   python3 theme.py show <name>               the brand that results from laying <name> over ~/reels/brand.json
 """
+
 import copy, json, os, re, sys
 from pathlib import Path
 
@@ -41,10 +42,11 @@ def theme_dirs(home=None):
 
 def available(home=None):
     out = {}
-    for d in reversed(theme_dirs(home)):                       # your own folder wins over the built-in one
+    for d in reversed(theme_dirs(home)):  # your own folder wins over the built-in one
         if d.is_dir():
             for p in sorted(d.iterdir()):
-                if (p / "theme.json").exists() and NAME_OK.match(p.name): out[p.name] = p
+                if (p / "theme.json").exists() and NAME_OK.match(p.name):
+                    out[p.name] = p
     return out
 
 
@@ -59,43 +61,74 @@ def merge(base, over):
 def _tokens(value, colors):
     if isinstance(value, str) and value in ("@main", "@pop", "@light"):
         return colors.get(value[1:], {"main": "#141414", "pop": "#B9C8A5", "light": "#FFFFFF"}[value[1:]])
-    if isinstance(value, dict): return {k: _tokens(v, colors) for k, v in value.items()}
-    if isinstance(value, list): return [_tokens(v, colors) for v in value]
+    if isinstance(value, dict):
+        return {k: _tokens(v, colors) for k, v in value.items()}
+    if isinstance(value, list):
+        return [_tokens(v, colors) for v in value]
     return value
 
 
 def _font_file(name, folder, home):
     p = Path(name).expanduser()
-    if p.is_absolute(): return str(p)
-    for d in (folder, folder.parent / "_fonts", SKILL / "themes" / "_fonts", SKILL / "assets" / "fonts", Path(home) / "fonts"):
-        if (d / name).exists(): return str(d / name)
-    return str(Path(home) / "fonts" / name)                    # not found: the build warns and falls back, as for any missing font
+    if p.is_absolute():
+        return str(p)
+    for d in (
+        folder,
+        folder.parent / "_fonts",
+        SKILL / "themes" / "_fonts",
+        SKILL / "assets" / "fonts",
+        Path(home) / "fonts",
+    ):
+        if (d / name).exists():
+            return str(d / name)
+    # not found: the build warns and falls back, as for any missing font
+    return str(Path(home) / "fonts" / name)
 
 
 def _highlight(v):
     """The clean parts of a "caption_highlight" setting: words and text = a hex color, bg = a hex color or "none"."""
-    if not isinstance(v, dict): return {}
+    if not isinstance(v, dict):
+        return {}
     hexc = lambda x: isinstance(x, str) and re.fullmatch(r"#[0-9a-fA-F]{6}", x)
     out = {}
-    if hexc(v.get("words")): out["words"] = v["words"]
+    if hexc(v.get("words")):
+        out["words"] = v["words"]
     # 0.27.0: a box behind all the caption words, and the caption size
-    if hexc(v.get("box")) or v.get("box") == "none" or (isinstance(v.get("box"), str) and re.fullmatch(r"rgba\(\s*\d{1,3}\s*,\s*\d{1,3}\s*,\s*\d{1,3}\s*,\s*(0|1|0?\.\d+)\s*\)", v["box"])): out["box"] = v["box"]
-    if isinstance(v.get("size"), (int, float)) and not isinstance(v.get("size"), bool) and 60 <= v["size"] <= 160: out["size"] = int(v["size"])
-    if hexc(v.get("text")): out["text"] = v["text"]
-    if hexc(v.get("bg")) or v.get("bg") == "none": out["bg"] = v["bg"]
+    if (
+        hexc(v.get("box"))
+        or v.get("box") == "none"
+        or (
+            isinstance(v.get("box"), str)
+            and re.fullmatch(r"rgba\(\s*\d{1,3}\s*,\s*\d{1,3}\s*,\s*\d{1,3}\s*,\s*(0|1|0?\.\d+)\s*\)", v["box"])
+        )
+    ):
+        out["box"] = v["box"]
+    if isinstance(v.get("size"), (int, float)) and not isinstance(v.get("size"), bool) and 60 <= v["size"] <= 160:
+        out["size"] = int(v["size"])
+    if hexc(v.get("text")):
+        out["text"] = v["text"]
+    if hexc(v.get("bg")) or v.get("bg") == "none":
+        out["bg"] = v["bg"]
     return out
 
 
 def _with_highlight(brand, hl):
     brand["caption_highlight"] = hl
-    if "box" in hl or "size" in hl:                                   # 0.27.0: the caption box and size picked on the pages
+    # 0.27.0: the caption box and size picked on the pages
+    if "box" in hl or "size" in hl:
         caps = dict(brand.get("captions") or {})
-        if hl.get("box") == "none": caps.pop("bg", None)
-        elif hl.get("box"): caps["bg"] = hl["box"]
-        if hl.get("size"): caps["size"] = hl["size"]
+        if hl.get("box") == "none":
+            caps.pop("bg", None)
+        elif hl.get("box"):
+            caps["bg"] = hl["box"]
+        if hl.get("size"):
+            caps["size"] = hl["size"]
         brand["captions"] = caps
-    if hl.get("y"): brand["captions"] = {**(brand.get("captions") or {}), "y": hl["y"]}   # only from the older caption_style
-    if hl.get("words"): brand["colors"] = {**(brand.get("colors") or {}), "caption": hl["words"]}
+    # only from the older caption_style
+    if hl.get("y"):
+        brand["captions"] = {**(brand.get("captions") or {}), "y": hl["y"]}
+    if hl.get("words"):
+        brand["colors"] = {**(brand.get("colors") or {}), "caption": hl["words"]}
     return brand
 
 
@@ -105,17 +138,30 @@ def load_brand(home=None, reel=None, name=None, quiet=False):
     brand = json.load(open(home / "brand.json"))
     _edit = {}
     if reel is not None:
-        try: _edit = json.load(open(Path(reel) / "edit.json"))
-        except (OSError, ValueError): _edit = {}
-        if not isinstance(_edit, dict): _edit = {}
+        try:
+            _edit = json.load(open(Path(reel) / "edit.json"))
+        except (OSError, ValueError):
+            _edit = {}
+        if not isinstance(_edit, dict):
+            _edit = {}
     # Added by By Mel Ross (0.16.0): colors for this reel only. edit.json "colors": {"main", "pop", "light"} is laid over the
     # brand's colors before the theme reads them, so every card, caption highlight and cover uses them. Set on the pages.
-    mine = {k: v for k, v in (_edit.get("colors") or {}).items() if k in ("main", "pop", "light") and isinstance(v, str) and re.fullmatch(r"#[0-9a-fA-F]{6}", v)} if isinstance(_edit.get("colors"), dict) else {}
-    if mine: brand["colors"] = {**(brand.get("colors") or {}), **mine}
+    mine = (
+        {
+            k: v
+            for k, v in (_edit.get("colors") or {}).items()
+            if k in ("main", "pop", "light") and isinstance(v, str) and re.fullmatch(r"#[0-9a-fA-F]{6}", v)
+        }
+        if isinstance(_edit.get("colors"), dict)
+        else {}
+    )
+    if mine:
+        brand["colors"] = {**(brand.get("colors") or {}), **mine}
     # Added by By Mel Ross (0.19.0): sound effects are the person's choice, never a theme's. They are on unless brand.json says
     # "sfx": "none"; edit.json "sfx" ("none" | "subtle" | "lots") sets it for one reel. Both are set by switches on the pages.
     sfx_own = _edit.get("sfx") if _edit.get("sfx") in ("none", "subtle", "lots") else brand.get("sfx")
-    if sfx_own is not None: brand["sfx"] = sfx_own
+    if sfx_own is not None:
+        brand["sfx"] = sfx_own
     # Added by By Mel Ross (0.23.0): caption colors the person picked. "caption_highlight": {"words": "#RRGGBB" (the other words),
     # "text": "#RRGGBB" (the highlighted word), "bg": "#RRGGBB" | "none" (a box behind it)} in brand.json (every reel) or edit.json
     # (this reel). Laid on after the theme, never under it, with or without a theme. edit.json "caption_colors": {"caption",
@@ -123,52 +169,82 @@ def load_brand(home=None, reel=None, name=None, quiet=False):
     _old = _edit.get("caption_colors") if isinstance(_edit.get("caption_colors"), dict) else {}
     # edit.json "caption_style": {"bg", "size", "y"} is an older hand-written form of the caption box and size (one reel); still read
     _cs = _edit.get("caption_style") if isinstance(_edit.get("caption_style"), dict) else {}
-    _csy = {"y": int(_cs["y"])} if isinstance(_cs.get("y"), (int, float)) and not isinstance(_cs.get("y"), bool) and 100 <= _cs["y"] <= 1800 else {}
-    hl = {**_highlight(brand.get("caption_highlight")), **_highlight({"words": _old.get("caption"), "text": _old.get("caption_accent")}),
-          **_highlight({"box": _cs.get("bg"), "size": _cs.get("size")}), **_csy, **_highlight(_edit.get("caption_highlight"))}
-    if name is None and reel is not None: name = _edit.get("theme")
+    _csy = (
+        {"y": int(_cs["y"])}
+        if isinstance(_cs.get("y"), (int, float)) and not isinstance(_cs.get("y"), bool) and 100 <= _cs["y"] <= 1800
+        else {}
+    )
+    hl = {
+        **_highlight(brand.get("caption_highlight")),
+        **_highlight({"words": _old.get("caption"), "text": _old.get("caption_accent")}),
+        **_highlight({"box": _cs.get("bg"), "size": _cs.get("size")}),
+        **_csy,
+        **_highlight(_edit.get("caption_highlight")),
+    }
+    if name is None and reel is not None:
+        name = _edit.get("theme")
     name = name or brand.get("theme")
-    if not name or name == "none": return _with_highlight(brand, hl)
+    if not name or name == "none":
+        return _with_highlight(brand, hl)
     folder = available(home).get(name) if NAME_OK.match(str(name)) else None
     if not folder:
-        if not quiet: print(f"warning: theme {name!r} not found (have: {', '.join(available(home)) or 'none'}); using brand.json as it is")
+        if not quiet:
+            print(
+                f"warning: theme {name!r} not found (have: {', '.join(available(home)) or 'none'}); using brand.json as it is"
+            )
         return _with_highlight(brand, hl)
     theme = json.load(open(folder / "theme.json"))
     colors = brand.get("colors", {})
     out = merge(brand, _tokens(theme.get("brand", {}), colors))
     out = merge(out, _tokens(brand.get("theme_overrides", {}), colors))
     for role, f in (out.get("fonts") or {}).items():
-        if isinstance(f, dict) and f.get("file"): f["file"] = _font_file(f["file"], folder, home)
-    if sfx_own is not None: out["sfx"] = sfx_own
-    else: out.pop("sfx", None)
-    out["_theme"] = {"name": name, "dir": str(folder), "css": theme.get("css", []), "cards": _tokens(theme.get("cards", {}), colors)}
+        if isinstance(f, dict) and f.get("file"):
+            f["file"] = _font_file(f["file"], folder, home)
+    if sfx_own is not None:
+        out["sfx"] = sfx_own
+    else:
+        out.pop("sfx", None)
+    out["_theme"] = {
+        "name": name,
+        "dir": str(folder),
+        "css": theme.get("css", []),
+        "cards": _tokens(theme.get("cards", {}), colors),
+    }
     return _with_highlight(out, hl)
 
 
 def css_for(brand, families):
     """The theme's extra CSS with color and font names filled in. `families`: {"head": "'Lora-head', ...", ...}."""
     t = brand.get("_theme")
-    if not t: return ""
+    if not t:
+        return ""
     c = brand.get("colors", {})
-    rep = {"@main": c.get("main", "#141414"), "@pop": c.get("pop", "#B9C8A5"), "@light": c.get("light", "#FFFFFF"),
-           **{f"@{r}": fam for r, fam in families.items()}}
+    rep = {
+        "@main": c.get("main", "#141414"),
+        "@pop": c.get("pop", "#B9C8A5"),
+        "@light": c.get("light", "#FFFFFF"),
+        **{f"@{r}": fam for r, fam in families.items()},
+    }
     css = "\n".join(t["css"]) if isinstance(t["css"], list) else str(t["css"])
-    css = re.sub(r"</?style[^>]*>|<[^>]*>", "", css)             # a theme is styling only: no tags can ride along
+    css = re.sub(r"</?style[^>]*>|<[^>]*>", "", css)  # a theme is styling only: no tags can ride along
     return re.sub(r"@(main|pop|light|head|body|accent|hand)\b", lambda m: rep.get(m.group(0), m.group(0)), css)
 
 
 def apply_card_defaults(brand, cards):
     t = brand.get("_theme")
-    if not t: return
+    if not t:
+        return
     for c in cards:
-        for k, v in (t["cards"].get(c.get("type"), {}) or {}).items(): c.setdefault(k, v)
+        for k, v in (t["cards"].get(c.get("type"), {}) or {}).items():
+            c.setdefault(k, v)
 
 
 if __name__ == "__main__":
     a = sys.argv[1:]
     if a[:1] == ["list"]:
         for n, p in available().items():
-            t = json.load(open(p / "theme.json")); print(f"{n:14} {t.get('name', n)}: {t.get('summary', '')}")
+            t = json.load(open(p / "theme.json"))
+            print(f"{n:14} {t.get('name', n)}: {t.get('summary', '')}")
     elif a[:1] == ["show"] and len(a) > 1:
         print(json.dumps(load_brand(name=a[1]), indent=1))
     else:

@@ -15,14 +15,18 @@ Usage:
 The still comes from master.mp4 (the cut, before captions and graphics), so the cover is clean. Needs Chrome,
 Chromium or Edge (the same browser screenshot.sh uses) and ffmpeg.
 """
+
 import html, json, os, shutil, subprocess, sys, tempfile
 from pathlib import Path
 
 W, H = 1080, 1920
-SAFE_TOP, SAFE_BOTTOM = 240, 1680          # the profile grid crops the cover to the middle 1080x1440
+SAFE_TOP, SAFE_BOTTOM = 240, 1680  # the profile grid crops the cover to the middle 1080x1440
 reel = Path(sys.argv[1]).expanduser().resolve()
 home = Path(os.environ.get("REELS_HOME", "~/reels")).expanduser()
-sys.path.insert(0, str(Path(__file__).resolve().parent)); import theme as _theme   # Added by By Mel Ross (themes): the look is laid over brand.json
+# Added by By Mel Ross (themes): the look is laid over brand.json
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import theme as _theme
+
 brand = _theme.load_brand(home, reel, quiet=True)
 src = reel / "master.mp4"
 if not src.exists():
@@ -32,13 +36,35 @@ if not src.exists():
 
 
 def duration(p):
-    return float(subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", str(p)],
-                                capture_output=True, text=True, check=True).stdout)
+    return float(
+        subprocess.run(
+            ["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", str(p)],
+            capture_output=True,
+            text=True,
+            check=True,
+        ).stdout
+    )
 
 
 def frame(t, out, w=W, h=H):
-    subprocess.run(["ffmpeg", "-v", "error", "-y", "-ss", f"{t:.3f}", "-i", str(src), "-frames:v", "1",
-                    "-vf", f"scale={w}:{h}:force_original_aspect_ratio=increase,crop={w}:{h}", str(out)], check=True)
+    subprocess.run(
+        [
+            "ffmpeg",
+            "-v",
+            "error",
+            "-y",
+            "-ss",
+            f"{t:.3f}",
+            "-i",
+            str(src),
+            "-frames:v",
+            "1",
+            "-vf",
+            f"scale={w}:{h}:force_original_aspect_ratio=increase,crop={w}:{h}",
+            str(out),
+        ],
+        check=True,
+    )
 
 
 if sys.argv[2:3] == ["candidates"]:
@@ -47,8 +73,22 @@ if sys.argv[2:3] == ["candidates"]:
     tmp = Path(tempfile.mkdtemp())
     for i, t in enumerate(times):
         frame(t, tmp / f"c{i:02d}.png", 270, 480)
-    subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", str(tmp / "c%02d.png"), "-vf", "tile=9x2:padding=6:color=white",
-                    "-frames:v", "1", str(reel / "cover_candidates.jpg")], check=True)
+    subprocess.run(
+        [
+            "ffmpeg",
+            "-v",
+            "error",
+            "-y",
+            "-i",
+            str(tmp / "c%02d.png"),
+            "-vf",
+            "tile=9x2:padding=6:color=white",
+            "-frames:v",
+            "1",
+            str(reel / "cover_candidates.jpg"),
+        ],
+        check=True,
+    )
     shutil.rmtree(tmp)
     print(reel / "cover_candidates.jpg")
     print("top row (start):   " + "  ".join(f"{t}s" for t in times[:9]))
@@ -64,11 +104,14 @@ at, title, top = float(opt("--at")), opt("--title"), int(opt("--y", brand.get("c
 C = brand["colors"]
 head = (brand.get("fonts") or {}).get("head", {})
 font_file = Path(os.path.expanduser(head.get("file", ""))) if head.get("file") else None
-face = (f"@font-face {{ font-family: 'BrandHead'; src: url('{font_file.as_uri()}'); font-weight: {head.get('weight', 700)}; }}"
-        if font_file and font_file.exists() else "")
+face = (
+    f"@font-face {{ font-family: 'BrandHead'; src: url('{font_file.as_uri()}'); font-weight: {head.get('weight', 700)}; }}"
+    if font_file and font_file.exists()
+    else ""
+)
 family = f"'BrandHead', '{head.get('family', 'Helvetica Neue')}', Georgia, sans-serif"
 lines = [ln.strip() for ln in title.split("/") if ln.strip()]
-EM = 0.6                                   # rough glyph width; keeps the longest line inside 900 px
+EM = 0.6  # rough glyph width; keeps the longest line inside 900 px
 size = max(48, min(150, int(900 / (max(map(len, lines)) * EM))))
 case = (lambda s: s.lower()) if brand.get("captions", {}).get("case") == "lower" else (lambda s: s)
 outline = brand.get("title_outline", "#FFFFFF")
@@ -89,18 +132,54 @@ body {{ background: url('still.png') center / cover; }}
       text-shadow: 0 6px 34px rgba(0,0,0,.25); }}
 </style></head><body><div class="t">{'<br>'.join(html.escape(case(ln)) for ln in lines)}</div></body></html>""")
 
-chrome = next((c for c in ["/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
-                           "/Applications/Chromium.app/Contents/MacOS/Chromium",
-                           "/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge",
-                           shutil.which("google-chrome") or "", shutil.which("chromium") or ""] if c and os.access(c, os.X_OK)), None)
+chrome = next(
+    (
+        c
+        for c in [
+            "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+            "/Applications/Chromium.app/Contents/MacOS/Chromium",
+            "/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge",
+            shutil.which("google-chrome") or "",
+            shutil.which("chromium") or "",
+        ]
+        if c and os.access(c, os.X_OK)
+    ),
+    None,
+)
 if not chrome:
     sys.exit("no Chrome/Chromium/Edge found - install Chrome to make the cover")
-subprocess.run([chrome, "--headless=new", "--disable-gpu", "--hide-scrollbars", "--force-device-scale-factor=1",
-                "--allow-file-access-from-files", f"--window-size={W},{H}", "--virtual-time-budget=1500",
-                f"--screenshot={tmp / 'cover.png'}", (tmp / "cover.html").as_uri()],
-               capture_output=True, check=True)
-subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", str(tmp / "cover.png"), "-vf", f"scale={W}:{H}", "-q:v", "2",
-                str(reel / "cover.jpg")], check=True)
+subprocess.run(
+    [
+        chrome,
+        "--headless=new",
+        "--disable-gpu",
+        "--hide-scrollbars",
+        "--force-device-scale-factor=1",
+        "--allow-file-access-from-files",
+        f"--window-size={W},{H}",
+        "--virtual-time-budget=1500",
+        f"--screenshot={tmp / 'cover.png'}",
+        (tmp / "cover.html").as_uri(),
+    ],
+    capture_output=True,
+    check=True,
+)
+subprocess.run(
+    [
+        "ffmpeg",
+        "-v",
+        "error",
+        "-y",
+        "-i",
+        str(tmp / "cover.png"),
+        "-vf",
+        f"scale={W}:{H}",
+        "-q:v",
+        "2",
+        str(reel / "cover.jpg"),
+    ],
+    check=True,
+)
 shutil.rmtree(tmp)
 if not face:
     print(f"note: head font file not found ({head.get('file')}), the title used a fallback font")
