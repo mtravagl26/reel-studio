@@ -477,3 +477,16 @@ test("mixer: a reel can say no music, and the music dips under sound effects (0.
   const mx = fs.readFileSync(path.join(skill, "scripts", "mix_audio.py"), "utf8");
   assert.match(mx, /if music == "none": music = None/); assert.match(mx, /for e in events:\n\s+k0 = int/); assert.match(mx, /music_start/);
 });
+
+test("home page: an empty music folder offers 3 starter tracks made on this computer (0.28.0)", { skip: skipReason }, async () => {
+  const home = tmp("starters"), port = 4950 + Math.floor(Math.random() * 40);
+  const srv = spawn("node", [path.join(review, "home-server.mjs"), "--port", String(port)], { env: { ...process.env, REELS_HOME: home }, stdio: "ignore" });
+  try {
+    const base = `http://127.0.0.1:${port}`;
+    for (let k = 0; k < 40; k++) { try { await fetch(base + "/"); break; } catch { await new Promise((r) => setTimeout(r, 150)); } }
+    const j = await (await fetch(base + "/api/music-starters", { method: "POST", headers: { Origin: base } })).json();
+    assert.equal(j.ok, true, j.error); assert.deepEqual(j.music.map((t) => t.name).sort(), ["bright/bright bed.wav", "calm/calm bed.wav", "warm/warm bed.wav"]);
+    assert.equal((await fetch(base + "/music/" + encodeURIComponent("calm/calm bed.wav"))).headers.get("content-type"), "audio/wav");
+  } finally { srv.kill(); }
+  assert.match(fs.readFileSync(path.join(review, "home.html"), "utf8"), /Make 3 starter tracks/);
+});

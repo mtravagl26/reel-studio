@@ -117,7 +117,11 @@ const server = http.createServer(async (req, res) => {
       try { LOOKP.start(lastClip(), JSON.parse(body || "{}")); return json(res, 200, { ok: true, ...LOOKP.state() }); } catch (e) { return json(res, 400, { ok: false, error: e.message }); }
     }
     if (req.method === "GET" && p === "/look-preview.jpg") { const f = LOOKP.image(); if (!f) { res.writeHead(404).end(); return; } res.writeHead(200, { "Content-Type": "image/jpeg", "Cache-Control": "no-store" }); fs.createReadStream(f).pipe(res); return; }
-    if (req.method === "GET" && p.startsWith("/music/")) return MUSIC.serveTrack(HOME, p.slice(7), res);   // 0.28.0
+    if (req.method === "GET" && p.startsWith("/music/")) { let n = ""; try { n = decodeURIComponent(p.slice(7)); } catch {} return MUSIC.serveTrack(HOME, n, res); }   // 0.28.0
+    if (req.method === "POST" && p === "/api/music-starters") {   // 0.28.0: 3 soft beds made here, nothing to license
+      try { const made = await MUSIC.makeStarters(HOME, path.join(SKILL, "scripts")); return json(res, 200, { ok: true, made, music: MUSIC.tracks(HOME) }); }
+      catch (e) { return json(res, 500, { ok: false, error: String(e.message || e) }); }
+    }
     if (req.method === "POST" && p === "/api/music-upload") {
       try { const name = await MUSIC.upload(HOME, req, url.searchParams.get("name")); return json(res, 200, { ok: true, name, music: MUSIC.tracks(HOME) }); }
       catch (e) { return json(res, 400, { ok: false, error: String(e.message || e) }); }

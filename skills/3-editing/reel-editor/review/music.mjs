@@ -4,6 +4,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { pipeline } from "node:stream/promises";
+import { spawn } from "node:child_process";
 
 export const AUDIO = new Set([".mp3", ".m4a", ".wav", ".aac", ".ogg", ".flac"]);
 const TYPES = { ".mp3": "audio/mpeg", ".m4a": "audio/mp4", ".wav": "audio/wav", ".aac": "audio/aac", ".ogg": "audio/ogg", ".flac": "audio/flac" };
@@ -59,4 +60,24 @@ export async function upload(home, req, rawName) {
     fs.renameSync(tmp, path.join(musicDir(home), name));
     return name;
   } catch (e) { fs.rmSync(tmp, { force: true }); throw e; }
+}
+
+// Starter tracks: 3 soft beds made on this computer by scripts/make_music_bed.py (original synthesis, nothing to license),
+// one per mood, so the music picker is never empty on day one. About 15 seconds each; one run at a time.
+let making = null;
+export function makeStarters(home, scripts) {
+  if (making) return making;
+  const moods = [["calm", "calm bed"], ["warm", "warm bed"], ["bright", "bright bed"]];
+  making = (async () => {
+    const made = [];
+    for (const [mood, name] of moods) {
+      const out = path.join(musicDir(home), mood, name + ".wav");
+      if (fs.existsSync(out)) continue;
+      fs.mkdirSync(path.dirname(out), { recursive: true });
+      await new Promise((ok, bad) => { const c = spawn("python3", [path.join(scripts, "make_music_bed.py"), out, "--mood", mood, "--seconds", "32"], { stdio: "ignore" }); c.on("close", (code) => (code === 0 ? ok() : bad(new Error("the starter track couldn't be made")))); });
+      made.push(mood + "/" + name + ".wav");
+    }
+    return made;
+  })().finally(() => { making = null; });
+  return making;
 }

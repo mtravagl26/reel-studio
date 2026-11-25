@@ -17,9 +17,13 @@ Sources that allow use in social videos (check each license; this is not legal a
 
 Instagram's in-app music library is cleared for personal posts. Meta's music guidelines say commercial use needs your own license, so for posts that promote a business, a track from the list above, baked into the reel, is the safer pick.
 
+## Starter tracks
+
+The home page's music step, when the folder is empty, offers **Make 3 starter tracks**: `scripts/make_music_bed.py` makes a calm, a warm and a bright bed (32 s loops, original synthesis, nothing to license) into `~/reels/music/<mood>/`. About 15 seconds each. They're quiet beds, not songs; people who want more pick tracks from the sources above.
+
 ## First-time setup (ask during the setup interview)
 
-"Do you want soft background music under some reels?" If yes:
+"Do you want soft background music under some reels?" If yes, make the 3 starter tracks (`python3 scripts/make_music_bed.py ~/reels/music/<mood>/<mood> bed.wav --mood <mood>` for calm, warm and bright), then offer more:
 
 1. Ask which moods fit their account. Offer: calm, upbeat, focused, warm. Pick 2 or 3.
 2. Make the folders: `mkdir -p ~/reels/music/<mood>` for each.
@@ -27,7 +31,7 @@ Instagram's in-app music library is cleared for personal posts. Meta's music gui
 4. If a track needs credit, write its credit line in `~/reels/music/CREDITS.txt` so the caption step can use it.
 5. Ask whether one track should play under every reel (a series sound). If yes, set `brand.json` `"music"` to its path.
 
-Nothing is downloaded for them: the shell here can't reach those sites, and they should pick what they like.
+Nothing is downloaded for them: the shell here can't reach those sites, and they should pick what they like. The starter tracks are made on their computer, so they're always there.
 
 ## How it's set
 

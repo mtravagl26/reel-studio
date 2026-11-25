@@ -175,7 +175,13 @@ function showMusic() {
     b.addEventListener("click", () => { LP.music = name; savePicks(); const a = $("#preview"); if (name) { a.src = "/music/" + encodeURIComponent(name); a.hidden = false; a.play().catch(() => {}); } else { a.pause(); a.hidden = true; } }); box.append(b); };
   mk("", "No music", "Just your voice and the sound effects.");
   for (const t of TR) mk(t.name, t.name.replace(/^[^/]*\//, "").replace(/\.[^.]+$/, ""), `${t.mood ? t.mood[0].toUpperCase() + t.mood.slice(1) + ". " : ""}Tap to hear it.`);
-  if (!TR.length) box.append(el("p", "", "Your music folder is empty. Add a track below, or ask Claude: \"help me add background music\"."));
+  if (!TR.length) {   // 0.28.0: 3 soft beds made on this computer, so there is something to pick on day one
+    const b = el("button", "style"); b.type = "button"; b.id = "starters"; b.append(el("b", "", "Make 3 starter tracks"), el("span", "", "Soft calm, warm and bright beds, made on this computer. Nothing to license. About 1 minute."));
+    b.addEventListener("click", async () => { b.disabled = true; b.querySelector("span").textContent = "Making them. About 1 minute...";
+      try { const j = await (await fetch("/api/music-starters", { method: "POST" })).json(); if (!j.ok) throw new Error(j.error); TR = j.music; refresh(); }
+      catch (er) { b.disabled = false; b.querySelector("span").textContent = er.message; } });
+    box.append(b);
+  }
 }
 function showLooks() {
   $("#steplook").hidden = !pickStyle; if (!pickStyle || $("#themes").childElementCount) return;
