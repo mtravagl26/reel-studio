@@ -108,10 +108,10 @@ test("studio server: /styles serves the looks for this reel and saves picks, ref
     const data = JSON.parse(/window\.STYLE_MENU = (.*);\n/.exec(html)[1]);
     assert.equal(data.reel, "r1"); assert.equal(data.canSave, true); assert.ok(data.looks.some((l) => l.id === "L8"));
     const saved = await (await post({ ids: ["H3", "H1", "L8", "nope", "L8"], theme: "bold" })).json();
-    assert.deepEqual(saved.picks, { ids: ["H3", "L8"], extras: [], theme: "bold" }, "H1 is not built and nope is not a look");
-    assert.deepEqual(JSON.parse(fs.readFileSync(path.join(c.reel, "style-picks.json"), "utf8")), { ids: ["H3", "L8"], extras: [], theme: "bold" });
+    assert.deepEqual(saved.picks, { ids: ["H3", "L8"], extras: [], theme: "bold", at: {} }, "H1 is not built and nope is not a look");
+    assert.deepEqual(JSON.parse(fs.readFileSync(path.join(c.reel, "style-picks.json"), "utf8")), { ids: ["H3", "L8"], extras: [], theme: "bold", at: {} });
     assert.ok(data.extras.some((x) => x.id === "A1"), "animations are on the page");   // 0.10.1
-    assert.deepEqual((await (await post({ ids: [], extras: ["A1", "A6", "zz"], theme: "" })).json()).picks, { ids: [], extras: ["A1", "A6"], theme: "" });
+    assert.deepEqual((await (await post({ ids: [], extras: ["A1", "A6", "zz"], theme: "" })).json()).picks, { ids: [], extras: ["A1", "A6"], theme: "", at: {} });
     const cardOut = py("style_card.py", [c.reel], { REELS_HOME: c.home });
     assert.match(cardOut, /Layout\s+A1 Picture carousel \(needs 3 or more pictures or screenshots\); A6 GIFs that pop up/);
     assert.equal((await post({ ids: [], theme: "../x" })).status, 400);

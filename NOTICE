@@ -173,3 +173,6 @@ Added by By Mel Ross in 0.19.0 (November 2026), in skills/3-editing/reel-editor.
   of a reel ("pos"), captions moving aside for a graphic instead of vanishing, an overlay of what Instagram covers, a Pick a look
   step and looks gallery on the home page, look H20, scripts/false_starts.py, and a fix to caption fixes carried through a re-import
   (scripts/touchups.py).
+- Looks on your own clip (0.27.0): "Show me on my clip" and "Put it here" in the looks gallery (scripts/look_preview.py,
+  review/look-preview.mjs, review/style-menu.html), and fixes to scripts/storyboard.py (it stopped on every option; a copy step
+  that only worked on a Mac).

@@ -17,6 +17,7 @@ import path from "node:path";
 import { pipeline } from "node:stream/promises";
 import { fileURLToPath } from "node:url";
 import { trusted } from "./review-shim.mjs";
+import { lookPreviews } from "./look-preview.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url)), SKILL = path.dirname(HERE);
 const arg = (name, dflt) => { const i = process.argv.indexOf(name); return i > -1 && process.argv[i + 1] ? process.argv[i + 1] : dflt; };
@@ -77,11 +78,17 @@ function setPicks(body) {
   const ok = new Set(looks().filter((l) => USABLE.has(l.status)).map((l) => l.id)), okx = new Set(extras().map((x) => x.id));
   const theme = String(body.theme || ""); if (theme && !themes().some((t) => t.id === theme)) throw new Error("unknown theme");
   const out = { ids: [...new Set((Array.isArray(body.ids) ? body.ids : []).map(String))].filter((i) => ok.has(i)).slice(0, 40),
-    extras: [...new Set((Array.isArray(body.extras) ? body.extras : []).map(String))].filter((i) => okx.has(i)), theme };
+    extras: [...new Set((Array.isArray(body.extras) ? body.extras : []).map(String))].filter((i) => okx.has(i)), theme, at: {} };
   fs.mkdirSync(HOME, { recursive: true }); fs.writeFileSync(PICKS, JSON.stringify(out)); return out;
 }
+// 0.27.0: "Show me on my clip" uses the last clip checked on this page
+function lastClip() {
+  try { return fs.readdirSync(INBOX).filter((n) => VIDEO.has(path.extname(n).toLowerCase())).map((n) => path.join(INBOX, n)).sort((a, b) => fs.statSync(b).mtimeMs - fs.statSync(a).mtimeMs)[0] || null; } catch { return null; }
+}
+const LOOKP = lookPreviews({ scripts: path.join(SKILL, "scripts"), home: HOME, env: { ...process.env, REELS_HOME: HOME, HYPERFRAMES_NO_TELEMETRY: "1", DO_NOT_TRACK: "1" }, tag: "home" });
 function looksPage() {
-  const data = { reel: null, looks: looks(), extras: extras(), themes: themes(), picks: picks(), canSave: true, saveUrl: "/api/home-picks", back: "Back to the start" };
+  const data = { reel: null, looks: looks(), extras: extras(), themes: themes(), picks: picks(), canSave: true, saveUrl: "/api/home-picks", back: "Back to the start",
+    preview: true, previewUrl: "/api/look-preview", previewClip: lastClip() ? path.basename(lastClip()) : null, when: null, lines: [] };
   return fs.readFileSync(path.join(HERE, "style-menu.html"), "utf8").replace("/*MENU*/null", () => JSON.stringify(data).replace(/</g, "\\u003c"));
 }
 
@@ -102,6 +109,12 @@ const server = http.createServer(async (req, res) => {
     const url = new URL(req.url, `http://127.0.0.1:${PORT}`), p = url.pathname;
     if (req.method === "GET" && p === "/") { res.writeHead(200, { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store" }).end(page()); return; }
     if (req.method === "GET" && p === "/looks") { res.writeHead(200, { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store" }).end(looksPage()); return; }
+    if (p === "/api/look-preview" && req.method === "GET") return json(res, 200, { ok: true, ...LOOKP.state() });   // 0.27.0
+    if (p === "/api/look-preview" && req.method === "POST") {
+      let body = ""; for await (const c of req) { body += c; if (body.length > 1e5) return json(res, 413, { ok: false, error: "too big" }); }
+      try { LOOKP.start(lastClip(), JSON.parse(body || "{}")); return json(res, 200, { ok: true, ...LOOKP.state() }); } catch (e) { return json(res, 400, { ok: false, error: e.message }); }
+    }
+    if (req.method === "GET" && p === "/look-preview.jpg") { const f = LOOKP.image(); if (!f) { res.writeHead(404).end(); return; } res.writeHead(200, { "Content-Type": "image/jpeg", "Cache-Control": "no-store" }); fs.createReadStream(f).pipe(res); return; }
     if (req.method === "POST" && p === "/api/home-picks") {
       let body = ""; for await (const c of req) { body += c; if (body.length > 1e5) return json(res, 413, { ok: false, error: "too big" }); }
       try { return json(res, 200, { ok: true, picks: setPicks(JSON.parse(body || "{}")) }); } catch (e) { return json(res, 400, { ok: false, error: e.message }); }

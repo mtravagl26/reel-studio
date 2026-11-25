@@ -14,6 +14,7 @@ import os from "node:os";
 import crypto from "node:crypto";
 import { spawn, spawnSync } from "node:child_process";
 import { SHIM, DOCS, WRITABLE, trusted } from "./review-shim.mjs";
+import { lookPreviews } from "./look-preview.mjs";
 import { fileURLToPath } from "node:url";
 import * as core from "./editor-core.mjs";
 
@@ -127,7 +128,18 @@ function menuLooks() {
   return Object.entries(looks).map(([id, l]) => ({ id, name: l.name, group: l.group, status: l.status, missing: l.missing || null, needs: l.needs || null, does: l.does || null, recipe: l.recipe || null }));
 }
 const menuExtras = () => (readJSON(path.join(SKILL, "assets", "style-extras.json"), {}).extras) || [];   // 0.10.1: animations and moving extras
-function stylePicks() { const p = readJSON(PICKS_FILE, {}); return { ids: Array.isArray(p.ids) ? p.ids : [], extras: Array.isArray(p.extras) ? p.extras : [], theme: typeof p.theme === "string" ? p.theme : "" }; }
+function stylePicks() { const p = readJSON(PICKS_FILE, {}); return { ids: Array.isArray(p.ids) ? p.ids : [], extras: Array.isArray(p.extras) ? p.extras : [], theme: typeof p.theme === "string" ? p.theme : "", at: p.at && typeof p.at === "object" ? p.at : {} }; }
+// Added by By Mel Ross (0.27.0): the lines of this reel, so a picked look can be put on a line ("Put it here"). Cut times when
+// the reel is cut (edit.json captions), raw-clip times before that (review_reel.json). "when" says which.
+function lookLines() {
+  const ed = readJSON(P.edit, {}), caps = Array.isArray(ed.captions) ? ed.captions : [];
+  if (caps.length && exists(P.master)) return { when: "cut", lines: caps.filter((c) => c && Array.isArray(c.words) && c.words.length).map((c) => ({ t: +(+c.start).toFixed(2), text: c.words.map((w) => w.text).join(" ").slice(0, 80) })) };
+  const rr = readJSON(path.join(REEL, "review_reel.json"), null);
+  if (rr && Array.isArray(rr.captions) && Array.isArray(rr.words))
+    return { when: "raw", lines: rr.captions.filter((c) => Array.isArray(c.w) && c.w.length && rr.words[c.w[0]]).map((c) => ({ t: +(+rr.words[c.w[0]].s).toFixed(2), text: c.w.map((i) => (rr.words[i] || {}).text || "").join(" ").slice(0, 80) })) };
+  return { when: null, lines: [] };
+}
+const LOOKP = lookPreviews({ scripts: SCRIPTS, home: HOME, env: childEnv(), tag: path.basename(REEL).replace(/[^\w.-]+/g, "_") });
 function setStylePicks(body) {
   const ok = new Set(menuLooks().filter((l) => USABLE_LOOK.has(l.status)).map((l) => l.id));
   const ids = [...new Set((Array.isArray(body.ids) ? body.ids : []).map(String))].filter((i) => ok.has(i)).slice(0, 40);
@@ -135,11 +147,14 @@ function setStylePicks(body) {
   if (theme && !listThemes().some((t) => t.id === theme)) throw new Error("unknown theme");
   const okx = new Set(menuExtras().map((x) => x.id));
   const extras = [...new Set((Array.isArray(body.extras) ? body.extras : []).map(String))].filter((i) => okx.has(i));
-  writeJSON(PICKS_FILE, { ids, extras, theme });
-  return { ids, extras, theme };
+  const at = {};   // 0.27.0: "Put it here": a picked look's line, as a time
+  for (const [k, v] of Object.entries(body.at && typeof body.at === "object" ? body.at : {})) if (ids.includes(k) && Number.isFinite(+v) && +v >= 0 && +v < 36000) at[k] = +(+v).toFixed(2);
+  writeJSON(PICKS_FILE, { ids, extras, theme, at });
+  return { ids, extras, theme, at };
 }
 function stylePage() {
-  const data = { reel: path.basename(REEL), looks: menuLooks(), extras: menuExtras(), themes: listThemes(), picks: stylePicks(), canSave: true };
+  const data = { reel: path.basename(REEL), looks: menuLooks(), extras: menuExtras(), themes: listThemes(), picks: stylePicks(), canSave: true,
+    preview: true, previewUrl: "/api/look-preview", ...lookLines() };   // 0.27.0: "Show me on my clip" and "Put it here"
   return fs.readFileSync(path.join(HERE, "style-menu.html"), "utf8").replace("/*MENU*/null", () => JSON.stringify(data).replace(/</g, "\\u003c"));
 }
 // Added by By Mel Ross (0.16.0): the color box. 3 colors (main, pop, light) for this reel only (edit.json "colors") or for every
@@ -795,6 +810,12 @@ const server = http.createServer(async (req, res) => {
         .replace('<script src="core.js"></script>', links + '<script src="shim.js"></script><script src="core.js"></script>');
       res.writeHead(200, { "Content-Type": TYPES[".html"], "Cache-Control": "no-store" }).end(html); return;
     }
+    if (p === "/api/look-preview" && req.method === "GET") return json(res, 200, { ok: true, ...LOOKP.state() });   // 0.27.0
+    if (p === "/api/look-preview" && req.method === "POST") {
+      try { LOOKP.start(REEL, JSON.parse((await readBody(req, 1e5)).toString() || "{}")); return json(res, 200, { ok: true, ...LOOKP.state() }); }
+      catch (e) { return json(res, 400, { ok: false, error: String(e.message || e) }); }
+    }
+    if (p === "/look-preview.jpg") { const f = LOOKP.image(); if (!f) { res.writeHead(404).end(); return; } res.writeHead(200, { "Content-Type": "image/jpeg", "Cache-Control": "no-store" }); fs.createReadStream(f).pipe(res); return; }
     if (p === "/styles") { res.writeHead(200, { "Content-Type": TYPES[".html"], "Cache-Control": "no-store" }).end(stylePage()); return; }
     if (p === "/api/style-picks") {   // works before the reel is built: looks are picked first
       if (req.method === "GET") return json(res, 200, stylePicks());

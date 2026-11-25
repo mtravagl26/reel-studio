@@ -46,6 +46,13 @@ button:disabled { opacity: .4; }
 #bar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 30; background: var(--ink); color: #fff; padding: 10px 12px calc(10px + env(safe-area-inset-bottom)); }
 #bar .in { max-width: 760px; margin: 0 auto; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
 #bar p { margin: 0; flex: 1 1 240px; font-size: 14px; } #bar p small { display: block; opacity: .75; }
+/* Added by By Mel Ross (0.27.0): "Show me on my clip" and "Put it here" */
+#lp { position: fixed; inset: 0; z-index: 40; background: rgba(13,43,45,.72); display: flex; align-items: center; justify-content: center; padding: 14px; }
+#lp[hidden] { display: none; }
+#lp .in { background: var(--paper, #f5f2ec); color: var(--ink); border-radius: 18px; max-width: 980px; width: 100%; max-height: 92vh; overflow: auto; padding: 14px; }
+#lp img { width: 100%; height: auto; border-radius: 10px; display: block; margin-top: 8px; }
+#lp p { margin: 6px 0; } #lp .row { display: flex; gap: 8px; justify-content: space-between; align-items: center; }
+.look .where { margin-top: 6px; font-size: 13px; } .look .where select { width: 100%; font-size: 13px; padding: 6px; border-radius: 8px; border: 1.5px solid #d9d4c7; background: #fff; }
 #bar button { border-color: #fff; } #bar button.pri { background: var(--sage); color: var(--ink); border-color: var(--sage); }
 #say { font-family: ui-monospace, Menlo, monospace; font-size: 13px; background: rgba(255,255,255,.12); border-radius: 8px; padding: 6px 8px; margin-top: 6px; display: block; }
 #empty { padding: 30px 0; color: #5b6b69; }
@@ -58,9 +65,14 @@ button:disabled { opacity: .4; }
 </header>
 <main id="main"></main>
 <p id="empty" hidden>The look list is missing. Open this page from the reel link, or make it with scripts/style_menu_page.py.</p>
+<div id="lp" hidden role="dialog" aria-label="Your picks on your clip"><div class="in">
+  <div class="row"><b>Your picks on your clip</b><button type="button" id="lpclose">Close</button></div>
+  <p id="lpmsg"></p><img id="lpimg" alt="Stills of your clip with the looks you picked" hidden />
+</div></div>
 <div id="bar" hidden><div class="in">
   <p><span id="count"></span><code id="say"></code></p>
   <button type="button" id="clear">Clear</button>
+  <button type="button" id="seeit" hidden>Show me on my clip</button>
   <button type="button" class="pri" id="copy">Copy the request</button>
 </div></div>
 <script>
@@ -72,6 +84,8 @@ const M = window.STYLE_MENU, $ = (s) => document.querySelector(s);
 const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
 const USABLE = new Set(["built", "partial", "cut-choice"]);
 const ONE_PER_GROUP = /^(hook|caption)/i;                       // one hook and one captions look per reel; layouts can stack
+const places = Object.assign({}, (M && M.picks && M.picks.at) || {});   // 0.27.0: look ID -> the time of the line it goes on
+const fmtT = (t) => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, "0")}`;
 const picks = new Set((M && M.picks && M.picks.ids) || []), extras = new Set((M && M.picks && M.picks.extras) || []); let theme = (M && M.picks && M.picks.theme) || "";
 
 // ---- sketches: plain shapes that show where a look puts things. Sizes are container-width units (cqw): 1 cqw = 10.8 reel px.
@@ -193,20 +207,24 @@ function request() {
   const ex = (M.extras || []).filter((x) => extras.has(x.id));
   if (!ids.length && !t && !ex.length) return "";
   const what = [ids.join(", "), t ? `the ${t.name} theme` : ""].filter(Boolean).join(" and ");
+  const at = Object.entries(places).filter(([k]) => picks.has(k)).map(([k, t]) => { const l = (M.lines || []).find((x) => Math.abs(x.t - t) < 0.01); return `${k} at the line "${l ? l.text : ""}" (${fmtT(t)}${M.when === "raw" ? " in the raw clip" : ""})`; });
+  const put = at.length ? ` Put ${at.join(", ")}.` : "";   // 0.27.0: "Put it here"
   const more = ex.length ? `${what ? " Also add" : "Add"}: ${ex.map((x) => x.name.toLowerCase()).join(", ")}. Ask me for any pictures or numbers you need.` : "";
-  return `Edit ${M.reel ? `the reel "${M.reel}"` : "my clip"}${what ? " with " + what + "." : "."}${more} Show me the style card before you build.`;
+  return `Edit ${M.reel ? `the reel "${M.reel}"` : "my clip"}${what ? " with " + what + "." : "."}${put}${more} Show me the style card before you build.`;
 }
 function refresh() {
   document.querySelectorAll("[data-id]").forEach((n) => { const on = picks.has(n.dataset.id); n.classList.toggle("on", on); const b = n.querySelector("button"); b.classList.toggle("on", on); b.textContent = on ? "Added" : "Add"; b.setAttribute("aria-pressed", on); });
   document.querySelectorAll("[data-theme]").forEach((n) => { const on = n.dataset.theme === theme; n.classList.toggle("on", on); const b = n.querySelector("button"); b.classList.toggle("on", on); b.textContent = on ? "Added" : "Add"; b.setAttribute("aria-pressed", on); });
   document.querySelectorAll("[data-extra]").forEach((n) => { const on = extras.has(n.dataset.extra); n.classList.toggle("on", on); const b = n.querySelector("button"); b.classList.toggle("on", on); b.textContent = on ? "Added" : "Add"; b.setAttribute("aria-pressed", on); });
+  document.querySelectorAll("[data-where]").forEach((w) => { w.hidden = !picks.has(w.dataset.where); });
+  if ($("#seeit")) $("#seeit").hidden = !M.preview || !(picks.size || theme);
   const n = picks.size + extras.size + (theme ? 1 : 0), say = request();
   $("#bar").hidden = !n; $("#count").textContent = n === 1 ? "1 pick" : `${n} picks`; $("#say").textContent = say;
 }
 let saving = null;
 function save() {
   if (!M.canSave) return;
-  clearTimeout(saving); saving = setTimeout(() => { fetch(M.saveUrl || "/api/style-picks", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ids: [...picks], extras: [...extras], theme }) }).catch(() => {}); }, 300);
+  clearTimeout(saving); saving = setTimeout(() => { fetch(M.saveUrl || "/api/style-picks", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ids: [...picks], extras: [...extras], theme, at: places }) }).catch(() => {}); }, 300);
 }
 function toggle(look) {
   if (picks.has(look.id)) picks.delete(look.id);
@@ -217,7 +235,8 @@ function toggle(look) {
 function build() {
   if (!M || !Array.isArray(M.looks)) { $("#empty").hidden = false; return; }
   const usable = M.looks.filter((l) => USABLE.has(l.status)), main = $("#main");
-  $("#sub").textContent = `${usable.length} looks, ${(M.extras || []).length} animations${M.reel ? " · " + M.reel : ""}`; $("#back").hidden = !M.canSave; if (M.back) $("#back").textContent = M.back;   // 0.26.0: opened from the home page
+  $("#sub").textContent = `${usable.length} looks, ${(M.extras || []).length} animations${M.reel ? " · " + M.reel : ""}`; $("#back").hidden = !M.canSave; if (M.back) $("#back").textContent = M.back;
+  if (M.preview && !(M.lines || []).length) main.before(Object.assign(el("p", "", M.reel ? "Once your reel has captions, you can also pick the line each layout look goes on." : "Tip: \"Show me on my clip\" uses the last clip you checked. To put a look on a certain line, open the looks from your reel link after Claude makes the first cut."), { style: "max-width:760px;margin:6px auto 0;padding:0 14px;color:#5b6b69;font-size:14px" }));   // 0.26.0: opened from the home page
   for (const id of [...picks]) if (!usable.some((l) => l.id === id)) picks.delete(id);
   const groups = [...new Set(usable.map((l) => l.group))];
   for (const g of groups) {
@@ -230,7 +249,17 @@ function build() {
       if (look.status === "cut-choice") c.append(el("div", "need", "A cutting choice. No graphic."));
       if (look.needs) c.append(el("div", "need", look.needs + "."));   // 0.26.0: e.g. the sparkle wave needs a Mac
       const need = look.recipe && look.recipe.needs_photos; if (need) c.append(el("div", "need", need === 1 ? "Needs 1 photo from you." : `Needs ${need} photos from you.`));
-      const b = el("button", "", "Add"); b.type = "button"; b.addEventListener("click", () => toggle(look)); c.append(b); grid.append(c);
+      const b = el("button", "", "Add"); b.type = "button"; b.addEventListener("click", () => toggle(look)); c.append(b);
+      if ((M.lines || []).length && look.recipe && look.recipe.slot === "layout") {   // 0.27.0: "Put it here" (layouts; a hook goes at the start)
+        const w = el("label", "where"); w.hidden = true; w.dataset.where = look.id;
+        const s = el("select"); s.setAttribute("aria-label", `Where ${look.id} goes`);
+        s.append(Object.assign(el("option", "", "Where: Claude picks the moment"), { value: "" }));
+        for (const l of M.lines) s.append(Object.assign(el("option", "", `${fmtT(l.t)} ${l.text}`), { value: String(l.t) }));
+        s.value = places[look.id] != null ? String(places[look.id]) : "";
+        s.addEventListener("change", () => { if (s.value === "") delete places[look.id]; else places[look.id] = +s.value; refresh(); save(); });
+        w.append(s); c.append(w);
+      }
+      grid.append(c);
     }
     main.append(grid);
   }
@@ -254,7 +283,26 @@ function build() {
     }
     main.append(grid);
   }
-  $("#clear").addEventListener("click", () => { picks.clear(); extras.clear(); theme = ""; refresh(); save(); });
+  // 0.27.0: "Show me on my clip": stills of the picks on the person's own footage, made by look_preview.py
+  let lpTimer = null;
+  const lpShow = (j) => {
+    const msg = $("#lpmsg"), img = $("#lpimg");
+    if (j.state === "running") { msg.textContent = "Making stills of your clip with " + [...(j.ids || []), j.theme ? "the " + j.theme + " theme" : ""].filter(Boolean).join(", ") + ". About 30 seconds."; img.hidden = true; return; }
+    clearInterval(lpTimer); lpTimer = null;
+    if (j.state === "done") { msg.textContent = "Each still is a moment of your clip. " + ((j.notes || []).length ? "Notes: " + j.notes.join(" ") : "Like what you see? Copy the request."); img.src = "/look-preview.jpg?" + Date.now(); img.hidden = false; }
+    else if (j.state === "failed") { msg.textContent = "The stills couldn't be made: " + j.error; img.hidden = true; }
+  };
+  const lpPoll = () => fetch(M.previewUrl).then((r) => r.json()).then(lpShow).catch(() => {});
+  $("#seeit").addEventListener("click", async () => {
+    $("#lp").hidden = false; $("#lpimg").hidden = true; $("#lpmsg").textContent = "Starting.";
+    try {
+      const r = await fetch(M.previewUrl, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ids: [...picks], theme, at: places }) });
+      const j = await r.json(); if (!j.ok) { $("#lpmsg").textContent = j.error; return; }
+      lpShow(j); clearInterval(lpTimer); lpTimer = setInterval(lpPoll, 2000);
+    } catch { $("#lpmsg").textContent = "The page couldn't reach the editor. Is the link still running?"; }
+  });
+  $("#lpclose").addEventListener("click", () => { $("#lp").hidden = true; });
+  $("#clear").addEventListener("click", () => { picks.clear(); extras.clear(); theme = ""; for (const k in places) delete places[k]; refresh(); save(); });
   $("#copy").addEventListener("click", async () => {
     const text = request(), b = $("#copy");
     try { await navigator.clipboard.writeText(text); b.textContent = "Copied"; }
