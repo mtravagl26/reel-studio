@@ -905,6 +905,7 @@ const server = http.createServer(async (req, res) => {
     }
     if (p === "/shim.js") { res.writeHead(200, { "Content-Type": TYPES[".js"] }).end(SHIM); return; }
     if (p === "/core.js") return sendFile(req, res, path.join(HERE, "core.js"));
+    if (p === "/review.js" || p === "/editor.js") return sendFile(req, res, path.join(HERE, p.slice(1)));   // 0.30.0: the pages' code
     if (p === "/core.mjs") return sendFile(req, res, path.join(HERE, "editor-core.mjs"));
     if (p === "/api/stage" && req.method === "GET") return json(res, 200, { reel: path.basename(REEL), built: built(), review: hasReview() });
     if (p.startsWith("/db/")) {   // the review page's decisions, same files and rules as serve.mjs

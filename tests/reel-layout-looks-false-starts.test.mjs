@@ -7,7 +7,7 @@ import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
-import { ff, py, skipReason, tmp } from "./reel-helpers.mjs";
+import { ff, py, skipReason, tmp, pageText } from "./reel-helpers.mjs";
 
 const skill = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "skills", "3-editing", "reel-editor"), review = path.join(skill, "review");
 const pyrun = (code, ...args) => { const f = path.join(tmp("pyrun"), "t.py"); fs.writeFileSync(f, code); const r = spawnSync("python3", [f, path.join(skill, "scripts"), ...args], { encoding: "utf8" }); assert.equal(r.status, 0, r.stderr); return JSON.parse(r.stdout); };
@@ -100,7 +100,7 @@ print(json.dumps({"fixes": t["words"], "words": [w["text"] for w in e["captions"
 });
 
 test("the pages: captions spot on both pages, move some captions, the Instagram overlay, looks on the home page, false-start labels", () => {
-  const rv = fs.readFileSync(path.join(review, "reel-review.html"), "utf8"), ed = fs.readFileSync(path.join(review, "editor.html"), "utf8"), home = fs.readFileSync(path.join(review, "home.html"), "utf8");
+  const rv = pageText(path.join(review, "reel-review.html")), ed = pageText(path.join(review, "editor.html")), home = fs.readFileSync(path.join(review, "home.html"), "utf8");
   for (const t of ["Where captions sit", "Above my head", "Move some captions", "Hide them", "Show what Instagram covers", "falseStarts", "Bottom (lower third)"]) assert.ok(rv.includes(t), t);
   for (const t of ["Where captions sit", 'data-a="layout"', "Show what Instagram covers", 'href="/styles"']) assert.ok(ed.includes(t), t);
   for (const t of ["Pick a look", "My brand as it is", "Arched title with a sparkle wave", 'href="/looks"']) assert.ok(home.includes(t), t);

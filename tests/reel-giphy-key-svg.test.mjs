@@ -4,7 +4,7 @@ import { spawn, spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
-import { py, skill, skipReason, tmp } from "./reel-helpers.mjs";
+import { py, skill, skipReason, tmp, pageText } from "./reel-helpers.mjs";
 const core = await import(new URL("../skills/3-editing/reel-editor/review/editor-core.mjs", import.meta.url));
 
 const review = path.join(skill, "review");
@@ -58,7 +58,7 @@ test("the pages save a GIPHY key to this computer, keep other keys, and take SVG
 });
 
 test("both pages ask for the GIPHY key themselves and accept SVG files", () => {
-  const rv = fs.readFileSync(path.join(review, "reel-review.html"), "utf8"), ed = fs.readFileSync(path.join(review, "editor.html"), "utf8");
+  const rv = pageText(path.join(review, "reel-review.html")), ed = pageText(path.join(review, "editor.html"));
   for (const [n, h] of [["review", rv], ["touch-ups", ed]]) {
     assert.match(h, /\/api\/giphy-key-save/, n); assert.match(h, /Paste your GIPHY key/, n); assert.match(h, /API \(not SDK\)/, n);
     assert.match(h, /type\s*=\s*"password"/, n + ": the key is hidden while typed"); assert.match(h, /\.svg/, n);
@@ -67,7 +67,7 @@ test("both pages ask for the GIPHY key themselves and accept SVG files", () => {
 });
 
 test("the pages explain themselves: tips beside the terms, the cover step last, and a Popups box that says what to do first", () => {
-  const rv = fs.readFileSync(path.join(review, "reel-review.html"), "utf8"), ed = fs.readFileSync(path.join(review, "editor.html"), "utf8"), th = fs.readFileSync(path.join(review, "thumbnail.html"), "utf8");
+  const rv = pageText(path.join(review, "reel-review.html")), ed = pageText(path.join(review, "editor.html")), th = fs.readFileSync(path.join(review, "thumbnail.html"), "utf8");
   for (const [n, h] of [["review", rv], ["touch-ups", ed]]) {
     const tips = JSON.parse(/const TIPS = (\[[\s\S]*?\n\]);/.exec(h)[1]);
     assert.ok(tips.length >= 10, `${n}: ${tips.length} tips`);
@@ -102,7 +102,7 @@ test("touch-ups: a new picture goes in the middle, a second one pairs up, lists 
   edit = core.applyOp(edit, { op: "card_set", i: li, set: { title: "my AI team", rows: ["Claude", "", "  Wispr Flow ", "Canva"] } }, o).edit;
   assert.deepEqual(edit.cards[li].rows, ["Claude", "Wispr Flow", "Canva"]); assert.equal(edit.cards[li].title, "my AI team");
   assert.throws(() => core.applyOp(edit, { op: "card_set", i: li, set: { rows: ["", " "] } }, o), /at least 1 row/);
-  const ed = fs.readFileSync(path.join(review, "editor.html"), "utf8"), rv = fs.readFileSync(path.join(review, "reel-review.html"), "utf8");
+  const ed = pageText(path.join(review, "editor.html")), rv = pageText(path.join(review, "reel-review.html"));
   for (const t of ["In front of my face", "Behind my head", "Handwritten label under it", "List title", "+ Add a list at this point", "Left of a pair"]) assert.ok(ed.includes(t), t);
   for (const t of ["Middle (covers part of my face)", "Behind my head (Mac only)", "function placer"]) assert.ok(rv.includes(t), t);
 });
@@ -142,7 +142,7 @@ test("the color box: 3 colors for this reel or for every reel, used by the build
   assert.equal(got.c.main, "#112233"); assert.equal(got.c.pop, "#B9C8A5", "a bad value is ignored"); assert.ok(!("extra" in got.c));
   fs.writeFileSync(path.join(reel, "edit.json"), JSON.stringify({ colors: { pop: "#FF0066" } }));
   assert.equal(JSON.parse(spawnSync("python3", [f, path.join(skill, "scripts"), home, reel], { encoding: "utf8" }).stdout).over, "#FF0066", "the theme takes its accent from this reel's pop color");
-  const ed = fs.readFileSync(path.join(review, "editor.html"), "utf8"), rv = fs.readFileSync(path.join(review, "reel-review.html"), "utf8"), srv = fs.readFileSync(path.join(review, "editor-server.mjs"), "utf8");
+  const ed = pageText(path.join(review, "editor.html")), rv = pageText(path.join(review, "reel-review.html")), srv = fs.readFileSync(path.join(review, "editor-server.mjs"), "utf8");
   for (const t of ["Use for this reel", "Use for every reel", "Back to my brand colors", 'type="color"']) assert.ok(ed.includes(t), t);
   assert.match(rv, /Colors for this reel/); assert.match(rv, /S\.colors = null/); assert.match(srv, /"\/api\/colors"/);
   assert.match(fs.readFileSync(path.join(review, "core.js"), "utf8"), /if \(d\.colors\) parts\.push\(d\.colors\)/);
@@ -150,7 +150,7 @@ test("the color box: 3 colors for this reel or for every reel, used by the build
 
 // 0.17.0
 test("live preview: the server builds the reel page in its own folder, serves it with a driver, and reuses converted clips", { skip: skipReason }, async () => {
-  const ed = fs.readFileSync(path.join(review, "editor.html"), "utf8"), srv = fs.readFileSync(path.join(review, "editor-server.mjs"), "utf8"), build = fs.readFileSync(path.join(skill, "scripts", "build_reel.py"), "utf8");
+  const ed = pageText(path.join(review, "editor.html")), srv = fs.readFileSync(path.join(review, "editor-server.mjs"), "utf8"), build = fs.readFileSync(path.join(skill, "scripts", "build_reel.py"), "utf8");
   for (const t of ['id="live"', 'id="liveOn"', "/api/live", "reelLive.sync(v.currentTime", "liveSoon()"]) assert.ok(ed.includes(t), t);
   for (const t of ["proj_live", "REEL_PROJ_DIR: tmpDir", "window.reelLive=", 'p.startsWith("/live/")', "A render is running. The live preview comes back"]) assert.ok(srv.includes(t), t);
   assert.match(build, /if os\.environ\.get\("REEL_PROJ_DIR"\): proj = Path\(os\.environ\["REEL_PROJ_DIR"\]\)/); assert.match(build, /ASSET_CACHE = reel \/ "\.asset-cache"/);
@@ -170,7 +170,7 @@ test("sound effects are on by default, no theme turns them off, and one reel or 
   assert.equal(eff({}, {}), "subtle"); assert.equal(eff({ theme: "editorial" }, {}), "subtle", "the Editorial theme used to switch sounds off");
   assert.equal(eff({ sfx: "none", theme: "bold" }, {}), "none", "the brand's own choice holds under any theme");
   assert.equal(eff({ sfx: "none" }, { sfx: "subtle" }), "subtle", "on for this reel"); assert.equal(eff({}, { sfx: "none" }), "none", "off for this reel");
-  const ed = fs.readFileSync(path.join(review, "editor.html"), "utf8"), rv = fs.readFileSync(path.join(review, "reel-review.html"), "utf8");
+  const ed = pageText(path.join(review, "editor.html")), rv = pageText(path.join(review, "reel-review.html"));
   assert.match(ed, /data-a="sfx-master" data-v="off" data-s="reel"/); assert.match(ed, /always on/); assert.match(rv, /Sound effects on/); assert.match(rv, /S\.sfxAll = v/);
 });
 
