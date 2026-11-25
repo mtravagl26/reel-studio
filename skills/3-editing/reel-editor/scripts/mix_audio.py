@@ -10,9 +10,15 @@ Three levels, in dB, in brand.json (all optional):
   "mix": {"voice": 0,        voice level
           "music": -14,      music bed in the gaps, relative to the voice's loudness (LU)
           "duck": -10,       extra dip for the music while the voice is speaking
-          "effects": 0,      all sound effects together (each effect also has its own level: "sfx_volume")
+          "effects": 0,      all sound effects together (each effect also has its own level: "sfx_volume"); the touch-ups page
+                             sets -6 (quieter), 0 or 4 (louder)
           "lufs": -16,       final loudness (-16 matches the voice chain in clean_audio.sh; use -14 for a loud, music-led reel)
           "true_peak": -2}   highest peak allowed, in dBTP (no clipping; use -1.5 with -14)
+Effects follow the voice (Added by By Mel Ross, 0.25.0). The effect levels in sfx_events.json were set for a voice at
+-16 LUFS. The mixer measures this reel's voice and moves every effect by the difference, so a quietly recorded voice gets
+quieter effects. Effects dip under the voice while it speaks ("effects_duck", default -6 dB) and come back in the gaps, and no
+effect peaks higher than the voice's own peaks minus "effects_under_peak" (default 3 dB). "effects_follow_voice": false in
+"mix" turns all three off.
 Finishing: soft limiter, two-pass loudness normalisation, then a check of the result (loudness, true peak, clipped
 samples) that is printed and saved to <reel>/mix_report.json.
 
@@ -27,7 +33,8 @@ SR = 48000
 HERE = Path(__file__).resolve().parent
 ENGINE = Path(os.environ.get("REEL_ENGINE") or HERE.parent / "engine")      # REEL_ENGINE: for tests
 DEFAULTS = {"voice": 0.0, "music": -14.0, "duck": -10.0, "effects": 0.0, "lufs": -16.0, "true_peak": -2.0,
-            "hold": 0.45, "attack": 0.12, "release": 0.6, "fade_in": 0.5, "fade_out": 1.2}
+            "hold": 0.45, "attack": 0.12, "release": 0.6, "fade_in": 0.5, "fade_out": 1.2,
+            "effects_follow_voice": True, "effects_ref": -16.0, "effects_duck": -6.0, "effects_under_peak": 3.0}
 FR = 0.01            # envelope step: 10 ms
 
 
@@ -126,16 +133,24 @@ def write_wav_f32(path, x, sr=SR):
     Path(path).write_bytes(hdr + data)
 
 
-def sfx_stem(events, total, path):
+def sfx_stem(events, total, path, shift_db=0.0, cap_db=None):
+    """shift_db moves every effect (to follow the voice); cap_db is the highest peak any one effect may reach, in dBFS."""
     n = int(total * SR) + 1
     buf = array.array("f", bytes(4 * n))
     cache, used = {}, 0
+    sfx_stem.capped = 0
     for e in events:
         f = ENGINE / "sfx" / f"{e['name']}.wav"
         if not f.exists():
             print(f"warning: sound effect {e['name']!r} not found in engine/sfx - skipped"); continue
         if f not in cache: cache[f] = read_wav_mono(f)
-        w, g = cache[f], 10 ** (float(e.get("db", 0)) / 20) / 32768
+        w = cache[f]
+        db = float(e.get("db", 0)) + shift_db
+        if cap_db is not None:
+            pk = max((abs(x) for x in w), default=0)
+            top = db + (20 * math.log10(pk / 32768) if pk else -99.0)
+            if top > cap_db: db -= top - cap_db; sfx_stem.capped += 1
+        g = 10 ** (db / 20) / 32768
         s = int(float(e["t"]) * SR)
         if s < 0 or s >= n: continue
         ln = min(len(w), n - s)
@@ -150,6 +165,18 @@ def sfx_stem(events, total, path):
 
 
 # ---- loudness -----------------------------------------------------------------------------------------------------
+def voice_peaks(a, mask, sr=16000):
+    """The voice's typical loud peak while speaking (95th percentile of 10 ms peaks), in dBFS; None when it never speaks."""
+    hop, pk = int(sr * FR), []
+    for k, v in enumerate(mask):
+        if v:
+            seg = a[k * hop:(k + 1) * hop]
+            if seg: pk.append(max(abs(x) for x in seg))
+    if not pk: return None
+    pk.sort(); p = pk[int(len(pk) * 0.95)]
+    return 20 * math.log10(max(p, 1) / 32768)
+
+
 def loudnorm_stats(src, extra=""):
     r = subprocess.run(["ffmpeg", "-hide_banner", "-nostats", "-i", str(src), "-af", f"{extra}loudnorm=I=-14:TP=-1.5:LRA=11:print_format=json",
                         "-f", "null", "-"], capture_output=True, text=True)
@@ -202,9 +229,12 @@ def main():
         inputs, graph, mix_in = ["-i", voice], ["[0:a]anull[v]"], ["[v]"]
         n_in = 1
         gain = None
-        if music:
+        vlufs = None
+        if music or events:
             vstat = loudnorm_stats(voice)
-            vlufs = float(vstat["input_i"]) if vstat and vstat.get("input_i") not in (None, "-inf") else cfg["lufs"]
+            vlufs = float(vstat["input_i"]) if vstat and vstat.get("input_i") not in (None, "-inf") else None
+        if music:
+            vlufs = vlufs if vlufs is not None else cfg["lufs"]
             mstat = loudnorm_stats(music)
             mlufs = float(mstat["input_i"]) if mstat else -20.0
             mgain = max(-40.0, min(30.0, (vlufs + cfg["music"]) - mlufs))
@@ -224,11 +254,35 @@ def main():
             mix_in.append("[m]"); n_in += 2
         if events:
             sx = tmp / "sfx.wav"
-            report["effects"] = sfx_stem(events, total, sx)
+            follow = cfg.get("effects_follow_voice", True) is not False
+            shift, cap, sgain = 0.0, None, None
+            if follow:
+                # 0.25.0: effects follow the voice. Its level sets theirs, they dip while it speaks, and none peaks over it.
+                vp = pcm16(voice); vmask = speech_mask(vp)
+                if vlufs is not None: shift = max(-24.0, min(3.0, vlufs - cfg["effects_ref"]))
+                vpk = voice_peaks(vp, vmask)
+                if vpk is not None: cap = vpk - cfg["effects_under_peak"]
+                if any(vmask) and cfg["effects_duck"]:
+                    sgain = tmp / "sfx_gain.wav"
+                    write_gain_wav(sgain, gain_curve(close_gaps(vmask, 0.2, 0.05, 0.08), cfg["effects_duck"], 0.03, 0.25), total)
+                if vlufs is not None and vlufs < -22:
+                    print(f"note: the voice track is quiet ({vlufs:.1f} LUFS; the editor expects about -16). "
+                          f"Sound effects were turned down {abs(shift):.1f} dB to stay under it.")
+            report["effects"] = sfx_stem(events, total, sx, shift, cap)
+            report.update({"effects_follow_voice": follow, "effects_shift_db": round(shift, 1), "effects_duck_db": cfg["effects_duck"] if sgain else 0,
+                           "effects_peak_cap_db": round(cap, 1) if cap is not None else None, "effects_capped": sfx_stem.capped,
+                           **({"voice_lufs": round(vlufs, 1)} if vlufs is not None else {})})
             inputs += ["-i", sx]
             idx = n_in
-            graph.append(f"[{idx}:a]aformat=channel_layouts=stereo,volume={cfg['effects']}dB[s]")
-            mix_in.append("[s]"); n_in += 1
+            if sgain:
+                inputs += ["-i", sgain]
+                graph += [f"[{idx}:a]aformat=channel_layouts=stereo,volume={cfg['effects']}dB[s0]",
+                          f"[{idx + 1}:a]aresample={SR},pan=stereo|c0=c0|c1=c0[sg]", "[s0][sg]amultiply[s]"]
+                n_in += 2
+            else:
+                graph.append(f"[{idx}:a]aformat=channel_layouts=stereo,volume={cfg['effects']}dB[s]")
+                n_in += 1
+            mix_in.append("[s]")
         mixed = tmp / "mix.wav"
         graph.append("".join(mix_in) + f"amix=inputs={len(mix_in)}:duration=longest:normalize=0,atrim=0:{total:.3f},"
                      "alimiter=limit=0.89:attack=5:release=60:level=disabled[mix]")
@@ -241,7 +295,7 @@ def main():
                 g2 = [f for f in graph if f.startswith("[1:a]") or f.startswith("[2:a]") or f.startswith("[m0]")]
                 sh(["ffmpeg", "-v", "error", "-y", "-stream_loop", "-1", "-i", music, "-i", gain, "-filter_complex",
                     ";".join(g2).replace("[1:a]", "[0:a]").replace("[2:a]", "[1:a]"), "-map", "[m]", "-t", f"{total:.3f}", "-c:a", "pcm_s16le", stems / "music_ducked.wav"])
-            if events: sh(["ffmpeg", "-v", "error", "-y", "-i", tmp / "sfx.wav", "-c:a", "pcm_s16le", stems / "sfx.wav"])
+            if events: sh(["ffmpeg", "-v", "error", "-y", "-i", tmp / "sfx.wav", "-c:a", "pcm_s16le", stems / "sfx.wav"])   # before the dip under the voice
 
         # two-pass loudness normalisation, then the finished audio is muxed under the untouched video
         tgt, tp = cfg["lufs"], cfg["true_peak"]

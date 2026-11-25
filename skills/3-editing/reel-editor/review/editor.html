@@ -477,7 +477,10 @@ function renderSettings() {
     ${hMine ? `<button class="sm" data-a="hl-reset" style="margin-top:8px">Back to my usual</button>` : ""}
     <p class="help" style="margin-top:8px">${hMine ? "This reel has its own caption colors." : "This reel uses your usual caption colors."} A highlighted word is one you marked in the Captions list. Pick, then press a button.</p><hr style="border:0;border-top:1px solid var(--line);margin:14px 0">`;
   $("#sfxmaster").innerHTML = `<label class="f">Sounds when graphics appear</label><div class="seg"><button class="${S.sfxOn ? "on" : ""}" data-a="sfx-master" data-v="on" data-s="reel">On</button><button class="${S.sfxOn ? "" : "on"}" data-a="sfx-master" data-v="off" data-s="reel">Off</button></div>
-    <p class="help" style="margin:8px 0">${S.sfxOn ? "Each graphic plays a short sound as it comes on." : "Graphics come on silently in this reel."} For every reel you make: <button class="sm" data-a="sfx-master" data-v="on" data-s="all">always on</button> <button class="sm" data-a="sfx-master" data-v="off" data-s="all">always off</button> (now ${S.sfxAll ? "on" : "off"}). Sounds you place by hand below always play.</p>`;
+    <p class="help" style="margin:8px 0">${S.sfxOn ? "Each graphic plays a short sound as it comes on." : "Graphics come on silently in this reel."} For every reel you make: <button class="sm" data-a="sfx-master" data-v="on" data-s="all">always on</button> <button class="sm" data-a="sfx-master" data-v="off" data-s="all">always off</button> (now ${S.sfxAll ? "on" : "off"}). Sounds you place by hand below always play.</p>
+    <label class="f">How loud the sounds are</label><div class="seg">${["quieter", "normal", "louder"].map((k) => `<button class="${S.sfxVol === k ? "on" : ""}" data-a="sfx-vol" data-v="${k}" data-s="reel">${k[0].toUpperCase() + k.slice(1)}</button>`).join("")}</div>
+    <p class="help" style="margin:8px 0">Sounds always sit under your voice and dip while you talk. For every reel: <button class="sm" data-a="sfx-vol" data-v="quieter" data-s="all">quieter</button> <button class="sm" data-a="sfx-vol" data-v="normal" data-s="all">normal</button> <button class="sm" data-a="sfx-vol" data-v="louder" data-s="all">louder</button> (now ${S.sfxVolAll}).</p>
+    ${S.hasFinal ? `<button class="sm" data-a="remix">Update the sound on my finished reel</button><p class="help" style="margin:6px 0 12px">Keeps the picture and mixes the sound again in about 20 seconds. Use it after changing sound settings. Anything else needs Re-render.</p>` : ""}`;
   $("#settings").innerHTML = themeBox + colorBox + hlBox + `<label class="f">Where text goes by default (every reel)</label><div class="seg"><button class="${L === "front" ? "on" : ""}" data-a="default" data-v="front">In front of me</button><button class="${L === "behind" ? "on" : ""}" data-a="default" data-v="behind">Behind me</button></div>
     <p class="help" style="margin-top:8px">Text sits in the top area above your head. This only sets the layer new text starts on; you can change any single piece of text. ${S.hasTextDefault ? "" : "(Not saved in the brand file yet: the built-in default is in front.)"}</p>`;
 }
@@ -549,8 +552,14 @@ document.addEventListener("click", async (e) => {
     toast("Getting it from GIPHY…");
     try { const j = await post("/api/giphy-add", { id: el.dataset.v, kind: giphy.kind }); await addPopup(j.upload.src); } catch (er) { toast(er.message, true); }
   }
+  else if (a === "sfx-vol") {   // 0.25.0
+    try { await post("/api/sfx-volume", { level: el.dataset.v, scope: el.dataset.s }); toast(`Sounds ${el.dataset.v} for ${el.dataset.s === "all" ? "every reel" : "this reel"}. Press "Update the sound" to hear it.`); } catch (er) { toast(er.message, true); }
+  }
+  else if (a === "remix") {   // 0.25.0: sound only
+    try { await post("/api/remix"); startPoll(); await load(); toast("Updating the sound. The picture stays as it is."); } catch (er) { toast(er.message, true); }
+  }
   else if (a === "sfx-master") {   // 0.19.0
-    try { await post("/api/sfx", { on: el.dataset.v === "on", scope: el.dataset.s }); toast(`Sound effects ${el.dataset.v} for ${el.dataset.s === "all" ? "every reel" : "this reel"}: re-render to hear it`); } catch (er) { toast(er.message, true); }
+    try { await post("/api/sfx", { on: el.dataset.v === "on", scope: el.dataset.s }); toast(`Sound effects ${el.dataset.v} for ${el.dataset.s === "all" ? "every reel" : "this reel"}. Press "Update the sound" to hear it.`); } catch (er) { toast(er.message, true); }
   }
   else if (a === "hl-save" || a === "hl-reset") {   // 0.23.0: the highlighted caption word
     const highlight = a === "hl-reset" ? {} : { words: $("#hlWords").value, text: $("#hlText").value, bg: $("#hlOn").checked ? $("#hlBg").value : "none" };
