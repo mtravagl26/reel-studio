@@ -1,4 +1,4 @@
-// Added by By Mel Ross (0.36.1). A step in the step bar that can't open from here (greyed) used to explain itself only in a
+// Added by By Mel Ross (0.38.2). A step in the step bar that can't open from here (greyed) used to explain itself only in a
 // tooltip, which phones never show. Tapping it now opens a small card that says why, with the words to send Claude and a
 // Copy button. Shared by every page with a step bar.
 (() => {

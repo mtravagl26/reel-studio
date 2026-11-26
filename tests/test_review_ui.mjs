@@ -101,7 +101,7 @@ try {
   await sleep(1500);
   assert.equal(decisions().theme, "editorial");
   assert.match(await text("#themenote"), /serif/);
-  // 0.37.0: Undo, Redo, and both still there after a reload
+  // 0.38.3: Undo, Redo, and both still there after a reload
   await click("#undo"); await sleep(1500);
   assert.notEqual(decisions().theme, "editorial", "Undo took the theme back");
   assert.equal(await js(`document.querySelector("#redo").disabled`), false);
@@ -171,7 +171,7 @@ try {
   assert.equal(await js(`document.querySelector('.steps [data-step="caption"]').getAttribute("href")`), "/caption");
   await js(`document.querySelectorAll("details").forEach((d) => (d.open = true))`);
   assert.equal(await js(`document.querySelector("#themePick").value`), "editorial", "the theme picked in review shows here");
-  assert.match(await text("#giphy"), /not set up yet/, "GIPHY stays off without a key");
+  assert.match(await text("#giphy"), /Off until you turn it on/, "GIPHY stays off without a key, behind its warning");   // 0.35.0
   // 0.33.0: See them on my clip, then tap a still to use that theme
   await click('[data-a="see-themes"]');
   await until(`document.querySelectorAll(".tpgrid img").length === 6`, "6 theme stills (my brand + 5 themes)", 120000);
@@ -203,7 +203,7 @@ try {
   await until(`/new pill/.test(document.querySelector("#cards").textContent)`, "the new text to appear");
   if (process.env.REEL_SHOT_TL) { await js(`document.querySelector("#tl").scrollIntoView()`); await sleep(400); const b = await js(`(() => { const r = document.querySelector("#tl").getBoundingClientRect(); return { x: r.left + scrollX, y: r.top + scrollY, w: r.width, h: r.height }; })()`);
     writeFileSync(process.env.REEL_SHOT_TL, Buffer.from((await cdp("Page.captureScreenshot", { format: "png", clip: { x: b.x, y: b.y, width: b.w, height: b.h, scale: 1 } })).data, "base64")); }
-  // 0.36.1: the change shows a saved time; delete has no dialog, and the message carries Undo for 6 s
+  // 0.38.2: the change shows a saved time; delete has no dialog, and the message carries Undo for 6 s
   await until(`/^Saved \\d/.test(document.querySelector("#savedat")?.textContent || "")`, "the saved-at line on Touch-ups");
   const pills = () => read(reel, "edit.json").cards.filter((c) => c.type === "tag" && c.text === "new pill").length;
   const pi = read(reel, "edit.json").cards.findIndex((c) => c.type === "tag" && c.text === "new pill");
