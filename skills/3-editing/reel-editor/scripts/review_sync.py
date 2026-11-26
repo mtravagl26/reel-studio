@@ -297,6 +297,38 @@ def export(reel, proposal, out):
     return reel_json
 
 
+def split_words(caps):
+    """One caption per word (0.34.8): each lasts until the next word starts, or its caption ends."""
+    out = []
+    for c in caps:
+        ws = c["words"]
+        for k, w in enumerate(ws):
+            end = ws[k + 1]["t"] if k + 1 < len(ws) else c["end"]
+            out.append(
+                {**{x: y for x, y in c.items() if x != "words"}, "start": w["t"], "end": round(end, 3), "words": [w]}
+            )
+    return out
+
+
+def group_words(caps):
+    """Back from one word at a time to short phrases (0.34.8): up to 3 words, a new caption after a pause over 0.35 s."""
+    out = []
+    for c in caps:
+        g = out[-1] if out else None
+        if (
+            g
+            and len(g["words"]) < 3
+            and c["start"] - g["end"] <= 0.35
+            and g.get("pos") == c.get("pos")
+            and not re.search(r"[.,!?;:]$", g["words"][-1]["text"])
+        ):
+            g["words"] += c["words"]
+            g["end"] = c["end"]
+        else:
+            out.append({**c, "words": list(c["words"])})
+    return out
+
+
 def do_import(reel, review):
     reel_json = json.load(open(reel / "review_reel.json"))
     d = json.load(open(review)) if Path(review).exists() else {}
@@ -344,6 +376,13 @@ def do_import(reel, review):
         for c in P["captions"]
         if not c.get("gone")
     ]
+    # Added by By Mel Ross (0.34.8): how captions highlight, picked on the review page. "phrase" = only the words they mark,
+    # "spoken" = each word lights up as it's said, "word" = one word at a time.
+    capmode = d.get("capmode") if d.get("capmode") in ("phrase", "spoken", "word") else None
+    if capmode == "word":
+        caps = split_words(caps)
+    elif capmode and (reel_json.get("style") or {}).get("mode") == "word":
+        caps = group_words(caps)
     cards, changes, places = [], [], []
     WHERE = {
         "center": "the middle of the screen, even where it covers part of the face",
@@ -410,6 +449,8 @@ def do_import(reel, review):
             punch.append(c["start"])
             last = c["start"]
     out = {"captions": caps, "punch": punch, "cards": cards, "hash": P["hash"]}
+    if capmode:
+        out["caption_mode"] = capmode
     # picked on the review page ("" = my brand as it is)
     if d.get("theme") is not None:
         out["theme"] = d["theme"] or "none"

@@ -100,6 +100,11 @@ function renderVideo() {
   if (watch == null && S.job.state === "done" && S.job.result && S.renders.length) watch = null;
   const src = r ? "/files/" + r.phone : (S.hasMaster && !S.cutsStale ? "/files/master.mp4" : null);   // 0.17.0: no render yet? The cut video keeps time for the live preview
   if (src && v.getAttribute("data-src") !== src) { const t = v.currentTime || 0, was = !v.paused; v.setAttribute("data-src", src); v.src = src; v.onloadedmetadata = () => { try { v.currentTime = Math.min(t, v.duration || t); } catch {} if (was) v.play(); }; }
+  const newest = S.renders[S.renders.length - 1];
+  const when = (iso) => { try { return new Date(iso).toLocaleString([], { weekday: "short", hour: "numeric", minute: "2-digit" }); } catch { return ""; } };
+  $("#vernote").textContent = r
+    ? `Showing version ${r.v}, made ${when(r.at)}${r.outside ? " by Claude" : ""}. ${r === newest ? "This is the newest." : `A newer one exists (version ${newest.v}): pick it under Versions.`}`
+    : "";
   if (!src && S.prepping) $("#stale").innerHTML = `<div class="banner info">Preparing a phone copy of the current video…</div>`;
   else if (!src) $("#stale").innerHTML = `<div class="banner">No video yet: tap Re-render.</div>`;
   else $("#stale").innerHTML = S.cutsStale ? `<div class="banner">The video above still has the old cuts. The times below match the new cut. Re-render to see it.</div>` : "";
@@ -484,7 +489,7 @@ document.addEventListener("click", async (e) => {
   else if (a === "layer") { op({ op: "card_set", i, set: { layer: el.dataset.v } }, null, el.dataset.v === "behind" ? "Behind me: re-render to see it" : "In front of me"); }
   else if (a === "set" && el.dataset.v != null) { op({ op: "card_set", i, set: { [el.dataset.f]: el.dataset.v } }, null); }
   else if (a === "place") { placing = placing && placing.id === cid(i) ? null : { id: cid(i) }; selCard = cid(i); drawOverlay(); if (placing) toast("Tap the video where you want it", false); render(); }
-  else if (a === "del") { if (confirm("Delete this? (Undo can bring it back.)")) { openCard.delete(cid(i)); selCard = null; op({ op: "card_del", i }, null, "Deleted"); } }
+  else if (a === "del") { openCard.delete(cid(i)); selCard = null; op({ op: "card_del", i }, null, "Deleted. Undo brings it back."); }   // 0.34.5: no dialog; Undo is there
   else if (a === "sfx-play") {   // Added by By Mel Ross (0.10.2): hear a sound before choosing it (plays the one picked in the list, at its volume)
     const e = S.edit.sfx_events[i], pick = document.querySelector(`select[data-a="sfx-set"][data-i="${i}"]`), name = (pick && pick.value) || e.name;
     const au = new Audio(`/sfx/${encodeURIComponent(name)}.wav`); au.volume = Math.min(1, Math.pow(10, ((e.db ?? -10) + 8) / 20));
@@ -493,7 +498,7 @@ document.addEventListener("click", async (e) => {
   }
   else if (a === "sfx-open") { const id = sid(i); openSfx.has(id) ? openSfx.delete(id) : openSfx.add(id); renderSfx(); }
   else if (a === "sfx-stamp") { if (S.cutsStale) return toast("Re-render first: the video above has the old cuts.", true); op({ op: "sfx_set", i, set: { t: now() } }, `s${sid(i)}:t`, `At ${fmt(now())}`); }
-  else if (a === "sfx-del") { if (confirm("Delete this sound?")) op({ op: "sfx_del", i }, null, "Deleted"); }
+  else if (a === "sfx-del") op({ op: "sfx_del", i }, null, "Sound deleted. Undo brings it back.");
   else if (a === "default") { try { await post("/api/text-default", { layer: el.dataset.v, position: "above" }); toast("Default saved"); } catch (er) { toast(er.message, true); } }
   else if (a === "orbit-open") { orbitOpen = !orbitOpen; renderOrbitPick(); }
   else if (a === "orbit-cancel") { orbitOpen = false; orbitSel.clear(); renderOrbitPick(); }
@@ -611,9 +616,21 @@ document.addEventListener("input", (e) => { const el = e.target; if (el.dataset?
 document.addEventListener("keydown", (e) => { if (e.key === "Enter" && e.target.id === "wtext") document.querySelector('[data-a="word-save"]')?.click(); });
 
 $("#undo").addEventListener("click", async () => { try { const j = await post("/api/undo"); toast(`Undid: ${j.undid}`); } catch (e) { toast(e.message, true); } });
+// 0.34.5: no browser dialog. Some browsers (the one inside the Claude app among them) block confirm() without a word, so
+// the button did nothing. First tap asks on the button itself; a second tap within 6 seconds starts the render.
+let renderArmed = null;
 $("#render").addEventListener("click", async () => {
-  if (!confirm("Re-render the video now? It takes a few minutes and pauses editing until it's done. Your earlier renders are kept.")) return;
-  try { await post("/api/render"); startPoll(); await load(); } catch (e) { toast(e.message, true); }
+  const b = $("#render");
+  if (running()) return;
+  if (!renderArmed) {
+    b.textContent = "Tap again to render"; b.classList.add("armed");
+    toast("A render takes a few minutes and pauses editing until it's done. Your earlier versions are kept.");
+    renderArmed = setTimeout(() => { renderArmed = null; b.classList.remove("armed"); b.textContent = "Re-render"; }, 6000);
+    return;
+  }
+  clearTimeout(renderArmed); renderArmed = null; b.classList.remove("armed");
+  try { b.disabled = true; b.textContent = "Starting…"; await post("/api/render"); startPoll(); await load(); toast("Rendering. The new video shows here when it's done."); }
+  catch (e) { b.disabled = false; b.textContent = "Re-render"; toast(e.message, true); }
 });
 $("#addList").addEventListener("click", async () => {   // 0.16.0
   const t = Math.min(now(), Math.max(S.total - 0.5, 0));
@@ -644,6 +661,18 @@ document.addEventListener("change", async (e) => {
 });
 document.addEventListener("keydown", (e) => { if (e.key === "Enter" && e.target.id === "gq") giphySearch(); if (e.key === "Enter" && e.target.id === "gkey") saveGiphyKey(); });
 
+// 0.34.5: while the page is open, check every 5 seconds for a newer video (a render Claude made outside this page) and switch
+// to it, so nobody has to wonder whether to refresh.
+let freshNote = false;
+setInterval(async () => {
+  if (!S || running() || pollT) return;
+  try {
+    const f = await (await fetch("/api/fresh")).json();
+    const have = S.renders.length ? S.renders[S.renders.length - 1].v : null;
+    if (f.latest != null && f.latest !== have) { freshNote = false; watch = null; await load(); toast(`New video${f.outside ? " from Claude" : ""} is ready and showing now.`); }
+    else if (f.prepping && !freshNote) { freshNote = true; toast("Claude finished a new render. Getting it ready for this page…"); }
+  } catch { /* try again in 5 seconds */ }
+}, 5000);
 // ------------------------------------------------------------------ job polling
 function startPoll() { clearInterval(pollT); pollT = setInterval(async () => {
   try { const j = await (await fetch("/api/job")).json(); const was = S.job.state; S.job = j.job;

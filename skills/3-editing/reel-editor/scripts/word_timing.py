@@ -149,6 +149,34 @@ def levels(src):
     ]
 
 
+def silent_words(src, words, lev=None):
+    """Added by By Mel Ross (0.34.6). Words the transcriber heard where the voice is silent. Whisper sometimes invents a
+    few words in a quiet stretch; captions and cards built on them leave dead air on screen. A word counts as silent when
+    its loudest moment stays near the room's quiet level. The check only runs when the clip has clear silence in it (at
+    least 20 dB between quiet and speech), and it never drops more than a third of the words.
+    Returns (kept words, dropped words, a reason when the check didn't run)."""
+    lev = lev if lev is not None else levels(src)
+    if not lev or not words:
+        return words, [], "no audio"
+    s = sorted(lev)
+    floor, peak = s[len(s) // 10], s[int(len(s) * 0.98)]
+    if peak - floor < 20:
+        return words, [], "the clip has no clear silence to compare with"
+    bar = floor + max(8.0, (peak - floor) * 0.25)
+    kept, dropped = [], []
+    for w in words:
+        a, b = int(max(0.0, w["start"] - 0.05) / HOP), int((w["end"] + 0.05) / HOP) + 1
+        seg = lev[a:b]
+        (dropped if seg and max(seg) < bar else kept).append(w)
+    if len(dropped) > len(words) / 3:
+        return (
+            words,
+            [],
+            f"{len(dropped)} of {len(words)} words looked silent, which is too many to trust; nothing dropped",
+        )
+    return kept, dropped, None
+
+
 def lag(src, times, quiet=0.15):
     """How late each measurable word time runs against the audio. `times` is a list of word start times on the same
     clock as `src`. Measured only where a word's sound starts after at least `quiet` seconds of quiet. Returns
