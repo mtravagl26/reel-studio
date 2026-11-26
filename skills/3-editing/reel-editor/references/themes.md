@@ -11,7 +11,7 @@ A theme is the look of a reel. It is kept apart from the brand.
 
 Pick a theme and the person's colors fill it in. Switching theme never changes their colors or name.
 
-## The 4 themes that ship
+## The 5 themes that ship
 
 | Theme | What it looks like | Style Menu looks that suit it |
 |---|---|---|
@@ -19,6 +19,18 @@ Pick a theme and the person's colors fill it in. Switching theme never changes t
 | `bold` | Heavy caps titles, captions in white label boxes, the last title line and the key word in the accent color. | H2, C3, L4, L6, L8 |
 | `handwritten` | A handwritten line over heavy caps, torn-paper labels, photos framed like prints. | H3, C1, L2, L6, L9 |
 | `whimsical` | Round letters, one script word, small stars round the title, labels and photos that tilt. | H5, L2, L9, the `orbit` card |
+| `minimal` (0.31.0) | Big stacked caps in a warm cream serif (Instrument Serif) over the torso, tiny one-word lowercase captions at the left edge, a hand-drawn emphasis word now and then. Nothing bounces. | L6, L9 |
+
+### Using `minimal`
+
+- **Titles** show in caps over the torso. Type them in caps, one short line per slash (`"LEAVE IT / FOR 24 / HOURS"`), so each line is sized for its capitals.
+- **The hook** is a title with a `sub` line. It moves to the top by itself, and the sub becomes the small, widely spaced handwritten line under it.
+- **Captions** are one word at a time, lowercase, at the left edge at mid-height. Mark a word `"accent": true` now and then and it turns into the hand-drawn emphasis word in caps.
+- **Screenshots and charts**: a `popup` with `"frame": true` gets a white rounded border.
+- **The red X**: a `sticker` whose `src` is the full path to `themes/minimal/red-x.svg`, next to a "DO NOT / DO THIS" title.
+- **The end line**: a `cta` with a short line and an emoji. It shows in white with no pill.
+
+Cream on a white or very bright top is hard to read even with the soft shadow. Check titles over the shirt on real footage, and pick `editorial` or `bold` for a white top.
 
 `python3 scripts/theme.py list` shows what this machine has. Each `theme.json` also lists `menu` (the looks above).
 
@@ -32,7 +44,7 @@ Pick a theme and the person's colors fill it in. Switching theme never changes t
 Ask which theme they want in the setup interview, and show them before they choose:
 
 ```bash
-python3 scripts/storyboard.py <reel> --out <new folder> --option "A=theme:editorial" --option "B=theme:bold" --option "C=theme:handwritten" --option "D=theme:whimsical"
+python3 scripts/storyboard.py <reel> --out <new folder> --option "A=theme:editorial" --option "B=theme:bold" --option "C=theme:handwritten" --option "D=theme:whimsical" --option "E=theme:minimal"
 ```
 
 That makes one image with the same moments of their reel in each theme. Stills only, no render.

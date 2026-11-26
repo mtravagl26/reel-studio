@@ -6,7 +6,7 @@ import path from "node:path";
 import test from "node:test";
 import { ff, py, run, scripts, skill, skipReason, tmp } from "./reel-helpers.mjs";
 
-const NAMES = ["editorial", "bold", "handwritten", "whimsical"];
+const NAMES = ["editorial", "bold", "handwritten", "whimsical", "minimal"];
 const BRAND = { name: "Test Co", colors: { main: "#112233", pop: "#aabbcc", light: "#fdfdfd" }, sfx: "none",
   fonts: { head: { family: "Georgia", weight: 700 } }, captions: { size: 92, y: 1250 } };
 
@@ -25,7 +25,7 @@ const build = (c, args = []) => py("build_reel.py", [c.reel, ...args], c.env);
 const html = (c) => fs.readFileSync(path.join(c.reel, "proj", "index.html"), "utf8");
 const themePy = (code, env) => run("python3", ["-c", `import sys, json; sys.path.insert(0, ${JSON.stringify(scripts)}); import theme\n${code}`], env);
 
-test("the 4 built-in themes are complete: fonts on disk with a licence, nothing that is not styling", { skip: skipReason }, () => {
+test("the 5 built-in themes are complete: fonts on disk with a licence, nothing that is not styling", { skip: skipReason }, () => {
   for (const n of NAMES) {
     const dir = path.join(skill, "themes", n), t = JSON.parse(fs.readFileSync(path.join(dir, "theme.json"), "utf8"));
     assert.ok(t.name && t.summary, `${n}: name and summary`);
@@ -84,4 +84,22 @@ test("an unknown theme falls back to the brand with a warning; a theme folder in
   assert.match(out.stdout, /\.cap \{ color: #aabbcc; \}/);
   assert.doesNotMatch(out.stdout, /<script>/, "tags are stripped from theme css");
   assert.equal(themePy(`print(theme.load_brand(${JSON.stringify(c.home)}, name="../../etc").get("_theme"))`).stdout.trim().split("\n").pop(), "None", "a theme name is a plain folder name");
+});
+
+test("minimal theme: one-word lowercase captions at the left edge, cream caps titles, the hook's spaced line, a red X sticker (0.31.0)", { skip: skipReason }, () => {
+  const c = makeReel();
+  const r = build(c, ["--theme", "minimal"]);
+  assert.equal(r.status, 0, r.stdout + r.stderr);
+  const h = html(c);
+  assert.match(h, /@font-face \{ font-family: "Instrument Serif-head"; src: url\("fonts\/InstrumentSerif-Regular.ttf"\)/);
+  assert.match(h, /@font-face \{ font-family: "Shadows Into Light-accent"/);
+  assert.match(h, /\.cap \{ left: 64px; right: auto; max-width: 420px; text-align: left; text-transform: lowercase; font-family: 'Shadows Into Light-accent'/, "captions pinned to the left edge from theme.json, no engine change");
+  assert.match(h, /id="c0" class="cap[^"]*" style="top:880px;[^"]*color:#F3E7C9/, "small cream captions at mid-height");
+  assert.match(h, /\.title \.tl:not\(\.tsub\):not\(\.ol\):not\(\.tlab\) \{ text-transform: uppercase; \}/);
+  assert.match(h, /\.title:has\(\.tsub\) \{ top: 150px !important; \}/, "a title with a sub line is the hook, at the top");
+  assert.match(h, /class="title"[^>]*top:900px;color:#F5EDB8/, "titles sit over the torso in warm cream");
+  const t = JSON.parse(fs.readFileSync(path.join(skill, "themes", "minimal", "theme.json"), "utf8"));
+  assert.equal(t.brand.captions.mode, "word");
+  const x = fs.readFileSync(path.join(skill, "themes", "minimal", "red-x.svg"), "utf8");
+  assert.match(x, /^<svg[^>]*stroke="#D93A2F"/); assert.doesNotMatch(x, /<script|href=/i);
 });

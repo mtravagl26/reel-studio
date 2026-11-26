@@ -189,3 +189,6 @@ Added by By Mel Ross in 0.19.0 (November 2026), in skills/3-editing/reel-editor.
 - Cleanup (0.30.0), no change in behavior: the reel editor's Python formatted with black, the review and Touch-ups pages'
   code moved into review/review.js and review/editor.js, and the picture, GIF and video helpers moved from
   scripts/build_reel.py into scripts/reel_assets.py.
+- Minimal theme (0.31.0): themes/minimal (theme.json and a hand-drawn red X drawn for this project). Fonts added to
+  themes/_fonts with their SIL Open Font License files: Instrument Serif (The Instrument Serif Project Authors) and
+  Shadows Into Light (Kimberly Geswein). storyboard.py takes up to 5 options.

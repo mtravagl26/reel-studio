@@ -40,7 +40,7 @@ test("export writes what the page needs: words, a proposed cut, captions, the gr
   assert.equal(r.title, "Test reel"); assert.equal(r.words.length, 12); assert.equal(r.speed, 1);
   assert.deepEqual(r.words[2], { text: "gamma", s: 3.2, e: 3.6 });
   assert.equal(r.board.length, 1); assert.equal(r.board[0].id, "g1");
-  assert.deepEqual(r.themes.map((t) => t.id).sort(), ["bold", "editorial", "handwritten", "whimsical"]);
+  assert.deepEqual(r.themes.map((t) => t.id).sort(), ["bold", "editorial", "handwritten", "minimal", "whimsical"]);
   assert.equal(r.theme, "", "no theme set in this brand");
   assert.ok(fs.existsSync(path.join(c.out, "reel.json")));
   assert.deepEqual(r.board[0].sfx, { name: "pop", db: -14 }, "0.16.0: a graphic with no sound named gets the sound the build plays for its type, so the page can list it");

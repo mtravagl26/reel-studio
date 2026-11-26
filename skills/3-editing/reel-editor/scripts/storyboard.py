@@ -47,8 +47,9 @@ if out == reel or reel in out.parents or out in reel.parents:
     sys.exit("--out must be a new folder outside the reel folder (the reel is never written to)")
 if out.exists() and any(out.iterdir()):
     sys.exit(f"{out} already has files: pick a new folder (nothing is overwritten)")
-if not 1 <= len(a.option) <= 4:
-    sys.exit('give 2-3 options, e.g. --option "A=H3,C2,L8" --option "B=C3,L4"')
+# 0.31.0: up to 5 options, so all 5 themes fit on one sheet
+if not 1 <= len(a.option) <= 5:
+    sys.exit('give 1-5 options, e.g. --option "A=H3,C2,L8" --option "B=C3,L4"')
 
 options, THEMES = [], {}
 for spec in a.option:

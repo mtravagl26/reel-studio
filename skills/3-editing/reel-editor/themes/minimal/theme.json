@@ -1,0 +1,78 @@
+{
+  "name": "Minimal",
+  "summary": "Big stacked caps in a warm cream serif over your torso, tiny one-word captions at the left edge, a hand-drawn word now and then. Nothing bounces.",
+  "notes": [
+    "Titles show in CAPS, one short line per slash: \"LEAVE IT / FOR 24 / HOURS\". They sit over the torso. Type them in caps too, so each line is sized for its capitals.",
+    "The hook is a title with a \"sub\" line: it moves to the top by itself, and the sub becomes the small spaced-out handwritten line under it.",
+    "Mark 1 word now and then with \"accent\": true: it turns into the hand-drawn emphasis word.",
+    "Screenshots and charts: popup with \"frame\": true gets a white rounded border. The red X sticker is themes/minimal/red-x.svg (use its full path as the sticker's src).",
+    "End line: a cta with a short line and an emoji, in white."
+  ],
+  "brand": {
+    "fonts": {
+      "head": {
+        "family": "Instrument Serif",
+        "file": "InstrumentSerif-Regular.ttf",
+        "weight": 400
+      },
+      "body": {
+        "family": "Inter",
+        "file": "Inter.ttf",
+        "weight": 500
+      },
+      "accent": {
+        "family": "Shadows Into Light",
+        "file": "ShadowsIntoLight.ttf",
+        "weight": 400
+      }
+    },
+    "colors": {
+      "caption": "#F3E7C9",
+      "caption_accent": "#FFFFFF"
+    },
+    "captions": {
+      "mode": "word",
+      "case": "sentence",
+      "size": 46,
+      "y": 880,
+      "tracking": 0.01,
+      "accent_font": "hand"
+    },
+    "caption_accent_shadow": "0 1px 3px rgba(0,0,0,.35), 0 2px 16px rgba(0,0,0,.4)",
+    "title_outline": null,
+    "title_tracking": -0.02,
+    "zoom": {
+      "scale": 1.03,
+      "seconds": 2.5,
+      "ease": "sine.inOut",
+      "every": 7
+    }
+  },
+  "cards": {
+    "title": {
+      "color": "#F5EDB8",
+      "align": "center",
+      "y": 900
+    },
+    "cta": {
+      "color": "#FFFFFF"
+    }
+  },
+  "css": [
+    ".cap { left: 64px; right: auto; max-width: 420px; text-align: left; text-transform: lowercase; font-family: @accent !important; text-shadow: 0 1px 3px rgba(0,0,0,.35), 0 2px 14px rgba(0,0,0,.35); }",
+    ".cap .acc { text-transform: uppercase; }",
+    ".title { text-shadow: 0 0 2px rgba(0,0,0,.28), 0 2px 10px rgba(0,0,0,.3), 0 0 46px rgba(0,0,0,.38); }",
+    ".title .tl { line-height: .84; }",
+    ".title .tl:not(.tsub):not(.ol):not(.tlab) { text-transform: uppercase; }",
+    ".title:has(.tsub) { top: 150px !important; }",
+    ".title .tsub { font-family: @accent !important; font-size: 30px !important; letter-spacing: .34em !important; text-transform: uppercase; color: #FFFFFF !important; padding-top: 22px !important; line-height: 1.2; }",
+    ".pop.framed { border-width: 10px; border-radius: 30px; }",
+    ".pop.framed img, .pop.framed video { border-radius: 20px; }",
+    ".cta { background: transparent !important; box-shadow: none !important; color: #FFFFFF !important; text-shadow: 0 2px 16px rgba(0,0,0,.45); }",
+    ".tag { border-radius: 12px; letter-spacing: .06em; }"
+  ],
+  "menu": [
+    "L6",
+    "L9"
+  ]
+}
