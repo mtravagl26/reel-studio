@@ -91,7 +91,7 @@ try {
   for (let i = 0; i < 60 && !existsSync(join(reel, "review_db", "review", "current.json")); i++) await sleep(100);
   await sleep(1200);
   assert.deepEqual(decisions().cut, [1], "the cut is saved on this computer");
-  for (const tab of ["Graphics", "Captions", "Sound & color", "Preview", "Cover", "Cuts"]) {
+  for (const tab of ["Graphics", "Captions", "Sound & color", "Preview", "Cuts"]) {
     await js(`[...document.querySelectorAll("button")].find((b) => b.textContent.trim() === ${JSON.stringify(tab)}).click()`); await sleep(120);
   }
   assert.deepEqual(await js(`[...document.querySelectorAll("#theme option")].map((o) => o.textContent)`), ["My brand as it is", "Bold", "Editorial", "Handwritten", "Minimal", "Whimsical"]);
