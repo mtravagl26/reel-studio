@@ -23,8 +23,15 @@ test("format check: no sound, a changing frame rate, HDR, and a plain clip", { s
   assert.equal(silent.verdict, "retake"); assert.equal(silent.format.state, "retake"); assert.match(silent.format.detail, /no sound/);
   const plain = check(clip("plain.mp4"));
   assert.equal(plain.format.state, "pass"); assert.match(plain.format.detail, /H264, steady frame rate, standard color, with sound/);
-  const vfr = check(clip("vfr.mp4"));
-  assert.equal(vfr.format.state, "note"); assert.match(vfr.format.detail, /frame rate changes .* evens it to 30/);
-  const hdr = check(clip("hdr.mp4"));
-  assert.equal(hdr.format.state, "note"); assert.match(hdr.format.detail, /HDR color: it's converted to standard color when the cut is made/);
+  // some ffmpeg builds can't make these test clips; check only what the clip really is
+  const probe = (f, e) => spawnSync("ffprobe", ["-v", "error", "-select_streams", "v:0", "-show_entries", `stream=${e}`, "-of", "csv=p=0", f], { encoding: "utf8" }).stdout.trim();
+  const [rf, af] = probe(clip("vfr.mp4"), "r_frame_rate,avg_frame_rate").split(","), rate = (x) => { const [a, b] = x.split("/").map(Number); return a / (b || 1); };
+  if (Math.abs(rate(af) - rate(rf)) / rate(rf) > 0.02) {
+    const vfr = check(clip("vfr.mp4"));
+    assert.equal(vfr.format.state, "note"); assert.match(vfr.format.detail, /frame rate changes .* evens it to 30/);
+  } else console.log("note: this ffmpeg made a steady clip, so the changing frame rate case wasn't checked");
+  if (/arib-std-b67|bt2020/.test(probe(clip("hdr.mp4"), "color_transfer,color_primaries"))) {
+    const hdr = check(clip("hdr.mp4"));
+    assert.equal(hdr.format.state, "note"); assert.match(hdr.format.detail, /HDR color: it's converted to standard color when the cut is made/);
+  } else console.log("note: this ffmpeg didn't tag the clip as HDR, so the HDR case wasn't checked");
 });

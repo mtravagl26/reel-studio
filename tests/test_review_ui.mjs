@@ -203,7 +203,6 @@ try {
   await until(`/new pill/.test(document.querySelector("#cards").textContent)`, "the new text to appear");
   if (process.env.REEL_SHOT_TL) { await js(`document.querySelector("#tl").scrollIntoView()`); await sleep(400); const b = await js(`(() => { const r = document.querySelector("#tl").getBoundingClientRect(); return { x: r.left + scrollX, y: r.top + scrollY, w: r.width, h: r.height }; })()`);
     writeFileSync(process.env.REEL_SHOT_TL, Buffer.from((await cdp("Page.captureScreenshot", { format: "png", clip: { x: b.x, y: b.y, width: b.w, height: b.h, scale: 1 } })).data, "base64")); }
-<<<<<<< HEAD
   // 0.38.4: the timeline zooms (whole reel fits the box, 3 s is wider than 10 s) and a dragged graphic snaps to a word start
   const tliW = () => js(`document.querySelector("#tli").getBoundingClientRect().width`), tlW = await js(`document.querySelector("#tl").clientWidth`);
   await click('#zoomseg [data-zoom="all"]'); await sleep(200);
@@ -223,10 +222,7 @@ try {
     for (let k = 0; k < 30 && read(reel, "edit.json").cards.find((c) => c.id === g.id).start === g.start; k++) await sleep(100);
     assert.equal(read(reel, "edit.json").cards.find((c) => c.id === g.id).start, +word.toFixed(2), "snapped to the word start");
   }
-  // 0.36.1: the change shows a saved time; delete has no dialog, and the message carries Undo for 6 s
-=======
   // 0.38.2: the change shows a saved time; delete has no dialog, and the message carries Undo for 6 s
->>>>>>> origin/main
   await until(`/^Saved \\d/.test(document.querySelector("#savedat")?.textContent || "")`, "the saved-at line on Touch-ups");
   const pills = () => read(reel, "edit.json").cards.filter((c) => c.type === "tag" && c.text === "new pill").length;
   const pi = read(reel, "edit.json").cards.findIndex((c) => c.type === "tag" && c.text === "new pill");
