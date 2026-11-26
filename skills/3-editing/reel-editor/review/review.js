@@ -32,7 +32,7 @@ function saveNow() {
   const body = JSON.parse(JSON.stringify({ ...S, updatedAt: new Date().toISOString() }));
   mine = body.updatedAt;
   pill("Saving…");
-  saving = saving.then(() => ref.set(body)).then(() => { const at = new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }); pill("Saved " + at); const s = $("#savedat"); if (s) s.textContent = "Saved " + at; },   // 0.36.1: stays beside Undo
+  saving = saving.then(() => ref.set(body)).then(() => { const at = new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }); pill("Saved " + at); const s = $("#savedat"); if (s) s.textContent = "Saved " + at; },   // 0.38.2: stays beside Undo
     e => pill("Couldn't save (" + (e?.code || "error") + ")", true));
 }
 $("#retry").addEventListener("click", saveNow);
@@ -460,7 +460,12 @@ function uploader(files, onChange) {
   const kind = document.createElement("select"); kind.setAttribute("aria-label", "GIFs or stickers"); kind.append(new Option("GIFs", "gifs"), new Option("Stickers (see-through)", "stickers"));
   const go = document.createElement("button"); go.type = "button"; go.className = "b"; go.textContent = "Search";
   const grid = document.createElement("div"); grid.className = "ggrid"; const gnote = document.createElement("p"); gnote.className = "lede";
-  const credit = document.createElement("p"); credit.className = "lede"; credit.textContent = "Powered by GIPHY";
+  // Opt-in with a warning (license review 2026-11-17). The same words as the touch-ups page.
+  const GIPHY_WARN = "Before you turn GIPHY on: GIPHY's rules say apps should not store copies of GIPHY content. To build your video, Reel Studio has to keep a copy of each GIF you pick in your reel folder, so a reel you post with one may go against GIPHY's rules. Many GIFs are also clips from films, TV or sport that you may not have the right to use in a reel for your business. GIPHY is off unless you turn it on, and you use it at your own risk.";
+  const GIPHY_SHORT = "GIPHY's rules say not to store copies of its GIFs, and a reel you post with one may conflict with them. Many GIFs are film or TV clips. Use at your own risk.";
+  const credit = document.createElement("p"); credit.className = "giphy-mark"; credit.setAttribute("aria-label", "Powered By GIPHY");
+  { const s = document.createElement("span"); s.textContent = "Powered By"; const b = document.createElement("b"); b.textContent = "GIPHY"; credit.append(s, " ", b); }
+  const gwarn = document.createElement("p"); gwarn.className = "giphy-warn"; gwarn.setAttribute("role", "note"); gwarn.textContent = GIPHY_SHORT;
   const search = async () => {
     const q = gq.value.trim(); if (!q) return gq.focus();
     gnote.textContent = "Searching…"; grid.textContent = "";
@@ -490,29 +495,33 @@ function uploader(files, onChange) {
   const keyForm = () => {
     if (gbox.querySelector(".gkey")) return gbox.querySelector(".gkey input").focus();
     const box = document.createElement("div"); box.className = "gkey";
-    const say = document.createElement("p"); say.className = "lede"; say.append("GIPHY needs a free key, once. ");
+    const warn = document.createElement("p"); warn.className = "giphy-warn"; warn.setAttribute("role", "note");
+    { const b = document.createElement("b"); b.textContent = "Off until you turn it on. "; warn.append(b, GIPHY_WARN); }
+    const say = document.createElement("p"); say.className = "lede"; say.append("To turn it on you need a free key, once. ");
     const a = document.createElement("a"); a.href = "https://developers.giphy.com/dashboard/"; a.target = "_blank"; a.rel = "noopener"; a.textContent = "Get one at developers.giphy.com";
     say.append(a, ". Choose API (not SDK), copy the key, and paste it here.");
     const kin = document.createElement("input"); kin.type = "password"; kin.placeholder = "Paste your GIPHY key"; kin.autocomplete = "off"; kin.setAttribute("aria-label", "Your GIPHY key");
     const save = document.createElement("button"); save.type = "button"; save.className = "b"; save.textContent = "Save key";
+    const agl = document.createElement("label"); agl.className = "lede"; const agree = document.createElement("input"); agree.type = "checkbox"; agree.id = "gagree";
+    agl.append(agree, " I have read the warning and want GIPHY search on");
     const out = document.createElement("p"); out.className = "lede";
     const doSave = async () => {
       out.classList.remove("warnline"); out.textContent = "Checking the key…";
       try {
-        const j = await (await fetch("/api/giphy-key-save", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ key: kin.value }) })).json();
+        const j = await (await fetch("/api/giphy-key-save", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ key: kin.value, agree: agree.checked }) })).json();
         if (!j.ok) throw new Error(j.error || "couldn't save it");
         box.remove(); gnote.textContent = j.tested ? "GIPHY is connected." : "Key saved. This computer couldn't reach GIPHY to test it yet."; if (gq.value.trim()) search(); else gq.focus();
       } catch (e) { out.textContent = e.message; out.classList.add("warnline"); }
     };
     save.addEventListener("click", doSave); kin.addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); doSave(); } });
-    const krow = document.createElement("div"); krow.className = "ctl"; krow.append(kin, save); box.append(say, krow, out); gbox.insertBefore(box, gbox.firstChild); kin.focus();
+    const krow = document.createElement("div"); krow.className = "ctl"; krow.append(kin, save); box.append(warn, say, krow, agl, out); gbox.insertBefore(box, gbox.firstChild); kin.focus();
   };
   go.addEventListener("click", search); gq.addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); search(); } });
   gbtn.addEventListener("click", async () => {
     gbox.hidden = !gbox.hidden; if (gbox.hidden) return; gq.focus();
     try { const { key } = await (await fetch("/api/review-giphy-key")).json(); if (!key) keyForm(); } catch { /* the search will say what's wrong */ }
   });
-  const row = document.createElement("div"); row.className = "ctl"; row.append(gq, kind, go); gbox.append(row, gnote, grid, credit);
+  const row = document.createElement("div"); row.className = "ctl"; row.append(gq, kind, go); gbox.append(row, gnote, grid, gwarn, credit);
   wrap.append(btn, gbtn, inp, msg, gbox);
   files.forEach((src, k) => {
     const chip = document.createElement("span"); chip.className = "upchip";

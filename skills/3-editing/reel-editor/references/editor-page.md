@@ -113,7 +113,7 @@ Every graphic plays a short sound as it comes on unless the person switched soun
 - **Caption box and size (0.27.0).** The Caption colors box is now **Caption colors and size**: a box behind all the words (on or off, and its color) and a caption size from 60 to 160. Stored in the same `caption_highlight` as `"box": "#FFFFFF" | "none"` and `"size": 120`, for this reel or every reel, laid on after the theme. Turning the box on with white words makes the words your main color. The warning covers every word and box pair. `edit.json` `"caption_style": {"bg", "size", "y"}` is an older hand-written form for one reel: still read (`y` from 100 to 1800 too), and a save from the page replaces it.
 
 - **One Edit page (0.28.0).** The reel link opens `/edit` (`review/edit.html`): **The cut** (the review page) and **Touch-ups** as 2 tabs, opening on Touch-ups once the reel is built. Inside it the pages hide their own step bar (`?embed=1`). The step bar on every page is now 1 Edit, 2 Cover, 3 Caption. `/review` and `/touchups` still open on their own.
-- **Quick wins from the UX audit (0.36.1).**
+- **Quick wins from the UX audit (0.38.2).**
   - **Delete without a dialog.** Delete and delete-sound go straight through; the message under the page carries an **Undo** button for 6 s. No page uses confirm, alert or prompt (some browsers, the one inside the Claude app among them, block them without a word).
   - **Saved at.** Both pages show `Saved 2:48 PM` beside Undo after every change.
   - **Bigger targets.** Timeline marks keep their drawn size and get a 44 px tall tap area; the rows sit 44 px apart so areas don't overlap. Caption time buttons are 44 px tall, and the 20 px info dots have a 44 px tap area.
