@@ -51,7 +51,8 @@ label.f { display: block; font-size: 13px; color: #5b6b69; margin: 10px 0 4px; }
 #tl { position: relative; margin: 10px 0 0; background: #fff; border: 1px solid var(--line); border-radius: 12px; overflow-x: auto; overflow-y: hidden; touch-action: pan-x; -webkit-overflow-scrolling: touch; }
 #tli { position: relative; height: 290px; }
 #tl .ruler { position: absolute; top: 0; height: 16px; left: 0; right: 0; font-size: 10px; color: #6b7a78; } #tl .ruler span { position: absolute; top: 2px; padding-left: 3px; border-left: 1px solid var(--line); height: 14px; }
-#tl .strip { position: absolute; top: 18px; left: 0; height: 64px; background: #e9e6df left top / auto 64px no-repeat; }
+#tl .strip { position: absolute; top: 18px; left: 0; height: 64px; background: #e9e6df left top / 100% 64px no-repeat; }   /* 0.38.4: stretched to the zoom */
+#tl .mk.snap { outline: 2px solid #e7a23b; outline-offset: 1px; }
 #tl .wave { position: absolute; top: 84px; left: 0; height: 40px; background: left center / 100% 100% no-repeat; opacity: .8; }
 #tl .mk { position: absolute; height: 20px; border-radius: 5px; font-size: 11px; line-height: 20px; padding: 0 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; box-sizing: border-box; }
 /* 0.38.2: marks keep their drawn size; each gets a 44 px tall target, and the rows sit 44 px apart so targets don't overlap */
@@ -138,6 +139,7 @@ summary .tipb{margin-right:auto}
 <div class="vwrap"><video id="v" playsinline controls preload="metadata"></video><iframe id="live" title="Live preview of your changes" tabindex="-1" aria-hidden="true" style="display:none"></iframe><div id="ov"></div><div class="igzone" id="igzone" aria-hidden="true"><i class="t">Instagram: name, audio</i><i class="b">Instagram: caption, buttons</i><i class="r">likes</i></div></div>
 <div class="livebar"><label class="row" style="gap:8px"><span class="sw"><input type="checkbox" id="liveOn" checked><i></i></span><b>Live preview</b></label><span id="livemsg" class="small"></span><label class="row small" style="gap:6px;margin-left:auto"><input type="checkbox" id="igon"> Show what Instagram covers</label></div>
 <div class="vbar"><span id="clock">0:00.0</span><span class="grow"></span><button id="nowBtn" class="sm" title="Copies the moment the video is paused at into the start time of the item you have open">Mark time</button><select id="ver" style="width:auto"></select></div>
+<div class="seg" id="zoomseg" role="group" aria-label="Timeline zoom" style="margin-top:10px"><button type="button" data-zoom="all">Whole reel</button><button type="button" data-zoom="10" class="on">10 s</button><button type="button" data-zoom="3">3 s</button></div>
 <div id="tl"><div id="tli"></div></div>
 <div class="tlkey"><span><i style="background:#f3e9b8;border:1px solid #dccf8f"></i>captions</span><span><i style="background:#0d2b2d"></i>text and cards</span><span><i style="background:#e7a23b"></i>pictures, GIFs, clips</span><span><i style="background:#7a4fa3;border-radius:50%"></i>sounds</span><span><i style="background:none;border-left:2px dashed #c0392b;width:0"></i>a cut</span></div>
 <p id="vernote" class="help" style="margin:6px 0 0"></p>
