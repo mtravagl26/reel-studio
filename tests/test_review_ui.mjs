@@ -101,6 +101,18 @@ try {
   await sleep(1500);
   assert.equal(decisions().theme, "editorial");
   assert.match(await text("#themenote"), /serif/);
+  // 0.38.3: Undo, Redo, and both still there after a reload
+  await click("#undo"); await sleep(1500);
+  assert.notEqual(decisions().theme, "editorial", "Undo took the theme back");
+  assert.equal(await js(`document.querySelector("#redo").disabled`), false);
+  await click("#redo"); await sleep(1500);
+  assert.equal(decisions().theme, "editorial", "Redo put it back");
+  await open("/review"); await until(`document.querySelector("#reelname")?.textContent.includes("→")`, "the review page again");
+  await until(`!document.querySelector("#undo").disabled`, "Undo kept across the reload");
+  await click("#undo"); await sleep(1500);
+  assert.notEqual(decisions().theme, "editorial", "Undo after a reload works");
+  await click("#redo"); await sleep(1500);
+  assert.equal(decisions().theme, "editorial");
   // 0.34.2: caption colors and size show on the player as they change; where captions sit is folded until asked for
   await js(`document.querySelector('[data-tab="captions"]').click()`); await sleep(200);
   assert.equal(await js(`document.querySelector(".spotfold")?.open`), false, "Captions above your head starts folded");
