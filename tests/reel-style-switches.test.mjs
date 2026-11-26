@@ -1,6 +1,6 @@
 // Added by By Mel Ross (0.22.0). Three small style switches in scripts/build_reel.py:
 //   a caption can carry its own height ("y"), a tag can set its text colour ("text_color"),
-//   and the dot in a list card's header can be turned off ("dot": false on a card, "list_dot": false in brand.json).
+//   and the dot in a list card's header is off unless asked for ("dot": true on a card, "list_dot": true in brand.json; 0.34.5).
 // Each one changes nothing when it is not used. No render is run: the build writes proj/index.html and the test reads it.
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -43,13 +43,15 @@ test("a tag can set its text colour; without it the style carries no colour of i
   assert.match(html, /<span class="tag" style="background:#B9C8A5;(?!color)[^"]*">plain words</);
 });
 
-test("the dot in a list header: on by default, off with the card's dot or brand.json list_dot, the card wins", { skip: skipReason }, () => {
+test("the dot in a list header: off by default in every theme (0.34.5); a card's dot or brand.json list_dot brings it back", { skip: skipReason }, () => {
   const card = (title, extra = {}) => ({ type: "card", title, rows: ["a", "b"], start: 0.5, end: 3, ...extra });
   const header = (html, title) => html.match(new RegExp(`<div class="ch"[^>]*>((?:<i></i>)?)${title}</div>`))[1];
-  let html = makeReel({ cards: [card("plain"), card("nodot", { dot: false })] });
-  assert.equal(header(html, "plain"), "<i></i>", "unchanged by default");
-  assert.equal(header(html, "nodot"), "", "a card can turn it off");
-  html = makeReel({ brand: { list_dot: false }, cards: [card("brandoff"), card("cardon", { dot: true })] });
-  assert.equal(header(html, "brandoff"), "", "brand.json list_dot: false turns it off for every list");
-  assert.equal(header(html, "cardon"), "<i></i>", "a card's own dot wins over the brand");
+  for (const theme of [undefined, "editorial", "bold", "handwritten", "whimsical", "minimal"]) {
+    const html = makeReel({ brand: theme ? { theme } : {}, cards: [card("plain"), card("cardon", { dot: true })] });
+    assert.equal(header(html, "plain"), "", `no dot by default (${theme || "no theme"})`);
+    assert.equal(header(html, "cardon"), "<i></i>", `a card can still ask for it (${theme || "no theme"})`);
+  }
+  const html = makeReel({ brand: { list_dot: true }, cards: [card("brandon"), card("cardoff", { dot: false })] });
+  assert.equal(header(html, "brandon"), "<i></i>", "brand.json list_dot: true brings it back for every list");
+  assert.equal(header(html, "cardoff"), "", "a card's own dot wins over the brand");
 });
