@@ -11,7 +11,7 @@ const review = path.join(skill, "review");
 function clipWith({ size = "540x960", cy = 0.6, ry = 0.3, rx = 0.2, cx = 0.5, luma = null, fps = 30 } = {}) {
   const dir = tmp("home"), clip = path.join(dir, "take.mp4"), matte = path.join(dir, "matte.mkv");
   const src = luma == null ? `testsrc2=s=${size}:r=${fps}:d=4` : `color=c=0x${luma.toString(16).padStart(2, "0").repeat(3)}:s=${size}:r=${fps}:d=4`;
-  ff(["-f", "lavfi", "-i", src, "-c:v", "libx264", "-preset", "ultrafast", "-pix_fmt", "yuv420p", clip]);
+  ff(["-f", "lavfi", "-i", src, "-f", "lavfi", "-i", "sine=d=4", "-c:v", "libx264", "-preset", "ultrafast", "-pix_fmt", "yuv420p", "-c:a", "aac", "-shortest", clip]);   // 0.37.2: with sound, like a real take
   ff(["-f", "lavfi", "-i", `color=c=black:s=270x480:r=10:d=4,geq=lum='if(lte(pow((X-W*${cx})/(W*${rx}),2)+pow((Y-H*${cy})/(H*${ry}),2),1),255,0)':cb=128:cr=128`, "-pix_fmt", "gray", "-c:v", "ffv1", matte]);
   return { dir, clip, matte };
 }
@@ -20,8 +20,8 @@ const state = (res, id) => res.checks.find((x) => x.id === id).state;
 
 test("framing check: a well-framed clip is good; no headroom, sideways, dark and too-close each say retake with a fix", { skip: skipReason }, () => {
   const good = check(clipWith());                                   // head starts 30% down
-  assert.equal(good.verdict, "good"); assert.deepEqual(good.checks.map((c) => c.id), ["upright", "length", "movement", "light", "headroom", "safe", "whole"]);
-  for (const id of ["upright", "length", "movement", "headroom", "safe", "whole"]) assert.equal(state(good, id), "pass", id);
+  assert.equal(good.verdict, "good"); assert.deepEqual(good.checks.map((c) => c.id), ["upright", "length", "format", "movement", "light", "headroom", "safe", "whole"]);
+  for (const id of ["upright", "length", "format", "movement", "headroom", "safe", "whole"]) assert.equal(state(good, id), "pass", id);
   assert.ok(Math.abs(good.head.top - 0.3) < 0.03, "head top found near 30%: " + good.head.top);
 
   const tight = check(clipWith({ cy: 0.38, ry: 0.3 }));              // head starts 8% down

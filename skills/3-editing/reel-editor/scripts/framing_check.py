@@ -47,7 +47,7 @@ def _probe(clip):
             "-select_streams",
             "v:0",
             "-show_entries",
-            "stream=width,height,r_frame_rate,color_transfer:stream_side_data=rotation:format=duration",
+            "stream=width,height,r_frame_rate,avg_frame_rate,codec_name,color_transfer,color_primaries:stream_side_data=rotation:format=duration",
             "-of",
             "json",
             str(clip),
@@ -64,12 +64,39 @@ def _probe(clip):
     if rot in (90, 270):
         w, h = h, w
     n, _, dn = str(st.get("r_frame_rate", "30/1")).partition("/")
+    # Added by By Mel Ross (0.37.2): what the format check needs: frame rate kept steady or not, the codec, a sound track,
+    # and whether the phone was turned (the picture is shown upright either way)
+    an, _, ad = str(st.get("avg_frame_rate", "0/1")).partition("/")
+    try:
+        avg = float(an or 0) / (float(ad or 1) or 1)
+    except ValueError:
+        avg = 0.0
+    aud = subprocess.run(
+        [
+            "ffprobe",
+            "-v",
+            "error",
+            "-select_streams",
+            "a",
+            "-show_entries",
+            "stream=codec_type",
+            "-of",
+            "csv=p=0",
+            str(clip),
+        ],
+        capture_output=True,
+        text=True,
+    ).stdout.strip()
     return {
         "w": w,
         "h": h,
         "fps": float(n) / (float(dn or 1) or 1),
         "dur": float((d.get("format") or {}).get("duration") or 0),
-        "hdr": st.get("color_transfer") in ("arib-std-b67", "smpte2084"),
+        "hdr": st.get("color_transfer") in ("arib-std-b67", "smpte2084") or st.get("color_primaries") == "bt2020",
+        "avg_fps": avg,
+        "codec": st.get("codec_name") or "",
+        "audio": bool(aud),
+        "rotation": rot,
     }
 
 
@@ -242,6 +269,39 @@ def check(clip, max_seconds=180, frame_out=None):
         )
     else:
         add("length", "Length", "pass", f"{p['dur']:.0f} seconds.")
+    # Added by By Mel Ross (0.37.2): 2b. the format, and what the edit does about it, said before the edit starts
+    fmt_notes, fmt_bad = [], None
+    if not p["audio"]:
+        fmt_bad = "There's no sound in this clip. Captions and cuts come from your voice, so the edit can't run."
+    if p["hdr"]:
+        fmt_notes.append(
+            "HDR color: it's converted to standard color when the cut is made"
+            + (
+                " (macOS does this, a short extra step)."
+                if sys.platform == "darwin"
+                else ". This needs a Mac; elsewhere the color is close but not exact."
+            )
+        )
+    if p["avg_fps"] and abs(p["avg_fps"] - p["fps"]) / max(p["fps"], 1) > 0.02:
+        fmt_notes.append(
+            f"The frame rate changes during the clip (about {p['avg_fps']:.1f} on average; phones do this in low light). "
+            "The cut evens it to 30 frames a second, so sound and picture stay together."
+        )
+    if p["codec"] and p["codec"] not in ("h264", "hevc", "prores", "mpeg4", "vp9", "av1"):
+        fmt_notes.append(f"An unusual video format ({p['codec']}). The cut converts it.")
+    if p["rotation"]:
+        fmt_notes.append("Filmed with the phone turned. It's shown upright.")
+    if fmt_bad:
+        add("format", "Format", "retake", fmt_bad, "Film again with the phone's own camera app, sound on.")
+    elif fmt_notes:
+        add("format", "Format", "note", " ".join(fmt_notes))
+    else:
+        add(
+            "format",
+            "Format",
+            "pass",
+            f"{(p['codec'] or 'video').upper()}, steady frame rate, standard color, with sound.",
+        )
     # 3. movement: how much the outer edges of the picture change between frames (the middle is the person talking)
     w, h = 54, 96
     fr = _gray(clip, t0, min(8.0, p["dur"]), 5, w, h)
