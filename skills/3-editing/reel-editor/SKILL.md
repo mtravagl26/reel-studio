@@ -121,6 +121,7 @@ If the brand file and your taste disagree, the brand file wins. If they correct 
 |---|---|
 | Editing before a brand file exists | Run the setup interview |
 | Cutting on Whisper word times blindly | Check the joins; nudge cuts into the quiet gap between words |
+| Cards placed where captions sit, so captions keep moving | Read the build's `captions: steady ...` line; more than 2 stretches means move the cards out of the caption spot |
 | Graphics that decorate instead of illustrate | Each card shows what this exact line says |
 | Captions in a font the brand file bans | Re-read brand.md "Rules" before step 5 |
 | Saying CapCut works everywhere | It doesn't (see capcut.md). The MP4 route always works |
