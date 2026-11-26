@@ -12,7 +12,7 @@ edit.json (written by auto_edit.py, then Claude marks accents and adds cards):
                                                      (Style Menu H3 handwritten overline + caps headline, L7 step label); color: "#fff" for a white headline.
      arctitle {text: "Demystifying AI", sub: "part one", trail: true}   (0.23.0) a headline arched over the head with stars and a heavy line under it; trail lays gold sparkles along the tracked hand as it wipes in
      block  {top: "don't", bottom: "worry"}          full brand-colour screen with the clip framed in it (reveal)
-     card   {title: "my stack", rows: ["a","b"]}     white UI card, rows appear one by one (lists, steps, tools); dot: false hides the dot in its header (0.22.0; brand.json "list_dot": false for every list)
+     card   {title: "my stack", rows: ["a","b"]}     white UI card, rows appear one by one (lists, steps, tools); no dot in its header (0.34.5; "dot": true or brand.json "list_dot": true brings it back)
      tag    {text: "open source", y: 300}            small pill label that pops on (name drops); text_color: "#fff" sets the words' colour, also on a theme's pill graphic (0.22.0)
      (every card: leave out "end" and it clears when the phrase it starts in finishes)
      cta    {text: "comment EDIT", y?: 1360}         call-to-action pill (kept above the bottom ~420 px IG covers); CAPS word = pop color
@@ -193,7 +193,7 @@ if LAYOUT == "captions-high":  # text graphics with no height of their own go to
         elif _t == "card":
             _c["y"] = max(760, 1580 - 110 * (len(_c.get("rows", [])) + 1) - 60)
 # 0.22.0: the little dot in a list card's header; "list_dot": false in brand.json (or a theme) turns it off, a card's own "dot" wins
-LIST_DOT = brand.get("list_dot", True)
+LIST_DOT = brand.get("list_dot", False)  # 0.34.5: off for every theme; a card can still ask with "dot": true
 W, H, FPS = 1080, 1920, 30  # authored at 1080x1920; 4K brands render with --resolution portrait-4k
 SAFE = 900  # guardrail: no text line may be wider than this (90 px margin each side)
 EM = 0.66  # conservative average glyph width (bold display fonts run ~0.6-0.66 em)
