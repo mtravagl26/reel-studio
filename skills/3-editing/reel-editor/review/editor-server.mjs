@@ -15,6 +15,7 @@ import crypto from "node:crypto";
 import { spawn, spawnSync } from "node:child_process";
 import { SHIM, DOCS, WRITABLE, trusted } from "./review-shim.mjs";
 import { lookPreviews } from "./look-preview.mjs";
+import { themePreviews, themeRoutes } from "./theme-preview.mjs";
 import * as MUSIC from "./music.mjs";
 import { fileURLToPath } from "node:url";
 import * as core from "./editor-core.mjs";
@@ -141,6 +142,7 @@ function lookLines() {
   return { when: null, lines: [] };
 }
 const LOOKP = lookPreviews({ scripts: SCRIPTS, home: HOME, env: childEnv(), tag: path.basename(REEL).replace(/[^\w.-]+/g, "_") });
+const THEMEP = themePreviews({ scripts: SCRIPTS, home: HOME, env: childEnv(), tag: path.basename(REEL).replace(/[^\w.-]+/g, "_") });   // 0.33.0
 function setStylePicks(body) {
   const ok = new Set(menuLooks().filter((l) => USABLE_LOOK.has(l.status)).map((l) => l.id));
   const ids = [...new Set((Array.isArray(body.ids) ? body.ids : []).map(String))].filter((i) => ok.has(i)).slice(0, 40);
@@ -889,6 +891,7 @@ const server = http.createServer(async (req, res) => {
         .replace('<script src="core.js"></script>', links + '<script src="shim.js"></script><script src="core.js"></script>');
       res.writeHead(200, { "Content-Type": TYPES[".html"], "Cache-Control": "no-store" }).end(html); return;
     }
+    if (await themeRoutes(THEMEP, req, res, p, () => REEL, json)) return;   // 0.33.0: every theme on this reel
     if (p === "/api/look-preview" && req.method === "GET") return json(res, 200, { ok: true, ...LOOKP.state() });   // 0.27.0
     if (p === "/api/look-preview" && req.method === "POST") {
       try { LOOKP.start(REEL, JSON.parse((await readBody(req, 1e5)).toString() || "{}")); return json(res, 200, { ok: true, ...LOOKP.state() }); }

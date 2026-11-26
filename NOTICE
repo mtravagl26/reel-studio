@@ -194,3 +194,5 @@ Added by By Mel Ross in 0.19.0 (November 2026), in skills/3-editing/reel-editor.
 - Minimal theme (0.32.0): themes/minimal (theme.json and a hand-drawn red X drawn for this project). Fonts added to
   themes/_fonts with their SIL Open Font License files: Instrument Serif (The Instrument Serif Project Authors) and
   Shadows Into Light (Kimberly Geswein). storyboard.py takes up to 5 options.
+- Theme stills (0.33.0): "See them on my clip" on the home page and Touch-ups, one still per theme on the person's own
+  clip (scripts/theme_preview.py, review/theme-preview.mjs, both servers, home.html, editor.js).

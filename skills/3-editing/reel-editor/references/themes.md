@@ -41,6 +41,8 @@ Cream on a white or very bright top is hard to read even with the soft shadow. C
 - **For one build:** `python3 scripts/build_reel.py <reel> --theme whimsical`.
 - **No theme:** leave it out. `brand.json` is used exactly as before.
 
+**See them on my clip** (0.33.0), next to the themes on the home page and on Touch-ups, makes one still of every theme on their own clip, at the same moment, with a sample title and their captions. About a minute; each still shows as it's ready, and on Touch-ups tapping a still picks that theme. It runs `scripts/theme_preview.py <reel-folder | clip> --out <new folder>`.
+
 Ask which theme they want in the setup interview, and show them before they choose:
 
 ```bash
