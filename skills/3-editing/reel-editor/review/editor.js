@@ -321,26 +321,32 @@ function renderOrbitPick() {
 }
 
 // ---- GIPHY search (Added by By Mel Ross, 0.9.0). The search goes from this page straight to GIPHY, with your own key.
+// Opt-in with a warning (license review 2026-11-17): nothing is saved until the box is ticked.
+const GIPHY_WARN = "Before you turn GIPHY on: GIPHY's rules say apps should not store copies of GIPHY content. To build your video, Reel Studio has to keep a copy of each GIF you pick in your reel folder, so a reel you post with one may go against GIPHY's rules. Many GIFs are also clips from films, TV or sport that you may not have the right to use in a reel for your business. GIPHY is off unless you turn it on, and you use it at your own risk.";
+const GIPHY_SHORT = "GIPHY's rules say not to store copies of its GIFs, and a reel you post with one may conflict with them. Many GIFs are film or TV clips. Use at your own risk.";
+const GIPHY_MARK = `<p class="giphy-mark" aria-label="Powered By GIPHY"><span>Powered By</span> <b>GIPHY</b></p>`;
 let giphy = { q: "", kind: "gifs", items: [], busy: false, note: "" };
 function renderGiphy() {
   const box = $("#giphy"); if (!box) return;
   if (!S.giphy) {   // 0.15.0: the page takes the key and saves it on this computer
     if (box.querySelector("#gkey")) return;   // keep what they are typing
-    box.innerHTML = `<label class="f">From GIPHY, a free library of GIFs</label><p class="help">GIPHY is not set up yet. It needs a free key, once. <a href="https://developers.giphy.com/dashboard/" target="_blank" rel="noopener">Get one at developers.giphy.com</a>. Choose API (not SDK), copy the key, and paste it here.</p>
-      <div class="row"><input type="password" id="gkey" placeholder="Paste your GIPHY key" autocomplete="off" aria-label="Your GIPHY key" class="grow" style="font:inherit;padding:10px 12px;border:1.5px solid var(--line);border-radius:12px;min-width:0" /><button class="sm" data-a="giphy-key">Save key</button></div><p class="small" id="gkeymsg"></p>`;
+    box.innerHTML = `<label class="f">From GIPHY, a free library of GIFs</label><p class="giphy-warn" role="note"><b>Off until you turn it on.</b> ${esc(GIPHY_WARN)}</p><p class="help">To turn it on you need a free key, once. <a href="https://developers.giphy.com/dashboard/" target="_blank" rel="noopener">Get one at developers.giphy.com</a>. Choose API (not SDK), copy the key, and paste it here.</p>
+      <div class="row"><input type="password" id="gkey" placeholder="Paste your GIPHY key" autocomplete="off" aria-label="Your GIPHY key" class="grow" style="font:inherit;padding:10px 12px;border:1.5px solid var(--line);border-radius:12px;min-width:0" /><button class="sm" data-a="giphy-key">Save key</button></div>
+      <label class="row small" style="gap:6px;margin-top:6px"><input type="checkbox" id="gagree"> I have read the warning and want GIPHY search on</label><p class="small" id="gkeymsg"></p>${GIPHY_MARK}`;
     return;
   }
   box.innerHTML = `<label class="f">From GIPHY, a free library of GIFs</label><div class="row"><input type="text" id="gq" value="${esc(giphy.q)}" placeholder="Type what you want, e.g. thumbs up" autocapitalize="off" class="grow" /><button class="sm" data-a="giphy-go">Search</button></div>
     <div class="seg" style="margin-top:8px"><button class="${giphy.kind === "gifs" ? "on" : ""}" data-a="giphy-kind" data-v="gifs">GIFs</button><button class="${giphy.kind === "stickers" ? "on" : ""}" data-a="giphy-kind" data-v="stickers">Stickers (no background)</button></div>
     ${giphy.note ? `<p class="small">${esc(giphy.note)}</p>` : ""}
     ${giphy.items.length ? `<div class="grid3" style="margin-top:8px">${giphy.items.map((g) => `<button data-a="giphy-add" data-v="${esc(g.id)}" style="padding:4px" title="${esc(g.title)}"><img src="${esc(g.preview)}" alt="${esc(g.title)}" style="width:100%;border-radius:8px;display:block" /></button>`).join("")}</div>
-    <p class="small" style="text-align:right;font-weight:700;letter-spacing:.04em">POWERED BY GIPHY</p>` : ""}
+` : ""}
+    ${GIPHY_MARK}<p class="giphy-warn small" role="note">${esc(GIPHY_SHORT)}</p>
     <p class="small">GIFs are moving pictures with a background. Stickers have no background, so they sit over your video. Your search words are sent to GIPHY. Many GIFs are clips from films and TV, so check you are allowed to use one before it goes in a reel for your business.</p>`;
 }
 async function saveGiphyKey() {
   const msg = $("#gkeymsg"), key = ($("#gkey")?.value || "").trim(); if (msg) msg.textContent = "Checking the key…";
   try {
-    const r = await fetch("/api/giphy-key-save", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ key }) }), j = await r.json();
+    const r = await fetch("/api/giphy-key-save", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ key, agree: !!$("#gagree")?.checked }) }), j = await r.json();
     if (!j.ok) throw new Error(j.error || "couldn't save it");
     $("#giphy").innerHTML = ""; if (j.state) S = j.state; else S.giphy = true;
     giphy.note = j.tested ? "GIPHY is connected." : "Key saved. This computer couldn't reach GIPHY to test it yet."; render(); toast(giphy.note);

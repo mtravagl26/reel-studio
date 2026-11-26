@@ -159,7 +159,7 @@ try {
   assert.equal(await js(`document.querySelector('.steps [data-step="caption"]').getAttribute("href")`), "/caption");
   await js(`document.querySelectorAll("details").forEach((d) => (d.open = true))`);
   assert.equal(await js(`document.querySelector("#themePick").value`), "editorial", "the theme picked in review shows here");
-  assert.match(await text("#giphy"), /not set up yet/, "GIPHY stays off without a key");
+  assert.match(await text("#giphy"), /Off until you turn it on/, "GIPHY stays off without a key, behind its warning");   // 0.35.0
   // 0.33.0: See them on my clip, then tap a still to use that theme
   await click('[data-a="see-themes"]');
   await until(`document.querySelectorAll(".tpgrid img").length === 6`, "6 theme stills (my brand + 5 themes)", 120000);
