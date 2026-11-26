@@ -87,6 +87,20 @@ function render() {
 const STEPNAME = { cut: "cutting the video", render: "building the video", sound: "mixing the sound", checks: "checking it", copies: "saving this version", queued: "waiting to start" };
 const fmtClock = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
 setInterval(() => { const e = document.querySelector("#elapsed"); if (e && e.dataset.since) e.textContent = fmtClock(Math.max(0, (Date.now() - Date.parse(e.dataset.since)) / 1000)); }, 1000);
+// 0.38.6: Try another look
+const TRY_TYPES = new Set(["title", "tag", "quote", "note", "arctitle", "chips", "card", "xlist", "stat"]);
+let TRY = null, tryPoll = null;
+async function tryStart(i, offset) {
+  try {
+    const j = await post("/api/try-again", { i, offset });
+    TRY = j.job; renderCards(); clearTimeout(tryPoll);
+    const tick = async () => { try { const s = await (await fetch("/api/try-again")).json(); TRY = s.job; renderCards(); if (TRY.state === "running") tryPoll = setTimeout(tick, 1500); } catch { tryPoll = setTimeout(tick, 3000); } };
+    tryPoll = setTimeout(tick, 1500);
+  } catch (e) { toast(e.message, true); }
+}
+async function tryUse(i, id) {
+  try { await post("/api/try-again-use", { i, id }); savedNow(); toast("Look swapped. Undo brings the old one back.", false, true); } catch (e) { toast(e.message, true); }
+}
 function renderStatus() {
   const j = S.job; let h = "";
   const chips = { running: `<span class="chip run">Rendering: ${esc(j.step || "")}</span>`, queued: `<span class="chip run">Queued</span>` };
@@ -290,6 +304,16 @@ function cardHtml(c, i) {
     if (c.type === "title") {   // Added by By Mel Ross (0.34.9): a hook can sit in the top-left corner or centred
       const al = c.align || S.titleAlign || "center";
       h += `<label class="f">Line up</label><div class="seg" id="alignseg">${[["left", "Left"], ["center", "Centred"], ["right", "Right"]].map(([v, n]) => `<button class="${al === v ? "on" : ""}" data-a="set" data-i="${i}" data-f="align" data-v="${v}">${n}</button>`).join("")}</div>`;
+    }
+    if (TRY_TYPES.has(c.type)) {   // Added by By Mel Ross (0.38.6): other looks for this graphic, side by side, with its own words
+      const tj = TRY && TRY.card === c.id ? TRY : null;
+      h += `<label class="f">Try another look</label>`;
+      if (!tj) h += `<button class="sm" type="button" data-a="try" data-i="${i}">Show me 3 other looks</button>`;
+      else if (tj.state === "running") h += `<p class="help">Making 3 options with your words at ${fmt(tj.at)}. About 30 to 60 seconds.</p>`;
+      else if (tj.state === "failed") h += `<p class="warnt">${esc(tj.error || "The options couldn't be made.")}</p><button class="sm" type="button" data-a="try" data-i="${i}">Try again</button>`;
+      else if (tj.state === "done") h += `<img class="tryimg" alt="3 other looks for this graphic, side by side" src="${esc(tj.image)}">`
+        + `<div class="row" style="flex-wrap:wrap;gap:6px;margin-top:6px">${tj.options.map((o) => `<button class="sm" type="button" data-a="try-use" data-i="${i}" data-v="${esc(o.id)}">Use ${o.letter}: ${esc(o.name)}</button>`).join("")}`
+        + `<button class="sm" type="button" data-a="try" data-i="${i}" data-off="${(tj.offset || 0) + 1}">3 more</button><button class="sm" type="button" data-a="try-close">Keep mine</button></div>`;
     }
     if (c.type === "sticker") h += `<p class="help">Stickers: change time or switch off here. Position and size are in the edit.</p>`;
     h += `<div class="row" style="margin-top:12px"><button class="sm" data-a="seek" data-t="${c.start}">▶ Go to start</button><span class="grow"></span><button class="sm danger" data-a="del" data-i="${i}">Delete</button></div></div>`;
@@ -548,6 +572,9 @@ document.addEventListener("click", async (e) => {
   else if (a === "layer") { op({ op: "card_set", i, set: { layer: el.dataset.v } }, null, el.dataset.v === "behind" ? "Behind me: re-render to see it" : "In front of me"); }
   else if (a === "set" && el.dataset.v != null) { op({ op: "card_set", i, set: { [el.dataset.f]: el.dataset.v } }, null); }
   else if (a === "place") { placing = placing && placing.id === cid(i) ? null : { id: cid(i) }; selCard = cid(i); drawOverlay(); if (placing) toast("Tap the video where you want it", false); render(); }
+  else if (a === "try") { tryStart(i, +(el.dataset.off || 0)); }
+  else if (a === "try-close") { TRY = null; renderCards(); }
+  else if (a === "try-use") { TRY = null; tryUse(i, el.dataset.v); }
   else if (a === "del") { openCard.delete(cid(i)); selCard = null; op({ op: "card_del", i }, null, "Deleted.", true); }   // 0.34.5: no dialog; Undo is there
   else if (a === "sfx-play") {   // Added by By Mel Ross (0.10.2): hear a sound before choosing it (plays the one picked in the list, at its volume)
     const e = S.edit.sfx_events[i], pick = document.querySelector(`select[data-a="sfx-set"][data-i="${i}"]`), name = (pick && pick.value) || e.name;

@@ -594,3 +594,36 @@ test("quick wins (0.38.2): 2 Cover starts the thumbnail studio on this Mac and e
   assert.match(js, /step \$\{at \+ 1\} of \$\{plan\.length\}/); assert.match(js, /Keep your Mac awake/);
   assert.match(js, /"Deleted\.", true/); assert.match(js, /toastundo/);
 });
+
+test("Try another look (0.38.6): 3 looks of the same kind with the graphic's words, one picture, Use swaps it and Undo takes it back", { skip: skipReason }, async () => {
+  const ta = await import(path.join(review, "try-again.mjs"));
+  assert.deepEqual(ta.carryWords({ type: "title", text: "my *best* / tools" }, { type: "tag", text: "x" }), { text: "my best tools" });
+  assert.deepEqual(ta.carryWords({ type: "card", title: "steps", rows: ["a", "b"] }, { type: "xlist", items: [] }), { items: ["a", "b"] });
+  assert.deepEqual(ta.carryWords({ type: "tag", text: "hello" }, { type: "title", text: "x", sub: "y" }), { text: "hello" });
+  const dir = tmp("tryagain"), stand = path.join(dir, "sb.py"), argsOut = path.join(dir, "args.json");
+  fs.writeFileSync(stand, `import json, os, subprocess, sys\nout = sys.argv[sys.argv.index("--out") + 1]\nos.makedirs(out)\njson.dump(sys.argv[1:], open(${JSON.stringify(argsOut)}, "w"))\nsubprocess.run(["ffmpeg", "-v", "error", "-y", "-f", "lavfi", "-i", "color=c=gray:s=300x180", "-frames:v", "1", os.path.join(out, "storyboard.jpg")], check=True)\n`);
+  process.env.REEL_STORYBOARD = stand;
+  try {
+    await withServer(async ({ get, post, reel }) => {
+      const r = await post("/api/try-again", { i: 0 });
+      assert.equal(r.ok, true, r.error); assert.equal(r.job.options.length, 3);
+      let s; for (let k = 0; k < 80; k++) { s = (await (await get("/api/try-again")).json()).job; if (s.state !== "running") break; await new Promise((ok) => setTimeout(ok, 150)); }
+      assert.equal(s.state, "done", JSON.stringify(s));
+      assert.equal((await get(s.image)).status, 200);
+      const args = JSON.parse(fs.readFileSync(argsOut, "utf8")), content = JSON.parse(fs.readFileSync(args[args.indexOf("--content") + 1], "utf8"));
+      assert.deepEqual(args.filter((a) => /^[ABC]=/.test(a)).map((a) => a.slice(2)), s.options.map((o) => o.id));
+      for (const o of s.options) assert.equal(Object.values(content[o.id]).flat().join(" ").includes("early"), true, `${o.id} carries the words`);
+      const before = JSON.parse(fs.readFileSync(path.join(reel, "edit.json"), "utf8")).cards[0];
+      const u = await post("/api/try-again-use", { i: 0, id: s.options[1].id });
+      assert.equal(u.ok, true, u.error);
+      const after = JSON.parse(fs.readFileSync(path.join(reel, "edit.json"), "utf8")).cards[0];
+      assert.equal(after.look, s.options[1].id); assert.equal(after.start, before.start); assert.equal(after.end, before.end); assert.equal(after.id, before.id);
+      assert.ok(JSON.stringify(after).includes("early"), "the words came along");
+      const un = await post("/api/undo", {});
+      assert.equal(un.ok, true, un.error);
+      assert.deepEqual(JSON.parse(fs.readFileSync(path.join(reel, "edit.json"), "utf8")).cards[0], before, "Undo brings the old look back");
+      const bad = await post("/api/try-again", { i: 2 });   // a popup: no other looks of its kind
+      assert.equal(bad.ok, false); assert.match(bad.error, /no other looks of this kind/);
+    });
+  } finally { delete process.env.REEL_STORYBOARD; }
+});

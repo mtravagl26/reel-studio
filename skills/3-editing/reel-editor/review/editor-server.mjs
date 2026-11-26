@@ -17,6 +17,7 @@ import { SHIM, DOCS, WRITABLE, trusted } from "./review-shim.mjs";
 import { lookPreviews } from "./look-preview.mjs";
 import { themePreviews, themeRoutes } from "./theme-preview.mjs";
 import { storyboard } from "./storyboard.mjs";
+import { tryAgain } from "./try-again.mjs";
 import { recommender } from "./recommend.mjs";
 import * as MUSIC from "./music.mjs";
 import { fileURLToPath } from "node:url";
@@ -170,6 +171,9 @@ async function openCover() {
   throw new Error("no free port from 4848 to 4852 for the thumbnail studio");
 }
 process.on("exit", () => { try { coverChild?.kill(); } catch { /* gone */ } });
+const taView = (j) => { const { image, ...rest } = j || {}; return { ...rest, image: image ? `/api/try-again.jpg?t=${j.at2 || 0}` : null }; };
+let _ta = null;
+const TA = () => (_ta ||= tryAgain({ REEL, HOME, SKILL, menuLooks, addable: ADDABLE, env: childEnv() }));   // 0.38.6: Try another look
 let _sb = null;
 const SB = () => (_sb ||= storyboard({ REEL, SKILL, listRenders, childEnv }));   // 0.35.0
 const THEMEP = themePreviews({ scripts: SCRIPTS, home: HOME, env: childEnv(), tag: path.basename(REEL).replace(/[^\w.-]+/g, "_") });   // 0.33.0
@@ -446,7 +450,8 @@ function undo() {
   const files = { "edit.json": P.edit, "edl.json": P.edl, "master_transcript.json": P.tr, "expected.txt": P.expected, "state.json": P.state, "brand.json": P.brand };
   for (const [n, f] of Object.entries(files)) {
     if (n === "brand.json" && !meta.brand) continue;
-    if (meta.had?.[n]) fs.copyFileSync(path.join(dir, n), f); else if (n in (meta.had || {})) fs.rmSync(f, { force: true });
+    if (meta.had?.[n]) { fs.copyFileSync(path.join(dir, n), f + ".tmp"); fs.renameSync(f + ".tmp", f); }   // 0.38.6: whole file or nothing, so a read never sees half of it
+    else if (n in (meta.had || {})) fs.rmSync(f, { force: true });
   }
   fs.mkdirSync(path.join(P.hist, "undone"), { recursive: true });
   fs.renameSync(dir, path.join(P.hist, "undone", path.basename(dir)));
@@ -982,6 +987,8 @@ const server = http.createServer(async (req, res) => {
     if (p === "/api/stage" && req.method === "GET") return json(res, 200, { reel: path.basename(REEL), built: built(), review: hasReview(), storyboardDone: built() ? SB().done() : false });
     // 0.35.0: the storyboard, scene by scene after each render
     if (p === "/storyboard") return sendFile(req, res, path.join(HERE, "storyboard.html"));
+    if (p === "/api/try-again" && req.method === "GET") return json(res, 200, { ok: true, job: taView(TA().state()) });   // 0.38.6
+    if (p === "/api/try-again.jpg") { const img = TA().image(); if (!img) { res.writeHead(404).end(); return; } return sendFile(req, res, img); }
     if (p === "/api/storyboard" && req.method === "GET") { if (built()) { try { prepareBaseline(); } catch { /* use what's there */ } } return json(res, 200, { ok: true, ...(built() ? SB().view() : { none: true }) }); }
     if (p === "/api/storyboard" && req.method === "POST") {
       try { return json(res, 200, { ok: true, ...SB().save(JSON.parse((await readBody(req, 2e4)).toString() || "{}")) }); }
@@ -1041,6 +1048,12 @@ const server = http.createServer(async (req, res) => {
         if (p === "/api/op") { const b = JSON.parse((await readBody(req, 2e6)).toString() || "{}"); return json(res, 200, { ok: true, ...doOp(b), state: view() }); }
         if (p === "/api/undo") { requireIdle(); const what = undo(); return json(res, 200, { ok: true, undid: what, state: view() }); }
         if (p === "/api/render") { startRender(); return json(res, 200, { ok: true, job }); }
+        if (p === "/api/try-again") { const b = JSON.parse((await readBody(req, 1e4)).toString() || "{}"); return json(res, 200, { ok: true, job: taView(TA().start(readJSON(P.edit, {}), Number(b.i), Number(b.offset) || 0)) }); }   // 0.38.6
+        if (p === "/api/try-again-use") {
+          requireIdle(); const b = JSON.parse((await readBody(req, 1e4)).toString() || "{}");
+          const edit = readJSON(P.edit, {}); snapshot("try another look", null, false); const c = TA().use(edit, Number(b.i), String(b.id || "")); writeJSON(P.edit, edit);
+          return json(res, 200, { ok: true, card: c, state: view() });
+        }
         if (p === "/api/look-add") { const b = JSON.parse((await readBody(req, 1e4)).toString() || "{}"); const r = addLook(b); return json(res, 200, { ok: true, ...r, state: view() }); }   // 0.28.0
         if (p === "/api/music") { const b = JSON.parse((await readBody(req, 1e4)).toString() || "{}"); setMusic(b); return json(res, 200, { ok: true, state: view() }); }   // 0.28.0
         if (p === "/api/music-upload") { const name = await MUSIC.upload(HOME, req, url.searchParams.get("name")); return json(res, 200, { ok: true, name }); }
