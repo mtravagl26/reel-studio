@@ -198,3 +198,5 @@ Added by By Mel Ross in 0.19.0 (November 2026), in skills/3-editing/reel-editor.
   clip (scripts/theme_preview.py, review/theme-preview.mjs, both servers, home.html, editor.js).
 - Recommended looks (0.34.0): 3 picks for a clip with plain reasons (scripts/recommend.py, review/recommend.mjs, both
   servers, home.html, editor.js); look names instead of IDs in Touch-ups' Add a look; theme help says the live preview shows it.
+- Fix (0.34.1): a note or list card no longer breaks later stat, tiles and labelled-picture cards (scripts/build_reel.py);
+  found by Claude Code on the fix-tape-name-shadow branch.
