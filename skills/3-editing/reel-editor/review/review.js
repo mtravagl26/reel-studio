@@ -91,14 +91,28 @@ function renderColors() {
 $("#colorreset").addEventListener("click", () => mutate(() => { S.colors = null; }));
 // Added by By Mel Ross (0.23.0): the highlighted caption word. Its color, and a box behind it you can switch on. For this reel;
 // the player shows it right away. To set it for every reel, use Settings on the Touch-ups page.
-function hlNow() { return { words: R.style.cap, text: R.style.acc, bg: R.style.accBg || "none", box: R.style.capBox || "none", size: R.style.capSize, ...(S.highlight || {}) }; }
+function hlNow() { return { words: R.style.cap, text: R.style.acc, bg: R.style.accBg || "none", box: R.style.capBox || "none", size: R.style.capSize, ...(S.highlight || {}), ...HLDRAFT }; }
+// 0.34.2: see a change on a caption the moment you make it. While a color is being picked or the size slider moves,
+// HLDRAFT holds the value; the player jumps to a caption with a highlighted word, paused, and redraws it.
+let HLDRAFT = {};
+function showCaptionSample() {
+  if (!R || !P || tab === "preview") return;
+  const live = CAPS.filter((c) => !c.gone && c.pos !== "hide");
+  const here = live.find((c) => pos >= c.start && pos < c.end && c.words.some((w) => w.accent));
+  const cap = here || live.find((c) => c.words.some((w) => w.accent) && c.start >= pos) || live.find((c) => c.words.some((w) => w.accent)) || live[0];
+  if (!cap) return;
+  if (mode === "rough") stopPlay();
+  if (!here) seekCut(cap.start + Math.min(0.3, (cap.end - cap.start) / 2)); else { mode = "roughPaused"; overlay(pos); }
+  $("#player")?.scrollIntoView?.({ block: "nearest", behavior: "smooth" });
+}
 function hlLum(h) { const c = [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16) / 255).map(x => x <= 0.03928 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4); return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]; }
 function renderHighlight() {
   const ok = R && R.style && /^#[0-9a-f]{6}$/i.test(R.style.acc || ""); $("#hlbox").hidden = !ok; if (!ok) return;
   const cur = hlNow(), box = cur.bg !== "none", row = $("#hlrow"); row.textContent = "";
-  const set = (patch) => mutate(() => { S.highlight = { ...hlNow(), ...patch }; });
+  const set = (patch) => { HLDRAFT = {}; mutate(() => { S.highlight = { ...hlNow(), ...patch }; }); showCaptionSample(); };
+  const draft = (patch) => { Object.assign(HLDRAFT, patch); showCaptionSample(); };
   const pick = (name, val, off, on) => { const lab = document.createElement("label"); const inp = document.createElement("input"); inp.type = "color"; inp.value = val; inp.disabled = off; inp.setAttribute("aria-label", name);
-    const cap = document.createElement("span"); cap.className = "lede"; cap.innerHTML = `<b>${name}</b>`; inp.addEventListener("change", () => on(inp.value.toUpperCase())); lab.append(inp, cap); row.append(lab); };
+    const cap = document.createElement("span"); cap.className = "lede"; cap.innerHTML = `<b>${name}</b>`; inp.addEventListener("change", () => on(inp.value.toUpperCase())); inp.addEventListener("input", () => { const k = { Words: "words", "Highlighted word": "text", Box: "bg", "Box behind all": "box" }[name]; if (k) draft({ [k]: inp.value.toUpperCase() }); }); lab.append(inp, cap); row.append(lab); };
   if (/^#[0-9a-f]{6}$/i.test(cur.words || "")) pick("Words", cur.words, false, v => set({ words: v }));
   pick("Highlighted word", cur.text, false, v => set({ text: v }));
   pick("Box", box ? cur.bg : "#FFFFFF", !box, v => set({ bg: v }));
@@ -120,14 +134,14 @@ function renderHighlight() {
   const lab3 = document.createElement("label"); lab3.style.gridColumn = "1 / -1";
   const rng = document.createElement("input"); rng.type = "range"; rng.min = 60; rng.max = 160; rng.step = 2; rng.value = cur.size || 96; rng.id = "csize"; rng.setAttribute("aria-label", "Caption size");
   const cap3 = document.createElement("span"); cap3.className = "lede"; cap3.innerHTML = `<b>Caption size</b> ${rng.value}`;
-  rng.addEventListener("input", () => { cap3.innerHTML = `<b>Caption size</b> ${rng.value}`; });
+  rng.addEventListener("input", () => { cap3.innerHTML = `<b>Caption size</b> ${rng.value}`; draft({ size: +rng.value }); });
   rng.addEventListener("change", () => set({ size: +rng.value }));
   lab3.append(cap3, rng); row.append(lab3);
   const ratio = (x, y) => { const a = hlLum(x), b = hlLum(y); return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05); };
   let near = (box && ratio(cur.text, cur.bg) < 2.5) || (cb && /^#[0-9a-f]{6}$/i.test(cur.box) && /^#[0-9a-f]{6}$/i.test(cur.words || "") && ratio(cur.words, cur.box) < 2.5) || (cb && !box && /^#[0-9a-f]{6}$/i.test(cur.box) && ratio(cur.text, cur.box) < 2.5);
   $("#hlwarn").hidden = !near;
   $("#hlreset").hidden = !S.highlight;
-  $("#hlnote").textContent = (S.highlight ? "This reel has its own caption colors. " : "This reel uses your usual caption colors. ") + "Play the video to see it on your captions. To change it for every reel, use Settings on the Touch-ups page.";
+  $("#hlnote").textContent = (S.highlight ? "This reel has its own caption colors. " : "This reel uses your usual caption colors. ") + "The player shows a caption with a highlighted word as you change these. To change it for every reel, use Settings on the Touch-ups page.";
 }
 $("#igon").addEventListener("change", (e) => $("#igzone").classList.toggle("on", e.target.checked));   // 0.26.0
 $("#hlreset").addEventListener("click", () => mutate(() => { S.highlight = null; }));
@@ -553,17 +567,21 @@ function capTop(cap) {
   return layoutNow() === "captions-high" ? z.top : z.bottom;
 }
 let capPick = null;   // null = not choosing; [] = waiting for the first caption; [ci] = waiting for the last; [a, b] = choose a spot
+let capSpotsOpen = false;   // 0.34.2: remember the fold while the page redraws
 function renderCapSpots() {
   const el = $("#capspots"); if (!el || !R) return;
   const high = layoutNow() === "captions-high";
   const moved = CAPS.filter(c => !c.gone && c.pos).length;
-  let h = `<label>Where captions sit</label><div class="ctl"><button class="b${high ? " quiet" : ""}" type="button" data-lay="captions-low">At the bottom</button><button class="b${high ? "" : " quiet"}" type="button" data-lay="captions-high">Above my head</button></div>
-    <p class="lede">${high ? "Captions sit above your head. Text graphics move to the lower third." : "Captions sit at the bottom. Text graphics sit near the top."} This is for this reel. For every reel, use Settings on the Touch-ups page. When a graphic covers the captions, they move to the other spot for that moment.</p>`;
+  // 0.34.2: folded. Most reels keep the default, and it's easiest to judge on the finished reel (Touch-ups has it too)
+  let h = `<details class="spotfold"${high || capSpotsOpen ? " open" : ""}><summary><b>Captions above your head instead?</b> <span class="lede">${high ? "On for this reel." : "Most reels keep them at the bottom."}</span></summary>
+    <p class="lede">Easiest to judge once you see the reel: Touch-ups has the same switch. Tap one and the player shows a caption there.</p><div class="ctl"><button class="b${high ? " quiet" : ""}" type="button" data-lay="captions-low">At the bottom</button><button class="b${high ? "" : " quiet"}" type="button" data-lay="captions-high">Above my head</button></div>
+    <p class="lede">${high ? "Captions sit above your head. Text graphics move to the lower third." : "Captions sit at the bottom. Text graphics sit near the top."} This is for this reel. For every reel, use Settings on the Touch-ups page. When a graphic covers the captions, they move to the other spot for that moment.</p></details>`;
   if (capPick == null) h += `<div class="ctl"><button class="b quiet" type="button" id="capmove">Move some captions</button>${moved ? `<button class="b quiet" type="button" id="capclear">Put all ${moved} back</button>` : ""}</div>`;
   else if (capPick.length < 2) h += `<p class="lede"><b>${capPick.length ? "Now tap the last caption to move." : "Tap the first caption to move."}</b> Tap its time on the left.</p><div class="ctl"><button class="b quiet" type="button" id="capcancel">Cancel</button></div>`;
   else h += `<p class="lede"><b>Move captions ${capPick[0] + 1} to ${capPick[1] + 1} to:</b></p><div class="ctl">${["top", "middle", "bottom", "hide"].map(p => `<button class="b quiet" type="button" data-spot="${p}">${p === "hide" ? "Hide them" : p[0].toUpperCase() + p.slice(1)}</button>`).join("")}<button class="b quiet" type="button" data-spot="">Usual spot</button><button class="b quiet" type="button" id="capcancel">Cancel</button></div>`;
   el.innerHTML = h;
-  el.querySelectorAll("[data-lay]").forEach(b => b.addEventListener("click", () => mutate(() => { S.layout = b.dataset.lay === (R.style.layout || "captions-low") ? null : b.dataset.lay; })));
+  el.querySelector(".spotfold")?.addEventListener("toggle", (e) => { capSpotsOpen = e.target.open; });
+  el.querySelectorAll("[data-lay]").forEach(b => b.addEventListener("click", () => { capSpotsOpen = true; mutate(() => { S.layout = b.dataset.lay === (R.style.layout || "captions-low") ? null : b.dataset.lay; }); showCaptionSample(); }));
   const on = (id, fn) => { const b = el.querySelector("#" + id); if (b) b.addEventListener("click", fn); };
   on("capmove", () => { capPick = []; renderCaptions(); });
   on("capcancel", () => { capPick = null; renderCaptions(); });
