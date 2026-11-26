@@ -685,7 +685,11 @@ for i, c in enumerate(edit.get("cards", [])):
             tw = (KIT["materials"].get("tape") or {}).get("width") or 260
             front.append(
                 f'<div id="{cid}" class="card kcard" style="background-image:url({paper}){f";top:{int(numf(c["y"], 150))}px" if "y" in c else ""}">'
-                + (f'<img class="ktape" src="{tape_src}" style="width:{tw}px;margin-left:{-tw // 2}px" />' if tape_src else "")
+                + (
+                    f'<img class="ktape" src="{tape_src}" style="width:{tw}px;margin-left:{-tw // 2}px" />'
+                    if tape_src
+                    else ""
+                )
                 + f'<div class="kh" style="{font("hand", fit(c.get("title", ""), 76))};color:{INK or MAIN}">{esc(case(c.get("title", "")))}</div>'
                 + "".join(
                     f'<div class="cr" id="{cid}r{j}" style="{font("body", 50)};color:{INK or MAIN}">'
@@ -1589,10 +1593,80 @@ def cap_y(c):
     return None
 
 
-for i, c in enumerate(edit.get("captions", [])):
+# Added by By Mel Ross (0.34.7): steady captions. Captions stay in one spot. When a graphic covers that spot they go to ONE
+# other spot, the same one all reel, and a short stretch back home between two moves stays put instead of bouncing.
+# "caption_moves": "free" (edit.json or brand.json) brings back the old per-caption choice.
+STEADY = (edit.get("caption_moves") or brand.get("caption_moves") or "steady") != "free"
+
+
+def _hit(c, yy):
+    return any(
+        a + 0.05 < c["end"] and c["start"] < b - 0.05 and top < yy + CAP_H and yy < bot for a, b, top, bot in covers
+    )
+
+
+def steady_spots(caps):
+    """Where each caption goes when captions stay steady. Returns a list of y (None = hidden) and the spot used when moved."""
+    home = lambda c: int(numf(c.get("y"), CAP_ZONES.get(c.get("pos"), CAP_Y)))
+    others = [z for z in (CAP_ZONES["top"], CAP_ZONES["bottom"], CAP_ZONES["middle"]) if abs(z - CAP_Y) > CAP_H]
+    moved = [c for c in caps if c.get("pos") != "hide" and _hit(c, home(c))]
+    alt = min(others, key=lambda z: sum(_hit(c, z) for c in moved)) if others else None
+    ys = []
+    for c in caps:
+        if c.get("pos") == "hide":
+            ys.append(None)
+        elif not _hit(c, home(c)):
+            ys.append(home(c))
+        else:
+            ys.append(alt if alt is not None and not _hit(c, alt) else None)
+    # no bouncing: a stretch at home shorter than 1.5 s between two moved stretches stays moved
+    i = 0
+    while i < len(caps):
+        if ys[i] is None or ys[i] != home(caps[i]) or caps[i].get("pos") or "y" in caps[i]:
+            i += 1
+            continue
+        j = i
+        while j + 1 < len(caps) and ys[j + 1] == home(caps[j + 1]) and not caps[j + 1].get("pos"):
+            j += 1
+        if (
+            0 < i
+            and j + 1 < len(caps)
+            and ys[i - 1] == alt
+            and ys[j + 1] == alt
+            and caps[j]["end"] - caps[i]["start"] < 1.5
+            and not any(_hit(caps[k], alt) for k in range(i, j + 1))
+        ):
+            for k in range(i, j + 1):
+                ys[k] = alt
+        i = j + 1
+    return ys, alt
+
+
+_caps_all = edit.get("captions", [])
+_live = [c for c in _caps_all if not any(a - 0.05 <= c["start"] < b for a, b in quiet)]
+if STEADY:
+    _ys, _alt = steady_spots(_live)
+    for c, y in zip(_live, _ys):
+        c["_spot"] = y
+    _runs, _prev = [], None
+    for c, y in zip(_live, _ys):
+        if y != _prev and y is not None and y == _alt:
+            _runs.append(c["start"])
+        _prev = y
+    _hid = sum(1 for y, c in zip(_ys, _live) if y is None and c.get("pos") != "hide")
+    print(
+        f"captions: steady at y {CAP_Y}"
+        + (
+            f"; moved to y {_alt} for {len(_runs)} stretch(es), from " + ", ".join(f"{t:.1f} s" for t in _runs)
+            if _runs
+            else ""
+        )
+        + (f"; {_hid} hidden under a graphic" if _hid else "")
+    )
+for i, c in enumerate(_caps_all):
     if any(a - 0.05 <= c["start"] < b for a, b in quiet):
         continue
-    c["y"] = cap_y(c)
+    c["y"] = c.pop("_spot") if STEADY else cap_y(c)
     if c["y"] is None:
         continue
     ws = c["words"]
