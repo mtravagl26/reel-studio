@@ -165,3 +165,13 @@ test("caption_lead shows captions earlier; edit.json wins over brand.json (0.29.
   assert.ok(Math.abs(at(big.html, 1) - 0.6) < 0.001, "capped at 0.5 s");
   assert.equal(at(lead.html, 0), 0, "never before 0");
 });
+
+test("a note or list card before a stat, tiles or labelled picture card builds (the tape() name isn't reused)", { skip: skipReason }, () => {
+  const r = build({ edit: { cards: [
+    { type: "note", text: "a note", start: 0.2, end: 0.6 },
+    { type: "card", title: "my list", rows: ["one", "two"], start: 0.7, end: 1.0 },
+    { type: "stat", value: "12", label: "hours", start: 1.1, end: 1.5 },
+    { type: "tiles", label: "my tools", tiles: ["a", "b", "c"], start: 1.6, end: 2.0 },
+  ] } });
+  assert.match(r.html, /class="notew"/); assert.match(r.html, /12/); assert.match(r.html, /my tools/);
+});

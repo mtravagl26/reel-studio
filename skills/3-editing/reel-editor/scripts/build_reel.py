@@ -681,11 +681,11 @@ for i, c in enumerate(edit.get("cards", [])):
         paper = mat("paper")
         if paper and not c.get("glass") and c.get("kit", True):
             # Added by By Mel Ross (0.11.0): with a kit, the list is a sheet of real paper, taped at the top, rows numbered with stickers
-            tape = mat("tape")
+            tape_src = mat("tape")  # not "tape": that name is the taped-label function other cards use
             tw = (KIT["materials"].get("tape") or {}).get("width") or 260
             front.append(
                 f'<div id="{cid}" class="card kcard" style="background-image:url({paper}){f";top:{int(numf(c["y"], 150))}px" if "y" in c else ""}">'
-                + (f'<img class="ktape" src="{tape}" style="width:{tw}px;margin-left:{-tw // 2}px" />' if tape else "")
+                + (f'<img class="ktape" src="{tape_src}" style="width:{tw}px;margin-left:{-tw // 2}px" />' if tape_src else "")
                 + f'<div class="kh" style="{font("hand", fit(c.get("title", ""), 76))};color:{INK or MAIN}">{esc(case(c.get("title", "")))}</div>'
                 + "".join(
                     f'<div class="cr" id="{cid}r{j}" style="{font("body", 50)};color:{INK or MAIN}">'
@@ -827,15 +827,15 @@ for i, c in enumerate(edit.get("cards", [])):
         px = min(max(int(numf(c.get("size"), 96)), 30), fit(max(lines, key=len), 96, 70))
         rot = numf(c.get("rotate"), -3)
         paper = mat("paper") if c.get("kit", True) else ""
-        tape = mat("tape") if c.get("kit", True) else ""
+        tape_src = mat("tape") if c.get("kit", True) else ""
         tw = (((KIT or {}).get("materials") or {}).get("tape") or {}).get("width") or 260
         # 0.26.0: captions under it move to the other zone
         cover(a, b, int(numf(c.get("y"), 210)), int(numf(c.get("y"), 210)) + 300)
         front.append(
             f'<div id="{cid}" class="notew" style="top:{int(numf(c.get("y"), 210))}px"><div class="note{" knote" if paper else ""}" style="{f"background-image:url({paper});" if paper else f"background:{LIGHT};"}color:{(INK if paper else None) or MAIN};{font("hand", px)}">'
             + (
-                f'<img class="ktape" src="{tape}" style="width:{tw}px;margin-left:{-tw // 2}px" />'
-                if tape
+                f'<img class="ktape" src="{tape_src}" style="width:{tw}px;margin-left:{-tw // 2}px" />'
+                if tape_src
                 else '<i class="ptape"></i>'
             )
             + "".join(f"<div>{esc(case(l))}</div>" for l in lines)
