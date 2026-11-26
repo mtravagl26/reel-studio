@@ -209,3 +209,5 @@ Added by By Mel Ross in 0.19.0 (November 2026), in skills/3-editing/reel-editor.
   word), deleting needs no dialog (Undo is there), the page says which version it shows and whether it's the newest, and
   a render Claude makes outside the page shows up within seconds without a refresh (review/editor.js, editor-server.mjs).
   List cards have no dot in their header in any theme unless asked for (scripts/build_reel.py).
+- Silent words (0.34.6): transcribe.py drops words heard where the voice is silent and names them
+  (scripts/word_timing.py); SKILL.md "Before you show a preview" working rules.
