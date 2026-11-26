@@ -128,12 +128,47 @@ function renderVideo() {
   $("#ver").style.display = S.renders.length > 1 ? "" : "none";
 }
 const capLine = (c) => (c.words || []).map((w) => w.text).join(" ");
-const PX = 56;                                             // timeline pixels per second (the server draws the strip and wave to match)
+// Modified by By Mel Ross (0.37.1): the timeline zooms. Whole reel, 10 s or 3 s across the box, or anything between by pinching
+// (two fingers on a phone, a trackpad pinch on a Mac). The server still draws the strip at 56 px a second; it's stretched to fit.
+let PX = 56, zoom = "10";
+const PX_MAX = () => ($("#tl")?.clientWidth || 360) / 3, PX_MIN = () => Math.max(2, (($("#tl")?.clientWidth || 360) - 24) / Math.max(S?.total || 1, 1));
+function setZoom(z, keepT) {
+  const box = $("#tl"), w = box?.clientWidth || 360, anchor = keepT ?? (box ? (box.scrollLeft + w / 2) / PX : 0);
+  if (z === "all") PX = PX_MIN(); else if (z === "10") PX = w / 10; else if (z === "3") PX = w / 3; else PX = Math.max(PX_MIN(), Math.min(PX_MAX(), +z));
+  zoom = typeof z === "string" ? z : "pinch";
+  document.querySelectorAll("#zoomseg button").forEach((b) => b.classList.toggle("on", b.dataset.zoom === zoom));
+  renderTimeline();
+  if (box) box.scrollLeft = Math.max(0, anchor * PX - w / 2);
+}
+document.addEventListener("click", (e) => { const b = e.target.closest("#zoomseg [data-zoom]"); if (b) setZoom(b.dataset.zoom); });
+{ // pinch: two touches on the timeline, or a trackpad pinch (a wheel event with ctrlKey)
+  const pts = new Map(); let d0 = 0, px0 = PX;
+  const dist = () => { const [a, b] = [...pts.values()]; return Math.hypot(a.x - b.x, a.y - b.y); };
+  const tl = () => $("#tl");
+  document.addEventListener("pointerdown", (e) => { if (e.pointerType !== "touch" || !tl()?.contains(e.target)) return; pts.set(e.pointerId, { x: e.clientX, y: e.clientY }); if (pts.size === 2) { d0 = dist(); px0 = PX; } });
+  document.addEventListener("pointermove", (e) => { if (!pts.has(e.pointerId)) return; pts.set(e.pointerId, { x: e.clientX, y: e.clientY }); if (pts.size === 2 && d0 > 0) setZoom(px0 * (dist() / d0)); });
+  const end = (e) => { pts.delete(e.pointerId); if (pts.size < 2) d0 = 0; };
+  document.addEventListener("pointerup", end); document.addEventListener("pointercancel", end);
+  document.addEventListener("wheel", (e) => { if (!e.ctrlKey || !tl()?.contains(e.target)) return; e.preventDefault(); setZoom(PX * Math.exp(-e.deltaY / 200)); }, { passive: false });
+}
+// snapping: a graphic dragged in time lands on a word start, a caption, another graphic's edge, a cut or the playhead
+// when it comes within 10 px of one
+function snapTimes(skipId) {
+  const out = [];
+  for (const c of S.edit.captions) { out.push(c.start ?? 0); for (const w of c.words) out.push(w.t); }
+  for (const c of S.edit.cards) if (c.id !== skipId) { out.push(c.start); if (c.end != null) out.push(c.end); }
+  for (const p of S.pieces.filter((p) => p.kept)) out.push(p.start);
+  out.push(v.currentTime || 0);
+  return out;
+}
+function snap(t, times) { let best = null; for (const s of times) if (Math.abs(s - t) * PX <= 10 && (best == null || Math.abs(s - t) < Math.abs(best - t))) best = s; return best; }
 function renderTimeline() {
+  if (!renderTimeline.zoomed && $("#tl")?.clientWidth) { renderTimeline.zoomed = true; PX = $("#tl").clientWidth / 10; }   // 0.37.1: start at 10 s across
   const T = Math.max(S.total, 1), x = (t) => Math.round(t * PX), r = S.renders.find((q) => q.v === (watch ?? S.renders[S.renders.length - 1]?.v)) || S.renders[S.renders.length - 1];
   const W = x(T) + 24;
   let h = `<div class="ruler">`;
-  for (let t = 0; t <= T; t += T > 90 ? 5 : 1) h += `<span style="left:${x(t)}px">${t % 5 === 0 || T <= 20 ? fmt(t).replace(/\.\d$/, "") : ""}</span>`;
+  const step = [0.5, 1, 2, 5, 10, 15, 30, 60].find((s) => s * PX >= 34) || 60, lab = step < 1 ? 2 : step;   // 0.37.1: ticks fit the zoom
+  for (let k = 0, t = 0; t <= T + 1e-6; k++, t = +(k * step).toFixed(2)) h += `<span style="left:${x(t)}px">${Math.abs(t / lab - Math.round(t / lab)) < 1e-6 ? (step < 1 ? fmt(t) : fmt(t).replace(/\.\d$/, "")) : ""}</span>`;
   h += `</div>`;
   if (r) h += `<div class="strip" style="width:${x(T)}px;background-image:url(/api/strip.jpg?v=${r.v})"></div><div class="wave" style="width:${x(T)}px;background-image:url(/api/wave.png?v=${r.v})"></div>`;
   else h += `<div class="strip" style="width:${x(T)}px"></div>`;
@@ -155,11 +190,13 @@ let dragged = false;
 $("#tl").addEventListener("pointerdown", (e) => {
   const blk = e.target.closest("[data-drag]"); if (!blk || S.busy) return;
   const i = cidx(blk.dataset.drag); if (i < 0) return;
-  const c = S.edit.cards[i], len = (c.end ?? c.start + 2) - c.start, x0 = e.clientX, left0 = blk.offsetLeft;
+  const c = S.edit.cards[i], len = (c.end ?? c.start + 2) - c.start, x0 = e.clientX, left0 = blk.offsetLeft, times = snapTimes(c.id);
   let t = c.start; dragged = false; blk.setPointerCapture(e.pointerId); blk.classList.add("dragging");
   const move = (ev) => { const dx = ev.clientX - x0; if (Math.abs(dx) > 3) dragged = true; if (!dragged) return;
-    t = Math.round(Math.max(0, Math.min(S.total - 0.3, c.start + dx / PX)) * 10) / 10; blk.style.left = left0 + (t - c.start) * PX + "px"; $("#clock").textContent = fmt(t); };
-  const up = async () => { blk.removeEventListener("pointermove", move); blk.classList.remove("dragging");
+    const raw = Math.max(0, Math.min(S.total - 0.3, c.start + dx / PX)), s = snap(raw, times);
+    t = s != null ? +s.toFixed(2) : Math.round(raw * 10) / 10; blk.classList.toggle("snap", s != null);
+    blk.style.left = left0 + (t - c.start) * PX + "px"; $("#clock").textContent = fmt(t) + (s != null ? " · snapped" : ""); };
+  const up = async () => { blk.removeEventListener("pointermove", move); blk.classList.remove("dragging", "snap");
     if (!dragged || Math.abs(t - c.start) < 0.05) return;
     await op({ op: "card_set", i, set: { start: t, end: Math.min(+(t + len).toFixed(2), S.total) } }, null, `Moved to ${fmt(t)}`); };
   blk.addEventListener("pointermove", move); blk.addEventListener("pointerup", up, { once: true });

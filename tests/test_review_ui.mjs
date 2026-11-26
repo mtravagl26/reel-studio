@@ -203,6 +203,25 @@ try {
   await until(`/new pill/.test(document.querySelector("#cards").textContent)`, "the new text to appear");
   if (process.env.REEL_SHOT_TL) { await js(`document.querySelector("#tl").scrollIntoView()`); await sleep(400); const b = await js(`(() => { const r = document.querySelector("#tl").getBoundingClientRect(); return { x: r.left + scrollX, y: r.top + scrollY, w: r.width, h: r.height }; })()`);
     writeFileSync(process.env.REEL_SHOT_TL, Buffer.from((await cdp("Page.captureScreenshot", { format: "png", clip: { x: b.x, y: b.y, width: b.w, height: b.h, scale: 1 } })).data, "base64")); }
+  // 0.37.1: the timeline zooms (whole reel fits the box, 3 s is wider than 10 s) and a dragged graphic snaps to a word start
+  const tliW = () => js(`document.querySelector("#tli").getBoundingClientRect().width`), tlW = await js(`document.querySelector("#tl").clientWidth`);
+  await click('#zoomseg [data-zoom="all"]'); await sleep(200);
+  assert.ok((await tliW()) <= tlW + 1, "whole reel fits the box");
+  await click('#zoomseg [data-zoom="3"]'); await sleep(200); const w3 = await tliW();
+  await click('#zoomseg [data-zoom="10"]'); await sleep(200); const w10 = await tliW();
+  assert.ok(w3 > w10 * 2.5, `3 s is wider than 10 s (${w3} vs ${w10})`);
+  {
+    const ed = read(reel, "edit.json"), gi = ed.cards.findIndex((c) => c.type === "tag" && c.text === "new pill"), g = ed.cards[gi];
+    const word = ed.captions.flatMap((c) => c.words).map((w) => w.t).find((t) => t > g.start + 0.6 && t < ed.captions.at(-1).end - 0.5);
+    await js(`document.querySelector('#tl').scrollLeft = 0; document.querySelector('#tl').scrollIntoView({ block: "center" })`); await sleep(300);
+    const at = await js(`(() => { const r = document.querySelector('#tl [data-drag="${g.id}"]').getBoundingClientRect(); return { x: r.left + 6, y: r.top + r.height / 2 }; })()`);
+    const px = await js(`document.querySelector("#tl").clientWidth / 10`), dx = (word - g.start) * px + 4;   // 4 px past the word: inside the 10 px snap
+    await cdp("Input.dispatchMouseEvent", { type: "mousePressed", x: at.x, y: at.y, button: "left", clickCount: 1 });
+    for (let k = 1; k <= 6; k++) await cdp("Input.dispatchMouseEvent", { type: "mouseMoved", x: at.x + (dx * k) / 6, y: at.y, button: "left", buttons: 1 });
+    await cdp("Input.dispatchMouseEvent", { type: "mouseReleased", x: at.x + dx, y: at.y, button: "left", clickCount: 1 });
+    for (let k = 0; k < 30 && read(reel, "edit.json").cards.find((c) => c.id === g.id).start === g.start; k++) await sleep(100);
+    assert.equal(read(reel, "edit.json").cards.find((c) => c.id === g.id).start, +word.toFixed(2), "snapped to the word start");
+  }
   // 0.36.1: the change shows a saved time; delete has no dialog, and the message carries Undo for 6 s
   await until(`/^Saved \\d/.test(document.querySelector("#savedat")?.textContent || "")`, "the saved-at line on Touch-ups");
   const pills = () => read(reel, "edit.json").cards.filter((c) => c.type === "tag" && c.text === "new pill").length;
