@@ -157,6 +157,15 @@ try {
   await until(`true`, "");
   for (let i = 0; i < 50 && read(reel, "edit.json").cards.length === before; i++) await sleep(100);
   assert.equal(read(reel, "edit.json").cards.length, before + 1, `the recommended look ${recLook} was added`);
+  // 0.34.9: a title hook lines up left, centred or right; it starts on the theme's way (Minimal: centred)
+  const ti = read(reel, "edit.json").cards.findIndex((c) => c.type === "title");
+  if (ti >= 0) {
+    await click(`button[data-a="open"][data-i="${ti}"]`);
+    await until(`document.querySelector("#alignseg .on")?.dataset.v === "center"`, "Line up showing Centred");
+    await click(`#alignseg [data-v="left"]`);
+    for (let i = 0; i < 50 && read(reel, "edit.json").cards[ti].align !== "left"; i++) await sleep(100);
+    assert.equal(read(reel, "edit.json").cards[ti].align, "left");
+  } else console.log(`note: the recommended look ${recLook} isn't a title, so Line up wasn't tried`);
   await click("#addPill");
   await until(`/new pill/.test(document.querySelector("#cards").textContent)`, "the new text to appear");
   await click("#addOrbit");

@@ -216,3 +216,5 @@ Added by By Mel Ross in 0.19.0 (November 2026), in skills/3-editing/reel-editor.
 - Each word as it's said (0.34.8): a third caption choice on the review page, shown on its player; the render
   lights each word up in the highlight color as it's spoken (review/review.js, scripts/build_reel.py,
   scripts/review_sync.py).
+- Line up a title hook (0.34.9): Left, Centred or Right on the Touch-ups page for title cards, starting on the
+  theme's own way (review/editor.js, review/editor-core.mjs, review/editor-server.mjs).
