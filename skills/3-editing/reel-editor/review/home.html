@@ -89,6 +89,13 @@ button.pri { background: var(--ink); color: #fff; } button:disabled { opacity: .
 <section id="steplook" hidden>
   <h2><b>3</b>Pick a look <small style="font-weight:500;color:var(--mute)">(optional)</small></h2>
   <p>Skip this and Claude uses your brand as it is. A look is a theme for the whole reel, or a single style like a hook title or a caption style.</p>
+  <div id="recs" hidden>
+    <h3 style="margin:14px 0 4px">Recommended for this clip</h3>
+    <p id="recbase" style="margin:0;color:var(--mute);font-size:14px"></p>
+    <div id="reclist" class="lookrow"></div>
+    <p><button type="button" id="recall">Use all 3</button> <span style="color:var(--mute);font-size:14px">Or pick your own below.</span></p>
+  </div>
+  <h3 style="margin:14px 0 4px">Themes</h3>
   <div id="themes" class="lookrow"></div>
   <p class="tprev"><button type="button" id="seethemes">See them on my clip</button> <span id="tpnote">One still of each theme on your own video, at the same moment. About a minute; each one shows as it's ready.</span></p>
   <div class="lookrow"><button type="button" class="style" id="h20" aria-pressed="false"><b>Arched title with a sparkle wave</b><span>Your series name curves over your head while gold sparkles follow your hand. The sparkles need a Mac.</span></button></div>
@@ -186,8 +193,33 @@ function showMusic() {
     box.append(b);
   }
 }
+// 0.34.0: 3 looks picked for this clip, each with its reason; the IDs stay out of sight
+let REC = null, recFor = null;
+async function loadRecs() {
+  if (!pickStyle || recFor === pickStyle.id) return;
+  recFor = pickStyle.id;
+  $("#recs").hidden = false; $("#recbase").textContent = "Looking at your clip..."; $("#reclist").textContent = "";
+  try {
+    const r = await (await fetch(`/api/recommend?style=${encodeURIComponent(pickStyle.id)}`)).json();
+    if (!r.ok) throw new Error(r.error);
+    REC = r.picks;
+    $("#recbase").textContent = r.checked.length ? `Based on your clip: ${r.checked.join("; ")}.` : "Your clip couldn't be checked, so these are safe picks that read well on most footage.";
+    for (const p of REC) {
+      const b = el("button", "style"); b.type = "button"; b.dataset.rec = p.kind + ":" + p.id;
+      b.append(el("b", "", p.kind === "theme" ? `${p.name} theme` : p.name), el("span", "", p.why));
+      b.addEventListener("click", () => { useRec(p, !recOn(p)); savePicks(); });
+      $("#reclist").append(b);
+    }
+  } catch (er) { recFor = null; $("#recs").hidden = true; }
+}
+const recOn = (p) => (p.kind === "theme" ? (LP.theme || "") === p.id : (LP.ids || []).includes(p.id));
+function useRec(p, on) {
+  if (p.kind === "theme") { LP.theme = on ? p.id : ""; return; }
+  const s = new Set(LP.ids || []); on ? s.add(p.id) : s.delete(p.id); LP.ids = [...s];
+}
 function showLooks() {
-  $("#steplook").hidden = !pickStyle; if (!pickStyle || $("#themes").childElementCount) return;
+  $("#steplook").hidden = !pickStyle; if (pickStyle) loadRecs(); if (!pickStyle || $("#themes").childElementCount) return;
+  $("#recall").addEventListener("click", () => { for (const p of REC || []) useRec(p, true); savePicks(); });
   const mk = (id, name, does) => { const b = el("button", "style"); b.type = "button"; b.dataset.theme = id; b.append(el("b", "", name), el("span", "", does)); b.addEventListener("click", () => { LP.theme = id; savePicks(); }); $("#themes").append(b); };
   mk("", "My brand as it is", "Your own colors and fonts, no theme.");
   for (const t of D.themes || []) mk(t.id, t.name, t.summary);
@@ -226,7 +258,9 @@ function refresh() {
   showLooks(); showMusic();
   document.querySelectorAll("[data-theme]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.theme === (LP.theme || ""))));
   $("#h20").setAttribute("aria-pressed", String((LP.ids || []).includes("H20")));
-  const n = (LP.ids || []).length; $("#pickednote").textContent = n ? `${n} ${n === 1 ? "look" : "looks"} picked: ${LP.ids.join(", ")}.` : "";
+  document.querySelectorAll("[data-rec]").forEach((b) => { const p = (REC || []).find((x) => x.kind + ":" + x.id === b.dataset.rec); if (p) b.setAttribute("aria-pressed", String(recOn(p))); });
+  // 0.34.0: names, not IDs
+  const n = (LP.ids || []).length; $("#pickednote").textContent = n ? `${n} ${n === 1 ? "look" : "looks"} picked: ${LP.ids.map((i) => (D.lookNames || {})[i] || i).join(", ")}.` : "";
 }
 function showFormats() {
   $("#step2").hidden = false;
@@ -251,7 +285,7 @@ async function check(file) {
   try {
     const r = await fetch("/api/check?name=" + encodeURIComponent(file.name), { method: "POST", body: file }), j = await r.json();
     if (!j.ok) throw new Error(j.error || "The check didn't finish.");
-    saved = j.saved; verdict = j.result.verdict;
+    saved = j.saved; verdict = j.result.verdict; recFor = null;   // 0.34.0: a new clip gets new recommendations
     $("#verdict").className = verdict; $("#verdict").textContent = verdict === "retake" ? "Retake." : "Good to edit.";
     $("#headline").textContent = j.result.headline; listChecks(j.result.checks); drawPhone(j.frame, j.result);
     showFormats(); refresh();

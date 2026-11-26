@@ -196,3 +196,5 @@ Added by By Mel Ross in 0.19.0 (November 2026), in skills/3-editing/reel-editor.
   Shadows Into Light (Kimberly Geswein). storyboard.py takes up to 5 options.
 - Theme stills (0.33.0): "See them on my clip" on the home page and Touch-ups, one still per theme on the person's own
   clip (scripts/theme_preview.py, review/theme-preview.mjs, both servers, home.html, editor.js).
+- Recommended looks (0.34.0): 3 picks for a clip with plain reasons (scripts/recommend.py, review/recommend.mjs, both
+  servers, home.html, editor.js); look names instead of IDs in Touch-ups' Add a look; theme help says the live preview shows it.

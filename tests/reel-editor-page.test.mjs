@@ -555,3 +555,20 @@ test("Touch-ups: See them on my clip makes the stills on this reel and serves ea
   assert.match(js, /data-a="see-themes"/); assert.match(js, /data-a="theme-pick"/);
   assert.match(home, /id="seethemes"/); assert.match(home, /\/api\/theme-previews/);
 });
+
+test("Touch-ups: Recommended for this reel comes from the reel itself; Add a look shows names, not IDs (0.34.0)", { skip: skipReason }, async () => {
+  process.env.REEL_TEST_HEAD = "0.19,0.22,0.5";
+  try {
+    await withServer(async ({ get }) => {
+      const r = await (await get("/api/recommend")).json();
+      assert.equal(r.ok, true, r.error);
+      assert.equal(r.picks.length, 3); assert.equal(r.picks[0].kind, "theme");
+      assert.ok(r.picks.every((p) => p.name && p.why));
+    });
+  } finally { delete process.env.REEL_TEST_HEAD; }
+  const js = fs.readFileSync(path.join(review, "editor.js"), "utf8");
+  assert.match(js, /Recommended for this reel/); assert.match(js, /data-a="rec-use"/);
+  assert.doesNotMatch(js, /\$\{esc\(l\.id\)\} \$\{esc\(l\.name\)\}/, "Add a look lists names only");
+  const home = fs.readFileSync(path.join(review, "home.html"), "utf8");
+  assert.match(home, /Recommended for this clip/); assert.match(home, /\/api\/recommend\?style=/);
+});
