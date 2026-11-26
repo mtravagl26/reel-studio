@@ -367,7 +367,7 @@ test("studio server: an unbuilt reel opens on the review page, saves decisions, 
     assert.equal(home0.status, 200); assert.match(await home0.text(), /The cut[\s\S]*Touch-ups/);
     const page = await (await fetch(base + "/review")).text();
     assert.ok(page.includes("shim.js") && page.includes("REEL_STUDIO_LINKS") && page.includes('"/touchups"'), "review page gets the storage shim and the step links");
-    assert.deepEqual(await (await fetch(base + "/api/stage")).json(), { reel: "r1", built: false, review: true });
+    assert.deepEqual(await (await fetch(base + "/api/stage")).json(), { reel: "r1", built: false, review: true, storyboardDone: false });
     const st = await (await fetch(base + "/api/state")).json();
     assert.equal(st.built, false); assert.equal(st.links.review, "/review");
     assert.equal((await fetch(base + "/api/render", { method: "POST" })).status, 409, "nothing to render yet");

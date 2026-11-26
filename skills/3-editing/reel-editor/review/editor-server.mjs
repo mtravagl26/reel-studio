@@ -16,6 +16,7 @@ import { spawn, spawnSync } from "node:child_process";
 import { SHIM, DOCS, WRITABLE, trusted } from "./review-shim.mjs";
 import { lookPreviews } from "./look-preview.mjs";
 import { themePreviews, themeRoutes } from "./theme-preview.mjs";
+import { storyboard } from "./storyboard.mjs";
 import { recommender } from "./recommend.mjs";
 import * as MUSIC from "./music.mjs";
 import { fileURLToPath } from "node:url";
@@ -152,6 +153,8 @@ function lookLines() {
 }
 const LOOKP = lookPreviews({ scripts: SCRIPTS, home: HOME, env: childEnv(), tag: path.basename(REEL).replace(/[^\w.-]+/g, "_") });
 const RECOMMEND = recommender({ scripts: SCRIPTS, env: childEnv() });   // 0.34.0
+let _sb = null;
+const SB = () => (_sb ||= storyboard({ REEL, SKILL, listRenders, childEnv }));   // 0.35.0
 const THEMEP = themePreviews({ scripts: SCRIPTS, home: HOME, env: childEnv(), tag: path.basename(REEL).replace(/[^\w.-]+/g, "_") });   // 0.33.0
 function setStylePicks(body) {
   const ok = new Set(menuLooks().filter((l) => USABLE_LOOK.has(l.status)).map((l) => l.id));
@@ -664,6 +667,7 @@ async function runRender(opts = {}) {
     const rec = { v: version, at: new Date().toISOString(), full: `renders/v${v}.mp4`, phone: `renders/v${v}-phone.mp4`, len: durOf(full), notes: buildNotes, qa: job.qa, mix: mixLine,
       sync, recut: needCut, ...(soundOnly ? { soundOnly: true } : {}), what: `${soundOnly ? "sound only, " : ""}${(readJSON(P.edit, {}).cards || []).filter((c) => !c.off).length} cards, ${core.keptSpans(st).length} pieces` };
     writeJSON(path.join(P.renders, `v${v}.json`), rec);
+    try { SB().make(); } catch { /* the Storyboard tab makes it when opened */ }   // 0.35.0
     fs.writeFileSync(path.join(P.renders, `v${v}-edit.json`), editBefore); fs.copyFileSync(P.edl, path.join(P.renders, `v${v}-edl.json`));
     writeJSON(P.meta, { cut_key: cutKeyNow(st), edit_hash: editHash(), version, at: rec.at });
     writeLatestBuild(rec);
@@ -844,7 +848,7 @@ function prepareBaseline() {
     "-c:a", "aac", "-b:a", "128k", "-movflags", "+faststart", phone], { env: childEnv() });
   c.on("close", (code) => {
     prepping = false;
-    if (code === 0) writeJSON(path.join(P.renders, `v${v}.json`), { v: version, at: new Date().toISOString(), phone: `renders/v${v}-phone.mp4`, full: "final.mp4", ...extra });
+    if (code === 0) { writeJSON(path.join(P.renders, `v${v}.json`), { v: version, at: new Date().toISOString(), phone: `renders/v${v}-phone.mp4`, full: "final.mp4", ...extra }); try { SB().make(); } catch { /* made when opened */ } }
   });
 }
 
@@ -923,7 +927,14 @@ const server = http.createServer(async (req, res) => {
     if (p === "/core.js") return sendFile(req, res, path.join(HERE, "core.js"));
     if (p === "/review.js" || p === "/editor.js") return sendFile(req, res, path.join(HERE, p.slice(1)));   // 0.30.0: the pages' code
     if (p === "/core.mjs") return sendFile(req, res, path.join(HERE, "editor-core.mjs"));
-    if (p === "/api/stage" && req.method === "GET") return json(res, 200, { reel: path.basename(REEL), built: built(), review: hasReview() });
+    if (p === "/api/stage" && req.method === "GET") return json(res, 200, { reel: path.basename(REEL), built: built(), review: hasReview(), storyboardDone: built() ? SB().done() : false });
+    // 0.35.0: the storyboard, scene by scene after each render
+    if (p === "/storyboard") return sendFile(req, res, path.join(HERE, "storyboard.html"));
+    if (p === "/api/storyboard" && req.method === "GET") { if (built()) { try { prepareBaseline(); } catch { /* use what's there */ } } return json(res, 200, { ok: true, ...(built() ? SB().view() : { none: true }) }); }
+    if (p === "/api/storyboard" && req.method === "POST") {
+      try { return json(res, 200, { ok: true, ...SB().save(JSON.parse((await readBody(req, 2e4)).toString() || "{}")) }); }
+      catch (e) { return json(res, 400, { ok: false, error: String(e.message || e) }); }
+    }
     if (p.startsWith("/db/")) {   // the review page's decisions, same files and rules as serve.mjs
       const doc = p.slice(4);
       if (!DOCS.has(doc)) { res.writeHead(404).end(); return; }
