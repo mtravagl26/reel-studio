@@ -51,11 +51,11 @@ label.f { display: block; font-size: 13px; color: #5b6b69; margin: 10px 0 4px; }
 #tl { position: relative; margin: 10px 0 0; background: #fff; border: 1px solid var(--line); border-radius: 12px; overflow-x: auto; overflow-y: hidden; touch-action: pan-x; -webkit-overflow-scrolling: touch; }
 #tli { position: relative; height: 290px; }
 #tl .ruler { position: absolute; top: 0; height: 16px; left: 0; right: 0; font-size: 10px; color: #6b7a78; } #tl .ruler span { position: absolute; top: 2px; padding-left: 3px; border-left: 1px solid var(--line); height: 14px; }
-#tl .strip { position: absolute; top: 18px; left: 0; height: 64px; background: #e9e6df left top / 100% 64px no-repeat; }   /* 0.37.1: stretched to the zoom */
+#tl .strip { position: absolute; top: 18px; left: 0; height: 64px; background: #e9e6df left top / 100% 64px no-repeat; }   /* 0.38.4: stretched to the zoom */
 #tl .mk.snap { outline: 2px solid #e7a23b; outline-offset: 1px; }
 #tl .wave { position: absolute; top: 84px; left: 0; height: 40px; background: left center / 100% 100% no-repeat; opacity: .8; }
 #tl .mk { position: absolute; height: 20px; border-radius: 5px; font-size: 11px; line-height: 20px; padding: 0 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; box-sizing: border-box; }
-/* 0.36.1: marks keep their drawn size; each gets a 44 px tall target, and the rows sit 44 px apart so targets don't overlap */
+/* 0.38.2: marks keep their drawn size; each gets a 44 px tall target, and the rows sit 44 px apart so targets don't overlap */
 #tl .mk { overflow: visible; } #tl .mk > span { display: block; overflow: hidden; text-overflow: ellipsis; }
 #tl .mk::before { content: ""; position: absolute; left: -4px; right: -4px; top: -12px; bottom: -12px; }
 #tl .mk.sfx::before { left: -16px; right: -16px; top: -16px; bottom: -16px; }
@@ -70,6 +70,7 @@ details { background: var(--card); border: 1px solid var(--line); border-radius:
 summary { list-style: none; cursor: pointer; padding: 14px 14px; font-weight: 700; font-size: 17px; display: flex; justify-content: space-between; align-items: center; }
 summary::-webkit-details-marker { display: none; } summary small { font-weight: 500; color: #5b6b69; font-size: 13px; }
 .sec { padding: 0 12px 14px; }
+.giphy-warn{font-size:13px;line-height:1.4;background:#fff6e5;border:1.5px solid #e0b45a;border-radius:10px;padding:8px 10px;margin:6px 0;color:#5a4210}.giphy-mark{margin:6px 0 0;text-align:right;font:700 12px/1 system-ui,sans-serif;letter-spacing:.02em}.giphy-mark span{font-weight:500;opacity:.75}.giphy-mark b{background:#000;color:#fff;padding:3px 6px;border-radius:4px;letter-spacing:.06em}
 .help { font-size: 13px; color: #5b6b69; margin: 0 0 8px; }
 .cap { padding: 7px 0; border-top: 1px solid var(--line); } .cap:first-child { border-top: 0; }
 .cap .tm { font-size: 12px; color: #6b7a78; background: none; border: 0; min-height: 44px; padding: 0 6px 0 0; font-weight: 500; font-variant-numeric: tabular-nums; }
@@ -95,7 +96,7 @@ summary::-webkit-details-marker { display: none; } summary small { font-weight: 
 .steps { margin: 6px 0 0; padding: 0; list-style: none; font-size: 14px; } .steps li { padding: 2px 0; }
 #toast { position: fixed; left: 12px; right: 12px; bottom: 14px; max-width: 576px; margin: 0 auto; padding: 12px 14px; border-radius: 12px; background: var(--ink); color: #fff; z-index: 50; display: none; font-size: 15px; }
 #toast.bad { background: var(--bad); }
-#toast button { margin-left: 10px; min-height: 36px; background: #fff; color: var(--ink); border-color: #fff; }   /* 0.36.1: Undo inside the toast */
+#toast button { margin-left: 10px; min-height: 36px; background: #fff; color: var(--ink); border-color: #fff; }   /* 0.38.2: Undo inside the toast */
 .savedat { font-size: 12px; color: #5b6b69; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .tipb { position: relative; } .tipb::after { content: ""; position: absolute; inset: -12px; }
 .fab { position: fixed; right: 14px; bottom: 14px; z-index: 30; box-shadow: 0 4px 14px #0004; }
