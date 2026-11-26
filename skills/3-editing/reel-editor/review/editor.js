@@ -156,7 +156,7 @@ function renderPieces() {
 }
 
 // ---- cards (pills / text / stickers)
-const TYPE_NAME = { tag: "Pill", title: "Title", cta: "Call to action", card: "List card", sticker: "Sticker", image: "Photos", shot: "Screenshot", block: "Color block", page: "Page", motion: "Motion", follow: "Word-by-word", popup: "Popup", orbit: "Circling my head", quote: "Quote box", chips: "Number chips", columns: "Columns", note: "Taped note", polaroids: "Photo cards", tiles: "Icon tiles", stat: "Number card", xlist: "Check list", arctitle: "Arched title" };
+const TYPE_NAME = { tag: "Pill", title: "Title", cta: "Call to action", card: "List card", sticker: "Sticker", image: "Photos", shot: "Screenshot", block: "Color block", page: "Page", motion: "Motion", follow: "Word-by-word", popup: "Popup", orbit: "Circling my head", quote: "Quote box", chips: "Number chips", columns: "Columns", note: "Taped note", polaroids: "Photo cards", tiles: "Icon tiles", stat: "Number card", xlist: "Check list", arctitle: "Arched title", chapter: "Chapter card", split: "Split screen", inset: "Slide with my face", roundup: "Roundup" };
 const effLayer = (c) => c.layer || S.textDefault.layer || "front";
 function cardIndexes(pred) { return S.edit.cards.map((c, i) => [c, i]).filter(([c]) => pred(c)); }
 function renderCards() {
@@ -184,7 +184,7 @@ function cardHtml(c, i) {
         <label class="f">Line under it (optional)</label><input type="text" maxlength="30" data-a="set" data-i="${i}" data-f="sub" value="${esc(c.sub || "")}" placeholder="e.g. part one" />`;
       if (c.trail) h += `<p class="help">Gold sparkles follow your hand while the words arrive. They need a Mac to track your hand.</p>`;
     }
-    const WORDS = { stat: [["value", "The number"], ["label", "Words above it"], ["delta", "The change (optional)"]], page: [["label", "Label"]], tiles: [["label", "Title"]] };   // 0.28.0
+    const WORDS = { stat: [["value", "The number"], ["label", "Words above it"], ["delta", "The change (optional)"]], page: [["label", "Label"]], tiles: [["label", "Title"]], chapter: [["text", "Chapter name"]], inset: [["title", "Words on the slide"]] };   // 0.28.0
     if (WORDS[c.type]) h += WORDS[c.type].map(([f, name]) => `<label class="f">${name}</label><input type="text" data-a="set" data-i="${i}" data-f="${f}" value="${esc(c[f] ?? "")}" />`).join("");
     if (c.type === "xlist") h += `<label class="f">Lines (one per line, up to 6)</label><textarea rows="${Math.max((c.items || []).length, 3)}" data-a="items" data-i="${i}" style="width:100%;box-sizing:border-box;font:inherit;padding:10px;border-radius:10px;border:1.5px solid var(--line)">${esc((c.items || []).join("\n"))}</textarea>`;
     if (c.type === "card") {   // 0.16.0: a list's title and rows can be changed here

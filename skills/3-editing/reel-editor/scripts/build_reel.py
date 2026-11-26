@@ -21,6 +21,11 @@ edit.json (written by auto_edit.py, then Claude marks accents and adds cards):
      image  {src: ["a.png", "b.jpg"]}               1-3 images fanned out above the head (their own photos, screenshots, stock)
      sticker {src: "sticker.png", x: 760, y: 420, size: 260}  transparent PNG that bounces on (brand stickers, emoji, logos)
      page   {bg: "image.jpg" or "#hex", title: "how it works"}   full-screen background with the clip framed below it
+     roundup {chapters: [{start, title, look: "full" | "split" | "slide", src?, then?: [...]}], card_seconds?: 1.4}   (0.31.0)
+            a reel in chapters: each opens on a plain chapter card, then cuts to its look. Expands into the 3 cards below. See references/roundup.md.
+     chapter {text: "Claude Skills", sub?, color?, text_color?}   full-frame plain colour, the name in serif, no footage
+     split   {src: "rec.mp4", face_y?: 520, fit?: "contain"}      the picture or recording fills the top half, the presenter the bottom half
+     inset   {src: "slide.png" | bg: "#hex", title?, corner?: "bottom-right", size?: 300}   a full-screen slide, the presenter in a small inset
                                                      (the fast green-screen look: no cut-out, renders in seconds)
      motion {name: "carousel-vision-1", vars: {...}, box: [x, y, w, h]}   any HyperFrames catalog motion cached in
                                                      engine/hf (see references/motions.md for names + vars). Carousels take
@@ -121,6 +126,10 @@ edit = json.load(open(reel / "edit.json"))
 # Added by By Mel Ross (editor page): "off" switches a card or effect off without deleting it; brand.json "text_default" gives text cards their layer
 edit["cards"] = [c for c in edit.get("cards", []) if not c.get("off")]
 edit["sfx_events"] = [e for e in edit.get("sfx_events", []) if not e.get("off")]
+# Added by By Mel Ross (0.31.0): a "roundup" card becomes its chapter, split and inset cards (scripts/roundup.py)
+import roundup as _roundup
+
+edit["cards"] = _roundup.expand(edit["cards"])
 _theme.apply_card_defaults(brand, edit["cards"])
 TEXT_DEFAULT = brand.get("text_default") or {}
 TEXT_TYPES = ("title", "tag", "card", "cta", "note")
@@ -1223,6 +1232,60 @@ for i, c in enumerate(edit.get("cards", [])):
             f'tl.to("#{cid}",{{clipPath:"inset(0% 0% 100% 0%)",duration:0.25,ease:"power3.in"}},{q(b - 0.25)});tl.set("#{cid}",{{autoAlpha:0}},{q(b)});'
         )
         sfx("swish", a - 0.08, -12)
+    # Added by By Mel Ross (0.31.0, the Roundup layout): see scripts/roundup.py
+    elif kind == "chapter":
+        quiet.append((a, b))
+        _txt = str(c.get("text", ""))  # as written: an item name keeps its capitals
+        # sized to its longest word, so a long name wraps onto 2-3 lines instead of shrinking
+        _px = int(numf(c.get("size"), max(84, min(150, fit(max(_txt.split() or [""], key=len), 150)))))
+        _h, _j = _roundup.chapter(
+            cid,
+            a,
+            b,
+            q,
+            font(c.get("font", "serif"), _px),
+            font("body", 30),
+            _txt,
+            c.get("sub"),
+            c.get("color") or MAIN,
+            c.get("text_color") or LIGHT,
+            esc,
+        )
+        mid.append(_h)
+        js.append(_j)
+        sfx("swish", a - 0.05, -13)
+    elif kind in ("split", "inset"):
+        _asset = popup_asset(c["src"], max(b - a, 0.5), c.get("from", 0), bool(c.get("loop"))) if c.get("src") else None
+        if c.get("quiet"):
+            quiet.append((a, b))
+        if kind == "split":
+            _h, _j = _roundup.split(
+                cid, i, a, b, q, _asset, c.get("bg", "#000"), c.get("fit", "contain"), int(numf(c.get("face_y"), 520))
+            )
+        else:
+            _tt = c.get("title")
+            _th = (
+                f'<div class="ints" style="{font(c.get("font", "serif"), int(numf(c.get("title_size"), fit(str(_tt), 96))))};color:{c.get("text_color", LIGHT)}">{esc(str(_tt))}</div>'
+                if _tt
+                else ""
+            )
+            _h, _j = _roundup.inset(
+                cid,
+                i,
+                a,
+                b,
+                q,
+                _asset,
+                c.get("bg", MAIN),
+                _th,
+                c.get("corner", "bottom-right"),
+                int(numf(c.get("size"), 300)),
+                c.get("fit", "cover"),
+                int(numf(c.get("face_y"), 520)),
+            )
+        mid.append(_h)
+        js.append(_j)
+        sfx("swish", a - 0.08, -14)
     elif kind == "motion":
         src = next((f for f in (HF / "compositions").rglob(f"{c['name']}.html")), None)
         if not src:
@@ -1754,6 +1817,7 @@ html, body {{ margin: 0; background: #000; overflow: hidden; }}
 .card.glass .cr {{ color: #fff !important; border-bottom-color: rgba(255,255,255,.25); }}
 .cap {{ position: absolute; left: 60px; right: 60px; text-align: center; line-height: 1.02; letter-spacing: -.02em; text-shadow: 0 2px 14px rgba(0,0,0,.3); }}
 .cap .acc {{ text-shadow: {brand.get("caption_accent_shadow", "0 0 2px rgba(0,0,0,.25), 0 3px 22px rgba(0,0,0,.5)")}; }}   /* accent color stays readable over white screens, no outline; brand.json "caption_accent_shadow" overrides (Modified by By Mel Ross) */
+{_roundup.CSS}
 {_theme.css_for(brand, {r: FAM[r][0] for r in FAM})}
 </style></head>
 <body>
