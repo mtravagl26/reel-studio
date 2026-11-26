@@ -155,9 +155,19 @@
   "L1": {
    "name": "Screen recording + small face cam",
    "group": "Layouts",
-   "status": "not-built",
-   "needs": "screen-recording footage",
-   "recipe": null
+   "status": "built",
+   "version": "v1",
+   "does": "card type \"inset\" (0.31.0): a full-screen slide, picture or screen recording, with your face in a small rounded box in a corner.",
+   "when": "Showing a slide or a screen while you keep talking.",
+   "needs": "a slide, screenshot or screen recording",
+   "recipe": {
+    "slot": "layout",
+    "needs_photos": 1,
+    "card": {
+     "type": "inset",
+     "corner": "bottom-right"
+    }
+   }
   },
   "L2": {
    "name": "Tilted polaroid stack",
@@ -848,22 +858,20 @@
   "L11": {
    "name": "Top asset panel + face below",
    "group": "Layouts",
-   "status": "partial",
+   "status": "built",
    "version": "v1",
    "build": "assets",
-   "does": "The top half is a rounded panel holding the app icon or screen; your face fills the bottom half; a small label names the panel.",
+   "does": "card type \"split\" (0.31.0): the top panel holds your picture, GIF or screen recording; your face fills the bottom half.",
    "when": "Explaining a tool in one line each. Keeps your face on screen the whole time.",
-   "build_note": "`page` card (background image + clip framed) with your screenshot or logo; small label added.",
+   "build_note": "`split` card. The older `page` recipe framed the clip instead of filling the bottom half.",
    "needs": "your own picture(s): a logo, a screenshot, a GIF or photos",
    "recipe": {
     "slot": "layout",
     "needs_photos": 1,
     "card": {
-     "type": "page",
-     "label": "app name"
+     "type": "split"
     }
-   },
-   "missing": "the picture fills the whole background behind the title area; a separate top panel with your face filling the bottom half is not built"
+   }
   },
   "L12": {
    "name": "Photo-card cloud above the head",
@@ -1179,6 +1187,33 @@
      "trail": true,
      "start": 0.3,
      "end": 3.2
+    }
+   }
+  },
+  "L25": {
+   "name": "Roundup: chapters that cut between looks",
+   "group": "Layouts",
+   "status": "built",
+   "version": "v1",
+   "does": "one \"roundup\" card (0.31.0): each item gets a plain chapter card with its name in serif, then cuts to talking to camera, a split screen, or a slide with your face inset.",
+   "when": "A list of items, one chapter each: releases, tools, tips.",
+   "needs": "a picture or recording for each split or slide chapter",
+   "recipe": {
+    "slot": "layout",
+    "card": {
+     "type": "roundup",
+     "chapters": [
+      {
+       "start": 0,
+       "look": "full",
+       "card": false
+      },
+      {
+       "start": 4,
+       "title": "Item one",
+       "look": "full"
+      }
+     ]
     }
    }
   }

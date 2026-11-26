@@ -199,6 +199,10 @@ def export(reel, proposal, out):
         "page": ("swish", -12),
         "motion": ("swish", -12),
         "follow": ("sparkle", -12),
+        # 0.31.0: the Roundup layout
+        "chapter": ("swish", -13),
+        "split": ("swish", -14),
+        "inset": ("swish", -14),
     }
     for c in proposal["cards"]:
         hits = [i for i, w in enumerate(words) if norm(w["text"]) == norm(c["anchor"]) and w["s"] >= c.get("after", 0)]

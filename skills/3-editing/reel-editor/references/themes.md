@@ -19,7 +19,7 @@ Pick a theme and the person's colors fill it in. Switching theme never changes t
 | `bold` | Heavy caps titles, captions in white label boxes, the last title line and the key word in the accent color. | H2, C3, L4, L6, L8 |
 | `handwritten` | A handwritten line over heavy caps, torn-paper labels, photos framed like prints. | H3, C1, L2, L6, L9 |
 | `whimsical` | Round letters, one script word, small stars round the title, labels and photos that tilt. | H5, L2, L9, the `orbit` card |
-| `minimal` (0.31.0) | Big stacked caps in a warm cream serif (Instrument Serif) over the torso, small one-word lowercase captions low on the left, a hand-drawn emphasis word now and then. Nothing bounces. | L6, L9 |
+| `minimal` (0.32.0) | Big stacked caps in a warm cream serif (Instrument Serif) over the torso, small one-word lowercase captions low on the left, a hand-drawn emphasis word now and then. Nothing bounces. | L6, L9 |
 
 ### Using `minimal`
 

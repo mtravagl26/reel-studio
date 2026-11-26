@@ -211,6 +211,8 @@ const FIELDS = {
   image: [...COMMON, "layer"], shot: [...COMMON, "label", "y", "layer"],
   // 0.28.0: looks added from the Touch-ups page can have their words changed too
   stat: [...COMMON, "label", "value", "delta", "y", "layer"], xlist: [...COMMON, "items", "layer"], page: [...COMMON, "label"], tiles: [...COMMON, "label"],
+  // 0.31.0: the Roundup layout (scripts/roundup.py)
+  chapter: [...COMMON, "text", "sub", "color", "text_color"], split: [...COMMON, "face_y", "fit", "from"], inset: [...COMMON, "title", "corner", "size", "face_y"], roundup: [...COMMON],
 };
 export const isTextType = (t) => TEXT_TYPES.has(t);
 

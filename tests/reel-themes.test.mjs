@@ -86,7 +86,7 @@ test("an unknown theme falls back to the brand with a warning; a theme folder in
   assert.equal(themePy(`print(theme.load_brand(${JSON.stringify(c.home)}, name="../../etc").get("_theme"))`).stdout.trim().split("\n").pop(), "None", "a theme name is a plain folder name");
 });
 
-test("minimal theme: one-word lowercase captions low at the left edge, cream caps titles, the hook's spaced line, a red X sticker (0.31.0)", { skip: skipReason }, () => {
+test("minimal theme: one-word lowercase captions low at the left edge, cream caps titles, the hook's spaced line, a red X sticker (0.32.0)", { skip: skipReason }, () => {
   const c = makeReel();
   const r = build(c, ["--theme", "minimal"]);
   assert.equal(r.status, 0, r.stdout + r.stderr);
