@@ -112,6 +112,14 @@ const editHash = () => sha(fs.readFileSync(P.edit, "utf8"), fs.readFileSync(P.ed
 
 // ---- themes (Added by By Mel Ross, 0.9.0): the same folders scripts/theme.py reads, your own first
 const THEME_OK = /^[a-z0-9][a-z0-9_-]{0,40}$/;
+// Added by By Mel Ross (0.34.9): how this reel's theme lines up a title when the card doesn't say (for the Line up buttons)
+function titleAlign(edit, brand) {
+  const n = edit.theme === "none" ? null : edit.theme || brand.theme;
+  if (n && THEME_OK.test(n)) for (const dir of [path.join(HOME, "themes"), path.join(SKILL, "themes")]) {
+    const f = path.join(dir, n, "theme.json"); if (exists(f)) { const a = readJSON(f, {})?.cards?.title?.align; if (a) return a; break; }
+  }
+  return brand.cards?.title?.align || "center";
+}
 function listThemes() {
   const out = new Map();
   for (const dir of [path.join(SKILL, "themes"), path.join(HOME, "themes")]) {
@@ -527,7 +535,7 @@ function view() {
   const out = {
     reel: path.basename(REEL), speed: st.speed, total, masterDur: masterDuration(), edit: { captions: edit.captions || [], cards: edit.cards || [], sfx_events: edit.sfx_events || [], punch: edit.punch || [] },
     pieces, media, popups: files, sfxNames: sfxNames(), notes, renders, job, receipt: receiptNow(st, edit, brand),
-    textDefault: brand.text_default || { layer: "front", position: "above" }, hasTextDefault: !!brand.text_default,
+    textDefault: brand.text_default || { layer: "front", position: "above" }, hasTextDefault: !!brand.text_default, titleAlign: titleAlign(edit, brand),
     themes: listThemes(), theme: { reel: edit.theme || null, all: brand.theme || null }, giphy: !!giphyKey(),
     sfxOn: (edit.sfx ?? brand.sfx ?? "subtle") !== "none", sfxAll: (brand.sfx ?? "subtle") !== "none",
     music: musicNow(edit, brand), addLooks: addableLooks(),
@@ -969,6 +977,13 @@ const server = http.createServer(async (req, res) => {
     if (p.startsWith("/api/") && !built()) return json(res, 409, { ok: false, error: "This reel is not built yet. Finish the review step first." });
     if (p === "/api/giphy-key" && req.method === "GET") return json(res, giphyKey() ? 200 : 404, { key: giphyKey() });
     if (p === "/api/job" && req.method === "GET") return json(res, 200, { job, canUndo: history().length > 0 });
+    // 0.34.5: is there a newer video than the page shows? A render made outside this page (by Claude) is picked up here,
+    // with its phone copy made in the background, so the page can switch to it without a refresh.
+    if (p === "/api/fresh" && req.method === "GET") {
+      try { prepareBaseline(); } catch { /* the page asks again in a few seconds */ }
+      const all = listRenders(), last = all.reduce((m, r) => (r.v > (m?.v ?? -1) ? r : m), null);
+      return json(res, 200, { latest: last ? last.v : null, at: last?.at || null, outside: !!last?.outside, prepping, rendering: job.state === "running" || job.state === "queued" });
+    }
     if (req.method === "POST" && p.startsWith("/api/")) {
       try {
         if (p === "/api/op") { const b = JSON.parse((await readBody(req, 2e6)).toString() || "{}"); return json(res, 200, { ok: true, ...doOp(b), state: view() }); }

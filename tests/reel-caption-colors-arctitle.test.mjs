@@ -111,3 +111,12 @@ test("caption box and size (0.27.0): picked on the pages, the older caption_styl
   for (const t of ["Put a box behind all the words", 'id="cSize"', "Caption colors and size"]) assert.ok(core.includes(t), t);
   for (const t of ["Box behind all the words", "Caption size", "Caption colors and size"]) assert.ok(rv.includes(t), t);
 });
+
+test("a title hook lines up left, centred or right from the Touch-ups page; the theme's way shows first (0.34.9)", async () => {
+  const core = await import(path.join(review, "editor-core.mjs"));
+  assert.deepEqual(core.cleanCardFields("title", { align: "center" }, 10), { align: "center" });
+  assert.throws(() => core.cleanCardFields("title", { align: "middle" }, 10), /left, center or right/);
+  assert.throws(() => core.cleanCardFields("tag", { align: "center" }, 10), /can't be changed/);
+  const js = fs.readFileSync(path.join(review, "editor.js"), "utf8"), srv = fs.readFileSync(path.join(review, "editor-server.mjs"), "utf8");
+  assert.match(js, /Line up/); assert.match(js, /\["center", "Centred"\]/); assert.match(srv, /titleAlign: titleAlign\(edit, brand\)/);
+});

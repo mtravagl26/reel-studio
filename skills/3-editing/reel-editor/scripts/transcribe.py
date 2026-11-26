@@ -109,6 +109,22 @@ else:
 
     words, msg = word_timing.retime(src, words)
     print("word times:", msg)
+# Added by By Mel Ross (0.34.6): drop words heard where the voice is silent (Whisper invents a few in quiet stretches),
+# and say which, so captions and cards aren't built on dead air.
+try:
+    import word_timing
+
+    words, gone, why = word_timing.silent_words(src, words)
+    if gone:
+        print(
+            f"dropped {len(gone)} words heard where you're silent: "
+            + ", ".join(f'"{w["text"]}" at {w["start"]:.1f} s' for w in gone[:12])
+        )
+        json.dump(gone, open(str(out) + ".silent.json", "w"))
+    else:
+        print("silent words: none" + (f" ({why})" if why else ""))
+except Exception as e:
+    print("silent words: NOT CHECKED:", e)
 json.dump(words, open(out, "w"))
 try:  # 0.29.0: how late the word starts run against the audio, so late captions are caught on every reel
     import word_timing
