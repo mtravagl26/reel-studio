@@ -1278,7 +1278,7 @@ for i, c in enumerate(edit.get("cards", [])):
                 c.get("fit", "contain"),
                 int(numf(c.get("face_y"), 520)),
                 _ht,
-                numf(c.get("zoom"), 0.86),
+                numf(c.get("zoom"), 0.75),
             )
         else:
             _tt = c.get("title")

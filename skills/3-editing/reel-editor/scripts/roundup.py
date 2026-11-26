@@ -151,7 +151,7 @@ def chapter(cid, a, b, q, title_css, sub_css, text, sub, bg, color, esc):
     return html, js
 
 
-def split(cid, i, a, b, q, asset, bg="#000", fit="contain", face_y=520, head=None, zoom=0.86):
+def split(cid, i, a, b, q, asset, bg="#000", fit="contain", face_y=520, head=None, zoom=0.75):
     """Split screen: the picture or recording fills the top panel (1080x960), the presenter fills the bottom half."""
     top = media(cid, i, a, b, q, asset, fit) if asset else ""
     html = (
@@ -207,7 +207,8 @@ CSS = """
 .chs { letter-spacing: .3em; text-transform: uppercase; margin-bottom: 26px; opacity: .8; }
 .spt, .spb { position: absolute; left: 0; width: 1080px; height: 960px; overflow: hidden; }
 .spt { top: 0; } .spb { top: 960px; }
-.spblur { position: absolute; inset: -40px; width: calc(100% + 80px); height: calc(100% + 80px); object-fit: cover; filter: blur(28px) brightness(.8); }
+.spblur { position: absolute; left: -15%; top: -15%; width: 130%; height: 130%; object-fit: cover; filter: blur(30px) brightness(.92); }
+.spt img, .spt video { height: 820px !important; }
 .inf { position: absolute; overflow: hidden; border-radius: 28px; border: 6px solid #fff; box-shadow: 0 18px 44px rgba(0,0,0,.35); background: #000; }
 .ints { position: absolute; left: 90px; right: 90px; top: 200px; text-align: center; line-height: 1.06; text-shadow: 0 2px 18px rgba(0,0,0,.35); }
 .ints .intb { background: rgba(17,17,17,.66); padding: .1em .38em .16em; border-radius: .22em; -webkit-box-decoration-break: clone; box-decoration-break: clone; text-shadow: none; line-height: 1.5; }

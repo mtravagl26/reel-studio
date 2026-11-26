@@ -57,7 +57,7 @@ test("roundup: the build draws chapter cards with no footage, a split screen and
   const split = html.match(/<div id="k1" class="split"[^]*?<\/div><\/div>/)[0];
   assert.match(split, /class="spt"><video[^>]*src="img\/[^"]+"/, "the recording fills the top panel");
   assert.match(split, /class="spb"><video id="k1vb" src="master.mp4"[^>]*class="spblur"/, "zoomed out a little, a blurred copy fills the sides");
-  assert.match(split, /<video id="k1v" src="master.mp4"[^>]*data-media-start="2\.4"[^>]*width:928px/, "the presenter fills the bottom half, in sync, at 86%");
+  assert.match(split, /<video id="k1v" src="master.mp4"[^>]*data-media-start="2\.4"[^>]*width:810px/, "the presenter fills the bottom half, in sync, at 75%");
   const ins = html.match(/<div id="k3" class="inset"[^]*?<\/div><\/div><\/div>/)[0];
   assert.match(ins, /<img src="img\/[^"]+"/); assert.match(ins, /ships today/);
   assert.match(ins, /class="inf" style="left:56px;top:150px;width:300px;height:400px"/, "the inset sits in the corner asked for");
