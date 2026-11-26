@@ -36,13 +36,41 @@ function saveNow() {
     e => pill("Couldn't save (" + (e?.code || "error") + ")", true));
 }
 $("#retry").addEventListener("click", saveNow);
-function mutate(fn) {
-  undo.push(JSON.stringify(S)); if (undo.length > 60) undo.shift();
-  fn(); $("#undo").disabled = false; recompute(); renderAll(); setPos(pos); queueSave();
+// Modified by By Mel Ross (0.37.0): Redo next to Undo, 60 steps each way, and both survive a reload. They are kept in this
+// browser (localStorage) with the decisions they belong to; when the saved decisions differ (Claude or another tab changed them)
+// the history is dropped, so Undo never jumps back to a state that no longer follows.
+let redo = [];
+const STEPS = 60, strip = (x) => { const { updatedAt, ...rest } = x || {}; return JSON.stringify(rest); };
+const undoKey = () => R ? `reelstudio-undo:${R.title || ""}:${(R.words || []).length}` : null;
+function syncUndo() {
+  $("#undo").disabled = !undo.length; const r = $("#redo"); if (r) r.disabled = !redo.length;
+  const k = undoKey(); if (!k) return;
+  let u = undo.slice(-STEPS), d = redo.slice(-STEPS);
+  for (;;) {   // a long reel's history can outgrow the browser's space: keep the newest steps that fit
+    try { localStorage.setItem(k, JSON.stringify({ cur: strip(S), undo: u, redo: d })); return; }
+    catch { if (!u.length && !d.length) { try { localStorage.removeItem(k); } catch { /* storage off */ } return; } u = u.slice(Math.ceil(u.length / 2)); d = d.slice(Math.ceil(d.length / 2)); }
+  }
 }
-function doUndo() { if (!undo.length) return; S = JSON.parse(undo.pop()); $("#undo").disabled = !undo.length; recompute(); renderAll(); renderLook(); queueSave(); }
+function restoreUndo() {
+  const k = undoKey(); if (!k) return;
+  try { const h = JSON.parse(localStorage.getItem(k) || "null"); if (h && h.cur === strip(S)) { undo = h.undo || []; redo = h.redo || []; } } catch { /* nothing kept */ }
+  syncUndo();
+}
+function pushUndo() { undo.push(JSON.stringify(S)); if (undo.length > STEPS) undo.shift(); redo = []; }
+function mutate(fn) {
+  pushUndo();
+  fn(); recompute(); renderAll(); setPos(pos); queueSave(); syncUndo();
+}
+function restore(from, to) { if (!from.length) return; to.push(JSON.stringify(S)); if (to.length > STEPS) to.shift(); S = JSON.parse(from.pop()); recompute(); renderAll(); renderLook(); queueSave(); syncUndo(); }
+const doUndo = () => restore(undo, redo), doRedo = () => restore(redo, undo);
 $("#undo").addEventListener("click", doUndo);
-document.addEventListener("keydown", e => { if ((e.metaKey || e.ctrlKey) && e.key === "z" && !/INPUT|TEXTAREA/.test(document.activeElement.tagName)) { e.preventDefault(); doUndo(); } });
+$("#redo")?.addEventListener("click", doRedo);
+document.addEventListener("keydown", e => {
+  if (!(e.metaKey || e.ctrlKey) || /INPUT|TEXTAREA/.test(document.activeElement.tagName)) return;
+  const k = e.key.toLowerCase();
+  if (k === "z" && !e.shiftKey) { e.preventDefault(); doUndo(); }
+  else if ((k === "z" && e.shiftKey) || k === "y") { e.preventDefault(); doRedo(); }
+});
 
 // ---------- derived timeline ----------
 function decisions() { return { ...S, cut: S.cut || R.proposedCut, captions: S.captions || R.captions }; }
@@ -326,7 +354,7 @@ function renderCuts() {
     const w = e.target.closest(".w"); if (!w) return; e.preventDefault();
     const i = +w.dataset.i;
     if (R.words[i].filler) { mutate(() => { const fb = new Set(S.restoredFillers); fb.has(i) ? fb.delete(i) : fb.add(i); S.restoredFillers = [...fb]; }); return; }
-    undo.push(JSON.stringify(S)); $("#undo").disabled = false;
+    pushUndo(); syncUndo();
     drag = { start: i, val: !(S.cut || R.proposedCut).includes(i), base: JSON.stringify(S.cut || R.proposedCut) };
     toggle(i, drag.val); recompute(); renderCuts();
   });
@@ -337,7 +365,7 @@ function renderCuts() {
     for (let i = lo; i <= hi; i++) if (!R.words[i].filler) toggle(i, drag.val);
     recompute(); renderCuts();
   });
-  window.addEventListener("pointerup", () => { if (drag) { drag = null; renderAll(); queueSave(); } });
+  window.addEventListener("pointerup", () => { if (drag) { drag = null; renderAll(); queueSave(); syncUndo(); } });
   tx.addEventListener("keydown", e => {
     const w = e.target.closest(".w"); if (!w || (e.key !== "Enter" && e.key !== " ")) return; e.preventDefault();
     const i = +w.dataset.i;
@@ -832,7 +860,7 @@ function renderAll() {
       if (!s.exists || !R) return;
       const d = s.data(); if (d.updatedAt === mine || dirty) return;
       if (JSON.stringify(d) === JSON.stringify({ ...S })) return;
-      S = { ...blank(), ...JSON.parse(JSON.stringify(d)) }; undo = []; $("#undo").disabled = true;
+      S = { ...blank(), ...JSON.parse(JSON.stringify(d)) }; undo = []; redo = []; syncUndo();
       recompute(); renderAll(); renderLook(); setPos(pos); pill("Updated by Claude");
     }, () => {});
     let firstReel = true;
@@ -842,6 +870,7 @@ function renderAll() {
     db.doc("builds/latest").onSnapshot(s => { B = s.exists ? s.data() : null; if (R) renderPreview(); if (tab === "preview") showTab("preview"); }, () => {});
     recompute();
     $("#reelname").textContent = `${R.title} · raw ${fmt(R.srcDur)} → reel ${fmt(P.cutDur)}`; setPos(0);
+    restoreUndo();   // 0.37.0: Undo and Redo from before a reload
     setSteps("edit", { cover: R.thumbnailUrl, edit: (() => { try { return R.editorUrl ? new URL("/edit", R.editorUrl).href : null; } catch { return null; } })(), ...(window.REEL_STUDIO_LINKS || {}) });
     $("#lookslink").hidden = !window.REEL_STUDIO_LINKS;   // the looks page is served by the local Reel Studio link only
     if (window.REEL_STUDIO_LINKS) fetch("/api/stage").then(r => r.json()).then(st => { $("#builtnote").hidden = !st.built; }).catch(() => {});
