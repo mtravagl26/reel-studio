@@ -416,7 +416,7 @@ test("orbit card from the page: 1 to 6 uploaded pictures, a ring level and a lap
 test("server: lists the themes, sets one for this reel or every reel, and keeps GIPHY off without a key", { skip: skipReason }, async () => {
   await withServer(async ({ reel, home, get, post }) => {
     const st = await (await get("/api/state")).json();
-    assert.deepEqual(st.themes.map((t) => t.id).sort(), ["bold", "editorial", "handwritten", "whimsical"]);
+    assert.deepEqual(st.themes.map((t) => t.id).sort(), ["bold", "editorial", "handwritten", "minimal", "whimsical"]);
     assert.ok(st.themes.every((t) => t.name && t.summary));
     assert.deepEqual(st.theme, { reel: null, all: null });
     let r = await post("/api/theme", { name: "bold", scope: "reel" });

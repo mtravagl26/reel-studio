@@ -32,7 +32,7 @@ test("style_menu_page.py writes one stand-alone file with the looks and themes i
   py("style_menu_page.py", ["--out", out], { REELS_HOME: c.home });
   const html = fs.readFileSync(out, "utf8"), data = JSON.parse(/window\.STYLE_MENU = (.*);\n/.exec(html)[1]);
   assert.equal(data.looks.length, Object.keys(menu).length); assert.equal(data.canSave, false);
-  assert.deepEqual(data.themes.map((t) => t.id).sort(), ["bold", "editorial", "handwritten", "whimsical"]);
+  assert.deepEqual(data.themes.map((t) => t.id).sort(), ["bold", "editorial", "handwritten", "minimal", "whimsical"]);
 });
 
 test("style card: 6 lines from picks, theme and brand; picks that are not built are named, not used", { skip: skipReason }, () => {

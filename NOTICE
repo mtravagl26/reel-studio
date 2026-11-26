@@ -191,3 +191,6 @@ Added by By Mel Ross in 0.19.0 (November 2026), in skills/3-editing/reel-editor.
   scripts/build_reel.py into scripts/reel_assets.py.
 - Roundup layout (0.31.0): chapter cards, a split screen and a slide with a face inset, laid out from one "roundup" card
   (scripts/roundup.py, scripts/build_reel.py, references/roundup.md, Style Menu L1, L11 and L25).
+- Minimal theme (0.32.0): themes/minimal (theme.json and a hand-drawn red X drawn for this project). Fonts added to
+  themes/_fonts with their SIL Open Font License files: Instrument Serif (The Instrument Serif Project Authors) and
+  Shadows Into Light (Kimberly Geswein). storyboard.py takes up to 5 options.
