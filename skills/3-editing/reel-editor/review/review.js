@@ -326,7 +326,7 @@ const WORD_FIELDS = { title: [["text", "Words"]], tag: [["text", "Words"]], cta:
   arctitle: [["text", "Arched words"], ["sub", "Line under it"]], card: [["title", "List title"], ["rows", "Rows, one per line"]], chips: [["title", "Title"]],
   stat: [["value", "The number"], ["label", "Words above it"], ["delta", "The change"]], xlist: [["items", "Lines, one per line"]], shot: [["label", "Label"]] };
 function wordsBox(g) {
-  const box = document.createElement("div"); box.className = "words";
+  const box = document.createElement("div"); box.className = "gwords";
   const set = (S.board[g.id] || {}).set || {};
   for (const [f, name] of WORD_FIELDS[g.type]) {
     const list = f === "rows" || f === "items", now = f in set ? set[f] : g[f];

@@ -84,6 +84,8 @@ try {
   assert.equal(await js(`document.querySelector("#builtnote").hidden`), true, "no 'already built' note yet");
   assert.equal(await js(`getComputedStyle(document.body).backgroundColor`), "rgb(245, 242, 236)", "cream page");
   const words = `[...document.querySelectorAll(".w")].filter((e) => !e.classList.contains("filler"))`;
+  // 0.34.4: a sentence's words flow along a line (a CSS class shared with the graphic words box stacked them one per line)
+  assert.equal(await js(`new Set([...document.querySelector(".sent .words").querySelectorAll(".w")].slice(0, 3).map((e) => e.offsetTop)).size`), 1, "the first words of a line sit side by side");
   assert.ok(await js(`${words}.length`) >= 6, "every word is a chip");
   // the page cuts on a press (and a drag across several words), so press and let go on one word
   await js(`(() => { const e = ${words}.find((x) => x.textContent.trim() === "beta"); e.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, pointerId: 1, button: 0 })); window.dispatchEvent(new PointerEvent("pointerup", { bubbles: true })); })()`);
