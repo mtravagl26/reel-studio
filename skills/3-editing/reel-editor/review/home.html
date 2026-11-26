@@ -271,7 +271,7 @@ function showFormats() {
     const card = el("div", "format"); card.append(el("h3", "", f.name), el("p", "", f.does));
     for (const s of f.styles || []) {
       const b = el("button", "style"); b.type = "button"; b.dataset.id = f.id + "/" + s.id; b.setAttribute("aria-pressed", "false"); b.append(el("b", "", s.name), el("span", "", s.does));
-      b.addEventListener("click", () => { pickFormat = f; pickStyle = s; refresh(); $("#steplook").scrollIntoView({ behavior: "smooth", block: "nearest" }); });
+      b.addEventListener("click", () => { pickFormat = f; pickStyle = s; keep(); refresh(); $("#steplook").scrollIntoView({ behavior: "smooth", block: "nearest" }); });
       card.append(b);
     }
     $("#formats").append(card);
@@ -286,9 +286,8 @@ async function check(file) {
     const r = await fetch("/api/check?name=" + encodeURIComponent(file.name), { method: "POST", body: file }), j = await r.json();
     if (!j.ok) throw new Error(j.error || "The check didn't finish.");
     saved = j.saved; verdict = j.result.verdict; recFor = null;   // 0.34.0: a new clip gets new recommendations
-    $("#verdict").className = verdict; $("#verdict").textContent = verdict === "retake" ? "Retake." : "Good to edit.";
-    $("#headline").textContent = j.result.headline; listChecks(j.result.checks); drawPhone(j.frame, j.result);
-    showFormats(); refresh();
+    lastCheck = { name: file.name, frame: j.frame, result: j.result }; pickFormat = null; pickStyle = null;
+    showCheck(); keep(); showFormats(); refresh();
   } catch (e) {
     $("#verdict").className = "retake"; $("#verdict").textContent = "That didn't work."; $("#headline").textContent = e.message; $("#checks").textContent = "";
   }
@@ -296,6 +295,23 @@ async function check(file) {
 $("#pick").addEventListener("click", () => $("#file").click());
 $("#file").addEventListener("change", () => check($("#file").files[0]));
 $("#again").addEventListener("click", () => { $("#result").hidden = true; $("#drop").hidden = false; $("#file").value = ""; });
+// Added by By Mel Ross (0.38.7): the page used to forget the checked clip and the kind of reel as soon as you left it (for the
+// looks page, say), so coming back meant dropping the clip in again. Both are kept for this tab and put back on return.
+let lastCheck = null;
+function showCheck() {
+  $("#drop").hidden = true; $("#result").hidden = false;
+  $("#verdict").className = verdict; $("#verdict").textContent = verdict === "retake" ? "Retake." : "Good to edit.";
+  $("#headline").textContent = lastCheck.result.headline; listChecks(lastCheck.result.checks); drawPhone(lastCheck.frame, lastCheck.result);
+}
+function keep() {
+  try { sessionStorage.setItem("reelstudio-home", JSON.stringify({ saved, verdict, lastCheck, kind: pickStyle ? `${pickFormat.id}/${pickStyle.id}` : null })); } catch { /* storage off: nothing kept */ }
+}
+function restore() {
+  let k = null; try { k = JSON.parse(sessionStorage.getItem("reelstudio-home") || "null"); } catch { return; }
+  if (!k || !k.lastCheck || !k.saved) return;
+  saved = k.saved; verdict = k.verdict; lastCheck = k.lastCheck; showCheck();
+  if (k.kind) { const [fid, sid] = k.kind.split("/"); pickFormat = (D.formats || []).find((f) => f.id === fid) || null; pickStyle = pickFormat?.styles?.find((s) => s.id === sid) || null; }
+}
 const drop = $("#drop");
 ["dragenter", "dragover"].forEach((n) => drop.addEventListener(n, (e) => { e.preventDefault(); drop.classList.add("over"); }));
 ["dragleave", "drop"].forEach((n) => drop.addEventListener(n, (e) => { e.preventDefault(); drop.classList.remove("over"); }));
@@ -311,7 +327,8 @@ if (D.kept && D.kept.count) {   // clips checked here stay on disk until the per
   const gb = D.kept.bytes / 1e9, n = $("#keptnote"); n.hidden = false;
   n.textContent = `${D.kept.count} checked ${D.kept.count === 1 ? "clip is" : "clips are"} kept in ${D.inbox} (${gb >= 1 ? gb.toFixed(1) + " GB" : Math.max(Math.round(D.kept.bytes / 1e6), 1) + " MB"}). Delete the ones you've finished editing.`;
 }
-showFormats();
+restore();
+showFormats(); refresh();
 if ((D.reels || []).length) {
   $("#mine").hidden = false;
   for (const r of D.reels) { const li = el("li"); li.append(el("b", "", r.name), el("span", "", r.state)); $("#reels").append(li); }
