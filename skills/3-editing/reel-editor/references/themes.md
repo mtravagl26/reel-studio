@@ -19,15 +19,15 @@ Pick a theme and the person's colors fill it in. Switching theme never changes t
 | `bold` | Heavy caps titles, captions in white label boxes, the last title line and the key word in the accent color. | H2, C3, L4, L6, L8 |
 | `handwritten` | A handwritten line over heavy caps, torn-paper labels, photos framed like prints. | H3, C1, L2, L6, L9 |
 | `whimsical` | Round letters, one script word, small stars round the title, labels and photos that tilt. | H5, L2, L9, the `orbit` card |
-| `minimal` (0.31.0) | Big stacked caps in a warm cream serif (Instrument Serif) over the torso, tiny one-word lowercase captions at the left edge, a hand-drawn emphasis word now and then. Nothing bounces. | L6, L9 |
+| `minimal` (0.31.0) | Big stacked caps in a warm cream serif (Instrument Serif) over the torso, small one-word lowercase captions low on the left, a hand-drawn emphasis word now and then. Nothing bounces. | L6, L9 |
 
 ### Using `minimal`
 
 - **Titles** show in caps over the torso. Type them in caps, one short line per slash (`"LEAVE IT / FOR 24 / HOURS"`), so each line is sized for its capitals.
 - **The hook** is a title with a `sub` line. It moves to the top by itself, and the sub becomes the small, widely spaced handwritten line under it.
-- **Captions** are one word at a time, lowercase, at the left edge at mid-height. Mark a word `"accent": true` now and then and it turns into the hand-drawn emphasis word in caps.
+- **Captions** are one word at a time, lowercase, low on the left (y 1180), clear of most hair. If yours still reaches them, set `captions.y` in `theme_overrides`. Mark a word `"accent": true` now and then and it turns into the hand-drawn emphasis word in caps.
 - **Screenshots and charts**: a `popup` with `"frame": true` gets a white rounded border.
-- **The red X**: a `sticker` whose `src` is the full path to `themes/minimal/red-x.svg`, next to a "DO NOT / DO THIS" title.
+- **The red X**: a `sticker` whose `src` is the full path to `themes/minimal/red-x.svg`, next to a "DO NOT / DO THIS" title and clear of the face (for example x 820, y 1500).
 - **The end line**: a `cta` with a short line and an emoji. It shows in white with no pill.
 
 Cream on a white or very bright top is hard to read even with the soft shadow. Check titles over the shirt on real footage, and pick `editorial` or `bold` for a white top.
