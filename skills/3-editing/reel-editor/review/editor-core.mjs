@@ -197,7 +197,7 @@ const POS = new Set(["top-left", "top-center", "top-right", "middle-left", "midd
 const COMMON = ["start", "end", "off"];
 const FIELDS = {
   tag: [...COMMON, "text", "y", "layer", "glass", "color"],
-  title: [...COMMON, "text", "y", "size", "layer"],
+  title: [...COMMON, "text", "y", "size", "layer", "align"],   // 0.34.9: "align" lines the hook up left, centred or right
   arctitle: [...COMMON, "text", "sub"],   // 0.23.0: a headline arched over the head; "sub" is the heavy line under it
   cta: [...COMMON, "text", "y", "layer"],
   quote: [...COMMON, "text", "y", "size", "layer"],   // 0.19.0: a sentence in a white box
@@ -242,6 +242,7 @@ export function cleanCardFields(type, set, dur) {
     else if (k === "items") { out[k] = (Array.isArray(v) ? v : []).map((x) => String(x ?? "").trim()).filter(Boolean).map((x) => cleanText(x, "line", 40)).slice(0, 6); if (!out[k].length) throw new Error("keep at least 1 line"); }
     else if (k === "sub") out[k] = String(v ?? "").trim() ? cleanText(v, "the line under it", 30) : "";   // 0.23.0: empty takes it off
     else if (k === "caption") out[k] = String(v ?? "").trim() ? cleanText(v, "label", 40) : "";   // 0.16.0: the handwritten label under a popup; empty takes it off
+    else if (k === "align") { if (!["left", "center", "right"].includes(v)) throw new Error("a title lines up left, center or right"); out[k] = v; }
     else if (k === "layer") { if (!LAYERS.has(v)) throw new Error("layer must be front, behind or both"); out[k] = v; }
     else if (k === "pos") { if (!POS.has(v)) throw new Error("unknown position"); out[k] = v; }
     else if (k === "level") { if (!["crown", "chest"].includes(v)) throw new Error("the ring goes round the top of your head (crown) or below your chin (chest)"); out[k] = v; }

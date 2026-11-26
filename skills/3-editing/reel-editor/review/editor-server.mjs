@@ -111,6 +111,14 @@ const editHash = () => sha(fs.readFileSync(P.edit, "utf8"), fs.readFileSync(P.ed
 
 // ---- themes (Added by By Mel Ross, 0.9.0): the same folders scripts/theme.py reads, your own first
 const THEME_OK = /^[a-z0-9][a-z0-9_-]{0,40}$/;
+// Added by By Mel Ross (0.34.9): how this reel's theme lines up a title when the card doesn't say (for the Line up buttons)
+function titleAlign(edit, brand) {
+  const n = edit.theme === "none" ? null : edit.theme || brand.theme;
+  if (n && THEME_OK.test(n)) for (const dir of [path.join(HOME, "themes"), path.join(SKILL, "themes")]) {
+    const f = path.join(dir, n, "theme.json"); if (exists(f)) { const a = readJSON(f, {})?.cards?.title?.align; if (a) return a; break; }
+  }
+  return brand.cards?.title?.align || "center";
+}
 function listThemes() {
   const out = new Map();
   for (const dir of [path.join(SKILL, "themes"), path.join(HOME, "themes")]) {
@@ -524,7 +532,7 @@ function view() {
   const out = {
     reel: path.basename(REEL), speed: st.speed, total, masterDur: masterDuration(), edit: { captions: edit.captions || [], cards: edit.cards || [], sfx_events: edit.sfx_events || [], punch: edit.punch || [] },
     pieces, media, popups: files, sfxNames: sfxNames(), notes, renders, job, receipt: receiptNow(st, edit, brand),
-    textDefault: brand.text_default || { layer: "front", position: "above" }, hasTextDefault: !!brand.text_default,
+    textDefault: brand.text_default || { layer: "front", position: "above" }, hasTextDefault: !!brand.text_default, titleAlign: titleAlign(edit, brand),
     themes: listThemes(), theme: { reel: edit.theme || null, all: brand.theme || null }, giphy: !!giphyKey(),
     sfxOn: (edit.sfx ?? brand.sfx ?? "subtle") !== "none", sfxAll: (brand.sfx ?? "subtle") !== "none",
     music: musicNow(edit, brand), addLooks: addableLooks(),

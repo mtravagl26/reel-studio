@@ -229,6 +229,10 @@ function cardHtml(c, i) {
       const y = c.y ?? (c.type === "tag" ? 130 : 360);
       h += `<label class="f">Height on screen</label><div class="grid3">${[[130, "Above my head"], [300, "Higher"], [800, "Middle"], [1050, "Lower"], [1150, "Above captions"]].map(([yy, n]) => `<button class="${Math.abs(y - yy) < 20 ? "on" : ""}" data-a="set" data-i="${i}" data-f="y" data-v="${yy}">${n}</button>`).join("")}<button class="${placing && placing.id === cid(i) ? "on" : ""}" data-a="place" data-i="${i}">Tap on video</button></div>`;
     }
+    if (c.type === "title") {   // Added by By Mel Ross (0.34.9): a hook can sit in the top-left corner or centred
+      const al = c.align || S.titleAlign || "center";
+      h += `<label class="f">Line up</label><div class="seg" id="alignseg">${[["left", "Left"], ["center", "Centred"], ["right", "Right"]].map(([v, n]) => `<button class="${al === v ? "on" : ""}" data-a="set" data-i="${i}" data-f="align" data-v="${v}">${n}</button>`).join("")}</div>`;
+    }
     if (c.type === "sticker") h += `<p class="help">Stickers: change time or switch off here. Position and size are in the edit.</p>`;
     h += `<div class="row" style="margin-top:12px"><button class="sm" data-a="seek" data-t="${c.start}">▶ Go to start</button><span class="grow"></span><button class="sm danger" data-a="del" data-i="${i}">Delete</button></div></div>`;
   }
