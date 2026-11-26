@@ -189,3 +189,5 @@ Added by By Mel Ross in 0.19.0 (November 2026), in skills/3-editing/reel-editor.
 - Cleanup (0.30.0), no change in behavior: the reel editor's Python formatted with black, the review and Touch-ups pages'
   code moved into review/review.js and review/editor.js, and the picture, GIF and video helpers moved from
   scripts/build_reel.py into scripts/reel_assets.py.
+- Roundup layout (0.31.0): chapter cards, a split screen and a slide with a face inset, laid out from one "roundup" card
+  (scripts/roundup.py, scripts/build_reel.py, references/roundup.md, Style Menu L1, L11 and L25).

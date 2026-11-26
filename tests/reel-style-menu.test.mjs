@@ -13,7 +13,7 @@ const IDS = Object.keys(menu.looks);   // the menu decides which IDs exist (60 l
 
 // ------------------------------------------------------------------------------------------------------ the menu itself
 test("style menu: every ID is in the JSON and in the Markdown table, with a known status", () => {
-  assert.equal(IDS.length, 60);
+  assert.equal(IDS.length, 61);   // 0.31.0: L25, the Roundup layout
   for (const id of IDS) assert.match(id, /^[HCL]\d+$/, `${id} is a hook, caption or layout ID`);
   const md = read("references", "style-menu.md");
   for (const id of IDS) {
@@ -37,7 +37,8 @@ test("style menu: the SKILL.md list of built looks matches the JSON", () => {
 test("style menu: every card recipe uses a card type that build_reel.py handles", () => {
   const build = read("scripts", "build_reel.py");
   for (const [id, look] of Object.entries(menu.looks)) {
-    for (const c of look.recipe?.cards || (look.recipe?.card ? [look.recipe.card] : [])) assert.match(build, new RegExp(`kind == "${c.type}"`), `${id}: build_reel.py has a "${c.type}" card`);
+    // 0.31.0: a "roundup" card is turned into chapter, split and inset cards by scripts/roundup.py before the build draws it
+    for (const c of look.recipe?.cards || (look.recipe?.card ? [look.recipe.card] : [])) assert.match(c.type === "roundup" ? read("scripts", "roundup.py") : build, c.type === "roundup" ? /def expand/ : new RegExp(`kind == "${c.type}"|kind in \\([^)]*"${c.type}"`), `${id}: build_reel.py has a "${c.type}" card`);
   }
 });
 
@@ -281,7 +282,7 @@ test("every usable look's recipe builds, alone, with its own caption settings an
   assert.match(got.H15, /font-style:italic/); assert.doesNotMatch(got.H15.match(/class="tl" style="[^"]*"/)[0], /text-stroke/, "serif lines carry no outline");
   assert.match(got.C6, /class="cap capbg"[\s\S]*?<span class="cb" style="background:#FFFFFF/); assert.match(got.C10, /class="cb" style="background:rgba\(0,0,0,\.62\)/);
   assert.match(got.C9, /class="acc" style="[^"]*font-style:italic/);
-  assert.match(got.L10, /class="page pblur"[\s\S]*class="pbg"/); assert.match(got.L11, /class="plabel"[^>]*>APP NAME/);
+  assert.match(got.L10, /class="page pblur"[\s\S]*class="pbg"/); assert.match(got.L11, /class="split"[\s\S]*class="spb"><video[^>]*src="master.mp4"/);   // 0.31.0: L11 is a true split screen
   assert.equal((got.L12.match(/class="pl"/g) || []).length, 6, "the cloud takes 6 pictures");
   assert.equal((got.L14.match(/class="tile" style="left:50px/g) || []).length, 4, "a column down the left side");
   assert.equal((got.L15.match(/class="colc"/g) || []).length, 3); assert.equal((got.L17.match(/class="chip"/g) || []).length, 5);

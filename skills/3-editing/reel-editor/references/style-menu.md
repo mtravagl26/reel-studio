@@ -28,6 +28,7 @@ Defaults for every look: sage palette (`#B9C8A5` highlight, a deeper sage `SAGE_
 | L8 | Stat card pop | built | card `stat` (below) |
 | L9 | Photo sticker beside your face | built | card `popup` with `caption` (below) |
 | L24 | Taped note (was L10 before the 58-look menu) | built | card `note`; uses the material kit's paper and tape when one is on (`references/material-kits.md`) |
+| L25 | Roundup: chapters that cut between looks | built (0.31.0) | one `roundup` card: plain chapter cards with each item's name in serif, then talking to camera, a split screen (L11) or a slide with a face inset (L1). See `references/roundup.md` |
 
 ### Not built yet (do not offer)
 
@@ -36,7 +37,7 @@ Defaults for every look: sage palette (`#B9C8A5` highlight, a deeper sage `SAGE_
 | H1 | Logo-swap title | not built | needs two logo images (not supplied) |
 | H4 | Series title, phone-in-frame | not built | needs a logo and a phone-card layout |
 | C4 | Black on white for screen recordings | not built | needs screen-recording footage |
-| L1 | Screen recording + small face cam | not built | needs screen-recording footage |
+| L1 | Screen recording + small face cam | built (0.31.0) | `{"type": "inset", "src": "slide.png", "corner": "bottom-right"}`: a full-screen slide or recording, your face in a small rounded box. See roundup.md |
 | L3 | Beige dotted paper card, one word | not built | nearest is the paper-grid skill (edit-video pipeline), not this editor |
 | L5 | Caps label + parenthetical + big number | not built | nearest is the `count-up` motion card |
 
@@ -116,7 +117,7 @@ What the engine gained for these (all in `scripts/build_reel.py`):
 | C15 | One bold white word, no highlight | built | brand: `{"colors": {"caption": "#FFFFFF"}, "captions": {"size": 96, "y": 1180, "case": "sentence", "mode": "word"}}` |
 | C16 | Caption doubles as counter | cut-choice | The running caption carries the count, such as "1 of 5", so the rhythm of a list is built into the words. A writing choice: the count is typed into the captions. |
 | L10 | Inset card over a blurred, enlarged self | built | `{"type": "page", "bg": "blur"}` |
-| L11 | Top asset panel + face below | partial | `{"type": "page", "label": "app name"}` + needs 1 picture(s) from them Not included: the picture fills the whole background behind the title area; a separate top panel with your face filling the bottom half is not built |
+| L11 | Top asset panel + face below | built (0.31.0) | `{"type": "split", "src": "rec.mp4"}`: your picture or recording fills the top panel, your face fills the bottom half. See roundup.md |
 | L12 | Photo-card cloud above the head | built | `{"type": "polaroids", "layout": "cloud", "y": 60}` + needs 6 picture(s) from them |
 | L13 | Logo chips either side of the face | built | `{"type": "popup", "pos": "middle-left", "size": 170, "frame": false, "caption": "writing"}` + `{"type": "popup", "pos": "middle-right", "size": 170, "frame": false, "caption": "images"}` + needs 2 picture(s) from them |
 | L14 | Vertical icon list beside the face | built | `{"type": "tiles", "layout": "column", "tiles": [{"label": "one", "icon": "star"}, {"label": "two", "icon": "chart"}, {"label": "three", "icon": "people"}, {"label": "four", "icon": "doc"}]}` |
