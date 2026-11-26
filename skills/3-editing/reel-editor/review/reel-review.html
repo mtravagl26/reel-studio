@@ -27,6 +27,7 @@ h1{font-size:24px;line-height:1.15;margin:0;color:var(--ink);letter-spacing:-.3p
 .igzone .t{top:0;height:14%}.igzone .b{bottom:0;height:20%}.igzone .r{top:45%;bottom:20%;left:auto;width:12%}
 .capov{position:absolute;left:5%;right:5%;overflow:visible;text-align:center;line-height:1.02;text-shadow:0 2px 10px rgba(0,0,0,.4)}
 .capov .a{display:inline}
+#capmodes button[aria-checked="true"]{background:var(--accent);color:var(--on-accent)}
 .capov.ed .a{display:block;line-height:.95}
 .clock{position:absolute;right:8px;bottom:8px;font:500 11px var(--f-mono);background:rgba(20,20,20,.72);color:#fff;border-radius:8px;padding:2px 7px}
 .scrub{display:flex;gap:10px;align-items:center}
@@ -83,6 +84,7 @@ textarea{min-height:80px;resize:vertical}
 .giphy{flex-basis:100%;max-width:100%;min-width:0;box-sizing:border-box;border:2px solid var(--line);border-radius:14px;padding:10px;background:#fff}.giphy[hidden]{display:none}
 .giphy .ctl{display:flex;gap:6px;flex-wrap:wrap}.colorrow{display:flex;gap:10px;flex-wrap:wrap;margin:6px 0}.colorrow label{flex:1 1 120px;display:block}.colorrow input[type=color]{width:100%;height:44px;padding:0;border:2px solid var(--line);border-radius:10px;background:#fff}.colorrow .lede{display:block;margin:4px 0 0}
 .toldlist{margin:4px 0 0 18px;padding:0;font-size:14px}#needbox,#told{margin-top:10px}
+.spotfold summary{cursor:pointer;padding:6px 0;list-style:revert}.spotfold summary .lede{margin-left:6px}
 .placer{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}.placer select{flex:1 1 200px;min-width:0;font:inherit;padding:8px;border:2px solid var(--line);border-radius:10px;background:#fff}
 .giphy-warn{font-size:13px;line-height:1.4;background:#fff6e5;border:1.5px solid #e0b45a;border-radius:10px;padding:8px 10px;margin:6px 0;color:#5a4210}.giphy-mark{margin:6px 0 0;text-align:right;font:700 12px/1 system-ui,sans-serif;letter-spacing:.02em}.giphy-mark span{font-weight:500;opacity:.75}.giphy-mark b{background:#000;color:#fff;padding:3px 6px;border-radius:4px;letter-spacing:.06em}
 .giphy .gkey{margin-bottom:8px}.giphy input[type=password]{flex:1 1 160px;min-width:0;box-sizing:border-box;font:inherit;padding:8px 10px;border:2px solid var(--line);border-radius:10px}.giphy input[type=search]{flex:1 1 120px;min-width:0;width:100%;box-sizing:border-box;font:inherit;padding:8px 10px;border:2px solid var(--line);border-radius:10px}.giphy select{font:inherit;padding:8px;border:2px solid var(--line);border-radius:10px;background:#fff}
@@ -119,7 +121,8 @@ textarea{min-height:80px;resize:vertical}
 .cw .x:hover{background:var(--line)}
 .cw .x.acc{font-style:italic;color:var(--accent);background:var(--accent-soft)}
 .cw .flag{font-size:12px;color:var(--warn)}
-.words{display:grid;gap:6px;margin:8px 0}.words label{display:grid;gap:3px}.words input,.words textarea{font:inherit;padding:8px;border-radius:8px;border:1.5px solid var(--line);width:100%;box-sizing:border-box}
+/* 0.34.4: the graphic words box is .gwords; .words is the transcript row in Cuts, and sharing the name stacked the transcript one word per line */
+.gwords{display:grid;gap:6px;margin:8px 0}.gwords label{display:grid;gap:3px}.gwords input,.gwords textarea{font:inherit;padding:8px;border-radius:8px;border:1.5px solid var(--line);width:100%;box-sizing:border-box}
 .w.fs{text-decoration-color:#b3261e}.fsl{font-size:11px;font-weight:700;color:#b3261e;background:#fbe9e7;border-radius:999px;padding:1px 7px;margin:0 4px;align-self:center}
 .tools{display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end}
 .tools button{font:600 12px var(--f-mono);border:1.5px solid var(--line);background:var(--surface);color:var(--ink);border-radius:8px;padding:3px 7px;cursor:pointer}
@@ -206,7 +209,6 @@ code{font:500 13px var(--f-mono);background:var(--accent-soft);border-radius:6px
       <button class="tab" role="tab" data-tab="captions">Captions <span class="dot" hidden></span></button>
       <button class="tab" role="tab" data-tab="sound">Sound &amp; color <span class="dot" hidden></span></button>
       <button class="tab" role="tab" data-tab="preview">Preview</button>
-      <button class="tab" role="tab" data-tab="cover">Cover</button>
     </div>
 
     <section data-p="cuts">
@@ -241,6 +243,11 @@ code{font:500 13px var(--f-mono);background:var(--accent-soft);border-radius:6px
 
     <section data-p="captions" hidden>
       <p class="lede">Captions follow your cuts. Tap a word to highlight it. <b>edit</b> fixes the wording, ±0.1 moves the start, and <b>merge</b> joins a line to the next one. The player shows your caption style without the animation.</p>
+      <div class="look" id="capmodebox" hidden>
+        <label>How captions highlight</label>
+        <div class="ctl" id="capmodes" role="radiogroup" aria-label="How captions highlight"></div>
+        <p class="lede" id="capmodenote"></p>
+      </div>
       <div class="look" id="hlbox" hidden>
         <label>Caption colors and size</label>
         <div class="colorrow" id="hlrow"></div>
@@ -276,10 +283,6 @@ code{font:500 13px var(--f-mono);background:var(--accent-soft);border-radius:6px
       <div id="revs"></div>
     </section>
 
-    <section data-p="cover" hidden>
-      <p class="lede">Pick a frame, add a headline in your brand fonts, and download the cover in 3 sizes: full reel, 3:4 for your profile grid, and square. This runs on your computer, so your footage stays there.</p>
-      <div id="coverbox"></div>
-    </section>
 
     <div class="notes" id="notesbox">
       <label for="notes">Anything else about this reel's <span id="notetab">cuts</span>?</label>

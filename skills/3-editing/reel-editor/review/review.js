@@ -17,7 +17,7 @@ const v = $("#v"), ov = $("#ov");
 const fmt = t => `${Math.floor(t / 60)}:${(Math.max(0, t) % 60).toFixed(1).padStart(4, "0")}`;
 let R = null, B = null, S = blank(), P = null, CAPS = [], GFX = [];
 let tab = "cuts", ref = null, saving = Promise.resolve(), timer = null, undo = [], mode = "idle", loop = null;
-function blank() { return { theme: null, colors: null, highlight: null, layout: null, sfxAll: null, cut: null, restoredFillers: [], restoredPauses: [], trimmedPauses: [], captions: null, board: {}, wanted: [], amount: null, sfxOff: {}, notes: {}, brandRequest: "", revisions: [], buildRequest: null }; }
+function blank() { return { theme: null, colors: null, highlight: null, capmode: null, layout: null, sfxAll: null, cut: null, restoredFillers: [], restoredPauses: [], trimmedPauses: [], captions: null, board: {}, wanted: [], amount: null, sfxOff: {}, notes: {}, brandRequest: "", revisions: [], buildRequest: null }; }
 
 // ---------- saving, undo ----------
 const pill = (t, err) => { $("#save").textContent = t; $("#save").classList.toggle("err", !!err); $("#retry").hidden = !err; };
@@ -53,8 +53,8 @@ function showTab(t) {
   tab = t;
   $$(".tab").forEach(b => b.setAttribute("aria-selected", b.dataset.tab === t));
   $$("section[data-p]").forEach(s => s.hidden = s.dataset.p !== t);
-  $("#notetab").textContent = { cuts: "cuts", graphics: "graphics", captions: "captions", sound: "sound and color", preview: "preview", cover: "cover" }[t];
-  $("#notes").value = S.notes[t] || ""; $("#resetbox").hidden = t === "preview"; $("#notesbox").hidden = t === "cover";
+  $("#notetab").textContent = { cuts: "cuts", graphics: "graphics", captions: "captions", sound: "sound and color", preview: "preview" }[t];
+  $("#notes").value = S.notes[t] || ""; $("#resetbox").hidden = t === "preview"; 
   stopPlay();
   if (t === "preview") { if (B?.url && v.getAttribute("src") !== B.url) { v.setAttribute("src", B.url); v.load(); } $("#rough").hidden = $("#back5").hidden = $("#fwd5").hidden = true; $(".scrub").hidden = true; v.controls = true; }
   else { if (v.getAttribute("src") !== R.srcUrl) { v.setAttribute("src", R.srcUrl); v.load(); } $("#rough").hidden = $("#back5").hidden = $("#fwd5").hidden = false; $(".scrub").hidden = false; v.controls = false; }
@@ -91,14 +91,59 @@ function renderColors() {
 $("#colorreset").addEventListener("click", () => mutate(() => { S.colors = null; }));
 // Added by By Mel Ross (0.23.0): the highlighted caption word. Its color, and a box behind it you can switch on. For this reel;
 // the player shows it right away. To set it for every reel, use Settings on the Touch-ups page.
-function hlNow() { return { words: R.style.cap, text: R.style.acc, bg: R.style.accBg || "none", box: R.style.capBox || "none", size: R.style.capSize, ...(S.highlight || {}) }; }
+function hlNow() { return { words: R.style.cap, text: R.style.acc, bg: R.style.accBg || "none", box: R.style.capBox || "none", size: R.style.capSize, ...(S.highlight || {}), ...HLDRAFT }; }
+// 0.34.2: see a change on a caption the moment you make it. While a color is being picked or the size slider moves,
+// HLDRAFT holds the value; the player jumps to a caption with a highlighted word, paused, and redraws it.
+let HLDRAFT = {};
+function showCaptionSample() {
+  if (!R || !P || tab === "preview") return;
+  const live = CAPS.filter((c) => !c.gone && c.pos !== "hide");
+  const marked = capModeNow() === "phrase" ? (c) => c.words.some((w) => w.accent) : (c) => c.words.length > 1 || R.style.mode === "word";   // 0.34.8
+  const here = live.find((c) => pos >= c.start && pos < c.end && marked(c));
+  const cap = here || live.find((c) => marked(c) && c.start >= pos) || live.find(marked) || live[0];
+  if (!cap) return;
+  if (mode === "rough") stopPlay();
+  if (!here) seekCut(capModeNow() === "spoken" && cap.words[1] ? cap.words[1].t + 0.02 : cap.start + Math.min(0.3, (cap.end - cap.start) / 2)); else { mode = "roughPaused"; overlay(pos); }
+  $("#player")?.scrollIntoView?.({ block: "nearest", behavior: "smooth" });
+}
+// Added by By Mel Ross (0.34.8): how captions highlight. "phrase" = only the words you mark, "spoken" = each word lights up
+// as you say it, "word" = one word at a time. The player shows the choice on the caption under it.
+const CAPMODES = [["phrase", "Only words I mark", "The words you tap below get the highlight color."], ["spoken", "Each word as I say it", "Every word lights up in the highlight color while you say it."], ["word", "One word at a time", "Captions show one word at a time, big."]];
+function capModeNow() { return S.capmode || (R && R.style && R.style.mode) || "phrase"; }
+function renderCapMode() {
+  const box = $("#capmodebox"); if (!box) return; box.hidden = !R; if (!R) return;
+  const row = $("#capmodes"), cur = capModeNow(); row.textContent = "";
+  for (const [id, name] of CAPMODES) {
+    const b = document.createElement("button"); b.type = "button"; b.className = "b quiet"; b.dataset.capmode = id; b.textContent = name;
+    b.setAttribute("role", "radio"); b.setAttribute("aria-checked", String(id === cur));
+    b.addEventListener("click", () => { mutate(() => { S.capmode = id === ((R.style && R.style.mode) || "phrase") ? null : id; }); renderCapMode(); showCaptionSample(); });
+    row.append(b);
+  }
+  $("#capmodenote").textContent = (CAPMODES.find((m) => m[0] === cur) || CAPMODES[0])[2];
+}
+// the caption the player shows at cut time t, in the chosen mode
+function shownCap(cap, t) {
+  const m = capModeNow(), ws = cap.words;
+  const at = (list) => { let k = 0; for (let j = 0; j < list.length; j++) if (list[j].t <= t + 0.001) k = j; return k; };
+  if (m === "word") { const w = ws[at(ws)]; return { ...cap, words: [w] }; }
+  let words = ws;
+  if (R.style.mode === "word") {   // the page holds one word per caption: show the phrase it belongs to
+    const live = CAPS.filter((c) => !c.gone && c.pos !== "hide"), i = live.indexOf(cap), grp = [];
+    let s = i; while (s > 0 && grp.length < 2 && live[s].start - live[s - 1].end <= 0.35 && live[s - 1].pos === cap.pos && !/[.,!?;:]$/.test(live[s - 1].words.at(-1).text)) { s--; grp.push(1); }
+    words = []; for (let k = s; k < live.length && words.length < 3; k++) { if (k > s && (live[k].start - live[k - 1].end > 0.35 || /[.,!?;:]$/.test(live[k - 1].words.at(-1).text))) break; words.push(...live[k].words); }
+    if (!words.length) words = ws;
+  }
+  if (m === "spoken") { const k = at(words); return { ...cap, words: words.map((w, j) => ({ ...w, accent: j === k })) }; }
+  return { ...cap, words };
+}
 function hlLum(h) { const c = [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16) / 255).map(x => x <= 0.03928 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4); return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]; }
 function renderHighlight() {
   const ok = R && R.style && /^#[0-9a-f]{6}$/i.test(R.style.acc || ""); $("#hlbox").hidden = !ok; if (!ok) return;
   const cur = hlNow(), box = cur.bg !== "none", row = $("#hlrow"); row.textContent = "";
-  const set = (patch) => mutate(() => { S.highlight = { ...hlNow(), ...patch }; });
+  const set = (patch) => { HLDRAFT = {}; mutate(() => { S.highlight = { ...hlNow(), ...patch }; }); showCaptionSample(); };
+  const draft = (patch) => { Object.assign(HLDRAFT, patch); showCaptionSample(); };
   const pick = (name, val, off, on) => { const lab = document.createElement("label"); const inp = document.createElement("input"); inp.type = "color"; inp.value = val; inp.disabled = off; inp.setAttribute("aria-label", name);
-    const cap = document.createElement("span"); cap.className = "lede"; cap.innerHTML = `<b>${name}</b>`; inp.addEventListener("change", () => on(inp.value.toUpperCase())); lab.append(inp, cap); row.append(lab); };
+    const cap = document.createElement("span"); cap.className = "lede"; cap.innerHTML = `<b>${name}</b>`; inp.addEventListener("change", () => on(inp.value.toUpperCase())); inp.addEventListener("input", () => { const k = { Words: "words", "Highlighted word": "text", Box: "bg", "Box behind all": "box" }[name]; if (k) draft({ [k]: inp.value.toUpperCase() }); }); lab.append(inp, cap); row.append(lab); };
   if (/^#[0-9a-f]{6}$/i.test(cur.words || "")) pick("Words", cur.words, false, v => set({ words: v }));
   pick("Highlighted word", cur.text, false, v => set({ text: v }));
   pick("Box", box ? cur.bg : "#FFFFFF", !box, v => set({ bg: v }));
@@ -120,14 +165,14 @@ function renderHighlight() {
   const lab3 = document.createElement("label"); lab3.style.gridColumn = "1 / -1";
   const rng = document.createElement("input"); rng.type = "range"; rng.min = 60; rng.max = 160; rng.step = 2; rng.value = cur.size || 96; rng.id = "csize"; rng.setAttribute("aria-label", "Caption size");
   const cap3 = document.createElement("span"); cap3.className = "lede"; cap3.innerHTML = `<b>Caption size</b> ${rng.value}`;
-  rng.addEventListener("input", () => { cap3.innerHTML = `<b>Caption size</b> ${rng.value}`; });
+  rng.addEventListener("input", () => { cap3.innerHTML = `<b>Caption size</b> ${rng.value}`; draft({ size: +rng.value }); });
   rng.addEventListener("change", () => set({ size: +rng.value }));
   lab3.append(cap3, rng); row.append(lab3);
   const ratio = (x, y) => { const a = hlLum(x), b = hlLum(y); return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05); };
   let near = (box && ratio(cur.text, cur.bg) < 2.5) || (cb && /^#[0-9a-f]{6}$/i.test(cur.box) && /^#[0-9a-f]{6}$/i.test(cur.words || "") && ratio(cur.words, cur.box) < 2.5) || (cb && !box && /^#[0-9a-f]{6}$/i.test(cur.box) && ratio(cur.text, cur.box) < 2.5);
   $("#hlwarn").hidden = !near;
   $("#hlreset").hidden = !S.highlight;
-  $("#hlnote").textContent = (S.highlight ? "This reel has its own caption colors. " : "This reel uses your usual caption colors. ") + "Play the video to see it on your captions. To change it for every reel, use Settings on the Touch-ups page.";
+  $("#hlnote").textContent = (S.highlight ? "This reel has its own caption colors. " : "This reel uses your usual caption colors. ") + "The player shows a caption with a highlighted word as you change these. To change it for every reel, use Settings on the Touch-ups page.";
 }
 $("#igon").addEventListener("change", (e) => $("#igzone").classList.toggle("on", e.target.checked));   // 0.26.0
 $("#hlreset").addEventListener("click", () => mutate(() => { S.highlight = null; }));
@@ -192,7 +237,7 @@ function overlay(c) {
   if (!R || tab === "preview" || c == null || (mode !== "rough" && mode !== "roughPaused")) { highlight(null); return; }
   for (const g of GFX) if (!g.gone && g.state !== "d" && c >= g.start && c < g.end) ov.appendChild(box(g, true));
   const cap = CAPS.find(x => !x.gone && c >= x.start && c < x.end);
-  if (cap && cap.pos !== "hide") { const el = capEl(cap); ov.appendChild(el); fitCap(el); }
+  if (cap && cap.pos !== "hide") { const shown = shownCap(cap, c), el = capEl(shown, capModeNow() === "spoken"); ov.appendChild(el); fitCap(el); }
   highlight(c, cap);
 }
 function box(g, label) {
@@ -203,14 +248,15 @@ function box(g, label) {
   if (label) el.textContent = g.kind;
   return el;
 }
-function capEl(cap) {
+function capEl(cap, plain) {   // plain: the highlighted word keeps the same font and size (spoken mode)
   const st = R.style, W = $("#player").clientWidth, one = cap.words.length === 1;
   const el = document.createElement("div"); el.className = "capov" + (st.editorial && !one ? " ed" : "");
   const base = (hlNow().size || st.capSize) / 1080 * W * (one ? 1.35 : 1);
   Object.assign(el.style, { top: capTop(cap) / 19.2 + "%", fontFamily: "rb, var(--f-body)", fontSize: base + "px", color: hlNow().words || st.cap });
   for (const w of cap.words) {
     const s = document.createElement("span");
-    if (w.accent) { const hl = hlNow(); s.className = "a"; Object.assign(s.style, { fontFamily: "ra, Georgia, serif", fontStyle: "italic", color: hl.text, fontSize: (st.editorial ? 1.7 : 1.12) + "em" });
+    if (w.accent && plain) { const hl = hlNow(); s.className = "a now"; s.style.color = hl.text; if (hl.bg !== "none") Object.assign(s.style, { background: hl.bg, padding: ".02em .16em .08em", borderRadius: ".16em", textShadow: "none" }); }
+    else if (w.accent) { const hl = hlNow(); s.className = "a"; Object.assign(s.style, { fontFamily: "ra, Georgia, serif", fontStyle: "italic", color: hl.text, fontSize: (st.editorial ? 1.7 : 1.12) + "em" });
       if (hl.bg !== "none") Object.assign(s.style, { background: hl.bg, padding: ".02em .2em .08em", borderRadius: ".16em", textShadow: "none", boxDecorationBreak: "clone", webkitBoxDecorationBreak: "clone" }, st.editorial && cap.words.length > 1 ? { width: "fit-content", margin: ".06em auto" } : {}); }
     const t = w.text.replace(/[.,!?;:]+$/, "");   // captions carry no punctuation
     s.textContent = (st.case === "lower" ? t.toLowerCase() : t) + " "; el.appendChild(s);
@@ -312,7 +358,7 @@ const WORD_FIELDS = { title: [["text", "Words"]], tag: [["text", "Words"]], cta:
   arctitle: [["text", "Arched words"], ["sub", "Line under it"]], card: [["title", "List title"], ["rows", "Rows, one per line"]], chips: [["title", "Title"]],
   stat: [["value", "The number"], ["label", "Words above it"], ["delta", "The change"]], xlist: [["items", "Lines, one per line"]], shot: [["label", "Label"]] };
 function wordsBox(g) {
-  const box = document.createElement("div"); box.className = "words";
+  const box = document.createElement("div"); box.className = "gwords";
   const set = (S.board[g.id] || {}).set || {};
   for (const [f, name] of WORD_FIELDS[g.type]) {
     const list = f === "rows" || f === "items", now = f in set ? set[f] : g[f];
@@ -562,17 +608,21 @@ function capTop(cap) {
   return layoutNow() === "captions-high" ? z.top : z.bottom;
 }
 let capPick = null;   // null = not choosing; [] = waiting for the first caption; [ci] = waiting for the last; [a, b] = choose a spot
+let capSpotsOpen = false;   // 0.34.2: remember the fold while the page redraws
 function renderCapSpots() {
   const el = $("#capspots"); if (!el || !R) return;
   const high = layoutNow() === "captions-high";
   const moved = CAPS.filter(c => !c.gone && c.pos).length;
-  let h = `<label>Where captions sit</label><div class="ctl"><button class="b${high ? " quiet" : ""}" type="button" data-lay="captions-low">At the bottom</button><button class="b${high ? "" : " quiet"}" type="button" data-lay="captions-high">Above my head</button></div>
-    <p class="lede">${high ? "Captions sit above your head. Text graphics move to the lower third." : "Captions sit at the bottom. Text graphics sit near the top."} This is for this reel. For every reel, use Settings on the Touch-ups page. When a graphic covers the captions, they move to the other spot for that moment.</p>`;
+  // 0.34.2: folded. Most reels keep the default, and it's easiest to judge on the finished reel (Touch-ups has it too)
+  let h = `<details class="spotfold"${high || capSpotsOpen ? " open" : ""}><summary><b>Captions above your head instead?</b> <span class="lede">${high ? "On for this reel." : "Most reels keep them at the bottom."}</span></summary>
+    <p class="lede">Easiest to judge once you see the reel: Touch-ups has the same switch. Tap one and the player shows a caption there.</p><div class="ctl"><button class="b${high ? " quiet" : ""}" type="button" data-lay="captions-low">At the bottom</button><button class="b${high ? "" : " quiet"}" type="button" data-lay="captions-high">Above my head</button></div>
+    <p class="lede">${high ? "Captions sit above your head. Text graphics move to the lower third." : "Captions sit at the bottom. Text graphics sit near the top."} This is for this reel. For every reel, use Settings on the Touch-ups page. When a graphic covers the captions, they move to the other spot for that moment.</p></details>`;
   if (capPick == null) h += `<div class="ctl"><button class="b quiet" type="button" id="capmove">Move some captions</button>${moved ? `<button class="b quiet" type="button" id="capclear">Put all ${moved} back</button>` : ""}</div>`;
   else if (capPick.length < 2) h += `<p class="lede"><b>${capPick.length ? "Now tap the last caption to move." : "Tap the first caption to move."}</b> Tap its time on the left.</p><div class="ctl"><button class="b quiet" type="button" id="capcancel">Cancel</button></div>`;
   else h += `<p class="lede"><b>Move captions ${capPick[0] + 1} to ${capPick[1] + 1} to:</b></p><div class="ctl">${["top", "middle", "bottom", "hide"].map(p => `<button class="b quiet" type="button" data-spot="${p}">${p === "hide" ? "Hide them" : p[0].toUpperCase() + p.slice(1)}</button>`).join("")}<button class="b quiet" type="button" data-spot="">Usual spot</button><button class="b quiet" type="button" id="capcancel">Cancel</button></div>`;
   el.innerHTML = h;
-  el.querySelectorAll("[data-lay]").forEach(b => b.addEventListener("click", () => mutate(() => { S.layout = b.dataset.lay === (R.style.layout || "captions-low") ? null : b.dataset.lay; })));
+  el.querySelector(".spotfold")?.addEventListener("toggle", (e) => { capSpotsOpen = e.target.open; });
+  el.querySelectorAll("[data-lay]").forEach(b => b.addEventListener("click", () => { capSpotsOpen = true; mutate(() => { S.layout = b.dataset.lay === (R.style.layout || "captions-low") ? null : b.dataset.lay; }); showCaptionSample(); }));
   const on = (id, fn) => { const b = el.querySelector("#" + id); if (b) b.addEventListener("click", fn); };
   on("capmove", () => { capPick = []; renderCaptions(); });
   on("capcancel", () => { capPick = null; renderCaptions(); });
@@ -765,23 +815,10 @@ $("#revadd").addEventListener("click", () => {
 });
 $("#revtext").addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); $("#revadd").click(); } });
 
-// ---------- 6. cover: a link to the thumbnail studio on their own computer ----------
-function renderCover() {
-  const box = $("#coverbox"); box.textContent = "";
-  const url = /^http:\/\/(127\.0\.0\.1|localhost):\d+\//.test(R.thumbnailUrl || "") ? R.thumbnailUrl : null;
-  const para = (...parts) => { const p = document.createElement("p"); p.className = "lede"; p.append(...parts); box.appendChild(p); return p; };
-  const code = t => Object.assign(document.createElement("code"), { textContent: t });
-  if (!url) { para('Ask Claude to "open my thumbnail studio" and the link appears here.'); return; }
-  const a = Object.assign(document.createElement("a"), { className: "b primary", href: url, target: "_blank", rel: "noopener", textContent: "Open thumbnail studio" });
-  box.appendChild(Object.assign(document.createElement("div"), { className: "ctl" })).appendChild(a);
-  para("It opens in a new tab at ", code(url), ". If the button does nothing, copy that address into your browser.");
-  para("Says it can't connect? The studio stops when your computer restarts. Ask Claude to \"open my thumbnail studio\"",
-    ...(R.thumbnailCmd ? [", or paste this into Terminal: ", code(R.thumbnailCmd)] : []), ". Your cover settings are saved with the reel, so it opens how you left it.");
-}
 
 function renderAll() {
-  renderCuts(); renderGraphics(); renderWanted(); renderCaptions(); renderHighlight(); renderSound(); renderPreview(); renderCover();
-  const sent = { cuts: S.cut != null, graphics: Object.keys(S.board).length || (S.wanted || []).length || S.amount, captions: S.captions != null || S.highlight != null || S.layout != null, sound: Object.keys(S.sfxOff).length };
+  renderCuts(); renderGraphics(); renderWanted(); renderCaptions(); renderCapMode(); renderHighlight(); renderSound(); renderPreview();
+  const sent = { cuts: S.cut != null, graphics: Object.keys(S.board).length || (S.wanted || []).length || S.amount, captions: S.captions != null || S.highlight != null || S.layout != null || S.capmode != null, sound: Object.keys(S.sfxOff).length };
   $$(".tab").forEach(b => { const d = b.querySelector(".dot"); if (d) d.hidden = !sent[b.dataset.tab]; });
 }
 
@@ -819,7 +856,7 @@ function renderAll() {
     if (window.REEL_STUDIO_LINKS) fetch("/api/stage").then(r => r.json()).then(st => { $("#builtnote").hidden = !st.built; }).catch(() => {});
     $("#brand").value = S.brandRequest || "";
     renderLook();
-    renderAll(); showTab(["cuts", "graphics", "captions", "sound", "preview", "cover"].includes(location.hash.slice(1)) ? location.hash.slice(1) : "cuts");
+    renderAll(); showTab(["cuts", "graphics", "captions", "sound", "preview"].includes(location.hash.slice(1)) ? location.hash.slice(1) : "cuts");   // 0.34.3: the cover is step 2, after the edit
     pill(rv.exists ? "Saved decisions loaded" : "Ready");
   } catch (e) { pill("Couldn't load the reel (" + (e?.code || "error") + "). Reload to try again.", true); }
 })();

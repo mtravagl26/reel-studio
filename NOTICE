@@ -198,6 +198,29 @@ Added by By Mel Ross in 0.19.0 (November 2026), in skills/3-editing/reel-editor.
   clip (scripts/theme_preview.py, review/theme-preview.mjs, both servers, home.html, editor.js).
 - Recommended looks (0.34.0): 3 picks for a clip with plain reasons (scripts/recommend.py, review/recommend.mjs, both
   servers, home.html, editor.js); look names instead of IDs in Touch-ups' Add a look; theme help says the live preview shows it.
-- License follow-ups (0.35.0, PR #37 by Claude Code, brought up to date by Claude): GIPHY search off until the person reads a
+- Fix (0.34.1): a note or list card no longer breaks later stat, tiles and labelled-picture cards (scripts/build_reel.py);
+  found by Claude Code on the fix-tape-name-shadow branch.
+- Caption preview (0.34.2): on the review page, caption colors and size show on a paused caption in the player while they
+  change, and "Captions above your head instead?" is folded (review/review.js, reel-review.html).
+- The review page has no Cover tab (0.34.3): the cover is step 2 on the step bar, after the edit.
+- Fix (0.34.4): the Cuts transcript showed one word per line, because the graphic words box (0.28.0) shared its CSS
+  class; the box is now .gwords (review/reel-review.html, review/review.js).
+- Touch-ups (0.34.5): Re-render asks on the button instead of a browser dialog (some browsers block those without a
+  word), deleting needs no dialog (Undo is there), the page says which version it shows and whether it's the newest, and
+  a render Claude makes outside the page shows up within seconds without a refresh (review/editor.js, editor-server.mjs).
+  List cards have no dot in their header in any theme unless asked for (scripts/build_reel.py).
+- Silent words (0.34.6): transcribe.py drops words heard where the voice is silent and names them
+  (scripts/word_timing.py); SKILL.md "Before you show a preview" working rules.
+- Steady captions (0.34.7): captions under a graphic move to one other spot for the whole reel and don't bounce back
+  for short gaps; the build prints where they moved (scripts/build_reel.py).
+- Each word as it's said (0.34.8): a third caption choice on the review page, shown on its player; the render
+  lights each word up in the highlight color as it's spoken (review/review.js, scripts/build_reel.py,
+  scripts/review_sync.py).
+- Line up a title hook (0.34.9): Left, Centred or Right on the Touch-ups page for title cards, starting on the
+  theme's own way (review/editor.js, review/editor-core.mjs, review/editor-server.mjs).
+- Storyboard (0.36.0): the newest render scene by scene, one still each, flags for dead air, missing captions and
+  card words never said, and a note per scene for Claude (scripts/scenes.py, review/storyboard.html,
+  review/storyboard.mjs, review/edit.html, review/editor-server.mjs).
+- License follow-ups (0.38.1, PR #37 by Claude Code, brought up to date by Claude): GIPHY search off until the person reads a
   warning and ticks a box, a "Powered By GIPHY" mark, corrected HyperFrames and GSAP rows in THIRD_PARTY_NOTICES, the
   HyperFrames motion registry pinned to v0.8.145, and a screenshot asked for before yt-dlp.

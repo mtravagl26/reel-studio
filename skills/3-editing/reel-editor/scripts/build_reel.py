@@ -12,7 +12,7 @@ edit.json (written by auto_edit.py, then Claude marks accents and adds cards):
                                                      (Style Menu H3 handwritten overline + caps headline, L7 step label); color: "#fff" for a white headline.
      arctitle {text: "Demystifying AI", sub: "part one", trail: true}   (0.23.0) a headline arched over the head with stars and a heavy line under it; trail lays gold sparkles along the tracked hand as it wipes in
      block  {top: "don't", bottom: "worry"}          full brand-colour screen with the clip framed in it (reveal)
-     card   {title: "my stack", rows: ["a","b"]}     white UI card, rows appear one by one (lists, steps, tools); dot: false hides the dot in its header (0.22.0; brand.json "list_dot": false for every list)
+     card   {title: "my stack", rows: ["a","b"]}     white UI card, rows appear one by one (lists, steps, tools); no dot in its header (0.34.5; "dot": true or brand.json "list_dot": true brings it back)
      tag    {text: "open source", y: 300}            small pill label that pops on (name drops); text_color: "#fff" sets the words' colour, also on a theme's pill graphic (0.22.0)
      (every card: leave out "end" and it clears when the phrase it starts in finishes)
      cta    {text: "comment EDIT", y?: 1360}         call-to-action pill (kept above the bottom ~420 px IG covers); CAPS word = pop color
@@ -162,6 +162,10 @@ CAP_ACC = _HL.get("text", CAP_ACC)
 CAP_ACC_BG = _HL.get("bg") if _HL.get("bg") not in (None, "none") else None
 CAPS = brand.get("captions", {})
 CASE = CAPS.get("case", "lower")
+# Added by By Mel Ross (0.34.8): how captions highlight. "phrase" = only the words marked as accents, "spoken" = each word
+# lights up as it's said, "word" = one word at a time (auto_edit.py and the review page write one caption per word).
+CAP_MODE = edit.get("caption_mode") or CAPS.get("mode", "phrase")
+SPOKEN = CAP_MODE == "spoken"
 CAP_PX, CAP_Y = CAPS.get("size", 96), CAPS.get("y", 1250)
 # Added by By Mel Ross (0.26.0): where captions and graphics sit. brand.json or edit.json "layout": "captions-high" puts the
 # captions above the head (under Instagram's top bar) and moves the text graphics that normally sit at the top down to the lower
@@ -193,7 +197,7 @@ if LAYOUT == "captions-high":  # text graphics with no height of their own go to
         elif _t == "card":
             _c["y"] = max(760, 1580 - 110 * (len(_c.get("rows", [])) + 1) - 60)
 # 0.22.0: the little dot in a list card's header; "list_dot": false in brand.json (or a theme) turns it off, a card's own "dot" wins
-LIST_DOT = brand.get("list_dot", True)
+LIST_DOT = brand.get("list_dot", False)  # 0.34.5: off for every theme; a card can still ask with "dot": true
 W, H, FPS = 1080, 1920, 30  # authored at 1080x1920; 4K brands render with --resolution portrait-4k
 SAFE = 900  # guardrail: no text line may be wider than this (90 px margin each side)
 EM = 0.66  # conservative average glyph width (bold display fonts run ~0.6-0.66 em)
@@ -681,11 +685,15 @@ for i, c in enumerate(edit.get("cards", [])):
         paper = mat("paper")
         if paper and not c.get("glass") and c.get("kit", True):
             # Added by By Mel Ross (0.11.0): with a kit, the list is a sheet of real paper, taped at the top, rows numbered with stickers
-            tape = mat("tape")
+            tape_src = mat("tape")  # not "tape": that name is the taped-label function other cards use
             tw = (KIT["materials"].get("tape") or {}).get("width") or 260
             front.append(
                 f'<div id="{cid}" class="card kcard" style="background-image:url({paper}){f";top:{int(numf(c["y"], 150))}px" if "y" in c else ""}">'
-                + (f'<img class="ktape" src="{tape}" style="width:{tw}px;margin-left:{-tw // 2}px" />' if tape else "")
+                + (
+                    f'<img class="ktape" src="{tape_src}" style="width:{tw}px;margin-left:{-tw // 2}px" />'
+                    if tape_src
+                    else ""
+                )
                 + f'<div class="kh" style="{font("hand", fit(c.get("title", ""), 76))};color:{INK or MAIN}">{esc(case(c.get("title", "")))}</div>'
                 + "".join(
                     f'<div class="cr" id="{cid}r{j}" style="{font("body", 50)};color:{INK or MAIN}">'
@@ -827,15 +835,15 @@ for i, c in enumerate(edit.get("cards", [])):
         px = min(max(int(numf(c.get("size"), 96)), 30), fit(max(lines, key=len), 96, 70))
         rot = numf(c.get("rotate"), -3)
         paper = mat("paper") if c.get("kit", True) else ""
-        tape = mat("tape") if c.get("kit", True) else ""
+        tape_src = mat("tape") if c.get("kit", True) else ""
         tw = (((KIT or {}).get("materials") or {}).get("tape") or {}).get("width") or 260
         # 0.26.0: captions under it move to the other zone
         cover(a, b, int(numf(c.get("y"), 210)), int(numf(c.get("y"), 210)) + 300)
         front.append(
             f'<div id="{cid}" class="notew" style="top:{int(numf(c.get("y"), 210))}px"><div class="note{" knote" if paper else ""}" style="{f"background-image:url({paper});" if paper else f"background:{LIGHT};"}color:{(INK if paper else None) or MAIN};{font("hand", px)}">'
             + (
-                f'<img class="ktape" src="{tape}" style="width:{tw}px;margin-left:{-tw // 2}px" />'
-                if tape
+                f'<img class="ktape" src="{tape_src}" style="width:{tw}px;margin-left:{-tw // 2}px" />'
+                if tape_src
                 else '<i class="ptape"></i>'
             )
             + "".join(f"<div>{esc(case(l))}</div>" for l in lines)
@@ -1589,10 +1597,80 @@ def cap_y(c):
     return None
 
 
-for i, c in enumerate(edit.get("captions", [])):
+# Added by By Mel Ross (0.34.7): steady captions. Captions stay in one spot. When a graphic covers that spot they go to ONE
+# other spot, the same one all reel, and a short stretch back home between two moves stays put instead of bouncing.
+# "caption_moves": "free" (edit.json or brand.json) brings back the old per-caption choice.
+STEADY = (edit.get("caption_moves") or brand.get("caption_moves") or "steady") != "free"
+
+
+def _hit(c, yy):
+    return any(
+        a + 0.05 < c["end"] and c["start"] < b - 0.05 and top < yy + CAP_H and yy < bot for a, b, top, bot in covers
+    )
+
+
+def steady_spots(caps):
+    """Where each caption goes when captions stay steady. Returns a list of y (None = hidden) and the spot used when moved."""
+    home = lambda c: int(numf(c.get("y"), CAP_ZONES.get(c.get("pos"), CAP_Y)))
+    others = [z for z in (CAP_ZONES["top"], CAP_ZONES["bottom"], CAP_ZONES["middle"]) if abs(z - CAP_Y) > CAP_H]
+    moved = [c for c in caps if c.get("pos") != "hide" and _hit(c, home(c))]
+    alt = min(others, key=lambda z: sum(_hit(c, z) for c in moved)) if others else None
+    ys = []
+    for c in caps:
+        if c.get("pos") == "hide":
+            ys.append(None)
+        elif not _hit(c, home(c)):
+            ys.append(home(c))
+        else:
+            ys.append(alt if alt is not None and not _hit(c, alt) else None)
+    # no bouncing: a stretch at home shorter than 1.5 s between two moved stretches stays moved
+    i = 0
+    while i < len(caps):
+        if ys[i] is None or ys[i] != home(caps[i]) or caps[i].get("pos") or "y" in caps[i]:
+            i += 1
+            continue
+        j = i
+        while j + 1 < len(caps) and ys[j + 1] == home(caps[j + 1]) and not caps[j + 1].get("pos"):
+            j += 1
+        if (
+            0 < i
+            and j + 1 < len(caps)
+            and ys[i - 1] == alt
+            and ys[j + 1] == alt
+            and caps[j]["end"] - caps[i]["start"] < 1.5
+            and not any(_hit(caps[k], alt) for k in range(i, j + 1))
+        ):
+            for k in range(i, j + 1):
+                ys[k] = alt
+        i = j + 1
+    return ys, alt
+
+
+_caps_all = edit.get("captions", [])
+_live = [c for c in _caps_all if not any(a - 0.05 <= c["start"] < b for a, b in quiet)]
+if STEADY:
+    _ys, _alt = steady_spots(_live)
+    for c, y in zip(_live, _ys):
+        c["_spot"] = y
+    _runs, _prev = [], None
+    for c, y in zip(_live, _ys):
+        if y != _prev and y is not None and y == _alt:
+            _runs.append(c["start"])
+        _prev = y
+    _hid = sum(1 for y, c in zip(_ys, _live) if y is None and c.get("pos") != "hide")
+    print(
+        f"captions: steady at y {CAP_Y}"
+        + (
+            f"; moved to y {_alt} for {len(_runs)} stretch(es), from " + ", ".join(f"{t:.1f} s" for t in _runs)
+            if _runs
+            else ""
+        )
+        + (f"; {_hid} hidden under a graphic" if _hid else "")
+    )
+for i, c in enumerate(_caps_all):
     if any(a - 0.05 <= c["start"] < b for a, b in quiet):
         continue
-    c["y"] = cap_y(c)
+    c["y"] = c.pop("_spot") if STEADY else cap_y(c)
     if c["y"] is None:
         continue
     ws = c["words"]
@@ -1655,6 +1733,21 @@ for i, c in enumerate(edit.get("captions", [])):
         )
         for w in ws
     )
+    # Added by By Mel Ross (0.34.8): "caption_mode": "spoken" lights up each word in the highlight color as it's said.
+    # The words keep one font and size, so nothing shifts; the box behind the word (if any) comes and goes with it.
+    if SPOKEN and len(ws) > 1:
+        _pad = (
+            ";padding:.02em .16em .08em;margin:0 -.16em;border-radius:.16em;box-decoration-break:clone"
+            if CAP_ACC_BG
+            else ""
+        )
+        spans = "".join(f'<span id="c{i}w{k}" style="{_pad}">{esc(case(w["text"]))}</span> ' for k, w in enumerate(ws))
+        for k, w in enumerate(ws):
+            _on = f"color:'{CAP_ACC}'" + (f",backgroundColor:'{CAP_ACC_BG}',textShadow:'none'" if CAP_ACC_BG else "")
+            _off = f"color:'{CAP}'" + (",backgroundColor:'transparent',textShadow:''" if CAP_ACC_BG else "")
+            js.append(f'tl.set("#c{i}w{k}",{{{_on}}},{q(max(c["start"], w["t"]))});')
+            if k + 1 < len(ws):
+                js.append(f'tl.set("#c{i}w{k}",{{{_off}}},{q(ws[k + 1]["t"])});')
     # Added by By Mel Ross (0.19.0, Style Menu C6, C10): the words sit on a box or a bar. brand.json captions "bg": "#FFFFFF" | "rgba(0,0,0,.6)"
     _cbg = CAPS.get("bg") or ("rgba(17,17,17,.66)" if any(a_ - 0.05 <= c["start"] < b_ for a_, b_ in boxed) else None)
     if _cbg:

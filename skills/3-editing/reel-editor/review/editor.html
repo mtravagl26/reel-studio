@@ -14,6 +14,7 @@ header .t { flex: 1; min-width: 0; } header .t small { display: block; color: #5
 button, select, input[type=text], input[type=number] { font: inherit; }
 button { min-height: 44px; padding: 0 14px; border-radius: 12px; border: 1.5px solid var(--ink); background: #fff; color: var(--ink); font-weight: 600; }
 button.pri { background: var(--ink); color: #fff; } button.sage { background: var(--sage); border-color: var(--sage-d); }
+button.pri.armed { background: var(--sage-d, #6f8a5b); }   /* 0.34.5: Re-render asks on the button */
 button.sm { min-height: 36px; padding: 0 10px; font-size: 14px; } button:disabled { opacity: .4; }
 button.danger { border-color: var(--bad); color: var(--bad); }
 input[type=text], input[type=number], select { width: 100%; min-height: 44px; border: 1.5px solid var(--line); border-radius: 10px; padding: 0 10px; background: #fff; color: var(--ink); font-size: 16px; }
@@ -131,6 +132,7 @@ summary .tipb{margin-right:auto}
 <div class="vbar"><span id="clock">0:00.0</span><span class="grow"></span><button id="nowBtn" class="sm" title="Copies the moment the video is paused at into the start time of the item you have open">Mark time</button><select id="ver" style="width:auto"></select></div>
 <div id="tl"><div id="tli"></div></div>
 <div class="tlkey"><span><i style="background:#f3e9b8;border:1px solid #dccf8f"></i>captions</span><span><i style="background:#0d2b2d"></i>text and cards</span><span><i style="background:#e7a23b"></i>pictures, GIFs, clips</span><span><i style="background:#7a4fa3;border-radius:50%"></i>sounds</span><span><i style="background:none;border-left:2px dashed #c0392b;width:0"></i>a cut</span></div>
+<p id="vernote" class="help" style="margin:6px 0 0"></p>
 <div id="stale"></div>
 <div id="receipt" hidden><b>What was done to this reel</b><ul id="receiptList"></ul></div>
 

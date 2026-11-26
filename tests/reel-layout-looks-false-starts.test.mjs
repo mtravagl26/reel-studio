@@ -101,7 +101,7 @@ print(json.dumps({"fixes": t["words"], "words": [w["text"] for w in e["captions"
 
 test("the pages: captions spot on both pages, move some captions, the Instagram overlay, looks on the home page, false-start labels", () => {
   const rv = pageText(path.join(review, "reel-review.html")), ed = pageText(path.join(review, "editor.html")), home = fs.readFileSync(path.join(review, "home.html"), "utf8");
-  for (const t of ["Where captions sit", "Above my head", "Move some captions", "Hide them", "Show what Instagram covers", "falseStarts", "Bottom (lower third)"]) assert.ok(rv.includes(t), t);
+  for (const t of ["Captions above your head instead?", "Above my head", "Move some captions", "Hide them", "Show what Instagram covers", "falseStarts", "Bottom (lower third)"]) assert.ok(rv.includes(t), t);
   for (const t of ["Where captions sit", 'data-a="layout"', "Show what Instagram covers", 'href="/styles"']) assert.ok(ed.includes(t), t);
   for (const t of ["Pick a look", "My brand as it is", "Arched title with a sparkle wave", 'href="/looks"']) assert.ok(home.includes(t), t);
   assert.match(fs.readFileSync(path.join(review, "editor-server.mjs"), "utf8"), /"\/api\/layout"/);
@@ -164,4 +164,38 @@ test("caption_lead shows captions earlier; edit.json wins over brand.json (0.29.
   assert.equal(at(off.html, 1), 1.1, "this reel can say 0");
   assert.ok(Math.abs(at(big.html, 1) - 0.6) < 0.001, "capped at 0.5 s");
   assert.equal(at(lead.html, 0), 0, "never before 0");
+});
+
+test("a note or list card before a stat, tiles or labelled picture card builds (the tape() name isn't reused)", { skip: skipReason }, () => {
+  const r = build({ edit: { cards: [
+    { type: "note", text: "a note", start: 0.2, end: 0.6 },
+    { type: "card", title: "my list", rows: ["one", "two"], start: 0.7, end: 1.0 },
+    { type: "stat", value: "12", label: "hours", start: 1.1, end: 1.5 },
+    { type: "tiles", label: "my tools", tiles: ["a", "b", "c"], start: 1.6, end: 2.0 },
+  ] } });
+  assert.match(r.html, /class="notew"/); assert.match(r.html, /12/); assert.match(r.html, /my tools/);
+});
+
+test("steady captions: one spot to move to, no bouncing back for a short gap, and caption_moves free brings back the old way (0.34.7)", { skip: skipReason }, () => {
+  const card = (start, end) => ({ type: "card", title: "list", rows: ["a", "b", "c"], y: 1000, start, end, quiet: false });
+  const cards = [card(0, 1.05), card(2.0, 3.05)];
+  const r = build({ edit: { cards } });
+  assert.deepEqual([0, 1, 2, 3, 4].map((k) => r.tops[String(k)]), [290, 290, 290, 1250, 1250], "the 1 s gap between two lists stays at the top");
+  const old = build({ edit: { cards, caption_moves: "free" } });
+  assert.deepEqual([0, 1, 2].map((k) => old.tops[String(k)]), [290, 1250, 290], "free: back home between them");
+  const both = build({ edit: { cards: [{ ...card(0, 1.05), y: 1200 }, { type: "tag", text: "NEW", y: 250, start: 0, end: 1.05, quiet: false }] } });
+  assert.equal(both.tops["0"], 900, "top covered too: the one other spot left");
+});
+
+test("caption_mode spoken lights each word as it's said; the review import splits or groups one-word captions (0.34.8)", { skip: skipReason }, () => {
+  const r = build({ edit: { caption_mode: "spoken" } });
+  assert.match(r.html, /id="c0w0"[^>]*>line<\/span> <span id="c0w1"/);
+  assert.match(r.html, /tl\.set\("#c0w0",\{color:'[^']+'\},0\.1\d*\);/); assert.match(r.html, /tl\.set\("#c0w0",\{color:'#FFFFFF'\},0\.5\);/);
+  const plain = build({}); assert.doesNotMatch(plain.html, /id="c0w0"/, "marked words only by default");
+  const out = pyrun(`import json, sys; sys.path.insert(0, sys.argv[1]); import review_sync as R
+caps = [{"start": 0, "end": 1.2, "words": [{"text": "so", "t": 0}, {"text": "here,", "t": 0.4}, {"text": "it", "t": 0.8}]}]
+one = R.split_words(caps); back = R.group_words(one)
+print(json.dumps({"one": [[c["start"], c["end"], c["words"][0]["text"]] for c in one], "back": [[w["text"] for w in c["words"]] for c in back]}))`);
+  assert.deepEqual(out.one, [[0, 0.4, "so"], [0.4, 0.8, "here,"], [0.8, 1.2, "it"]]);
+  assert.deepEqual(out.back, [["so", "here,"], ["it"]], "a new phrase after a comma");
 });

@@ -16,6 +16,7 @@ import { spawn, spawnSync } from "node:child_process";
 import { SHIM, DOCS, WRITABLE, trusted } from "./review-shim.mjs";
 import { lookPreviews } from "./look-preview.mjs";
 import { themePreviews, themeRoutes } from "./theme-preview.mjs";
+import { storyboard } from "./storyboard.mjs";
 import { recommender } from "./recommend.mjs";
 import * as MUSIC from "./music.mjs";
 import { fileURLToPath } from "node:url";
@@ -111,6 +112,14 @@ const editHash = () => sha(fs.readFileSync(P.edit, "utf8"), fs.readFileSync(P.ed
 
 // ---- themes (Added by By Mel Ross, 0.9.0): the same folders scripts/theme.py reads, your own first
 const THEME_OK = /^[a-z0-9][a-z0-9_-]{0,40}$/;
+// Added by By Mel Ross (0.34.9): how this reel's theme lines up a title when the card doesn't say (for the Line up buttons)
+function titleAlign(edit, brand) {
+  const n = edit.theme === "none" ? null : edit.theme || brand.theme;
+  if (n && THEME_OK.test(n)) for (const dir of [path.join(HOME, "themes"), path.join(SKILL, "themes")]) {
+    const f = path.join(dir, n, "theme.json"); if (exists(f)) { const a = readJSON(f, {})?.cards?.title?.align; if (a) return a; break; }
+  }
+  return brand.cards?.title?.align || "center";
+}
 function listThemes() {
   const out = new Map();
   for (const dir of [path.join(SKILL, "themes"), path.join(HOME, "themes")]) {
@@ -144,6 +153,8 @@ function lookLines() {
 }
 const LOOKP = lookPreviews({ scripts: SCRIPTS, home: HOME, env: childEnv(), tag: path.basename(REEL).replace(/[^\w.-]+/g, "_") });
 const RECOMMEND = recommender({ scripts: SCRIPTS, env: childEnv() });   // 0.34.0
+let _sb = null;
+const SB = () => (_sb ||= storyboard({ REEL, SKILL, listRenders, childEnv }));   // 0.35.0
 const THEMEP = themePreviews({ scripts: SCRIPTS, home: HOME, env: childEnv(), tag: path.basename(REEL).replace(/[^\w.-]+/g, "_") });   // 0.33.0
 function setStylePicks(body) {
   const ok = new Set(menuLooks().filter((l) => USABLE_LOOK.has(l.status)).map((l) => l.id));
@@ -533,7 +544,7 @@ function view() {
   const out = {
     reel: path.basename(REEL), speed: st.speed, total, masterDur: masterDuration(), edit: { captions: edit.captions || [], cards: edit.cards || [], sfx_events: edit.sfx_events || [], punch: edit.punch || [] },
     pieces, media, popups: files, sfxNames: sfxNames(), notes, renders, job, receipt: receiptNow(st, edit, brand),
-    textDefault: brand.text_default || { layer: "front", position: "above" }, hasTextDefault: !!brand.text_default,
+    textDefault: brand.text_default || { layer: "front", position: "above" }, hasTextDefault: !!brand.text_default, titleAlign: titleAlign(edit, brand),
     themes: listThemes(), theme: { reel: edit.theme || null, all: brand.theme || null }, giphy: !!giphyKey(),
     sfxOn: (edit.sfx ?? brand.sfx ?? "subtle") !== "none", sfxAll: (brand.sfx ?? "subtle") !== "none",
     music: musicNow(edit, brand), addLooks: addableLooks(),
@@ -665,6 +676,7 @@ async function runRender(opts = {}) {
     const rec = { v: version, at: new Date().toISOString(), full: `renders/v${v}.mp4`, phone: `renders/v${v}-phone.mp4`, len: durOf(full), notes: buildNotes, qa: job.qa, mix: mixLine,
       sync, recut: needCut, ...(soundOnly ? { soundOnly: true } : {}), what: `${soundOnly ? "sound only, " : ""}${(readJSON(P.edit, {}).cards || []).filter((c) => !c.off).length} cards, ${core.keptSpans(st).length} pieces` };
     writeJSON(path.join(P.renders, `v${v}.json`), rec);
+    try { SB().make(); } catch { /* the Storyboard tab makes it when opened */ }   // 0.35.0
     fs.writeFileSync(path.join(P.renders, `v${v}-edit.json`), editBefore); fs.copyFileSync(P.edl, path.join(P.renders, `v${v}-edl.json`));
     writeJSON(P.meta, { cut_key: cutKeyNow(st), edit_hash: editHash(), version, at: rec.at });
     writeLatestBuild(rec);
@@ -845,7 +857,7 @@ function prepareBaseline() {
     "-c:a", "aac", "-b:a", "128k", "-movflags", "+faststart", phone], { env: childEnv() });
   c.on("close", (code) => {
     prepping = false;
-    if (code === 0) writeJSON(path.join(P.renders, `v${v}.json`), { v: version, at: new Date().toISOString(), phone: `renders/v${v}-phone.mp4`, full: "final.mp4", ...extra });
+    if (code === 0) { writeJSON(path.join(P.renders, `v${v}.json`), { v: version, at: new Date().toISOString(), phone: `renders/v${v}-phone.mp4`, full: "final.mp4", ...extra }); try { SB().make(); } catch { /* made when opened */ } }
   });
 }
 
@@ -924,7 +936,14 @@ const server = http.createServer(async (req, res) => {
     if (p === "/core.js") return sendFile(req, res, path.join(HERE, "core.js"));
     if (p === "/review.js" || p === "/editor.js") return sendFile(req, res, path.join(HERE, p.slice(1)));   // 0.30.0: the pages' code
     if (p === "/core.mjs") return sendFile(req, res, path.join(HERE, "editor-core.mjs"));
-    if (p === "/api/stage" && req.method === "GET") return json(res, 200, { reel: path.basename(REEL), built: built(), review: hasReview() });
+    if (p === "/api/stage" && req.method === "GET") return json(res, 200, { reel: path.basename(REEL), built: built(), review: hasReview(), storyboardDone: built() ? SB().done() : false });
+    // 0.35.0: the storyboard, scene by scene after each render
+    if (p === "/storyboard") return sendFile(req, res, path.join(HERE, "storyboard.html"));
+    if (p === "/api/storyboard" && req.method === "GET") { if (built()) { try { prepareBaseline(); } catch { /* use what's there */ } } return json(res, 200, { ok: true, ...(built() ? SB().view() : { none: true }) }); }
+    if (p === "/api/storyboard" && req.method === "POST") {
+      try { return json(res, 200, { ok: true, ...SB().save(JSON.parse((await readBody(req, 2e4)).toString() || "{}")) }); }
+      catch (e) { return json(res, 400, { ok: false, error: String(e.message || e) }); }
+    }
     if (p.startsWith("/db/")) {   // the review page's decisions, same files and rules as serve.mjs
       const doc = p.slice(4);
       if (!DOCS.has(doc)) { res.writeHead(404).end(); return; }
@@ -967,6 +986,13 @@ const server = http.createServer(async (req, res) => {
     if (p.startsWith("/api/") && !built()) return json(res, 409, { ok: false, error: "This reel is not built yet. Finish the review step first." });
     if (p === "/api/giphy-key" && req.method === "GET") return json(res, giphyKey() ? 200 : 404, { key: giphyKey() });
     if (p === "/api/job" && req.method === "GET") return json(res, 200, { job, canUndo: history().length > 0 });
+    // 0.34.5: is there a newer video than the page shows? A render made outside this page (by Claude) is picked up here,
+    // with its phone copy made in the background, so the page can switch to it without a refresh.
+    if (p === "/api/fresh" && req.method === "GET") {
+      try { prepareBaseline(); } catch { /* the page asks again in a few seconds */ }
+      const all = listRenders(), last = all.reduce((m, r) => (r.v > (m?.v ?? -1) ? r : m), null);
+      return json(res, 200, { latest: last ? last.v : null, at: last?.at || null, outside: !!last?.outside, prepping, rendering: job.state === "running" || job.state === "queued" });
+    }
     if (req.method === "POST" && p.startsWith("/api/")) {
       try {
         if (p === "/api/op") { const b = JSON.parse((await readBody(req, 2e6)).toString() || "{}"); return json(res, 200, { ok: true, ...doOp(b), state: view() }); }

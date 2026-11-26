@@ -65,6 +65,14 @@ Tell them what changed, and what to check by ear (cuts, names, brand words spell
 
 The review page's **Cover** tab links to the thumbnail studio, a local page for picking the cover frame, adding a headline in their brand fonts and downloading 1080x1920, 1080x1440 and 1080x1080 PNGs. Start it with `python3 scripts/thumbnail_studio.py <reel>` in the background, check it answers, then send the link. When they say "open my thumbnail studio", start it the same way (safe if it's already running). Details: "Thumbnail studio" in `references/review.md`. No review page? Start it with `--open` and send the link in chat.
 
+## Storyboard after every render (0.36.0)
+
+After each render the Edit page opens on its **Storyboard** tab: the render split into scenes (cut at card starts and ends, then pauses, at most 5 s each), one still per scene, what is said, what is on screen, and flags. The page makes it on its own after a render from the page. After a render you run yourself, make it with `python3 scripts/scenes.py <reel>` (newest `renders/v*-phone.mp4`, else `final.mp4`).
+
+- **Before you send any preview link:** run `scenes.py`, open `editor/storyboard/<version>/sheet.jpg` (every still in one picture) and read every flag it prints: dead air, words with no caption, card words they never say. Fix them first, or tell them which you left and why.
+- **Their notes:** when they say their storyboard notes are ready, read `editor/storyboard/<version>/notes.json`. Each scene they wrote on has `note`, its `start` and `end`, what's said and what's on screen. Work through every note, then re-render; the new render gets a fresh storyboard. Scenes marked `ok` stay as they are.
+- Make changes through the pages or the touch-ups operations, never by hand-editing `edit.json`.
+
 ## Editing a finished reel by tapping (the touch-ups page)
 
 When the person wants to change a reel that is already built (fix a caption word, drop a piece, switch text or sounds on and off, add a GIF, graphic or photo, make pictures circle their head, change the theme), don't rewrite `edit.json` by hand: send them the Reel Studio link (`node <skill>/review/studio-server.mjs <reel folder> --lan --port 4792`; if the review link is still running it is the same server). They tap, every change is saved with an Undo, and **Re-render** runs the usual cut/render/QA and keeps earlier renders. It never delivers. The page has a live preview: changes show within seconds, and Re-render is only needed once at the end. Read `references/editor-page.md` before starting it; GIPHY search is `references/giphy.md`: the pages take the person's GIPHY key in a box and save it, so never walk them through editing a file or Terminal for it. Pictures can be gif, png, jpg, webp, heic or svg. A picture popup with no `pos` sits in the middle of the screen and 2 at the same time sit side by side (0.16.0); leave `pos` out unless they chose a place. Colors for one reel are `edit.json` `"colors": {"main", "pop", "light"}`; they set them in the color box on either page.
@@ -115,12 +123,26 @@ When the person wants to compare looks or themes, or you are about to use a look
 
 If the brand file and your taste disagree, the brand file wins. If they correct something during an edit ("no, never outline captions"), add it to `brand.md` under "Rules" straight away so the next edit gets it right.
 
+## Before you show a preview (0.34.6)
+
+These come from a real reel where each one cost a round of renders.
+
+- **Trust the audio over the transcript.** `transcribe.py` drops words heard where the voice is silent and prints `dropped N words heard where you're silent: ...`. Tell the person which, once. Never put a caption or a card on a stretch where they aren't speaking.
+- **Look at the whole reel before you show it.** Take stills every 2 seconds across the whole cut, not a few, and look at every one: captions readable on their top, nothing covering the face, no empty card, no caption hidden under a card. Then check the cut for stretches of silence at the start, the end and between lines.
+- **Card text is words they say and kept.** Never write a row or title from words that were cut or that they didn't say.
+- **Change a built reel through the pages, never by editing `edit.json` by hand.** Hand edits put the page out of step: its preview looks out of date, Build preview overwrites them, and their own saved changes get missed. Use the Edit page, or ask them to.
+- **Read their saved changes first.** Before you build or re-render, read what they saved on the review page (`review_db/review/current.json`) and on Touch-ups, and build on that.
+- **One look at the whole thing beats many small fixes.** When a fix causes a new problem, stop, take the full set of stills again, and fix together what belongs together.
+
 ## Common mistakes
 
 | Mistake | Instead |
 |---|---|
 | Editing before a brand file exists | Run the setup interview |
 | Cutting on Whisper word times blindly | Check the joins; nudge cuts into the quiet gap between words |
+| Captions or cards on words Whisper heard in silence | `transcribe.py` drops them; say which. Check the audio, not only the transcript |
+| Hand-editing a built reel's `edit.json` | Change it on the Edit page, so the page, its preview and Build preview agree |
+| Cards placed where captions sit, so captions keep moving | Read the build's `captions: steady ...` line; more than 2 stretches means move the cards out of the caption spot |
 | Graphics that decorate instead of illustrate | Each card shows what this exact line says |
 | Captions in a font the brand file bans | Re-read brand.md "Rules" before step 5 |
 | Saying CapCut works everywhere | It doesn't (see capcut.md). The MP4 route always works |

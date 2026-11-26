@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Reel Studio: storyboard</title>
+<!-- Added by By Mel Ross (0.35.0). The storyboard: the newest render, scene by scene, with a note per scene for Claude.
+     Served by editor-server.mjs (review/storyboard.mjs). Vanilla JS, nothing leaves this computer. -->
+<style>
+:root { --bg:#f5f2ec; --ink:#0d2b2d; --sage:#B9C8A5; --sage-d:#8da273; --card:#fff; --line:#e1dccf; --warn:#b4571f; --mute:#5b6b69; }
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html { background: var(--bg); }
+body { margin: 0 auto; max-width: 760px; padding: 0 12px 110px; font: 16px/1.4 -apple-system, "Helvetica Neue", Arial, sans-serif; color: var(--ink); }
+h1 { font-size: 20px; margin: 14px 0 4px; }
+.lede { color: var(--mute); margin: 0 0 10px; font-size: 15px; }
+button { font: inherit; min-height: 44px; padding: 0 14px; border-radius: 12px; border: 1.5px solid var(--ink); background: #fff; color: var(--ink); font-weight: 600; cursor: pointer; }
+button.pri { background: var(--ink); color: #fff; } button.sm { min-height: 36px; padding: 0 10px; font-size: 14px; }
+button.good[aria-pressed="true"] { background: var(--sage); border-color: var(--sage-d); }
+.banner { margin: 8px 0; padding: 10px 12px; border-radius: 12px; background: #dfeaf3; color: #1d4a6b; font-size: 14px; }
+.banner.warn { background: #fbe7d6; color: #6b3410; } .banner.ok { background: #e9efe1; color: #2c3b1f; }
+.player { position: sticky; top: 0; z-index: 5; background: var(--bg); padding: 8px 0; display: flex; gap: 12px; align-items: center; border-bottom: 1px solid var(--line); }
+.player video { width: 120px; aspect-ratio: 9/16; background: #000; border-radius: 10px; object-fit: contain; }
+.player .t { flex: 1; font-size: 14px; color: var(--mute); }
+.tally { font-size: 14px; color: var(--mute); margin: 10px 0; }
+.scenes { display: grid; gap: 12px; }
+.scene { display: grid; grid-template-columns: 112px 1fr; gap: 12px; background: var(--card); border: 1.5px solid var(--line); border-radius: 14px; padding: 10px; }
+.scene.flagged { border-color: #e9b48c; } .scene.ok { border-color: var(--sage-d); } .scene.noted { border-color: var(--ink); }
+.scene .still { width: 112px; aspect-ratio: 9/16; object-fit: cover; border-radius: 8px; background: #ddd; cursor: pointer; display: block; }
+.scene h2 { font-size: 16px; margin: 0 0 4px; display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+.scene h2 small { font-weight: 500; color: var(--mute); font-size: 13px; }
+.scene .said { font-size: 14px; margin: 0 0 4px; } .scene .said:empty::before { content: "No talking"; color: var(--warn); }
+.scene .on { font-size: 13px; color: var(--mute); margin: 0 0 4px; }
+.scene ul.flags { margin: 4px 0; padding: 0 0 0 18px; color: var(--warn); font-size: 13px; }
+.scene textarea { width: 100%; min-height: 64px; font: inherit; font-size: 15px; border: 1.5px solid var(--line); border-radius: 10px; padding: 8px 10px; resize: vertical; margin-top: 6px; }
+.scene .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 6px; }
+.scene .saved { font-size: 12px; color: var(--mute); }
+footer { position: fixed; left: 0; right: 0; bottom: 0; background: #fff; border-top: 1px solid var(--line); padding: 10px 12px calc(10px + env(safe-area-inset-bottom)); }
+footer .in { max-width: 760px; margin: 0 auto; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+footer #donemsg { flex: 1 1 200px; font-size: 14px; color: var(--mute); }
+@media (max-width: 420px) { .scene { grid-template-columns: 92px 1fr; } .scene .still { width: 92px; } }
+</style></head>
+<body>
+<h1>Storyboard</h1>
+<p class="lede">Your newest render, one still per scene. Tap a still to play that scene. Write what should change under any scene, or mark it good. Claude reads your notes when you send them.</p>
+<div id="msg" class="banner" hidden></div>
+<div class="player" id="playerbar" hidden><video id="v" playsinline controls preload="metadata"></video><div class="t" id="ptext">Tap a still to play that scene.</div></div>
+<p class="tally" id="tally"></p>
+<div class="scenes" id="scenes"></div>
+<footer hidden id="foot"><div class="in"><span id="donemsg"></span><button class="pri" id="send" type="button">Send my notes to Claude</button></div></footer>
+<script>
+const $ = (s) => document.querySelector(s);
+const fmt = (t) => t < 60 ? t.toFixed(1) : `${Math.floor(t / 60)}:${(t % 60).toFixed(1).padStart(4, "0")}`;
+const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+let SB = null, stopAt = null, poll = null;
+const v = $("#v");
+function msg(text, kind) { const m = $("#msg"); m.hidden = !text; m.textContent = text || ""; m.className = "banner" + (kind ? " " + kind : ""); }
+async function load() {
+  let j; try { j = await (await fetch("/api/storyboard", { cache: "no-store" })).json(); } catch { return msg("The storyboard couldn't be loaded. Is the Reel Studio link still running?", "warn"); }
+  clearTimeout(poll);
+  if (j.none) { $("#scenes").textContent = ""; $("#foot").hidden = true; $("#playerbar").hidden = true; msg("The storyboard appears after the first render. Build the reel in The cut first."); poll = setTimeout(load, 3000); return; }
+  if (j.error) return msg("The storyboard couldn't be made: " + j.error, "warn");
+  if (j.making) { msg(`Making the storyboard for render ${j.v}. This takes a few seconds.`); poll = setTimeout(load, 1500); return; }
+  const fresh = !SB || SB.v !== j.v; SB = j; msg(""); render(fresh);
+}
+function render(fresh) {
+  $("#playerbar").hidden = false; $("#foot").hidden = false;
+  if (fresh) v.src = SB.video;
+  const box = $("#scenes"); box.textContent = "";
+  for (const s of SB.scenes) {
+    const n = SB.notes.scenes[s.n] || {}, el = document.createElement("div");
+    el.className = "scene" + (n.note ? " noted" : n.ok ? " ok" : s.flags.length ? " flagged" : ""); el.dataset.n = s.n;
+    el.innerHTML = `<img class="still" alt="Scene ${s.n}" src="${SB.base}${esc(s.still)}?v=${SB.v}" data-a="play">
+      <div><h2>Scene ${s.n} <small>${fmt(s.start)} – ${fmt(s.end)} s</small></h2>
+      <p class="said">${esc(s.said)}</p>
+      ${s.cards.length ? `<p class="on">On screen: ${s.cards.map((c) => esc(c.label)).join(" · ")}</p>` : ""}
+      ${s.flags.length ? `<ul class="flags">${s.flags.map((f) => `<li>${esc(f)}</li>`).join("")}</ul>` : ""}
+      <textarea data-a="note" aria-label="What should change in scene ${s.n}" placeholder="What should change here? (optional)">${esc(n.note || "")}</textarea>
+      <div class="row"><button class="sm good" type="button" data-a="ok" aria-pressed="${!!n.ok}">${n.ok ? "Good ✓" : "Looks good"}</button><button class="sm" type="button" data-a="play">▶ Play scene</button><span class="saved"></span></div></div>`;
+    box.append(el);
+  }
+  tally();
+}
+function tally() {
+  const sc = SB.notes.scenes || {}, notes = Object.values(sc).filter((x) => x.note).length, good = Object.values(sc).filter((x) => x.ok && !x.note).length;
+  const flagged = SB.scenes.filter((s) => s.flags.length).length;
+  $("#tally").textContent = `${SB.v ? "Version " + SB.v : "First build"} · ${SB.scenes.length} scenes · ${notes} with a note · ${good} marked good` + (flagged ? ` · ${flagged} for Claude to check` : "");
+  $("#donemsg").textContent = SB.notes.done ? "Sent. Tell Claude: my storyboard notes are ready." : notes ? `${notes} ${notes === 1 ? "note" : "notes"} waiting to send.` : "No notes yet. Send anyway if it all looks good.";
+  $("#send").textContent = SB.notes.done ? "Sent ✓" : "Send my notes to Claude";
+}
+async function save(body, el) {
+  try {
+    const r = await fetch("/api/storyboard", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ v: SB.v, ...body }) });
+    const j = await r.json(); if (!j.ok) throw new Error(j.error);
+    SB.notes = j.notes; tally();
+    if (el) { el.querySelector(".saved").textContent = "Saved"; const n = SB.notes.scenes[el.dataset.n] || {}; el.className = "scene" + (n.note ? " noted" : n.ok ? " ok" : SB.scenes.find((s) => s.n == el.dataset.n).flags.length ? " flagged" : ""); }
+  } catch (e) { msg(String(e.message || e), "warn"); if (/older render/.test(String(e.message))) load(); }
+}
+const timers = {};
+document.addEventListener("input", (e) => {
+  if (e.target.dataset.a !== "note") return;
+  const el = e.target.closest(".scene"), n = el.dataset.n; el.querySelector(".saved").textContent = "";
+  clearTimeout(timers[n]); timers[n] = setTimeout(() => save({ n: +n, note: e.target.value }, el), 600);
+});
+document.addEventListener("click", (e) => {
+  const a = e.target.closest("[data-a]")?.dataset.a, el = e.target.closest(".scene");
+  if (a === "play" && el) {
+    const s = SB.scenes.find((x) => x.n == el.dataset.n); stopAt = s.end;
+    v.currentTime = s.start; v.play().catch(() => {}); $("#ptext").textContent = `Scene ${s.n}: ${fmt(s.start)} – ${fmt(s.end)} s`;
+  } else if (a === "ok" && el) {
+    const b = e.target.closest("button"), on = b.getAttribute("aria-pressed") !== "true";
+    b.setAttribute("aria-pressed", String(on)); b.textContent = on ? "Good ✓" : "Looks good"; save({ n: +el.dataset.n, ok: on }, el);
+  }
+});
+v.addEventListener("timeupdate", () => { if (stopAt != null && v.currentTime >= stopAt) { v.pause(); stopAt = null; } });
+$("#send").addEventListener("click", () => save({ done: true }));
+load();
+// a new render (from Touch-ups or Claude) brings a new storyboard
+setInterval(async () => { try { const s = await (await fetch("/api/storyboard", { cache: "no-store" })).json(); if (SB && (s.v !== SB.v || s.making)) load(); } catch {} }, 8000);
+</script>
+</body></html>
