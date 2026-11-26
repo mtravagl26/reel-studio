@@ -93,7 +93,7 @@ test("minimal theme: one-word lowercase captions low at the left edge, cream cap
   const h = html(c);
   assert.match(h, /@font-face \{ font-family: "Instrument Serif-head"; src: url\("fonts\/InstrumentSerif-Regular.ttf"\)/);
   assert.match(h, /@font-face \{ font-family: "Shadows Into Light-accent"/);
-  assert.match(h, /\.cap \{ left: 64px; right: auto; max-width: 460px; text-align: left; text-transform: lowercase;/, "captions pinned to the left edge from theme.json, no engine change");
+  assert.match(h, /\.cap \{ left: 40px; right: auto; max-width: 380px; text-align: left; text-transform: lowercase;/, "captions pinned to the left edge from theme.json, no engine change");
   assert.match(h, /id="c0" class="cap[^"]*" style="top:1180px;[^"]*color:#F3E7C9/, "small cream captions low on the left, clear of most hair");
   assert.match(h, /\.title \.tl:not\(\.tsub\):not\(\.ol\):not\(\.tlab\) \{ text-transform: uppercase; \}/);
   assert.match(h, /\.title:has\(\.tsub\) \{ top: 150px !important; \}/, "a title with a sub line is the hook, at the top");
