@@ -35,38 +35,44 @@ iframe[hidden]{display:none}
 </nav>
 <div class="tabs" role="tablist" aria-label="Edit">
   <button type="button" role="tab" id="t-cut" aria-controls="f-cut" aria-selected="false">The cut<small>what stays, captions, graphics, then build</small></button>
+  <button type="button" role="tab" id="t-board" aria-controls="f-board" aria-selected="false">Storyboard<small>scene by scene, your notes for Claude</small></button>
   <button type="button" role="tab" id="t-touch" aria-controls="f-touch" aria-selected="false">Touch-ups<small>small fixes on the built reel</small></button>
 </div>
 <p class="hint" id="hint"></p>
 <iframe id="f-cut" title="The cut" hidden></iframe>
+<iframe id="f-board" title="Storyboard" hidden></iframe>
 <iframe id="f-touch" title="Touch-ups" hidden></iframe>
 <script>
 const $ = (s) => document.querySelector(s);
 let stage = { built: false, review: true };
 function show(which) {
-  for (const [k, t, f, src] of [["cut", "#t-cut", "#f-cut", "/review?embed=1"], ["touch", "#t-touch", "#f-touch", "/touchups?embed=1"]]) {
+  for (const [k, t, f, src] of [["cut", "#t-cut", "#f-cut", "/review?embed=1"], ["board", "#t-board", "#f-board", "/storyboard?embed=1"], ["touch", "#t-touch", "#f-touch", "/touchups?embed=1"]]) {
     const on = k === which; $(t).setAttribute("aria-selected", String(on)); $(f).hidden = !on;
     if (on && !$(f).getAttribute("src")) $(f).setAttribute("src", src);
   }
   $("#hint").textContent = which === "cut"
-    ? (stage.built ? "The reel is built. Changing the cut here starts a new build; for small fixes, use Touch-ups." : "Decide what stays, then press Build. Touch-ups opens after the first build.")
+    ? (stage.built ? "The reel is built. Changing the cut here starts a new build; for small fixes, use Touch-ups." : "Decide what stays, then press Build. The storyboard opens after the first build.")
+    : which === "board"   // 0.35.0
+    ? (stage.built ? "Check the render scene by scene. Leave a note where something should change, then send your notes to Claude." : "The storyboard opens after the first build. Start with The cut.")
     : (stage.built ? "Fix words, move graphics, change sounds and music, then re-render." : "Touch-ups opens after the first build. Start with The cut.");
   history.replaceState(null, "", "#" + which);
 }
 $("#t-cut").addEventListener("click", () => show("cut"));
+$("#t-board").addEventListener("click", () => show("board"));
 $("#t-touch").addEventListener("click", () => show("touch"));
 (async () => {
   try { stage = await (await fetch("/api/stage")).json(); } catch { /* the page still works */ }
   if (!stage.review) $("#t-cut").hidden = true;
   const want = location.hash.slice(1);
-  show(want === "cut" || want === "touch" ? want : stage.built || !stage.review ? "touch" : "cut");
+  // 0.35.0: after a render, the storyboard comes first until its notes are sent; then Touch-ups
+  show(["cut", "board", "touch"].includes(want) ? want : stage.built ? (stage.storyboardDone ? "touch" : "board") : !stage.review ? "touch" : "cut");
   try {
     const s = await (await fetch("/api/state")).json(), links = (s.state || s).links || {};
     document.querySelectorAll(".steps .step[data-step]").forEach((el) => { const u = links[el.dataset.step]; if (typeof u === "string" && /^(https?:\/\/[\w.\-\[\]:]+(:\d+)?)?\/[\w\-\/?=&.%]*$/.test(u)) { el.href = u; el.classList.remove("off"); el.removeAttribute("title"); } });
   } catch { /* links stay off */ }
 })();
 // a build that finishes in The cut: offer Touch-ups
-setInterval(async () => { try { const s = await (await fetch("/api/stage")).json(); if (s.built && !stage.built) { stage = s; if ($("#f-cut").hidden === false) $("#hint").textContent = "Built. Small fixes now go in Touch-ups."; } } catch {} }, 5000);
+setInterval(async () => { try { const s = await (await fetch("/api/stage")).json(); if (s.built && !stage.built) { stage = s; if ($("#f-cut").hidden === false) $("#hint").textContent = "Built. Check it scene by scene in the Storyboard tab."; } } catch {} }, 5000);
 </script>
 </body>
 </html>

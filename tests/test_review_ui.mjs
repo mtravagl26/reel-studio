@@ -119,9 +119,27 @@ try {
   mkdirSync(join(reel, "popups"), { recursive: true });
   for (const n of ["a", "b"]) ff(["-f", "lavfi", "-i", "color=c=red:s=80x100", "-frames:v", "1", join(reel, "popups", `${n}.png`)]);
 
-  // ---- 2 Touch-ups
+  // ---- 2 Storyboard (0.35.0): first after a render, a note per scene, then Touch-ups once the notes are sent
   await open("/");
-  await until(`document.querySelector("#t-touch")?.getAttribute("aria-selected") === "true"`, "the Edit page on Touch-ups once built");
+  await until(`document.querySelector("#t-board")?.getAttribute("aria-selected") === "true"`, "the Edit page on the Storyboard once built");
+  await open("/storyboard");
+  await until(`document.querySelectorAll(".scene").length > 0 && [...document.querySelectorAll(".scene img")].every((i) => i.complete && i.naturalWidth > 0)`, "the storyboard's scenes and stills", 60000);
+  await js(`(() => { const t = document.querySelector('.scene [data-a="note"]'); t.value = "make this caption bigger"; t.dispatchEvent(new Event("input", { bubbles: true })); })()`);
+  const sbTag = (await js(`fetch("/api/storyboard").then((r) => r.json())`)).tag, sbDir = join(reel, "editor", "storyboard", sbTag);
+  for (let i = 0; i < 50 && !existsSync(join(sbDir, "notes.json")); i++) await sleep(100);
+  assert.equal(read(sbDir, "notes.json").scenes["1"].note, "make this caption bigger");
+  await click('.scene [data-a="ok"]'); await sleep(400);
+  assert.equal(read(sbDir, "notes.json").scenes["1"].ok, true);
+  if (process.env.REEL_SHOT) { await cdp("Emulation.setDeviceMetricsOverride", { width: 390, height: 1400, deviceScaleFactor: 1, mobile: true }); await sleep(500);
+    writeFileSync(process.env.REEL_SHOT, Buffer.from((await cdp("Page.captureScreenshot", { format: "png" })).data, "base64")); await cdp("Emulation.clearDeviceMetricsOverride", {}); }
+  await click("#send");
+  await until(`/Tell Claude/.test(document.querySelector("#donemsg").textContent)`, "the sent message");
+  assert.equal(read(sbDir, "notes.json").done, true);
+  assert.ok(existsSync(join(sbDir, "sheet.jpg")), "the one-picture sheet for Claude");
+
+  // ---- 3 Touch-ups
+  await open("/");
+  await until(`document.querySelector("#t-touch")?.getAttribute("aria-selected") === "true"`, "the Edit page on Touch-ups once the storyboard notes are sent");
   await open("/touchups");
   await until(`document.querySelector("h1")?.textContent === "Touch-ups" && document.querySelector("#caps .w")`, "the touch-ups page");
   assert.equal(await text('.steps [aria-current="step"]'), "1 Edit");
