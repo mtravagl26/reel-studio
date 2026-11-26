@@ -115,12 +115,26 @@ When the person wants to compare looks or themes, or you are about to use a look
 
 If the brand file and your taste disagree, the brand file wins. If they correct something during an edit ("no, never outline captions"), add it to `brand.md` under "Rules" straight away so the next edit gets it right.
 
+## Before you show a preview (0.34.6)
+
+These come from a real reel where each one cost a round of renders.
+
+- **Trust the audio over the transcript.** `transcribe.py` drops words heard where the voice is silent and prints `dropped N words heard where you're silent: ...`. Tell the person which, once. Never put a caption or a card on a stretch where they aren't speaking.
+- **Look at the whole reel before you show it.** Take stills every 2 seconds across the whole cut, not a few, and look at every one: captions readable on their top, nothing covering the face, no empty card, no caption hidden under a card. Then check the cut for stretches of silence at the start, the end and between lines.
+- **Card text is words they say and kept.** Never write a row or title from words that were cut or that they didn't say.
+- **Change a built reel through the pages, never by editing `edit.json` by hand.** Hand edits put the page out of step: its preview looks out of date, Build preview overwrites them, and their own saved changes get missed. Use the Edit page, or ask them to.
+- **Read their saved changes first.** Before you build or re-render, read what they saved on the review page (`review_db/review/current.json`) and on Touch-ups, and build on that.
+- **One look at the whole thing beats many small fixes.** When a fix causes a new problem, stop, take the full set of stills again, and fix together what belongs together.
+
 ## Common mistakes
 
 | Mistake | Instead |
 |---|---|
 | Editing before a brand file exists | Run the setup interview |
 | Cutting on Whisper word times blindly | Check the joins; nudge cuts into the quiet gap between words |
+| Captions or cards on words Whisper heard in silence | `transcribe.py` drops them; say which. Check the audio, not only the transcript |
+| Hand-editing a built reel's `edit.json` | Change it on the Edit page, so the page, its preview and Build preview agree |
+| Cards placed where captions sit, so captions keep moving | Read the build's `captions: steady ...` line; more than 2 stretches means move the cards out of the caption spot |
 | Graphics that decorate instead of illustrate | Each card shows what this exact line says |
 | Captions in a font the brand file bans | Re-read brand.md "Rules" before step 5 |
 | Saying CapCut works everywhere | It doesn't (see capcut.md). The MP4 route always works |

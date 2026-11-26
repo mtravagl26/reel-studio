@@ -12,7 +12,7 @@ edit.json (written by auto_edit.py, then Claude marks accents and adds cards):
                                                      (Style Menu H3 handwritten overline + caps headline, L7 step label); color: "#fff" for a white headline.
      arctitle {text: "Demystifying AI", sub: "part one", trail: true}   (0.23.0) a headline arched over the head with stars and a heavy line under it; trail lays gold sparkles along the tracked hand as it wipes in
      block  {top: "don't", bottom: "worry"}          full brand-colour screen with the clip framed in it (reveal)
-     card   {title: "my stack", rows: ["a","b"]}     white UI card, rows appear one by one (lists, steps, tools); dot: false hides the dot in its header (0.22.0; brand.json "list_dot": false for every list)
+     card   {title: "my stack", rows: ["a","b"]}     white UI card, rows appear one by one (lists, steps, tools); no dot in its header (0.34.5; "dot": true or brand.json "list_dot": true brings it back)
      tag    {text: "open source", y: 300}            small pill label that pops on (name drops); text_color: "#fff" sets the words' colour, also on a theme's pill graphic (0.22.0)
      (every card: leave out "end" and it clears when the phrase it starts in finishes)
      cta    {text: "comment EDIT", y?: 1360}         call-to-action pill (kept above the bottom ~420 px IG covers); CAPS word = pop color
@@ -197,7 +197,7 @@ if LAYOUT == "captions-high":  # text graphics with no height of their own go to
         elif _t == "card":
             _c["y"] = max(760, 1580 - 110 * (len(_c.get("rows", [])) + 1) - 60)
 # 0.22.0: the little dot in a list card's header; "list_dot": false in brand.json (or a theme) turns it off, a card's own "dot" wins
-LIST_DOT = brand.get("list_dot", True)
+LIST_DOT = brand.get("list_dot", False)  # 0.34.5: off for every theme; a card can still ask with "dot": true
 W, H, FPS = 1080, 1920, 30  # authored at 1080x1920; 4K brands render with --resolution portrait-4k
 SAFE = 900  # guardrail: no text line may be wider than this (90 px margin each side)
 EM = 0.66  # conservative average glyph width (bold display fonts run ~0.6-0.66 em)
@@ -1597,10 +1597,80 @@ def cap_y(c):
     return None
 
 
-for i, c in enumerate(edit.get("captions", [])):
+# Added by By Mel Ross (0.34.7): steady captions. Captions stay in one spot. When a graphic covers that spot they go to ONE
+# other spot, the same one all reel, and a short stretch back home between two moves stays put instead of bouncing.
+# "caption_moves": "free" (edit.json or brand.json) brings back the old per-caption choice.
+STEADY = (edit.get("caption_moves") or brand.get("caption_moves") or "steady") != "free"
+
+
+def _hit(c, yy):
+    return any(
+        a + 0.05 < c["end"] and c["start"] < b - 0.05 and top < yy + CAP_H and yy < bot for a, b, top, bot in covers
+    )
+
+
+def steady_spots(caps):
+    """Where each caption goes when captions stay steady. Returns a list of y (None = hidden) and the spot used when moved."""
+    home = lambda c: int(numf(c.get("y"), CAP_ZONES.get(c.get("pos"), CAP_Y)))
+    others = [z for z in (CAP_ZONES["top"], CAP_ZONES["bottom"], CAP_ZONES["middle"]) if abs(z - CAP_Y) > CAP_H]
+    moved = [c for c in caps if c.get("pos") != "hide" and _hit(c, home(c))]
+    alt = min(others, key=lambda z: sum(_hit(c, z) for c in moved)) if others else None
+    ys = []
+    for c in caps:
+        if c.get("pos") == "hide":
+            ys.append(None)
+        elif not _hit(c, home(c)):
+            ys.append(home(c))
+        else:
+            ys.append(alt if alt is not None and not _hit(c, alt) else None)
+    # no bouncing: a stretch at home shorter than 1.5 s between two moved stretches stays moved
+    i = 0
+    while i < len(caps):
+        if ys[i] is None or ys[i] != home(caps[i]) or caps[i].get("pos") or "y" in caps[i]:
+            i += 1
+            continue
+        j = i
+        while j + 1 < len(caps) and ys[j + 1] == home(caps[j + 1]) and not caps[j + 1].get("pos"):
+            j += 1
+        if (
+            0 < i
+            and j + 1 < len(caps)
+            and ys[i - 1] == alt
+            and ys[j + 1] == alt
+            and caps[j]["end"] - caps[i]["start"] < 1.5
+            and not any(_hit(caps[k], alt) for k in range(i, j + 1))
+        ):
+            for k in range(i, j + 1):
+                ys[k] = alt
+        i = j + 1
+    return ys, alt
+
+
+_caps_all = edit.get("captions", [])
+_live = [c for c in _caps_all if not any(a - 0.05 <= c["start"] < b for a, b in quiet)]
+if STEADY:
+    _ys, _alt = steady_spots(_live)
+    for c, y in zip(_live, _ys):
+        c["_spot"] = y
+    _runs, _prev = [], None
+    for c, y in zip(_live, _ys):
+        if y != _prev and y is not None and y == _alt:
+            _runs.append(c["start"])
+        _prev = y
+    _hid = sum(1 for y, c in zip(_ys, _live) if y is None and c.get("pos") != "hide")
+    print(
+        f"captions: steady at y {CAP_Y}"
+        + (
+            f"; moved to y {_alt} for {len(_runs)} stretch(es), from " + ", ".join(f"{t:.1f} s" for t in _runs)
+            if _runs
+            else ""
+        )
+        + (f"; {_hid} hidden under a graphic" if _hid else "")
+    )
+for i, c in enumerate(_caps_all):
     if any(a - 0.05 <= c["start"] < b for a, b in quiet):
         continue
-    c["y"] = cap_y(c)
+    c["y"] = c.pop("_spot") if STEADY else cap_y(c)
     if c["y"] is None:
         continue
     ws = c["words"]

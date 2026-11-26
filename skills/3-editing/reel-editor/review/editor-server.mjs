@@ -958,6 +958,13 @@ const server = http.createServer(async (req, res) => {
     if (p.startsWith("/api/") && !built()) return json(res, 409, { ok: false, error: "This reel is not built yet. Finish the review step first." });
     if (p === "/api/giphy-key" && req.method === "GET") return json(res, giphyKey() ? 200 : 404, { key: giphyKey() });
     if (p === "/api/job" && req.method === "GET") return json(res, 200, { job, canUndo: history().length > 0 });
+    // 0.34.5: is there a newer video than the page shows? A render made outside this page (by Claude) is picked up here,
+    // with its phone copy made in the background, so the page can switch to it without a refresh.
+    if (p === "/api/fresh" && req.method === "GET") {
+      try { prepareBaseline(); } catch { /* the page asks again in a few seconds */ }
+      const all = listRenders(), last = all.reduce((m, r) => (r.v > (m?.v ?? -1) ? r : m), null);
+      return json(res, 200, { latest: last ? last.v : null, at: last?.at || null, outside: !!last?.outside, prepping, rendering: job.state === "running" || job.state === "queued" });
+    }
     if (req.method === "POST" && p.startsWith("/api/")) {
       try {
         if (p === "/api/op") { const b = JSON.parse((await readBody(req, 2e6)).toString() || "{}"); return json(res, 200, { ok: true, ...doOp(b), state: view() }); }

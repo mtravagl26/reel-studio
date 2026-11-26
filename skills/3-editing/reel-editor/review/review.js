@@ -53,8 +53,8 @@ function showTab(t) {
   tab = t;
   $$(".tab").forEach(b => b.setAttribute("aria-selected", b.dataset.tab === t));
   $$("section[data-p]").forEach(s => s.hidden = s.dataset.p !== t);
-  $("#notetab").textContent = { cuts: "cuts", graphics: "graphics", captions: "captions", sound: "sound and color", preview: "preview", cover: "cover" }[t];
-  $("#notes").value = S.notes[t] || ""; $("#resetbox").hidden = t === "preview"; $("#notesbox").hidden = t === "cover";
+  $("#notetab").textContent = { cuts: "cuts", graphics: "graphics", captions: "captions", sound: "sound and color", preview: "preview" }[t];
+  $("#notes").value = S.notes[t] || ""; $("#resetbox").hidden = t === "preview"; 
   stopPlay();
   if (t === "preview") { if (B?.url && v.getAttribute("src") !== B.url) { v.setAttribute("src", B.url); v.load(); } $("#rough").hidden = $("#back5").hidden = $("#fwd5").hidden = true; $(".scrub").hidden = true; v.controls = true; }
   else { if (v.getAttribute("src") !== R.srcUrl) { v.setAttribute("src", R.srcUrl); v.load(); } $("#rough").hidden = $("#back5").hidden = $("#fwd5").hidden = false; $(".scrub").hidden = false; v.controls = false; }
@@ -358,7 +358,7 @@ const WORD_FIELDS = { title: [["text", "Words"]], tag: [["text", "Words"]], cta:
   arctitle: [["text", "Arched words"], ["sub", "Line under it"]], card: [["title", "List title"], ["rows", "Rows, one per line"]], chips: [["title", "Title"]],
   stat: [["value", "The number"], ["label", "Words above it"], ["delta", "The change"]], xlist: [["items", "Lines, one per line"]], shot: [["label", "Label"]] };
 function wordsBox(g) {
-  const box = document.createElement("div"); box.className = "words";
+  const box = document.createElement("div"); box.className = "gwords";
   const set = (S.board[g.id] || {}).set || {};
   for (const [f, name] of WORD_FIELDS[g.type]) {
     const list = f === "rows" || f === "items", now = f in set ? set[f] : g[f];
@@ -806,22 +806,9 @@ $("#revadd").addEventListener("click", () => {
 });
 $("#revtext").addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); $("#revadd").click(); } });
 
-// ---------- 6. cover: a link to the thumbnail studio on their own computer ----------
-function renderCover() {
-  const box = $("#coverbox"); box.textContent = "";
-  const url = /^http:\/\/(127\.0\.0\.1|localhost):\d+\//.test(R.thumbnailUrl || "") ? R.thumbnailUrl : null;
-  const para = (...parts) => { const p = document.createElement("p"); p.className = "lede"; p.append(...parts); box.appendChild(p); return p; };
-  const code = t => Object.assign(document.createElement("code"), { textContent: t });
-  if (!url) { para('Ask Claude to "open my thumbnail studio" and the link appears here.'); return; }
-  const a = Object.assign(document.createElement("a"), { className: "b primary", href: url, target: "_blank", rel: "noopener", textContent: "Open thumbnail studio" });
-  box.appendChild(Object.assign(document.createElement("div"), { className: "ctl" })).appendChild(a);
-  para("It opens in a new tab at ", code(url), ". If the button does nothing, copy that address into your browser.");
-  para("Says it can't connect? The studio stops when your computer restarts. Ask Claude to \"open my thumbnail studio\"",
-    ...(R.thumbnailCmd ? [", or paste this into Terminal: ", code(R.thumbnailCmd)] : []), ". Your cover settings are saved with the reel, so it opens how you left it.");
-}
 
 function renderAll() {
-  renderCuts(); renderGraphics(); renderWanted(); renderCaptions(); renderCapMode(); renderHighlight(); renderSound(); renderPreview(); renderCover();
+  renderCuts(); renderGraphics(); renderWanted(); renderCaptions(); renderCapMode(); renderHighlight(); renderSound(); renderPreview();
   const sent = { cuts: S.cut != null, graphics: Object.keys(S.board).length || (S.wanted || []).length || S.amount, captions: S.captions != null || S.highlight != null || S.layout != null || S.capmode != null, sound: Object.keys(S.sfxOff).length };
   $$(".tab").forEach(b => { const d = b.querySelector(".dot"); if (d) d.hidden = !sent[b.dataset.tab]; });
 }
@@ -860,7 +847,7 @@ function renderAll() {
     if (window.REEL_STUDIO_LINKS) fetch("/api/stage").then(r => r.json()).then(st => { $("#builtnote").hidden = !st.built; }).catch(() => {});
     $("#brand").value = S.brandRequest || "";
     renderLook();
-    renderAll(); showTab(["cuts", "graphics", "captions", "sound", "preview", "cover"].includes(location.hash.slice(1)) ? location.hash.slice(1) : "cuts");
+    renderAll(); showTab(["cuts", "graphics", "captions", "sound", "preview"].includes(location.hash.slice(1)) ? location.hash.slice(1) : "cuts");   // 0.34.3: the cover is step 2, after the edit
     pill(rv.exists ? "Saved decisions loaded" : "Ready");
   } catch (e) { pill("Couldn't load the reel (" + (e?.code || "error") + "). Reload to try again.", true); }
 })();

@@ -176,6 +176,17 @@ test("a note or list card before a stat, tiles or labelled picture card builds (
   assert.match(r.html, /class="notew"/); assert.match(r.html, /12/); assert.match(r.html, /my tools/);
 });
 
+test("steady captions: one spot to move to, no bouncing back for a short gap, and caption_moves free brings back the old way (0.34.7)", { skip: skipReason }, () => {
+  const card = (start, end) => ({ type: "card", title: "list", rows: ["a", "b", "c"], y: 1000, start, end, quiet: false });
+  const cards = [card(0, 1.05), card(2.0, 3.05)];
+  const r = build({ edit: { cards } });
+  assert.deepEqual([0, 1, 2, 3, 4].map((k) => r.tops[String(k)]), [290, 290, 290, 1250, 1250], "the 1 s gap between two lists stays at the top");
+  const old = build({ edit: { cards, caption_moves: "free" } });
+  assert.deepEqual([0, 1, 2].map((k) => old.tops[String(k)]), [290, 1250, 290], "free: back home between them");
+  const both = build({ edit: { cards: [{ ...card(0, 1.05), y: 1200 }, { type: "tag", text: "NEW", y: 250, start: 0, end: 1.05, quiet: false }] } });
+  assert.equal(both.tops["0"], 900, "top covered too: the one other spot left");
+});
+
 test("caption_mode spoken lights each word as it's said; the review import splits or groups one-word captions (0.34.8)", { skip: skipReason }, () => {
   const r = build({ edit: { caption_mode: "spoken" } });
   assert.match(r.html, /id="c0w0"[^>]*>line<\/span> <span id="c0w1"/);

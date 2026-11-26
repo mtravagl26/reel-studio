@@ -3,7 +3,7 @@
 // pictures that circle the head, and the GIPHY box staying off without a key).
 // Run by hand, like test_thumbnail_ui.mjs (it is not part of `npm test` or CI): node tests/test_review_ui.mjs   (needs Node 22+, python3, ffmpeg and Google Chrome; set CHROME=/path/to/chrome if it's elsewhere)
 import { spawn, execFileSync } from "node:child_process";
-import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync, rmSync, copyFileSync } from "node:fs";
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync, rmSync, copyFileSync, readdirSync, utimesSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -84,6 +84,8 @@ try {
   assert.equal(await js(`document.querySelector("#builtnote").hidden`), true, "no 'already built' note yet");
   assert.equal(await js(`getComputedStyle(document.body).backgroundColor`), "rgb(245, 242, 236)", "cream page");
   const words = `[...document.querySelectorAll(".w")].filter((e) => !e.classList.contains("filler"))`;
+  // 0.34.4: a sentence's words flow along a line (a CSS class shared with the graphic words box stacked them one per line)
+  assert.equal(await js(`new Set([...document.querySelector(".sent .words").querySelectorAll(".w")].slice(0, 3).map((e) => e.offsetTop)).size`), 1, "the first words of a line sit side by side");
   assert.ok(await js(`${words}.length`) >= 6, "every word is a chip");
   // the page cuts on a press (and a drag across several words), so press and let go on one word
   await js(`(() => { const e = ${words}.find((x) => x.textContent.trim() === "beta"); e.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, pointerId: 1, button: 0 })); window.dispatchEvent(new PointerEvent("pointerup", { bubbles: true })); })()`);
@@ -91,7 +93,7 @@ try {
   for (let i = 0; i < 60 && !existsSync(join(reel, "review_db", "review", "current.json")); i++) await sleep(100);
   await sleep(1200);
   assert.deepEqual(decisions().cut, [1], "the cut is saved on this computer");
-  for (const tab of ["Graphics", "Captions", "Sound & color", "Preview", "Cover", "Cuts"]) {
+  for (const tab of ["Graphics", "Captions", "Sound & color", "Preview", "Cuts"]) {
     await js(`[...document.querySelectorAll("button")].find((b) => b.textContent.trim() === ${JSON.stringify(tab)}).click()`); await sleep(120);
   }
   assert.deepEqual(await js(`[...document.querySelectorAll("#theme option")].map((o) => o.textContent)`), ["My brand as it is", "Bold", "Editorial", "Handwritten", "Minimal", "Whimsical"]);
@@ -165,6 +167,20 @@ try {
   const edit = read(reel, "edit.json"), orbit = edit.cards.find((c) => c.type === "orbit");
   assert.deepEqual(orbit.src, ["popups/a.png", "popups/b.png"]); assert.equal(orbit.level, "crown");
   assert.ok(edit.cards.some((c) => c.type === "tag" && c.text === "new pill"));
+
+  // 0.34.5: Re-render asks on the button (no browser dialog, which some browsers block without a word)
+  await click("#render");
+  assert.equal(await text("#render"), "Tap again to render");
+  await until(`document.querySelector("#render").textContent === "Re-render"`, "the button to settle back after 6 s", 9000);
+  // 0.34.5: a render made outside the page (by Claude) shows up without a refresh, and the page says which version it shows
+  await until(`/Showing version \\d+/.test(document.querySelector("#vernote").textContent)`, "the version line under the player", 60000);
+  const verBefore = await text("#vernote");
+  copyFileSync(join(reel, "raw.mp4"), join(reel, "final.mp4"));
+  const past = (Date.now() - 20000) / 1000, older = (Date.now() - 60000) / 1000;
+  for (const n of readdirSync(join(reel, "renders")).filter((n) => /^v\d+\.json$/.test(n))) utimesSync(join(reel, "renders", n), older, older);
+  utimesSync(join(reel, "final.mp4"), past, past);
+  await until(`/by Claude\\. This is the newest\\./.test(document.querySelector("#vernote").textContent)`, "the page to switch to Claude's new render", 60000);
+  assert.notEqual(await text("#vernote"), verBefore);
 
   // ---- back to 1 Review: it says the reel is built, and a rebuild keeps the touch-ups
   await open("/review");
