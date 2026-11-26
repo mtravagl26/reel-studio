@@ -64,7 +64,7 @@ def _probe(clip):
     if rot in (90, 270):
         w, h = h, w
     n, _, dn = str(st.get("r_frame_rate", "30/1")).partition("/")
-    # Added by By Mel Ross (0.37.2): what the format check needs: frame rate kept steady or not, the codec, a sound track,
+    # Added by By Mel Ross (0.38.5): what the format check needs: frame rate kept steady or not, the codec, a sound track,
     # and whether the phone was turned (the picture is shown upright either way)
     an, _, ad = str(st.get("avg_frame_rate", "0/1")).partition("/")
     try:
@@ -269,7 +269,7 @@ def check(clip, max_seconds=180, frame_out=None):
         )
     else:
         add("length", "Length", "pass", f"{p['dur']:.0f} seconds.")
-    # Added by By Mel Ross (0.37.2): 2b. the format, and what the edit does about it, said before the edit starts
+    # Added by By Mel Ross (0.38.5): 2b. the format, and what the edit does about it, said before the edit starts
     fmt_notes, fmt_bad = [], None
     if not p["audio"]:
         fmt_bad = "There's no sound in this clip. Captions and cuts come from your voice, so the edit can't run."

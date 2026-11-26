@@ -173,7 +173,7 @@ async function openCover() {
 process.on("exit", () => { try { coverChild?.kill(); } catch { /* gone */ } });
 const taView = (j) => { const { image, ...rest } = j || {}; return { ...rest, image: image ? `/api/try-again.jpg?t=${j.at2 || 0}` : null }; };
 let _ta = null;
-const TA = () => (_ta ||= tryAgain({ REEL, HOME, SKILL, menuLooks, addable: ADDABLE, env: childEnv() }));   // 0.38.0: Try another look
+const TA = () => (_ta ||= tryAgain({ REEL, HOME, SKILL, menuLooks, addable: ADDABLE, env: childEnv() }));   // 0.38.6: Try another look
 let _sb = null;
 const SB = () => (_sb ||= storyboard({ REEL, SKILL, listRenders, childEnv }));   // 0.35.0
 const THEMEP = themePreviews({ scripts: SCRIPTS, home: HOME, env: childEnv(), tag: path.basename(REEL).replace(/[^\w.-]+/g, "_") });   // 0.33.0
@@ -361,7 +361,15 @@ function setTheme(body) {
 
 // ---- GIPHY (Added by By Mel Ross, 0.9.0): the person's own key, kept where the ElevenLabs key is. The page searches GIPHY itself;
 // this only fetches the one GIF they tapped into the reel's popups folder, and notes where it came from.
+// Modified by By Mel Ross (license review 2026-11-17): GIPHY is opt-in. The key only counts once the person has ticked the
+// warning box (GIPHY_OPT_IN=1 in the same file, or in the environment). A key saved before this change stays off until they do.
+function envLine(name) {
+  try { for (const line of fs.readFileSync(path.join(os.homedir(), ".config/reels/.env"), "utf8").split("\n")) if (line.startsWith(name + "=")) return line.split("=").slice(1).join("=").trim(); } catch { /* no file */ }
+  return "";
+}
+function giphyOptedIn() { return (process.env.GIPHY_OPT_IN || envLine("GIPHY_OPT_IN")) === "1"; }
 function giphyKey() {
+  if (!giphyOptedIn()) return "";
   if (process.env.GIPHY_API_KEY) return process.env.GIPHY_API_KEY.trim();
   try { for (const line of fs.readFileSync(path.join(os.homedir(), ".config/reels/.env"), "utf8").split("\n")) if (line.startsWith("GIPHY_API_KEY=")) return line.split("=").slice(1).join("=").trim(); } catch { /* no file */ }
   return "";
@@ -371,6 +379,7 @@ function giphyKey() {
 const ENV_FILE = () => path.join(os.homedir(), ".config/reels/.env");
 async function giphySaveKey(body) {
   const key = String(body.key || "").trim().replace(/^GIPHY_API_KEY=/, "").replace(/^["']|["']$/g, "");
+  if (body.agree !== true) throw new Error("tick the box to say you have read the GIPHY warning first");
   if (!key) throw new Error("paste your GIPHY key in the box first");
   if (!/^[A-Za-z0-9]{16,64}$/.test(key)) throw new Error("that doesn't look like a GIPHY key: it is one run of letters and numbers, about 32 long, with no spaces");
   let tested = false;
@@ -381,8 +390,8 @@ async function giphySaveKey(body) {
     tested = !!(r && r.ok);
   }
   const f = ENV_FILE(); fs.mkdirSync(path.dirname(f), { recursive: true, mode: 0o700 });
-  let lines = []; try { lines = fs.readFileSync(f, "utf8").split("\n").filter((l) => l.trim() && !l.startsWith("GIPHY_API_KEY=")); } catch { /* new file */ }
-  lines.push(`GIPHY_API_KEY=${key}`);
+  let lines = []; try { lines = fs.readFileSync(f, "utf8").split("\n").filter((l) => l.trim() && !l.startsWith("GIPHY_API_KEY=") && !l.startsWith("GIPHY_OPT_IN=")); } catch { /* new file */ }
+  lines.push(`GIPHY_API_KEY=${key}`, "GIPHY_OPT_IN=1");
   fs.writeFileSync(f + ".tmp", lines.join("\n") + "\n", { mode: 0o600 }); fs.renameSync(f + ".tmp", f); fs.chmodSync(f, 0o600);
   if (process.env.GIPHY_API_KEY) process.env.GIPHY_API_KEY = key;   // a key set when the link started would otherwise hide the new one
   return { tested };
@@ -441,7 +450,7 @@ function undo() {
   const files = { "edit.json": P.edit, "edl.json": P.edl, "master_transcript.json": P.tr, "expected.txt": P.expected, "state.json": P.state, "brand.json": P.brand };
   for (const [n, f] of Object.entries(files)) {
     if (n === "brand.json" && !meta.brand) continue;
-    if (meta.had?.[n]) { fs.copyFileSync(path.join(dir, n), f + ".tmp"); fs.renameSync(f + ".tmp", f); }   // 0.38.0: whole file or nothing, so a read never sees half of it
+    if (meta.had?.[n]) { fs.copyFileSync(path.join(dir, n), f + ".tmp"); fs.renameSync(f + ".tmp", f); }   // 0.38.6: whole file or nothing, so a read never sees half of it
     else if (n in (meta.had || {})) fs.rmSync(f, { force: true });
   }
   fs.mkdirSync(path.join(P.hist, "undone"), { recursive: true });
@@ -622,7 +631,7 @@ let job = readJSON(P.job, { state: "idle" });
 if (job.state === "running" || job.state === "queued") { job = { ...job, state: "failed", error: "The page was restarted while this render was running; start it again.", finishedAt: new Date().toISOString() }; writeJSON(P.job, job); }
 let child = null, prepping = false;
 const setJob = (patch) => { job = { ...job, ...patch }; writeJSON(P.job, job); if (patch.state && patch.state !== "running" && patch.state !== "queued") awake(false); };
-// Added by By Mel Ross (0.36.1): a render keeps the Mac awake (caffeinate stops idle sleep while it runs), and checks the disk
+// Added by By Mel Ross (0.38.2): a render keeps the Mac awake (caffeinate stops idle sleep while it runs), and checks the disk
 // first: a full disk used to fail deep inside the render with an ffmpeg error.
 let caff = null;
 function awake(on) {
@@ -661,7 +670,7 @@ async function runRender(opts = {}) {
   const version = Math.max(0, ...listRenders().map((r) => r.v), meta.version || 0) + 1;
   const free = freeGB(REEL);
   if (free != null && free < 2) { setJob({ state: "failed", step: "disk", startedAt: new Date().toISOString(), finishedAt: new Date().toISOString(), error: `Only ${free.toFixed(1)} GB free on this disk. A render needs about 2 GB: empty the Trash or move old reels, then render again.`, steps: [] }); return; }
-  // 0.36.1: the steps this render will take, so the page can say "step 2 of 4"
+  // 0.38.2: the steps this render will take, so the page can say "step 2 of 4"
   const plan = [...(needCut ? ["cut"] : []), soundOnly ? "sound" : "render", "checks", "copies"];
   awake(true);
   setJob({ state: "running", step: needCut ? "cut" : soundOnly ? "sound" : "render", plan, lowDisk: free != null && free < 5 ? +free.toFixed(1) : null, version, startedAt: new Date().toISOString(), finishedAt: null, error: null, steps: [], notes: [], qa: null, sync: null });
@@ -931,7 +940,7 @@ const server = http.createServer(async (req, res) => {
     if (p === "/" || p === "/index.html" || p === "/edit") return sendFile(req, res, path.join(HERE, "edit.html"));
     if (p === "/favicon.ico") { res.writeHead(204); return res.end(); }   // no icon: answer quietly so the page shows no failed request
     if (p === "/touchups") return sendFile(req, res, path.join(HERE, "editor.html"));
-    // Added by By Mel Ross (0.36.1): 2 Cover starts the thumbnail studio itself, so nobody has to ask Claude to open it.
+    // Added by By Mel Ross (0.38.2): 2 Cover starts the thumbnail studio itself, so nobody has to ask Claude to open it.
     // The studio only answers on this Mac (127.0.0.1); on a phone the page says to open it on the Mac.
     if (p === "/cover") {
       const local = /^(127\.0\.0\.1|localhost|\[::1\])(:\d+)?$/.test(req.headers.host || "");
@@ -972,13 +981,13 @@ const server = http.createServer(async (req, res) => {
     }
     if (p === "/shim.js") { res.writeHead(200, { "Content-Type": TYPES[".js"] }).end(SHIM); return; }
     if (p === "/core.js") return sendFile(req, res, path.join(HERE, "core.js"));
-    if (p === "/steps.js") return sendFile(req, res, path.join(HERE, "steps.js"));   // 0.36.1: greyed steps explain themselves
+    if (p === "/steps.js") return sendFile(req, res, path.join(HERE, "steps.js"));   // 0.38.2: greyed steps explain themselves
     if (p === "/review.js" || p === "/editor.js") return sendFile(req, res, path.join(HERE, p.slice(1)));   // 0.30.0: the pages' code
     if (p === "/core.mjs") return sendFile(req, res, path.join(HERE, "editor-core.mjs"));
     if (p === "/api/stage" && req.method === "GET") return json(res, 200, { reel: path.basename(REEL), built: built(), review: hasReview(), storyboardDone: built() ? SB().done() : false });
     // 0.35.0: the storyboard, scene by scene after each render
     if (p === "/storyboard") return sendFile(req, res, path.join(HERE, "storyboard.html"));
-    if (p === "/api/try-again" && req.method === "GET") return json(res, 200, { ok: true, job: taView(TA().state()) });   // 0.38.0
+    if (p === "/api/try-again" && req.method === "GET") return json(res, 200, { ok: true, job: taView(TA().state()) });   // 0.38.6
     if (p === "/api/try-again.jpg") { const img = TA().image(); if (!img) { res.writeHead(404).end(); return; } return sendFile(req, res, img); }
     if (p === "/api/storyboard" && req.method === "GET") { if (built()) { try { prepareBaseline(); } catch { /* use what's there */ } } return json(res, 200, { ok: true, ...(built() ? SB().view() : { none: true }) }); }
     if (p === "/api/storyboard" && req.method === "POST") {
@@ -1039,7 +1048,7 @@ const server = http.createServer(async (req, res) => {
         if (p === "/api/op") { const b = JSON.parse((await readBody(req, 2e6)).toString() || "{}"); return json(res, 200, { ok: true, ...doOp(b), state: view() }); }
         if (p === "/api/undo") { requireIdle(); const what = undo(); return json(res, 200, { ok: true, undid: what, state: view() }); }
         if (p === "/api/render") { startRender(); return json(res, 200, { ok: true, job }); }
-        if (p === "/api/try-again") { const b = JSON.parse((await readBody(req, 1e4)).toString() || "{}"); return json(res, 200, { ok: true, job: taView(TA().start(readJSON(P.edit, {}), Number(b.i), Number(b.offset) || 0)) }); }   // 0.38.0
+        if (p === "/api/try-again") { const b = JSON.parse((await readBody(req, 1e4)).toString() || "{}"); return json(res, 200, { ok: true, job: taView(TA().start(readJSON(P.edit, {}), Number(b.i), Number(b.offset) || 0)) }); }   // 0.38.6
         if (p === "/api/try-again-use") {
           requireIdle(); const b = JSON.parse((await readBody(req, 1e4)).toString() || "{}");
           const edit = readJSON(P.edit, {}); snapshot("try another look", null, false); const c = TA().use(edit, Number(b.i), String(b.id || "")); writeJSON(P.edit, edit);

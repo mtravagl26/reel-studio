@@ -573,7 +573,7 @@ test("Touch-ups: Recommended for this reel comes from the reel itself; Add a loo
   assert.match(home, /Recommended for this clip/); assert.match(home, /\/api\/recommend\?style=/);
 });
 
-test("quick wins (0.36.1): 2 Cover starts the thumbnail studio on this Mac and explains itself on a phone; greyed steps open a card", { skip: skipReason }, async () => {
+test("quick wins (0.38.2): 2 Cover starts the thumbnail studio on this Mac and explains itself on a phone; greyed steps open a card", { skip: skipReason }, async () => {
   await withServer(async ({ get, home }) => {
     const s = await (await get("/api/state")).json();
     assert.equal(s.links.cover, "/cover");
@@ -595,7 +595,7 @@ test("quick wins (0.36.1): 2 Cover starts the thumbnail studio on this Mac and e
   assert.match(js, /"Deleted\.", true/); assert.match(js, /toastundo/);
 });
 
-test("Try another look (0.38.0): 3 looks of the same kind with the graphic's words, one picture, Use swaps it and Undo takes it back", { skip: skipReason }, async () => {
+test("Try another look (0.38.6): 3 looks of the same kind with the graphic's words, one picture, Use swaps it and Undo takes it back", { skip: skipReason }, async () => {
   const ta = await import(path.join(review, "try-again.mjs"));
   assert.deepEqual(ta.carryWords({ type: "title", text: "my *best* / tools" }, { type: "tag", text: "x" }), { text: "my best tools" });
   assert.deepEqual(ta.carryWords({ type: "card", title: "steps", rows: ["a", "b"] }, { type: "xlist", items: [] }), { items: ["a", "b"] });

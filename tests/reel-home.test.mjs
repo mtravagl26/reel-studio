@@ -11,7 +11,7 @@ const review = path.join(skill, "review");
 function clipWith({ size = "540x960", cy = 0.6, ry = 0.3, rx = 0.2, cx = 0.5, luma = null, fps = 30 } = {}) {
   const dir = tmp("home"), clip = path.join(dir, "take.mp4"), matte = path.join(dir, "matte.mkv");
   const src = luma == null ? `testsrc2=s=${size}:r=${fps}:d=4` : `color=c=0x${luma.toString(16).padStart(2, "0").repeat(3)}:s=${size}:r=${fps}:d=4`;
-  ff(["-f", "lavfi", "-i", src, "-f", "lavfi", "-i", "sine=d=4", "-c:v", "libx264", "-preset", "ultrafast", "-pix_fmt", "yuv420p", "-c:a", "aac", "-shortest", clip]);   // 0.37.2: with sound, like a real take
+  ff(["-f", "lavfi", "-i", src, "-f", "lavfi", "-i", "sine=d=4", "-c:v", "libx264", "-preset", "ultrafast", "-pix_fmt", "yuv420p", "-c:a", "aac", "-shortest", clip]);   // 0.38.5: with sound, like a real take
   ff(["-f", "lavfi", "-i", `color=c=black:s=270x480:r=10:d=4,geq=lum='if(lte(pow((X-W*${cx})/(W*${rx}),2)+pow((Y-H*${cy})/(H*${ry}),2),1),255,0)':cb=128:cr=128`, "-pix_fmt", "gray", "-c:v", "ffv1", matte]);
   return { dir, clip, matte };
 }

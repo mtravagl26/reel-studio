@@ -1,4 +1,4 @@
-// Added by By Mel Ross (0.38.0): "Try another look" on a graphic, on the Touch-ups page. It picks up to 3 other looks of the same
+// Added by By Mel Ross (0.38.6): "Try another look" on a graphic, on the Touch-ups page. It picks up to 3 other looks of the same
 // kind (words, a list, a number) from the Style Menu, carries the graphic's own words into each, and makes stills of all 3 at
 // that moment with scripts/storyboard.py, side by side in one picture. "Use B" swaps the graphic for that look, words, times
 // and layer kept; Undo takes it back. Nothing goes to Claude: the options come from the looks already built.
