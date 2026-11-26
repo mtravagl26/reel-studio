@@ -1,7 +1,7 @@
 // Added by By Mel Ross. The reel editor page: its pure logic (edits, retiming when a cut piece is dropped or brought back), the popup
 // and text-default parts of build_reel.py, and the local server (key, saves, undo, upload). No render is run here.
 import assert from "node:assert/strict";
-import { spawn } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
@@ -505,4 +505,53 @@ test("Edit page: When captions appear sets caption_lead for this reel or every r
   });
   const html = pageText(path.join(review, "editor.html"));
   assert.match(html, /When captions appear/); assert.match(html, /\/api\/caption-lead/);
+});
+
+// Added by By Mel Ross (0.33.0): "See them on my clip": one still of each theme, the same moment, on the reel's own footage.
+function snapshotStandIn(dir) {
+  const f = path.join(dir, "snap.sh");
+  fs.writeFileSync(f, `#!/bin/sh\ncp "$1/index.html" "$3.html"\nffmpeg -v error -y -f lavfi -i color=c=gray:s=108x192 -frames:v 1 "$3"\n`, { mode: 0o755 });
+  return f;
+}
+
+test("theme stills: one per theme plus my brand, the same moment, captions word by word for Minimal, a sample title in the hook spot (0.33.0)", { skip: skipReason }, () => {
+  const dir = tmp("themeprev"), home = path.join(dir, "home"), engine = path.join(dir, "engine"), out = path.join(dir, "out");
+  fs.mkdirSync(home); fs.mkdirSync(path.join(engine, "sfx"), { recursive: true }); fs.writeFileSync(path.join(engine, "gsap.min.js"), "/* stand-in */");
+  const clip = path.join(dir, "clip.mp4");
+  ff(["-f", "lavfi", "-i", "testsrc2=s=270x480:r=30:d=8", "-f", "lavfi", "-i", "sine=f=220:d=8", "-c:v", "libx264", "-pix_fmt", "yuv420p", "-c:a", "aac", "-shortest", clip]);
+  const r = spawnSync("python3", [path.join(skill, "scripts", "theme_preview.py"), clip, "--out", out], { encoding: "utf8", env: { ...process.env, REELS_HOME: home, REEL_ENGINE: engine, REEL_SNAPSHOT: snapshotStandIn(dir) } });
+  assert.equal(r.status, 0, r.stdout + r.stderr);
+  const stills = [...r.stdout.matchAll(/^still: (\S+) (\S+\.jpg)$/gm)].map((m) => m[1]);
+  assert.deepEqual(stills, ["-", "bold", "editorial", "handwritten", "minimal", "whimsical"], "my brand first, then every theme");
+  assert.match(r.stdout, /no brand settings yet, so these stills use the example colors/);
+  assert.match(r.stdout.trim(), /done$/);
+  for (const n of ["brand", "bold", "minimal"]) assert.ok(fs.existsSync(path.join(out, `${n}.jpg`)));
+  const minimal = fs.readFileSync(path.join(out, "minimal.png.html"), "utf8"), bold = fs.readFileSync(path.join(out, "bold.png.html"), "utf8");
+  assert.match(minimal, /YOUR TITLE|your title/i); assert.match(minimal, /and a small line under it/);
+  const words = (h) => [...h.matchAll(/id="c\d+" class="cap[^>]*>([\s\S]*?)<\/div>/g)].map((m) => m[1].replace(/<[^>]+>/g, " ").trim().split(/\s+/).length);
+  assert.ok(words(minimal).length && words(minimal).every((n) => n === 1), "Minimal shows captions one word at a time");
+  assert.ok(words(bold).some((n) => n > 1), "phrase themes keep their phrases");
+  assert.doesNotMatch(fs.readFileSync(path.join(out, "brand.png.html"), "utf8"), /theme: /);
+});
+
+test("Touch-ups: See them on my clip makes the stills on this reel and serves each one (0.33.0)", { skip: skipReason }, async () => {
+  const dir = tmp("themeprev-srv");
+  process.env.REEL_SNAPSHOT = snapshotStandIn(dir);
+  try {
+    await withServer(async ({ get, post }) => {
+      const r = await post("/api/theme-previews", {});
+      assert.equal(r.ok, true, r.error);
+      let s;
+      for (let k = 0; k < 240; k++) { s = await (await get("/api/theme-previews")).json(); if (s.state !== "running") break; await new Promise((ok) => setTimeout(ok, 250)); }
+      assert.equal(s.state, "done", JSON.stringify(s));
+      assert.deepEqual(Object.keys(s.stills).sort(), ["", "bold", "editorial", "handwritten", "minimal", "whimsical"]);
+      const img = await get(s.stills.minimal);
+      assert.equal(img.status, 200); assert.equal(img.headers.get("content-type"), "image/jpeg");
+      assert.equal((await get("/theme-preview/nope.jpg")).status, 404);
+      assert.equal((await get("/theme-preview/..%2Fbrand.json.jpg")).status, 404);
+    });
+  } finally { delete process.env.REEL_SNAPSHOT; }
+  const js = fs.readFileSync(path.join(review, "editor.js"), "utf8"), home = fs.readFileSync(path.join(review, "home.html"), "utf8");
+  assert.match(js, /data-a="see-themes"/); assert.match(js, /data-a="theme-pick"/);
+  assert.match(home, /id="seethemes"/); assert.match(home, /\/api\/theme-previews/);
 });

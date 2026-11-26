@@ -13,6 +13,24 @@ function setSteps(here, links) {
 }
 import { popupBox, isTextType } from "/core.mjs";
 const $ = (s) => document.querySelector(s), esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+// 0.33.0: the theme stills ("See them on my clip"): theme id ("" = my brand) -> picture address
+let TPS = { state: "idle", stills: {}, note: "" };
+async function seeThemes() {
+  TPS = { state: "running", stills: {}, note: "Making the stills. Each one shows as it's ready..." }; renderSettings();
+  try {
+    const r = await (await fetch("/api/theme-previews", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" })).json();
+    if (!r.ok) throw new Error(r.error);
+    for (;;) {
+      await new Promise((ok) => setTimeout(ok, 1500));
+      const s = await (await fetch("/api/theme-previews")).json();
+      const changed = Object.keys(s.stills || {}).length !== Object.keys(TPS.stills).length;
+      TPS.stills = s.stills || {};
+      if (s.state === "done") { TPS = { ...TPS, state: "done", note: (s.notes || []).join(" ") || "Tap one to use it." }; renderSettings(); break; }
+      if (s.state === "failed") throw new Error(s.error || "the stills could not be made");
+      if (changed) renderSettings();
+    }
+  } catch (er) { TPS = { ...TPS, state: "done", note: er.message }; renderSettings(); }
+}
 let S = null, openCard = new Set(), capSel = null, placing = null, watch = null, selCard = null, openSfx = new Set(), pollT = null;
 const cid = (i) => S.edit.cards[i]?.id ?? `i${i}`, sid = (i) => S.edit.sfx_events[i]?.id ?? `i${i}`, cidx = (id) => S.edit.cards.findIndex((c, i) => cid(i) === id);
 const v = $("#v");
@@ -331,7 +349,9 @@ function renderSettings() {
   const cur = S.theme?.reel ?? S.theme?.all ?? "", all = !S.theme?.reel;
   const themeBox = (S.themes || []).length ? `<label class="f">Look (theme)</label><select id="themePick"><option value="">My brand as it is</option>${S.themes.map((t) => `<option value="${esc(t.id)}" ${t.id === cur ? "selected" : ""}>${esc(t.name)}</option>`).join("")}</select>
     <div class="seg" style="margin-top:8px"><button class="${all ? "" : "on"}" data-a="theme-scope" data-v="reel">This reel only</button><button class="${all ? "on" : ""}" data-a="theme-scope" data-v="all">Every reel</button></div>
-    <p class="help" style="margin-top:8px">${esc((S.themes.find((t) => t.id === cur) || {}).summary || "A theme changes the fonts, captions, titles and card shapes together. Your colors and name stay.")} Re-render to see it.</p><hr style="border:0;border-top:1px solid var(--line);margin:14px 0">` : "";
+    <p class="help" style="margin-top:8px">${esc((S.themes.find((t) => t.id === cur) || {}).summary || "A theme changes the fonts, captions, titles and card shapes together. Your colors and name stay.")} Re-render to see it.</p>
+    <p class="help" style="margin-top:8px"><button class="sm" data-a="see-themes" ${TPS.state === "running" ? "disabled" : ""}>${TPS.state === "idle" ? "See them on my clip" : "Make them again"}</button> ${esc(TPS.note || "One still of each theme on this reel, at the same moment. About a minute.")}</p>
+    ${Object.keys(TPS.stills).length ? `<div class="tpgrid">${[["", "My brand as it is"], ...S.themes.map((t) => [t.id, t.name])].filter(([id]) => TPS.stills[id] !== undefined).map(([id, name]) => `<button class="tpb${id === cur ? " on" : ""}" data-a="theme-pick" data-v="${esc(id)}" title="Use ${esc(name)}"><img src="${esc(TPS.stills[id])}" alt="${esc(name)} on this reel" /><span>${esc(name)}</span></button>`).join("")}</div>` : ""}<hr style="border:0;border-top:1px solid var(--line);margin:14px 0">` : "";
   const C = { ...S.colors.all, ...(S.colors.reel || {}) }, mine = !!S.colors.reel;
   const NAMES = [["main", "Main", "text and dark shapes"], ["pop", "Pop", "highlighted words and accents"], ["light", "Light", "card backgrounds"]];
   const colorBox = `<label class="f">Colors</label><div class="grid3">${NAMES.map(([k, n, what]) => `<label style="display:block;text-align:center"><input type="color" data-color="${k}" value="${esc(C[k])}" style="width:100%;height:48px;padding:0;border:1.5px solid var(--line);border-radius:12px;background:#fff"><span class="small" style="display:block"><b>${n}</b>: ${what}</span></label>`).join("")}</div>
@@ -512,6 +532,8 @@ document.addEventListener("click", async (e) => {
     const colors = a === "colors-reset" ? {} : Object.fromEntries([...document.querySelectorAll("#settings [data-color]")].map((x) => [x.dataset.color, x.value]));
     try { await post("/api/colors", { colors, scope: a === "colors-reset" ? "reel" : el.dataset.v }); toast(a === "colors-reset" ? "Back to your brand colors: re-render to see it" : el.dataset.v === "all" ? "Saved for every reel: re-render to see it" : "Saved for this reel: re-render to see it"); } catch (er) { toast(er.message, true); }
   }
+  else if (a === "see-themes") seeThemes();   // 0.33.0
+  else if (a === "theme-pick") { try { await post("/api/theme", { name: el.dataset.v, scope: S.theme?.reel ? "reel" : "all" }); toast("Look saved: re-render to see it"); } catch (er) { toast(er.message, true); } }
   else if (a === "theme-scope") { try { await post("/api/theme", { name: $("#themePick").value, scope: el.dataset.v }); toast("Look saved: re-render to see it"); } catch (er) { toast(er.message, true); } }
   else if (a === "watch") { watch = +el.dataset.v; renderVideo(); v.scrollIntoView?.({ behavior: "smooth", block: "center" }); }
 });

@@ -29,6 +29,10 @@ writeFileSync(join(reel, "transcript.json"), JSON.stringify(NAMES.map((text, i) 
 writeFileSync(join(reel, "proposal.json"), JSON.stringify({ title: "UI test reel", proposedCut: [[0, 10]], accentWords: [],
   cards: [{ id: "g1", type: "tag", kind: "Pill", what: "Pill: hello", text: "hello", anchor: "gamma", after: 0, place: [240, 130, 600, 110] }] }));
 const env = { ...process.env, REELS_HOME: home }; delete env.GIPHY_API_KEY;
+// 0.33.0: the theme stills use a stand-in for the snapshot (it only needs a picture)
+mkdirSync(join(tmp, "bin"), { recursive: true });
+writeFileSync(join(tmp, "bin", "snap.sh"), `#!/bin/sh\nffmpeg -v error -y -f lavfi -i color=c=gray:s=108x192 -frames:v 1 "$3"\n`, { mode: 0o755 });
+env.REEL_SNAPSHOT = join(tmp, "bin", "snap.sh");
 const py = (...a) => execFileSync("python3", [join(SKILL, "scripts/review_sync.py"), ...a], { env, encoding: "utf8" });
 py("export", reel, join(reel, "proposal.json"), join(tmp, "out"));
 const data = read(tmp, "out", "reel.json"); data.srcUrl = "/files/raw.mp4";
@@ -90,7 +94,7 @@ try {
   for (const tab of ["Graphics", "Captions", "Sound & color", "Preview", "Cover", "Cuts"]) {
     await js(`[...document.querySelectorAll("button")].find((b) => b.textContent.trim() === ${JSON.stringify(tab)}).click()`); await sleep(120);
   }
-  assert.deepEqual(await js(`[...document.querySelectorAll("#theme option")].map((o) => o.textContent)`), ["My brand as it is", "Bold", "Editorial", "Handwritten", "Whimsical"]);
+  assert.deepEqual(await js(`[...document.querySelectorAll("#theme option")].map((o) => o.textContent)`), ["My brand as it is", "Bold", "Editorial", "Handwritten", "Minimal", "Whimsical"]);
   await js(`(() => { const s = document.querySelector("#theme"); s.value = "editorial"; s.dispatchEvent(new Event("change", { bubbles: true })); })()`);
   await sleep(1500);
   assert.equal(decisions().theme, "editorial");
@@ -115,6 +119,13 @@ try {
   await js(`document.querySelectorAll("details").forEach((d) => (d.open = true))`);
   assert.equal(await js(`document.querySelector("#themePick").value`), "editorial", "the theme picked in review shows here");
   assert.match(await text("#giphy"), /not set up yet/, "GIPHY stays off without a key");
+  // 0.33.0: See them on my clip, then tap a still to use that theme
+  await click('[data-a="see-themes"]');
+  await until(`document.querySelectorAll(".tpgrid img").length === 6`, "6 theme stills (my brand + 5 themes)", 120000);
+  await until(`[...document.querySelectorAll(".tpgrid img")].every((i) => i.complete && i.naturalWidth > 0)`, "the stills to load");
+  await click('[data-a="theme-pick"][data-v="minimal"]');
+  await until(`document.querySelector("#themePick")?.value === "minimal"`, "Minimal picked from its still");
+  assert.equal(read(reel, "edit.json").theme, "minimal");
   await click("#addPill");
   await until(`/new pill/.test(document.querySelector("#cards").textContent)`, "the new text to appear");
   await click("#addOrbit");

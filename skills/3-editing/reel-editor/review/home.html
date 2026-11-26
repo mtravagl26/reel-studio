@@ -43,6 +43,8 @@ button.pri { background: var(--ink); color: #fff; } button:disabled { opacity: .
 .style b { display: block; } .style span { color: var(--mute); font-size: 14px; } .style[aria-pressed="true"] { border-color: var(--sage-d); background: #eef3e6; box-shadow: 0 0 0 2px var(--sage); }
 #ask { background: var(--ink); color: #fff; border-radius: 16px; padding: 16px; } #ask code { display: block; font: 14px/1.5 ui-monospace, Menlo, monospace; background: rgba(255,255,255,.12); border-radius: 10px; padding: 10px 12px; margin: 8px 0 12px; white-space: pre-wrap; }
 #ask button { border-color: var(--sage); background: var(--sage); color: var(--ink); } #ask p { margin: 0; } #ask small { display: block; opacity: .8; margin-top: 10px; }
+.style img.tp { display: block; width: 100%; aspect-ratio: 9 / 16; object-fit: cover; border-radius: 8px; margin-bottom: 8px; background: #e9e6df; }   /* 0.33.0 */
+.tprev { margin: 4px 0 12px; } .tprev span { color: var(--mute); font-size: 14px; }
 .lookrow { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; margin: 10px 0; }
 #reels { list-style: none; padding: 0; margin: 0; } #reels li { background: var(--card); border: 1.5px solid var(--line); border-radius: 12px; padding: 10px 14px; margin-bottom: 8px; display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; } #reels span { color: var(--mute); font-size: 14px; }
 [hidden] { display: none !important; }
@@ -88,6 +90,7 @@ button.pri { background: var(--ink); color: #fff; } button:disabled { opacity: .
   <h2><b>3</b>Pick a look <small style="font-weight:500;color:var(--mute)">(optional)</small></h2>
   <p>Skip this and Claude uses your brand as it is. A look is a theme for the whole reel, or a single style like a hook title or a caption style.</p>
   <div id="themes" class="lookrow"></div>
+  <p class="tprev"><button type="button" id="seethemes">See them on my clip</button> <span id="tpnote">One still of each theme on your own video, at the same moment. About a minute; each one shows as it's ready.</span></p>
   <div class="lookrow"><button type="button" class="style" id="h20" aria-pressed="false"><b>Arched title with a sparkle wave</b><span>Your series name curves over your head while gold sparkles follow your hand. The sparkles need a Mac.</span></button></div>
   <p><a href="/looks" id="alllooks">See all the looks</a> <span id="pickednote"></span></p>
 </section>
@@ -190,6 +193,27 @@ function showLooks() {
   for (const t of D.themes || []) mk(t.id, t.name, t.summary);
   $("#h20").addEventListener("click", () => { const s = new Set(LP.ids || []); s.has("H20") ? s.delete("H20") : s.add("H20"); LP.ids = [...s]; savePicks(); });
   $("#alllooks").textContent = `See all ${D.lookCount || ""} looks`.replace("  ", " ");
+  $("#seethemes").addEventListener("click", seeThemes);
+}
+// 0.33.0: one still of each theme on the clip, shown inside its button as soon as it's made
+async function seeThemes() {
+  const btn = $("#seethemes"), note = $("#tpnote");
+  btn.disabled = true; note.textContent = "Making the stills. About a minute; each one shows as it's ready...";
+  try {
+    const r = await (await fetch("/api/theme-previews", { method: "POST" })).json();
+    if (!r.ok) throw new Error(r.error);
+    for (;;) {
+      await new Promise((ok) => setTimeout(ok, 1500));
+      const s = await (await fetch("/api/theme-previews")).json();
+      for (const [id, url] of Object.entries(s.stills || {})) {
+        const b = document.querySelector(`#themes [data-theme="${CSS.escape(id)}"]`);
+        if (b && !b.querySelector("img.tp")) { const im = el("img", "tp"); im.src = url; im.alt = `${b.querySelector("b").textContent} on your clip`; b.prepend(im); }
+      }
+      if (s.state === "done") { note.textContent = (s.notes || []).join(" ") || "Tap the one you like."; break; }
+      if (s.state === "failed") throw new Error(s.error || "the stills could not be made");
+    }
+  } catch (er) { note.textContent = er.message; }
+  btn.disabled = false; btn.textContent = "Make them again";
 }
 function ask() {
   if (!pickStyle) return "";
