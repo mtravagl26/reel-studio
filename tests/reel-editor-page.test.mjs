@@ -259,7 +259,7 @@ test("receipt: counts cuts, speed, captions, each kind of graphic and sounds fro
 
 test("timeline: the page has the strip, the lanes and the receipt panel", () => {
   const html = pageText(path.join(review, "editor.html"));
-  for (const need of ['id="tli"', 'id="receipt"', "/api/strip.jpg?v=", "/api/wave.png?v=", 'class="mk cap"', "cutmark", "const PX = 56"]) assert.ok(html.includes(need), need);
+  for (const need of ['id="tli"', 'id="receipt"', "/api/strip.jpg?v=", "/api/wave.png?v=", 'class="mk cap"', "cutmark", "let PX = 56", "id=\"zoomseg\""]) assert.ok(html.includes(need), need);
 });
 
 test("server: needs the key, saves edits with a backup, undo restores, drop retimes edl.json", { skip: skipReason }, async () => {
