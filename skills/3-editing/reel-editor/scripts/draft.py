@@ -1,6 +1,7 @@
 """Is this run a quick draft? Only when REEL_PREVIEW is set AND the brand is above 1080p.
 At a 1080p brand the preview already is the final resolution, so it must not use the fast, lower-quality
 cutout and encode (that left soft edges and extra compression on the delivered reel)."""
+
 import json, os
 from pathlib import Path
 

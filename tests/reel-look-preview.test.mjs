@@ -61,5 +61,5 @@ test("Put it here: the reel link's gallery lists the reel's lines, keeps a picke
   const sm = fs.readFileSync(path.join(review, "style-menu.html"), "utf8"), srv = fs.readFileSync(path.join(review, "editor-server.mjs"), "utf8");
   for (const t of ["Where: Claude picks the moment", "at the line", "in the raw clip", 'id="seeit"', "Your picks on your clip"]) assert.ok(sm.includes(t), t);
   assert.match(srv, /function lookLines/); assert.match(srv, /"\/api\/look-preview"/); assert.match(srv, /at\[k\] = \+\(\+v\)\.toFixed\(2\)/);
-  assert.match(fs.readFileSync(path.join(skill, "scripts", "storyboard.py"), "utf8"), /cards, used, skipped = \[\], \[\], \[\]/, "storyboard sets these for every option");
+  assert.match(fs.readFileSync(path.join(skill, "scripts", "storyboard.py"), "utf8"), /cards, used, skipped = \(?\s*\[\],\s*\[\],\s*\[\]/, "storyboard sets these for every option");
 });

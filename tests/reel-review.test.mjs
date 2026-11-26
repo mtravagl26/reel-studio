@@ -6,7 +6,7 @@ import { spawn } from "node:child_process";
 import path from "node:path";
 import test from "node:test";
 import { createRequire } from "node:module";
-import { ff, py, skill, skipReason, tmp } from "./reel-helpers.mjs";
+import { ff, py, skill, skipReason, tmp, pageText } from "./reel-helpers.mjs";
 import * as core from "../skills/3-editing/reel-editor/review/editor-core.mjs";
 
 const NAMES = ["alpha", "beta", "gamma", "delta", "epsilon", "zeta", "eta", "theta", "iota", "kappa", "lambda", "mu"];
@@ -40,7 +40,7 @@ test("export writes what the page needs: words, a proposed cut, captions, the gr
   assert.equal(r.title, "Test reel"); assert.equal(r.words.length, 12); assert.equal(r.speed, 1);
   assert.deepEqual(r.words[2], { text: "gamma", s: 3.2, e: 3.6 });
   assert.equal(r.board.length, 1); assert.equal(r.board[0].id, "g1");
-  assert.deepEqual(r.themes.map((t) => t.id).sort(), ["bold", "editorial", "handwritten", "whimsical"]);
+  assert.deepEqual(r.themes.map((t) => t.id).sort(), ["bold", "editorial", "handwritten", "minimal", "whimsical"]);
   assert.equal(r.theme, "", "no theme set in this brand");
   assert.ok(fs.existsSync(path.join(c.out, "reel.json")));
   assert.deepEqual(r.board[0].sfx, { name: "pop", db: -14 }, "0.16.0: a graphic with no sound named gets the sound the build plays for its type, so the page can list it");
@@ -184,6 +184,19 @@ test("review page: Build preview imports the choices, runs the build steps, and 
     assert.equal((await fetch(base + latest.url)).status, 200);
     assert.ok(fs.existsSync(path.join(c.reel, "final.mp4")) && fs.existsSync(path.join(c.reel, "edl.json")));
   } finally { p.kill(); }
-  const rv = fs.readFileSync(path.join(skill, "review", "reel-review.html"), "utf8");
+  const rv = pageText(path.join(skill, "review", "reel-review.html"));
   for (const t of ["Build now without those", "I'll tell Claude", "/api/review-build", "function needsClaude", "Step 2 of 4"]) assert.ok(rv.includes(t), t);
+});
+
+test("words changed on the review page go into the card (0.28.0); bad values are cut down or ignored", { skip: skipReason }, () => {
+  const c = makeReel();
+  c.imp({ board: { g1: { set: { text: "  new words\nhere ", title: "not a tag field", rows: ["x"] } } } });
+  const card = read(c.reel, "edit.json").cards.find((x) => x.id === "g1");
+  assert.equal(card.text, "new words here"); assert.equal(card.title, undefined, "a field the card doesn't have is not added"); assert.equal(card.rows, undefined);
+  c.imp({ board: { g1: { set: { text: "x".repeat(200) } } } });
+  assert.equal(read(c.reel, "edit.json").cards.find((x) => x.id === "g1").text.length, 80);
+  c.imp({ board: { g1: { set: { text: "" } } } });
+  assert.equal(read(c.reel, "edit.json").cards.find((x) => x.id === "g1").text, "hello", "empty words keep the old ones");
+  const rv = pageText(path.join(skill, "review", "reel-review.html"));
+  for (const t of ["WORD_FIELDS", "function wordsBox", "New words saved"]) assert.ok(rv.includes(t), t);
 });

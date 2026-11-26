@@ -6,7 +6,7 @@ import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
-import { ff, py, skipReason, tmp } from "./reel-helpers.mjs";
+import { ff, py, skipReason, tmp, pageText } from "./reel-helpers.mjs";
 
 const skill = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "skills", "3-editing", "reel-editor"), review = path.join(skill, "review");
 
@@ -83,7 +83,7 @@ test("a hand trail follows the tracked hand, scaled from the clip's pixels to th
 });
 
 test("the pages: a caption colors box on both, a save route, and the arched title's words can be changed", { skip: skipReason }, async () => {
-  const ed = fs.readFileSync(path.join(review, "editor.html"), "utf8"), rv = fs.readFileSync(path.join(review, "reel-review.html"), "utf8"), srv = fs.readFileSync(path.join(review, "editor-server.mjs"), "utf8");
+  const ed = pageText(path.join(review, "editor.html")), rv = pageText(path.join(review, "reel-review.html")), srv = fs.readFileSync(path.join(review, "editor-server.mjs"), "utf8");
   for (const t of ["Caption colors", "Put a box behind the highlighted word", 'data-a="hl-save"', "Back to my usual", "too close", "Arched words", 'arctitle: "Arched title"']) assert.ok(ed.includes(t), t);
   for (const t of ["Caption colors", "Box behind the highlighted word", "S.highlight = null", "too close"]) assert.ok(rv.includes(t), t);
   assert.match(srv, /"\/api\/caption-highlight"/);
@@ -107,7 +107,7 @@ test("caption box and size (0.27.0): picked on the pages, the older caption_styl
   assert.equal(box(off), null, "this reel can take the box off");
   const bad = makeReel({ edit: { captions: caps, caption_highlight: { box: "url(x)", size: 999 }, caption_style: { bg: "red;x", size: "big" } } }).html;
   assert.equal(box(bad), null); assert.equal(px(bad), px(plain));
-  const core = fs.readFileSync(path.join(review, "editor.html"), "utf8"), rv = fs.readFileSync(path.join(review, "reel-review.html"), "utf8");
+  const core = pageText(path.join(review, "editor.html")), rv = pageText(path.join(review, "reel-review.html"));
   for (const t of ["Put a box behind all the words", 'id="cSize"', "Caption colors and size"]) assert.ok(core.includes(t), t);
   for (const t of ["Box behind all the words", "Caption size", "Caption colors and size"]) assert.ok(rv.includes(t), t);
 });

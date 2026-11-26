@@ -43,6 +43,8 @@ button.pri { background: var(--ink); color: #fff; } button:disabled { opacity: .
 .style b { display: block; } .style span { color: var(--mute); font-size: 14px; } .style[aria-pressed="true"] { border-color: var(--sage-d); background: #eef3e6; box-shadow: 0 0 0 2px var(--sage); }
 #ask { background: var(--ink); color: #fff; border-radius: 16px; padding: 16px; } #ask code { display: block; font: 14px/1.5 ui-monospace, Menlo, monospace; background: rgba(255,255,255,.12); border-radius: 10px; padding: 10px 12px; margin: 8px 0 12px; white-space: pre-wrap; }
 #ask button { border-color: var(--sage); background: var(--sage); color: var(--ink); } #ask p { margin: 0; } #ask small { display: block; opacity: .8; margin-top: 10px; }
+.style img.tp { display: block; width: 100%; aspect-ratio: 9 / 16; object-fit: cover; border-radius: 8px; margin-bottom: 8px; background: #e9e6df; }   /* 0.33.0 */
+.tprev { margin: 4px 0 12px; } .tprev span { color: var(--mute); font-size: 14px; }
 .lookrow { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; margin: 10px 0; }
 #reels { list-style: none; padding: 0; margin: 0; } #reels li { background: var(--card); border: 1.5px solid var(--line); border-radius: 12px; padding: 10px 14px; margin-bottom: 8px; display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; } #reels span { color: var(--mute); font-size: 14px; }
 [hidden] { display: none !important; }
@@ -87,13 +89,29 @@ button.pri { background: var(--ink); color: #fff; } button:disabled { opacity: .
 <section id="steplook" hidden>
   <h2><b>3</b>Pick a look <small style="font-weight:500;color:var(--mute)">(optional)</small></h2>
   <p>Skip this and Claude uses your brand as it is. A look is a theme for the whole reel, or a single style like a hook title or a caption style.</p>
+  <div id="recs" hidden>
+    <h3 style="margin:14px 0 4px">Recommended for this clip</h3>
+    <p id="recbase" style="margin:0;color:var(--mute);font-size:14px"></p>
+    <div id="reclist" class="lookrow"></div>
+    <p><button type="button" id="recall">Use all 3</button> <span style="color:var(--mute);font-size:14px">Or pick your own below.</span></p>
+  </div>
+  <h3 style="margin:14px 0 4px">Themes</h3>
   <div id="themes" class="lookrow"></div>
+  <p class="tprev"><button type="button" id="seethemes">See them on my clip</button> <span id="tpnote">One still of each theme on your own video, at the same moment. About a minute; each one shows as it's ready.</span></p>
   <div class="lookrow"><button type="button" class="style" id="h20" aria-pressed="false"><b>Arched title with a sparkle wave</b><span>Your series name curves over your head while gold sparkles follow your hand. The sparkles need a Mac.</span></button></div>
   <p><a href="/looks" id="alllooks">See all the looks</a> <span id="pickednote"></span></p>
 </section>
 
+<section id="stepmusic" hidden>
+  <h2><b>4</b>Background music <small style="font-weight:500;color:var(--mute)">(optional)</small></h2>
+  <p>Soft music under your voice. It dips while you talk and comes back in the pauses. Use tracks you're allowed to use, like ones from Pixabay Music or Mixkit. They live in <code id="musicdir"></code>.</p>
+  <div id="tracks" class="lookrow"></div>
+  <p><label class="style" style="display:inline-block;cursor:pointer;padding:10px 14px"><input type="file" id="addtrack" accept=".mp3,.m4a,.wav,.aac,.ogg,.flac,audio/*" hidden><b>Add a track from this computer</b></label> <span id="trackmsg"></span></p>
+  <audio id="preview" controls hidden style="width:100%"></audio>
+</section>
+
 <section id="step3" hidden>
-  <h2><b>4</b>Hand it to Claude</h2>
+  <h2><b>5</b>Hand it to Claude</h2>
   <p>Paste this where you talk to Claude Code. It does the edit and gives you a link to review the cut.</p>
   <div id="ask">
     <p>Your request</p>
@@ -145,16 +163,89 @@ let LP = D.picks || { ids: [], extras: [], theme: "" };
 function lookWords() {
   const t = (D.themes || []).find((x) => x.id === LP.theme), ids = LP.ids || [];
   const parts = [ids.length ? ids.map((i) => `${i} (${(D.lookNames || {})[i] || i})`).join(", ") : "", t ? `the ${t.name} theme` : ""].filter(Boolean);
-  return parts.length ? ` Use ${parts.join(" and ")}.` : "";
+  const m = LP.music ? ` Play my track "${LP.music}" softly in the background.` : "";   // 0.28.0
+  return (parts.length ? ` Use ${parts.join(" and ")}.` : "") + m;
 }
+document.addEventListener("change", async (e) => {   // 0.28.0: add a track to the music folder
+  if (e.target.id !== "addtrack" || !e.target.files[0]) return;
+  const f = e.target.files[0]; $("#trackmsg").textContent = "Adding " + f.name + "...";
+  try { const r = await fetch("/api/music-upload?name=" + encodeURIComponent(f.name), { method: "POST", body: f }), j = await r.json();
+    if (!j.ok) throw new Error(j.error); TR = j.music; LP.music = j.name; $("#trackmsg").textContent = "Added."; savePicks(); }
+  catch (er) { $("#trackmsg").textContent = er.message; }
+  e.target.value = "";
+});
 function savePicks() { fetch("/api/home-picks", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(LP) }).catch(() => {}); refresh(); }
+// Added by By Mel Ross (0.28.0): background music, picked before the first edit
+let TR = D.music || [];
+function showMusic() {
+  $("#stepmusic").hidden = !pickStyle; if (!pickStyle) return;
+  $("#musicdir").textContent = D.musicDir || "~/reels/music";
+  const box = $("#tracks"); box.textContent = "";
+  const mk = (name, label, sub) => { const b = el("button", "style"); b.type = "button"; b.dataset.track = name; b.setAttribute("aria-pressed", String((LP.music || "") === name)); b.append(el("b", "", label), el("span", "", sub));
+    b.addEventListener("click", () => { LP.music = name; savePicks(); const a = $("#preview"); if (name) { a.src = "/music/" + encodeURIComponent(name); a.hidden = false; a.play().catch(() => {}); } else { a.pause(); a.hidden = true; } }); box.append(b); };
+  mk("", "No music", "Just your voice and the sound effects.");
+  for (const t of TR) mk(t.name, t.name.replace(/^[^/]*\//, "").replace(/\.[^.]+$/, ""), `${t.mood ? t.mood[0].toUpperCase() + t.mood.slice(1) + ". " : ""}Tap to hear it.`);
+  if (!TR.length) {   // 0.28.0: 3 soft beds made on this computer, so there is something to pick on day one
+    const b = el("button", "style"); b.type = "button"; b.id = "starters"; b.append(el("b", "", "Make 3 starter tracks"), el("span", "", "Soft calm, warm and bright beds, made on this computer. Nothing to license. About 1 minute."));
+    b.addEventListener("click", async () => { b.disabled = true; b.querySelector("span").textContent = "Making them. About 1 minute...";
+      try { const j = await (await fetch("/api/music-starters", { method: "POST" })).json(); if (!j.ok) throw new Error(j.error); TR = j.music; refresh(); }
+      catch (er) { b.disabled = false; b.querySelector("span").textContent = er.message; } });
+    box.append(b);
+  }
+}
+// 0.34.0: 3 looks picked for this clip, each with its reason; the IDs stay out of sight
+let REC = null, recFor = null;
+async function loadRecs() {
+  if (!pickStyle || recFor === pickStyle.id) return;
+  recFor = pickStyle.id;
+  $("#recs").hidden = false; $("#recbase").textContent = "Looking at your clip..."; $("#reclist").textContent = "";
+  try {
+    const r = await (await fetch(`/api/recommend?style=${encodeURIComponent(pickStyle.id)}`)).json();
+    if (!r.ok) throw new Error(r.error);
+    REC = r.picks;
+    $("#recbase").textContent = r.checked.length ? `Based on your clip: ${r.checked.join("; ")}.` : "Your clip couldn't be checked, so these are safe picks that read well on most footage.";
+    for (const p of REC) {
+      const b = el("button", "style"); b.type = "button"; b.dataset.rec = p.kind + ":" + p.id;
+      b.append(el("b", "", p.kind === "theme" ? `${p.name} theme` : p.name), el("span", "", p.why));
+      b.addEventListener("click", () => { useRec(p, !recOn(p)); savePicks(); });
+      $("#reclist").append(b);
+    }
+  } catch (er) { recFor = null; $("#recs").hidden = true; }
+}
+const recOn = (p) => (p.kind === "theme" ? (LP.theme || "") === p.id : (LP.ids || []).includes(p.id));
+function useRec(p, on) {
+  if (p.kind === "theme") { LP.theme = on ? p.id : ""; return; }
+  const s = new Set(LP.ids || []); on ? s.add(p.id) : s.delete(p.id); LP.ids = [...s];
+}
 function showLooks() {
-  $("#steplook").hidden = !pickStyle; if (!pickStyle || $("#themes").childElementCount) return;
+  $("#steplook").hidden = !pickStyle; if (pickStyle) loadRecs(); if (!pickStyle || $("#themes").childElementCount) return;
+  $("#recall").addEventListener("click", () => { for (const p of REC || []) useRec(p, true); savePicks(); });
   const mk = (id, name, does) => { const b = el("button", "style"); b.type = "button"; b.dataset.theme = id; b.append(el("b", "", name), el("span", "", does)); b.addEventListener("click", () => { LP.theme = id; savePicks(); }); $("#themes").append(b); };
   mk("", "My brand as it is", "Your own colors and fonts, no theme.");
   for (const t of D.themes || []) mk(t.id, t.name, t.summary);
   $("#h20").addEventListener("click", () => { const s = new Set(LP.ids || []); s.has("H20") ? s.delete("H20") : s.add("H20"); LP.ids = [...s]; savePicks(); });
   $("#alllooks").textContent = `See all ${D.lookCount || ""} looks`.replace("  ", " ");
+  $("#seethemes").addEventListener("click", seeThemes);
+}
+// 0.33.0: one still of each theme on the clip, shown inside its button as soon as it's made
+async function seeThemes() {
+  const btn = $("#seethemes"), note = $("#tpnote");
+  btn.disabled = true; note.textContent = "Making the stills. About a minute; each one shows as it's ready...";
+  try {
+    const r = await (await fetch("/api/theme-previews", { method: "POST" })).json();
+    if (!r.ok) throw new Error(r.error);
+    for (;;) {
+      await new Promise((ok) => setTimeout(ok, 1500));
+      const s = await (await fetch("/api/theme-previews")).json();
+      for (const [id, url] of Object.entries(s.stills || {})) {
+        const b = document.querySelector(`#themes [data-theme="${CSS.escape(id)}"]`);
+        if (b && !b.querySelector("img.tp")) { const im = el("img", "tp"); im.src = url; im.alt = `${b.querySelector("b").textContent} on your clip`; b.prepend(im); }
+      }
+      if (s.state === "done") { note.textContent = (s.notes || []).join(" ") || "Tap the one you like."; break; }
+      if (s.state === "failed") throw new Error(s.error || "the stills could not be made");
+    }
+  } catch (er) { note.textContent = er.message; }
+  btn.disabled = false; btn.textContent = "Make them again";
 }
 function ask() {
   if (!pickStyle) return "";
@@ -164,10 +255,12 @@ function ask() {
 function refresh() {
   document.querySelectorAll(".style").forEach((b) => b.setAttribute("aria-pressed", String(pickStyle && b.dataset.id === pickFormat.id + "/" + pickStyle.id)));
   $("#step3").hidden = !pickStyle; $("#say").textContent = ask(); $("#brandnote").hidden = !!D.brand;
-  showLooks();
+  showLooks(); showMusic();
   document.querySelectorAll("[data-theme]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.theme === (LP.theme || ""))));
   $("#h20").setAttribute("aria-pressed", String((LP.ids || []).includes("H20")));
-  const n = (LP.ids || []).length; $("#pickednote").textContent = n ? `${n} ${n === 1 ? "look" : "looks"} picked: ${LP.ids.join(", ")}.` : "";
+  document.querySelectorAll("[data-rec]").forEach((b) => { const p = (REC || []).find((x) => x.kind + ":" + x.id === b.dataset.rec); if (p) b.setAttribute("aria-pressed", String(recOn(p))); });
+  // 0.34.0: names, not IDs
+  const n = (LP.ids || []).length; $("#pickednote").textContent = n ? `${n} ${n === 1 ? "look" : "looks"} picked: ${LP.ids.map((i) => (D.lookNames || {})[i] || i).join(", ")}.` : "";
 }
 function showFormats() {
   $("#step2").hidden = false;
@@ -192,7 +285,7 @@ async function check(file) {
   try {
     const r = await fetch("/api/check?name=" + encodeURIComponent(file.name), { method: "POST", body: file }), j = await r.json();
     if (!j.ok) throw new Error(j.error || "The check didn't finish.");
-    saved = j.saved; verdict = j.result.verdict;
+    saved = j.saved; verdict = j.result.verdict; recFor = null;   // 0.34.0: a new clip gets new recommendations
     $("#verdict").className = verdict; $("#verdict").textContent = verdict === "retake" ? "Retake." : "Good to edit.";
     $("#headline").textContent = j.result.headline; listChecks(j.result.checks); drawPhone(j.frame, j.result);
     showFormats(); refresh();

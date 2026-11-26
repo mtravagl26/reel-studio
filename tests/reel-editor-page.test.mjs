@@ -1,13 +1,13 @@
 // Added by By Mel Ross. The reel editor page: its pure logic (edits, retiming when a cut piece is dropped or brought back), the popup
 // and text-default parts of build_reel.py, and the local server (key, saves, undo, upload). No render is run here.
 import assert from "node:assert/strict";
-import { spawn } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
 import http from "node:http";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { ff, haveVp9, py, run, skill, skipReason, tmp } from "./reel-helpers.mjs";
+import { ff, haveVp9, py, run, skill, skipReason, tmp, pageText } from "./reel-helpers.mjs";
 
 const review = path.join(skill, "review");
 const core = await import(pathToFileURL(path.join(review, "editor-core.mjs")).href);
@@ -206,9 +206,9 @@ test("review/core.js loads with require() from inside the repo", async () => {
 
 test("the three pages share one step bar and one palette, and load nothing from the internet", () => {
   for (const f of ["reel-review.html", "thumbnail.html", "editor.html"]) {
-    const html = fs.readFileSync(path.join(review, f), "utf8");
+    const html = pageText(path.join(review, f));
     assert.match(html, /class="steps"/, `${f}: step bar`);
-    for (const k of ["review", "cover", "touchups"]) assert.ok(html.includes(`data-step="${k}"`), `${f}: step ${k}`);
+    for (const k of ["edit", "cover", "caption"]) assert.ok(html.includes(`data-step="${k}"`), `${f}: step ${k}`);   // 0.28.0: 1 Edit, 2 Cover, 3 Caption
     assert.ok(/#f5f2ec/i.test(html) && /#0d2b2d/i.test(html), `${f}: cream and teal`);
     assert.ok(!/ED84B0|FFF8FB/i.test(html), `${f}: no leftover pink`);
     // the one outside address is GIPHY, on the touch-ups page, and only when the person has set a key and presses Search
@@ -258,7 +258,7 @@ test("receipt: counts cuts, speed, captions, each kind of graphic and sounds fro
 });
 
 test("timeline: the page has the strip, the lanes and the receipt panel", () => {
-  const html = fs.readFileSync(path.join(review, "editor.html"), "utf8");
+  const html = pageText(path.join(review, "editor.html"));
   for (const need of ['id="tli"', 'id="receipt"', "/api/strip.jpg?v=", "/api/wave.png?v=", 'class="mk cap"', "cutmark", "const PX = 56"]) assert.ok(html.includes(need), need);
 });
 
@@ -363,8 +363,8 @@ test("studio server: an unbuilt reel opens on the review page, saves decisions, 
   for (let i = 0; i < 60 && !/Reel Studio for/.test(out); i++) await new Promise((r) => setTimeout(r, 100));
   const base = `http://127.0.0.1:${port}`;
   try {
-    const home0 = await fetch(base + "/", { redirect: "manual" });
-    assert.equal(home0.status, 302); assert.equal(home0.headers.get("location"), "/review");
+    const home0 = await fetch(base + "/", { redirect: "manual" });   // 0.28.0: the one link opens the Edit page, which shows The cut first
+    assert.equal(home0.status, 200); assert.match(await home0.text(), /The cut[\s\S]*Touch-ups/);
     const page = await (await fetch(base + "/review")).text();
     assert.ok(page.includes("shim.js") && page.includes("REEL_STUDIO_LINKS") && page.includes('"/touchups"'), "review page gets the storage shim and the step links");
     assert.deepEqual(await (await fetch(base + "/api/stage")).json(), { reel: "r1", built: false, review: true });
@@ -416,7 +416,7 @@ test("orbit card from the page: 1 to 6 uploaded pictures, a ring level and a lap
 test("server: lists the themes, sets one for this reel or every reel, and keeps GIPHY off without a key", { skip: skipReason }, async () => {
   await withServer(async ({ reel, home, get, post }) => {
     const st = await (await get("/api/state")).json();
-    assert.deepEqual(st.themes.map((t) => t.id).sort(), ["bold", "editorial", "handwritten", "whimsical"]);
+    assert.deepEqual(st.themes.map((t) => t.id).sort(), ["bold", "editorial", "handwritten", "minimal", "whimsical"]);
     assert.ok(st.themes.every((t) => t.name && t.summary));
     assert.deepEqual(st.theme, { reel: null, all: null });
     let r = await post("/api/theme", { name: "bold", scope: "reel" });
@@ -435,4 +435,140 @@ test("server: lists the themes, sets one for this reel or every reel, and keeps 
     const g = await post("/api/giphy-add", { id: "abc123XYZ" });
     assert.equal(g.ok, false); assert.match(g.error, /no GIPHY key/);
   });
+});
+
+// Added by By Mel Ross (0.28.0): background music, Add a look, and the words of added looks.
+test("touch-ups: background music from the music folder, a look added at the playhead, its words editable", { skip: skipReason }, async () => {
+  await withServer(async ({ base, reel, home, dir, get, post }) => {
+    let s = await (await get("/api/state")).json();
+    assert.deepEqual(s.music.tracks, []); assert.equal(s.music.track, "");
+    const mp3 = path.join(dir, "soft piano.mp3"); ff(["-f", "lavfi", "-i", "sine=f=330:d=3", "-c:a", "libmp3lame", mp3]);
+    const up = await post("/api/music-upload?name=" + encodeURIComponent("soft piano.mp3"), null, fs.readFileSync(mp3));
+    assert.equal(up.ok, true, up.error); assert.equal(up.name, "soft piano.mp3");
+    assert.equal((await post("/api/music-upload?name=notes.txt", null, Buffer.from("hi"))).ok, false, "only music files");
+    fs.mkdirSync(path.join(home, "music", "calm")); fs.copyFileSync(mp3, path.join(home, "music", "calm", "rain.mp3"));
+    s = (await post("/api/music", { track: "calm/rain.mp3" })).state;
+    assert.equal(s.music.track, "calm/rain.mp3"); assert.deepEqual(s.music.tracks.map((t) => [t.name, t.mood]), [["soft piano.mp3", ""], ["calm/rain.mp3", "calm"]]);
+    let edit = JSON.parse(fs.readFileSync(path.join(reel, "edit.json"), "utf8"));
+    assert.equal(path.resolve(edit.music.replace(/^~/, process.env.HOME)), path.join(home, "music", "calm", "rain.mp3"));
+    s = (await post("/api/music", { level: "softer", start: 3.5 })).state; assert.equal(s.music.level, "softer"); assert.equal(s.music.start, 3.5);
+    edit = JSON.parse(fs.readFileSync(path.join(reel, "edit.json"), "utf8")); assert.equal(edit.mix.music, -20); assert.equal(edit.music_start, 3.5);
+    for (const bad of ["../brand.json", "calm/../../x.mp3", ".hidden.mp3", "nope.mp3"]) assert.equal((await post("/api/music", { track: bad })).ok, false, bad);
+    assert.equal((await get("/music/" + encodeURIComponent("calm/rain.mp3"))).headers.get("content-type"), "audio/mpeg");
+    assert.equal((await get("/music/" + encodeURIComponent("../brand.json"))).status, 404);
+    await post("/api/music", { track: "soft piano.mp3", scope: "all" });
+    assert.match(JSON.parse(fs.readFileSync(path.join(home, "brand.json"), "utf8")).music, /soft piano\.mp3$/);
+    s = (await post("/api/music", { track: "" })).state; assert.equal(s.music.track, "", "No music on this reel even with an every-reel track");
+    assert.equal(JSON.parse(fs.readFileSync(path.join(reel, "edit.json"), "utf8")).music, "none");
+    // Add a look at the playhead
+    assert.ok(s.addLooks.some((l) => l.id === "L8") && !s.addLooks.some((l) => l.id.startsWith("C")), "hooks and layouts only");
+    const add = await post("/api/look-add", { id: "L8", t: 5 }); assert.equal(add.ok, true, add.error);
+    const card = add.state.edit.cards.find((c) => c.look === "L8"); assert.equal(card.type, "stat"); assert.equal(card.start, 5);
+    assert.equal((await post("/api/look-add", { id: "C3", t: 2 })).ok, false, "a caption look isn't a card");
+    const i = add.state.edit.cards.indexOf(add.state.edit.cards.find((c) => c.look === "L8"));
+    const set = await post("/api/op", { op: { op: "card_set", i, set: { value: "1,200", label: "followers", delta: "" } } });
+    assert.equal(set.ok, true, set.error); assert.equal(set.state.edit.cards[i].value, "1,200");
+  });
+  const ed = pageText(path.join(review, "editor.html"));
+  for (const t of ["Background music", "Add a look at this point in the video", "data-drag=", "data-dragv", "Start the track at", "Use this track for every reel"]) assert.ok(ed.includes(t), t);
+});
+
+test("mixer: a reel can say no music, and the music dips under sound effects (0.28.0)", { skip: skipReason }, () => {
+  const mx = fs.readFileSync(path.join(skill, "scripts", "mix_audio.py"), "utf8");
+  assert.match(mx, /if music == "none":\s+music = None/); assert.match(mx, /for e in events:\n\s+k0 = int/); assert.match(mx, /music_start/);
+});
+
+test("home page: an empty music folder offers 3 starter tracks made on this computer (0.28.0)", { skip: skipReason }, async () => {
+  const home = tmp("starters"), port = 4950 + Math.floor(Math.random() * 40);
+  const srv = spawn("node", [path.join(review, "home-server.mjs"), "--port", String(port)], { env: { ...process.env, REELS_HOME: home }, stdio: "ignore" });
+  try {
+    const base = `http://127.0.0.1:${port}`;
+    for (let k = 0; k < 40; k++) { try { await fetch(base + "/"); break; } catch { await new Promise((r) => setTimeout(r, 150)); } }
+    const j = await (await fetch(base + "/api/music-starters", { method: "POST", headers: { Origin: base } })).json();
+    assert.equal(j.ok, true, j.error); assert.deepEqual(j.music.map((t) => t.name).sort(), ["bright/bright bed.wav", "calm/calm bed.wav", "warm/warm bed.wav"]);
+    assert.equal((await fetch(base + "/music/" + encodeURIComponent("calm/calm bed.wav"))).headers.get("content-type"), "audio/wav");
+  } finally { srv.kill(); }
+  assert.match(fs.readFileSync(path.join(review, "home.html"), "utf8"), /Make 3 starter tracks/);
+});
+
+test("Edit page: When captions appear sets caption_lead for this reel or every reel (0.29.0)", { skip: skipReason }, async () => {
+  await withServer(async ({ reel, home, get, post }) => {
+    let s = await (await get("/api/state")).json(); assert.equal(s.captionLead, 0);
+    s = (await post("/api/caption-lead", { lead: 0.2 })).state; assert.equal(s.captionLead, 0.2);
+    assert.equal(JSON.parse(fs.readFileSync(path.join(reel, "edit.json"), "utf8")).caption_lead, 0.2);
+    s = (await post("/api/caption-lead", { lead: 0.1, scope: "all" })).state; assert.equal(s.captionLeadAll, 0.1); assert.equal(s.captionLead, 0.1);
+    assert.equal(JSON.parse(fs.readFileSync(path.join(home, "brand.json"), "utf8")).caption_lead, 0.1);
+    assert.equal(JSON.parse(fs.readFileSync(path.join(reel, "edit.json"), "utf8")).caption_lead, undefined);
+    s = (await post("/api/caption-lead", { lead: 7 })).state; assert.equal(s.captionLead, 0.5, "capped at 0.5 s");
+    s = (await post("/api/caption-lead", { lead: "x", scope: "all" })).state; assert.equal(s.captionLeadAll, 0);
+    assert.equal(JSON.parse(fs.readFileSync(path.join(home, "brand.json"), "utf8")).caption_lead, undefined);
+  });
+  const html = pageText(path.join(review, "editor.html"));
+  assert.match(html, /When captions appear/); assert.match(html, /\/api\/caption-lead/);
+});
+
+// Added by By Mel Ross (0.33.0): "See them on my clip": one still of each theme, the same moment, on the reel's own footage.
+function snapshotStandIn(dir) {
+  const f = path.join(dir, "snap.sh");
+  fs.writeFileSync(f, `#!/bin/sh\ncp "$1/index.html" "$3.html"\nffmpeg -v error -y -f lavfi -i color=c=gray:s=108x192 -frames:v 1 "$3"\n`, { mode: 0o755 });
+  return f;
+}
+
+test("theme stills: one per theme plus my brand, the same moment, captions word by word for Minimal, a sample title in the hook spot (0.33.0)", { skip: skipReason }, () => {
+  const dir = tmp("themeprev"), home = path.join(dir, "home"), engine = path.join(dir, "engine"), out = path.join(dir, "out");
+  fs.mkdirSync(home); fs.mkdirSync(path.join(engine, "sfx"), { recursive: true }); fs.writeFileSync(path.join(engine, "gsap.min.js"), "/* stand-in */");
+  const clip = path.join(dir, "clip.mp4");
+  ff(["-f", "lavfi", "-i", "testsrc2=s=270x480:r=30:d=8", "-f", "lavfi", "-i", "sine=f=220:d=8", "-c:v", "libx264", "-pix_fmt", "yuv420p", "-c:a", "aac", "-shortest", clip]);
+  const r = spawnSync("python3", [path.join(skill, "scripts", "theme_preview.py"), clip, "--out", out], { encoding: "utf8", env: { ...process.env, REELS_HOME: home, REEL_ENGINE: engine, REEL_SNAPSHOT: snapshotStandIn(dir) } });
+  assert.equal(r.status, 0, r.stdout + r.stderr);
+  const stills = [...r.stdout.matchAll(/^still: (\S+) (\S+\.jpg)$/gm)].map((m) => m[1]);
+  assert.deepEqual(stills, ["-", "bold", "editorial", "handwritten", "minimal", "whimsical"], "my brand first, then every theme");
+  assert.match(r.stdout, /no brand settings yet, so these stills use the example colors/);
+  assert.match(r.stdout.trim(), /done$/);
+  for (const n of ["brand", "bold", "minimal"]) assert.ok(fs.existsSync(path.join(out, `${n}.jpg`)));
+  const minimal = fs.readFileSync(path.join(out, "minimal.png.html"), "utf8"), bold = fs.readFileSync(path.join(out, "bold.png.html"), "utf8");
+  assert.match(minimal, /YOUR TITLE|your title/i); assert.match(minimal, /and a small line under it/);
+  const words = (h) => [...h.matchAll(/id="c\d+" class="cap[^>]*>([\s\S]*?)<\/div>/g)].map((m) => m[1].replace(/<[^>]+>/g, " ").trim().split(/\s+/).length);
+  assert.ok(words(minimal).length && words(minimal).every((n) => n === 1), "Minimal shows captions one word at a time");
+  assert.ok(words(bold).some((n) => n > 1), "phrase themes keep their phrases");
+  assert.doesNotMatch(fs.readFileSync(path.join(out, "brand.png.html"), "utf8"), /theme: /);
+});
+
+test("Touch-ups: See them on my clip makes the stills on this reel and serves each one (0.33.0)", { skip: skipReason }, async () => {
+  const dir = tmp("themeprev-srv");
+  process.env.REEL_SNAPSHOT = snapshotStandIn(dir);
+  try {
+    await withServer(async ({ get, post }) => {
+      const r = await post("/api/theme-previews", {});
+      assert.equal(r.ok, true, r.error);
+      let s;
+      for (let k = 0; k < 240; k++) { s = await (await get("/api/theme-previews")).json(); if (s.state !== "running") break; await new Promise((ok) => setTimeout(ok, 250)); }
+      assert.equal(s.state, "done", JSON.stringify(s));
+      assert.deepEqual(Object.keys(s.stills).sort(), ["", "bold", "editorial", "handwritten", "minimal", "whimsical"]);
+      const img = await get(s.stills.minimal);
+      assert.equal(img.status, 200); assert.equal(img.headers.get("content-type"), "image/jpeg");
+      assert.equal((await get("/theme-preview/nope.jpg")).status, 404);
+      assert.equal((await get("/theme-preview/..%2Fbrand.json.jpg")).status, 404);
+    });
+  } finally { delete process.env.REEL_SNAPSHOT; }
+  const js = fs.readFileSync(path.join(review, "editor.js"), "utf8"), home = fs.readFileSync(path.join(review, "home.html"), "utf8");
+  assert.match(js, /data-a="see-themes"/); assert.match(js, /data-a="theme-pick"/);
+  assert.match(home, /id="seethemes"/); assert.match(home, /\/api\/theme-previews/);
+});
+
+test("Touch-ups: Recommended for this reel comes from the reel itself; Add a look shows names, not IDs (0.34.0)", { skip: skipReason }, async () => {
+  process.env.REEL_TEST_HEAD = "0.19,0.22,0.5";
+  try {
+    await withServer(async ({ get }) => {
+      const r = await (await get("/api/recommend")).json();
+      assert.equal(r.ok, true, r.error);
+      assert.equal(r.picks.length, 3); assert.equal(r.picks[0].kind, "theme");
+      assert.ok(r.picks.every((p) => p.name && p.why));
+    });
+  } finally { delete process.env.REEL_TEST_HEAD; }
+  const js = fs.readFileSync(path.join(review, "editor.js"), "utf8");
+  assert.match(js, /Recommended for this reel/); assert.match(js, /data-a="rec-use"/);
+  assert.doesNotMatch(js, /\$\{esc\(l\.id\)\} \$\{esc\(l\.name\)\}/, "Add a look lists names only");
+  const home = fs.readFileSync(path.join(review, "home.html"), "utf8");
+  assert.match(home, /Recommended for this clip/); assert.match(home, /\/api\/recommend\?style=/);
 });

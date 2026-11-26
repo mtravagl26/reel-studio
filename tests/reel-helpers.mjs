@@ -46,3 +46,9 @@ export function meanDb(file, t0, t1) {
   const m = r.stderr.match(/mean_volume:\s*(-?[\d.]+|-inf) dB/);
   return m ? (m[1] === "-inf" ? -99 : parseFloat(m[1])) : -99;
 }
+
+// 0.30.0: the review and Touch-ups pages keep their code in review.js and editor.js. A page's text, with its code.
+export function pageText(file) {
+  const js = { "editor.html": "editor.js", "reel-review.html": "review.js" }[path.basename(file)];
+  return fs.readFileSync(file, "utf8") + (js ? "\n" + fs.readFileSync(path.join(path.dirname(file), js), "utf8") : "");
+}

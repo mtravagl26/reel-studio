@@ -29,6 +29,10 @@ writeFileSync(join(reel, "transcript.json"), JSON.stringify(NAMES.map((text, i) 
 writeFileSync(join(reel, "proposal.json"), JSON.stringify({ title: "UI test reel", proposedCut: [[0, 10]], accentWords: [],
   cards: [{ id: "g1", type: "tag", kind: "Pill", what: "Pill: hello", text: "hello", anchor: "gamma", after: 0, place: [240, 130, 600, 110] }] }));
 const env = { ...process.env, REELS_HOME: home }; delete env.GIPHY_API_KEY;
+// 0.33.0: the theme stills use a stand-in for the snapshot (it only needs a picture)
+mkdirSync(join(tmp, "bin"), { recursive: true });
+writeFileSync(join(tmp, "bin", "snap.sh"), `#!/bin/sh\nffmpeg -v error -y -f lavfi -i color=c=gray:s=108x192 -frames:v 1 "$3"\n`, { mode: 0o755 });
+env.REEL_SNAPSHOT = join(tmp, "bin", "snap.sh");
 const py = (...a) => execFileSync("python3", [join(SKILL, "scripts/review_sync.py"), ...a], { env, encoding: "utf8" });
 py("export", reel, join(reel, "proposal.json"), join(tmp, "out"));
 const data = read(tmp, "out", "reel.json"); data.srcUrl = "/files/raw.mp4";
@@ -69,11 +73,14 @@ try {
   if (!up) throw new Error("the studio server didn't start on port " + port);
 
   // ---- 1 Review: the one link opens the review page while the reel is not built
+  // 0.28.0: the one link opens the Edit page, on The cut while the reel is not built
   await open("/");
+  await until(`document.querySelector("#t-cut")?.getAttribute("aria-selected") === "true" && document.querySelector("#f-cut")?.getAttribute("src") === "/review?embed=1"`, "the Edit page on The cut");
+  await open("/review");
   await until(`location.pathname === "/review" && /UI test reel/.test(document.querySelector("#reelname")?.textContent || "")`, "the review page to load the reel");
   assert.equal(await text("h1"), "Review the cut");
-  assert.equal(await text('.steps [aria-current="step"]'), "1 Review");
-  assert.equal(await js(`document.querySelector('.steps [data-step="touchups"]').getAttribute("href")`), "/touchups");
+  assert.equal(await text('.steps [aria-current="step"]'), "1 Edit");
+  assert.equal(await js(`document.querySelector('.steps [data-step="caption"]').getAttribute("href")`), "/caption");
   assert.equal(await js(`document.querySelector("#builtnote").hidden`), true, "no 'already built' note yet");
   assert.equal(await js(`getComputedStyle(document.body).backgroundColor`), "rgb(245, 242, 236)", "cream page");
   const words = `[...document.querySelectorAll(".w")].filter((e) => !e.classList.contains("filler"))`;
@@ -87,7 +94,7 @@ try {
   for (const tab of ["Graphics", "Captions", "Sound & color", "Preview", "Cover", "Cuts"]) {
     await js(`[...document.querySelectorAll("button")].find((b) => b.textContent.trim() === ${JSON.stringify(tab)}).click()`); await sleep(120);
   }
-  assert.deepEqual(await js(`[...document.querySelectorAll("#theme option")].map((o) => o.textContent)`), ["My brand as it is", "Bold", "Editorial", "Handwritten", "Whimsical"]);
+  assert.deepEqual(await js(`[...document.querySelectorAll("#theme option")].map((o) => o.textContent)`), ["My brand as it is", "Bold", "Editorial", "Handwritten", "Minimal", "Whimsical"]);
   await js(`(() => { const s = document.querySelector("#theme"); s.value = "editorial"; s.dispatchEvent(new Event("change", { bubbles: true })); })()`);
   await sleep(1500);
   assert.equal(decisions().theme, "editorial");
@@ -104,12 +111,29 @@ try {
 
   // ---- 2 Touch-ups
   await open("/");
+  await until(`document.querySelector("#t-touch")?.getAttribute("aria-selected") === "true"`, "the Edit page on Touch-ups once built");
+  await open("/touchups");
   await until(`document.querySelector("h1")?.textContent === "Touch-ups" && document.querySelector("#caps .w")`, "the touch-ups page");
-  assert.equal(await text('.steps [aria-current="step"]'), "2 Touch-ups");
-  assert.equal(await js(`document.querySelector('.steps [data-step="review"]').getAttribute("href")`), "/review");
+  assert.equal(await text('.steps [aria-current="step"]'), "1 Edit");
+  assert.equal(await js(`document.querySelector('.steps [data-step="caption"]').getAttribute("href")`), "/caption");
   await js(`document.querySelectorAll("details").forEach((d) => (d.open = true))`);
   assert.equal(await js(`document.querySelector("#themePick").value`), "editorial", "the theme picked in review shows here");
-  assert.match(await text("#giphy"), /not set up yet/, "GIPHY stays off without a key");
+  assert.match(await text("#giphy"), /Off until you turn it on/, "GIPHY stays off without a key, behind its warning");   // 0.35.0
+  // 0.33.0: See them on my clip, then tap a still to use that theme
+  await click('[data-a="see-themes"]');
+  await until(`document.querySelectorAll(".tpgrid img").length === 6`, "6 theme stills (my brand + 5 themes)", 120000);
+  await until(`[...document.querySelectorAll(".tpgrid img")].every((i) => i.complete && i.naturalWidth > 0)`, "the stills to load");
+  await click('[data-a="theme-pick"][data-v="minimal"]');
+  await until(`document.querySelector("#themePick")?.value === "minimal"`, "Minimal picked from its still");
+  assert.equal(read(reel, "edit.json").theme, "minimal");
+  // 0.34.0: Recommended for this reel: 3 picks with reasons; adding one puts it in the reel
+  await until(`document.querySelectorAll('[data-a="rec-use"]').length === 3`, "3 recommended looks", 60000);
+  const recLook = await js(`document.querySelector('[data-a="rec-use"][data-k="look"]').dataset.v`);
+  const before = read(reel, "edit.json").cards.length;
+  await click('[data-a="rec-use"][data-k="look"]');
+  await until(`true`, "");
+  for (let i = 0; i < 50 && read(reel, "edit.json").cards.length === before; i++) await sleep(100);
+  assert.equal(read(reel, "edit.json").cards.length, before + 1, `the recommended look ${recLook} was added`);
   await click("#addPill");
   await until(`/new pill/.test(document.querySelector("#cards").textContent)`, "the new text to appear");
   await click("#addOrbit");

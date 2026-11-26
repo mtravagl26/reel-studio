@@ -209,6 +209,10 @@ const FIELDS = {
   orbit: [...COMMON, "level", "size", "period", "frame"],   // Added by By Mel Ross (0.9.0): pictures that circle the head
   sticker: [...COMMON, "x", "y", "size", "rotate", "layer"],
   image: [...COMMON, "layer"], shot: [...COMMON, "label", "y", "layer"],
+  // 0.28.0: looks added from the Touch-ups page can have their words changed too
+  stat: [...COMMON, "label", "value", "delta", "y", "layer"], xlist: [...COMMON, "items", "layer"], page: [...COMMON, "label"], tiles: [...COMMON, "label"],
+  // 0.31.0: the Roundup layout (scripts/roundup.py)
+  chapter: [...COMMON, "text", "sub", "color", "text_color"], split: [...COMMON, "face_y", "fit", "from"], inset: [...COMMON, "title", "corner", "size", "face_y"], roundup: [...COMMON],
 };
 export const isTextType = (t) => TEXT_TYPES.has(t);
 
@@ -233,6 +237,9 @@ export function cleanCardFields(type, set, dur) {
     else if (k === "off" || k === "glass" || k === "frame" || k === "loop") out[k] = !!v;
     else if (k === "from") out[k] = num(v, "where the clip starts", 0, 900);
     else if (k === "text" || k === "title" || k === "label") out[k] = cleanText(v, k);
+    else if (k === "value") out[k] = cleanText(v, "the number", 16);   // 0.28.0
+    else if (k === "delta") out[k] = String(v ?? "").trim() ? cleanText(v, "the change", 12) : "";
+    else if (k === "items") { out[k] = (Array.isArray(v) ? v : []).map((x) => String(x ?? "").trim()).filter(Boolean).map((x) => cleanText(x, "line", 40)).slice(0, 6); if (!out[k].length) throw new Error("keep at least 1 line"); }
     else if (k === "sub") out[k] = String(v ?? "").trim() ? cleanText(v, "the line under it", 30) : "";   // 0.23.0: empty takes it off
     else if (k === "caption") out[k] = String(v ?? "").trim() ? cleanText(v, "label", 40) : "";   // 0.16.0: the handwritten label under a popup; empty takes it off
     else if (k === "layer") { if (!LAYERS.has(v)) throw new Error("layer must be front, behind or both"); out[k] = v; }
