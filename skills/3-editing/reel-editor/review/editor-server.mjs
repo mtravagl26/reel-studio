@@ -28,7 +28,7 @@ const PORT = Number(args[args.indexOf("--port") + 1]) || 4792;
 const LAN = args.includes("--lan");
 // Added by By Mel Ross: addresses of the other two Reel Studio pages, shown as links in the step bar (both optional).
 const flag = (n) => { const i = args.indexOf(n); return i >= 0 && /^https?:\/\//.test(args[i + 1] || "") ? args[i + 1] : null; };
-const LINKS = { review: flag("--review-url") || "/review", touchups: "/touchups", edit: "/edit", cover: flag("--cover-url"), caption: "/caption" };   // 0.28.0: edit = review + touch-ups on one page
+const LINKS = { review: flag("--review-url") || "/review", touchups: "/touchups", edit: "/edit", cover: flag("--cover-url") || "/cover", caption: "/caption" };   // 0.28.0: edit = review + touch-ups on one page
 const KEY = LAN ? crypto.randomBytes(9).toString("base64url") : null;
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const SKILL = path.resolve(HERE, "..");
@@ -153,6 +153,23 @@ function lookLines() {
 }
 const LOOKP = lookPreviews({ scripts: SCRIPTS, home: HOME, env: childEnv(), tag: path.basename(REEL).replace(/[^\w.-]+/g, "_") });
 const RECOMMEND = recommender({ scripts: SCRIPTS, env: childEnv() });   // 0.34.0
+const COVER_HOME = path.dirname(REEL);
+let coverChild = null;
+async function coverHealth(port) {
+  try { const r = await fetch(`http://127.0.0.1:${port}/api/health`, { signal: AbortSignal.timeout(1500) }); const h = await r.json(); return h && h.home ? h.home : null; } catch { return null; }
+}
+async function openCover() {
+  const want = fs.realpathSync(COVER_HOME), url = (port) => `http://127.0.0.1:${port}/?reel=${encodeURIComponent(path.basename(REEL))}`;
+  for (let port = 4848; port < 4853; port++) {
+    const h = await coverHealth(port);
+    if (h === want) return url(port);
+    if (h) continue;   // another reels folder's studio: try the next port
+    coverChild = spawn("python3", [path.join(SKILL, "scripts", "thumbnail_studio.py"), REEL, "--port", String(port)], { env: { ...childEnv(), REELS_HOME: want }, stdio: "ignore" });
+    for (let i = 0; i < 40; i++) { await new Promise((r) => setTimeout(r, 200)); if ((await coverHealth(port)) === want) return url(port); if (coverChild.exitCode != null) break; }
+  }
+  throw new Error("no free port from 4848 to 4852 for the thumbnail studio");
+}
+process.on("exit", () => { try { coverChild?.kill(); } catch { /* gone */ } });
 let _sb = null;
 const SB = () => (_sb ||= storyboard({ REEL, SKILL, listRenders, childEnv }));   // 0.35.0
 const THEMEP = themePreviews({ scripts: SCRIPTS, home: HOME, env: childEnv(), tag: path.basename(REEL).replace(/[^\w.-]+/g, "_") });   // 0.33.0
@@ -608,7 +625,18 @@ function setTextDefault(body) {
 let job = readJSON(P.job, { state: "idle" });
 if (job.state === "running" || job.state === "queued") { job = { ...job, state: "failed", error: "The page was restarted while this render was running; start it again.", finishedAt: new Date().toISOString() }; writeJSON(P.job, job); }
 let child = null, prepping = false;
-const setJob = (patch) => { job = { ...job, ...patch }; writeJSON(P.job, job); };
+const setJob = (patch) => { job = { ...job, ...patch }; writeJSON(P.job, job); if (patch.state && patch.state !== "running" && patch.state !== "queued") awake(false); };
+// Added by By Mel Ross (0.38.2): a render keeps the Mac awake (caffeinate stops idle sleep while it runs), and checks the disk
+// first: a full disk used to fail deep inside the render with an ffmpeg error.
+let caff = null;
+function awake(on) {
+  if (!on) { if (caff) { try { caff.kill(); } catch { /* gone */ } caff = null; } return; }
+  if (caff || process.platform !== "darwin") return;
+  try { caff = spawn("caffeinate", ["-i", "-w", String(process.pid)], { stdio: "ignore" }); caff.on("error", () => { caff = null; }); caff.on("exit", () => { caff = null; }); } catch { caff = null; }
+}
+function freeGB(dir) {
+  try { const s = fs.statfsSync(dir); return (s.bavail * s.bsize) / 1e9; } catch { return null; }
+}
 
 function step(name, cmd, a, env) {
   return new Promise((resolve) => {
@@ -635,7 +663,12 @@ async function runRender(opts = {}) {
   const soundOnly = !!opts.soundOnly && !needCut && exists(P.final);
   fs.writeFileSync(P.log, `render started ${new Date().toISOString()}\n`);
   const version = Math.max(0, ...listRenders().map((r) => r.v), meta.version || 0) + 1;
-  setJob({ state: "running", step: needCut ? "cut" : "render", version, startedAt: new Date().toISOString(), finishedAt: null, error: null, steps: [], notes: [], qa: null, sync: null });
+  const free = freeGB(REEL);
+  if (free != null && free < 2) { setJob({ state: "failed", step: "disk", startedAt: new Date().toISOString(), finishedAt: new Date().toISOString(), error: `Only ${free.toFixed(1)} GB free on this disk. A render needs about 2 GB: empty the Trash or move old reels, then render again.`, steps: [] }); return; }
+  // 0.38.2: the steps this render will take, so the page can say "step 2 of 4"
+  const plan = [...(needCut ? ["cut"] : []), soundOnly ? "sound" : "render", "checks", "copies"];
+  awake(true);
+  setJob({ state: "running", step: needCut ? "cut" : soundOnly ? "sound" : "render", plan, lowDisk: free != null && free < 5 ? +free.toFixed(1) : null, version, startedAt: new Date().toISOString(), finishedAt: null, error: null, steps: [], notes: [], qa: null, sync: null });
   const fail = (name, r) => { setJob({ state: "failed", step: name, finishedAt: new Date().toISOString(), error: `${name} failed: ${tailReason(r.out)}`, steps }); };
   try {
     const editBefore = fs.readFileSync(P.edit, "utf8");
@@ -902,6 +935,15 @@ const server = http.createServer(async (req, res) => {
     if (p === "/" || p === "/index.html" || p === "/edit") return sendFile(req, res, path.join(HERE, "edit.html"));
     if (p === "/favicon.ico") { res.writeHead(204); return res.end(); }   // no icon: answer quietly so the page shows no failed request
     if (p === "/touchups") return sendFile(req, res, path.join(HERE, "editor.html"));
+    // Added by By Mel Ross (0.38.2): 2 Cover starts the thumbnail studio itself, so nobody has to ask Claude to open it.
+    // The studio only answers on this Mac (127.0.0.1); on a phone the page says to open it on the Mac.
+    if (p === "/cover") {
+      const local = /^(127\.0\.0\.1|localhost|\[::1\])(:\d+)?$/.test(req.headers.host || "");
+      if (!local) { res.writeHead(200, { "Content-Type": TYPES[".html"], "Cache-Control": "no-store" }).end(`<!doctype html><meta name="viewport" content="width=device-width,initial-scale=1"><title>Cover</title><body style="font:17px/1.45 -apple-system,sans-serif;max-width:520px;margin:40px auto;padding:0 18px;color:#0d2b2d"><h1 style="font-size:22px">The cover page opens on your Mac</h1><p>It uses your footage and fonts on the Mac, so it isn't shared over Wi-Fi. On your Mac, open this same Reel Studio link and tap <b>2 Cover</b>.</p><p><a href="/edit">Back to editing</a></p>`); return; }
+      try { const u = await openCover(); res.writeHead(302, { Location: u }).end(); }
+      catch (e) { res.writeHead(500, { "Content-Type": "text/plain; charset=utf-8" }).end("The cover page couldn't start: " + String(e.message || e)); }
+      return;
+    }
     if (p === "/caption") return sendFile(req, res, path.join(HERE, "caption.html"));   // 0.20.0: step 4
     if (p === "/api/caption" && req.method === "GET") return json(res, 200, { ok: true, ...capView() });
     if (p === "/api/caption" && req.method === "POST") {
@@ -934,6 +976,7 @@ const server = http.createServer(async (req, res) => {
     }
     if (p === "/shim.js") { res.writeHead(200, { "Content-Type": TYPES[".js"] }).end(SHIM); return; }
     if (p === "/core.js") return sendFile(req, res, path.join(HERE, "core.js"));
+    if (p === "/steps.js") return sendFile(req, res, path.join(HERE, "steps.js"));   // 0.38.2: greyed steps explain themselves
     if (p === "/review.js" || p === "/editor.js") return sendFile(req, res, path.join(HERE, p.slice(1)));   // 0.30.0: the pages' code
     if (p === "/core.mjs") return sendFile(req, res, path.join(HERE, "editor-core.mjs"));
     if (p === "/api/stage" && req.method === "GET") return json(res, 200, { reel: path.basename(REEL), built: built(), review: hasReview(), storyboardDone: built() ? SB().done() : false });

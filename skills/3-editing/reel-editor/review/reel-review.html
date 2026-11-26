@@ -166,6 +166,8 @@ code{font:500 13px var(--f-mono);background:var(--accent-soft);border-radius:6px
 @media (min-width:1232px){.builtnote{padding-inline:14px}}
 .tipb{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;min-width:20px;min-height:20px;max-height:20px;flex:0 0 20px;align-self:center;box-sizing:border-box;padding:0;margin:0 0 0 6px;border:1.5px solid currentColor;border-radius:50%;background:transparent;color:inherit;opacity:.6;font:700 12px/1 system-ui,sans-serif;cursor:pointer;vertical-align:middle}
 .tipb::before{content:"?"}
+.tipb{position:relative}.tipb::after{content:"";position:absolute;inset:-12px}   /* 0.38.2: a 44 px target around the 20 px dot */
+.savedat{font:500 12px var(--f-mono);color:var(--muted);font-variant-numeric:tabular-nums}
 .tipb:hover,.tipb:focus-visible,.tipb.on{opacity:1}
 #tipbox{position:fixed;z-index:9999;max-width:min(300px,calc(100vw - 24px));background:#0d2b2d;color:#f5f2ec;font:400 14px/1.45 system-ui,sans-serif;padding:10px 12px;border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.25)}
 </style>
@@ -200,6 +202,7 @@ code{font:500 13px var(--f-mono);background:var(--accent-soft);border-radius:6px
       <span class="pill" id="save" aria-live="polite">Not loaded</span>
       <button class="b quiet" id="retry" type="button" hidden>Retry save</button>
       <button class="b quiet" id="undo" type="button" disabled title="Takes back your last change on this page">Undo</button>
+      <span class="savedat" id="savedat" aria-live="polite"></span>
     </div>
   </aside>
   <main>
@@ -311,3 +314,4 @@ code{font:500 13px var(--f-mono);background:var(--accent-soft);border-radius:6px
 
 <script src="core.js"></script>
 <script src="review.js"></script>
+<script src="steps.js"></script>

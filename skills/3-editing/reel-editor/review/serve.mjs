@@ -57,7 +57,8 @@ http.createServer((req, res) => {
   }
   if (p === "/shim.js") { res.writeHead(200, { "Content-Type": TYPES[".js"] }).end(SHIM); return; }
   if (p === "/core.js") return sendFile(req, res, path.join(REVIEW, "core.js"));
-  if (p === "/review.js") return sendFile(req, res, path.join(REVIEW, "review.js"));   // 0.30.0: the page's code
+  if (p === "/review.js") return sendFile(req, res, path.join(REVIEW, "review.js"));
+  if (p === "/steps.js") return sendFile(req, res, path.join(REVIEW, "steps.js"));   // 0.38.2   // 0.30.0: the page's code
   if (p.startsWith("/db/")) {
     const doc = p.slice(4);
     if (!DOCS.has(doc)) { res.writeHead(404).end(); return; }

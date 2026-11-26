@@ -44,7 +44,15 @@ let S = null, openCard = new Set(), capSel = null, placing = null, watch = null,
 const cid = (i) => S.edit.cards[i]?.id ?? `i${i}`, sid = (i) => S.edit.sfx_events[i]?.id ?? `i${i}`, cidx = (id) => S.edit.cards.findIndex((c, i) => cid(i) === id);
 const v = $("#v");
 const fmt = (t) => { t = Math.max(0, +t || 0); const m = Math.floor(t / 60); return `${m}:${(t - m * 60).toFixed(1).padStart(4, "0")}`; };
-function toast(msg, bad) { const t = $("#toast"); t.textContent = msg; t.className = bad ? "bad" : ""; t.style.display = "block"; clearTimeout(toast.h); toast.h = setTimeout(() => (t.style.display = "none"), bad ? 7000 : 2200); }
+function toast(msg, bad, undoable) {
+  const t = $("#toast"); t.textContent = msg; t.className = bad ? "bad" : ""; t.style.display = "block";
+  if (undoable) {   // 0.38.2: a delete shows Undo right in the message for 6 s, so no dialog is needed
+    const b = document.createElement("button"); b.type = "button"; b.className = "sm"; b.id = "toastundo"; b.textContent = "Undo";
+    b.addEventListener("click", async () => { t.style.display = "none"; try { const j = await post("/api/undo"); toast(`Undid: ${j.undid}`); } catch (e) { toast(e.message, true); } });
+    t.append(b);
+  }
+  clearTimeout(toast.h); toast.h = setTimeout(() => (t.style.display = "none"), bad ? 7000 : undoable ? 6000 : 2200);
+}
 async function post(url, body, raw) {
   const r = await fetch(url, { method: "POST", headers: raw ? {} : { "Content-Type": "application/json" }, body: raw ?? JSON.stringify(body || {}) });
   const j = await r.json().catch(() => ({ ok: false, error: "the editor did not answer" }));
@@ -52,7 +60,9 @@ async function post(url, body, raw) {
   if (j.state) { S = j.state; render(); if (!/\/api\/render$/.test(url)) liveSoon(); }
   return j;
 }
-async function op(o, key, msg) { try { const j = await post("/api/op", { op: o, key }); if (msg) toast(msg); return j; } catch (e) { toast(e.message, true); render(); } }
+async function op(o, key, msg, undoable) { try { const j = await post("/api/op", { op: o, key }); savedNow(); if (msg) toast(msg, false, undoable); return j; } catch (e) { toast(e.message, true); render(); } }
+// 0.38.2: every change saves on its own; this line says when the last one did
+function savedNow() { const s = $("#savedat"); if (s) s.textContent = "Saved " + new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }); }
 async function load() {
   S = await (await fetch("/api/state")).json();
   if (S.built === false) {   // the reel has not been built yet: nothing to touch up
@@ -74,11 +84,17 @@ function render() {
   renderStatus(); renderVideo(); renderTimeline(); renderCaps(); renderPieces(); renderCards(); renderPopups(); renderSfx(); renderSettings(); renderVersions(); drawOverlay();
   $("#notes").innerHTML = S.notes?.length ? `<div class="banner info">${S.notes.map(esc).join("<br>")}</div>` : "";
 }
+const STEPNAME = { cut: "cutting the video", render: "building the video", sound: "mixing the sound", checks: "checking it", copies: "saving this version", queued: "waiting to start" };
+const fmtClock = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
+setInterval(() => { const e = document.querySelector("#elapsed"); if (e && e.dataset.since) e.textContent = fmtClock(Math.max(0, (Date.now() - Date.parse(e.dataset.since)) / 1000)); }, 1000);
 function renderStatus() {
   const j = S.job; let h = "";
   const chips = { running: `<span class="chip run">Rendering: ${esc(j.step || "")}</span>`, queued: `<span class="chip run">Queued</span>` };
   if (j.state === "running" || j.state === "queued") {
-    h = `<div class="banner info"><b>${chips[j.state]}</b> This takes a few minutes${S.cutsStale ? " (it cuts the video again first)" : ""}. Edits are paused until it finishes.<ul class="steps">${(j.steps || []).map((s) => `<li>${s.ok ? "✓" : "✗"} ${esc(s.name)} (${s.secs}s)</li>`).join("")}</ul></div>`;
+    // 0.38.2: elapsed time, which step of how many, and keep the Mac awake
+    const plan = j.plan || [], at = plan.indexOf(j.step === "sound list" ? "sound" : j.step), since = j.startedAt ? Math.max(0, (Date.now() - Date.parse(j.startedAt)) / 1000) : null;
+    const where = at >= 0 ? ` · step ${at + 1} of ${plan.length}: ${esc(STEPNAME[j.step] || j.step)}` : "";
+    h = `<div class="banner info"><b>${chips[j.state]}</b> <span id="elapsed" data-since="${j.startedAt || ""}">${since != null ? fmtClock(since) : ""}</span>${where}<br>This takes a few minutes${S.cutsStale ? " (it cuts the video again first)" : ""}. Edits are paused until it finishes. <b>Keep your Mac awake and this page's link running</b>; you can close this page.${j.lowDisk != null ? ` <b>Low disk space:</b> ${j.lowDisk} GB free.` : ""}<ul class="steps">${(j.steps || []).map((s) => `<li>${s.ok ? "✓" : "✗"} ${esc(s.name)} (${s.secs}s)</li>`).join("")}</ul></div>`;
   } else if (j.state === "failed") {
     h = `<div class="banner bad"><b>The render failed.</b> ${esc(j.error || "")}<br><span class="small">Your edits are saved. The log is in editor/render.log in the reel folder.</span></div>`;
   } else if (j.state === "done" && j.result && S.video === j.result.phone && !S.dirty && !S.cutsStale) {
@@ -122,12 +138,12 @@ function renderTimeline() {
   if (r) h += `<div class="strip" style="width:${x(T)}px;background-image:url(/api/strip.jpg?v=${r.v})"></div><div class="wave" style="width:${x(T)}px;background-image:url(/api/wave.png?v=${r.v})"></div>`;
   else h += `<div class="strip" style="width:${x(T)}px"></div>`;
   for (const p of S.pieces.filter((p) => p.kept).slice(1)) h += `<div class="cutmark" style="left:${x(p.start)}px" title="A cut"></div>`;
-  for (const c of S.edit.captions) { const a = c.start ?? c.words[0]?.t ?? 0, b = c.end ?? a + 1; h += `<div class="mk cap" style="left:${x(a)}px;width:${Math.max(x(b) - x(a) - 2, 14)}px" title="${esc(capLine(c))}">${esc(capLine(c))}</div>`; }
+  for (const c of S.edit.captions) { const a = c.start ?? c.words[0]?.t ?? 0, b = c.end ?? a + 1; h += `<div class="mk cap" style="left:${x(a)}px;width:${Math.max(x(b) - x(a) - 2, 14)}px" title="${esc(capLine(c))}"><span>${esc(capLine(c))}</span></div>`; }
   let lastEnd = -1;                                         // graphics that overlap in time drop to a second row
   for (const c of S.edit.cards.slice().sort((a, b) => a.start - b.start)) {
     const end = c.end ?? c.start + 2, low = c.start < lastEnd - 0.05; if (!low) lastEnd = end;
     const label = c.text || c.title || c.label || (c.src ? String(Array.isArray(c.src) ? c.src[0] : c.src).replace(/^popups\/[^-]*-/, "").replace(/\.clip\.mp4$/, "") : c.type);
-    h += `<div class="mk gfx${c.type === "popup" || c.type === "orbit" ? " pop" : ""}${low ? " g2" : ""}${c.off ? " off" : ""}" data-drag="${esc(c.id)}" style="left:${x(c.start)}px;width:${Math.max(x(end) - x(c.start) - 2, 16)}px" title="${esc(label)}">${esc(label)}</div>`;
+    h += `<div class="mk gfx${c.type === "popup" || c.type === "orbit" ? " pop" : ""}${low ? " g2" : ""}${c.off ? " off" : ""}" data-drag="${esc(c.id)}" style="left:${x(c.start)}px;width:${Math.max(x(end) - x(c.start) - 2, 16)}px" title="${esc(label)}"><span>${esc(label)}</span></div>`;
   }
   for (const e of S.edit.sfx_events) h += `<div class="mk sfx${e.off ? " off" : ""}" style="left:${x(e.t)}px" title="${esc(e.name)}"></div>`;
   h += `<div class="ph" id="ph" style="left:${x(v.currentTime || 0)}px"></div>`;
@@ -495,7 +511,7 @@ document.addEventListener("click", async (e) => {
   else if (a === "layer") { op({ op: "card_set", i, set: { layer: el.dataset.v } }, null, el.dataset.v === "behind" ? "Behind me: re-render to see it" : "In front of me"); }
   else if (a === "set" && el.dataset.v != null) { op({ op: "card_set", i, set: { [el.dataset.f]: el.dataset.v } }, null); }
   else if (a === "place") { placing = placing && placing.id === cid(i) ? null : { id: cid(i) }; selCard = cid(i); drawOverlay(); if (placing) toast("Tap the video where you want it", false); render(); }
-  else if (a === "del") { openCard.delete(cid(i)); selCard = null; op({ op: "card_del", i }, null, "Deleted. Undo brings it back."); }   // 0.34.5: no dialog; Undo is there
+  else if (a === "del") { openCard.delete(cid(i)); selCard = null; op({ op: "card_del", i }, null, "Deleted.", true); }   // 0.34.5: no dialog; Undo is there
   else if (a === "sfx-play") {   // Added by By Mel Ross (0.10.2): hear a sound before choosing it (plays the one picked in the list, at its volume)
     const e = S.edit.sfx_events[i], pick = document.querySelector(`select[data-a="sfx-set"][data-i="${i}"]`), name = (pick && pick.value) || e.name;
     const au = new Audio(`/sfx/${encodeURIComponent(name)}.wav`); au.volume = Math.min(1, Math.pow(10, ((e.db ?? -10) + 8) / 20));
@@ -504,7 +520,7 @@ document.addEventListener("click", async (e) => {
   }
   else if (a === "sfx-open") { const id = sid(i); openSfx.has(id) ? openSfx.delete(id) : openSfx.add(id); renderSfx(); }
   else if (a === "sfx-stamp") { if (S.cutsStale) return toast("Re-render first: the video above has the old cuts.", true); op({ op: "sfx_set", i, set: { t: now() } }, `s${sid(i)}:t`, `At ${fmt(now())}`); }
-  else if (a === "sfx-del") op({ op: "sfx_del", i }, null, "Sound deleted. Undo brings it back.");
+  else if (a === "sfx-del") op({ op: "sfx_del", i }, null, "Sound deleted.", true);
   else if (a === "default") { try { await post("/api/text-default", { layer: el.dataset.v, position: "above" }); toast("Default saved"); } catch (er) { toast(er.message, true); } }
   else if (a === "orbit-open") { orbitOpen = !orbitOpen; renderOrbitPick(); }
   else if (a === "orbit-cancel") { orbitOpen = false; orbitSel.clear(); renderOrbitPick(); }

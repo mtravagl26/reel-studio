@@ -49,14 +49,18 @@ label.f { display: block; font-size: 13px; color: #5b6b69; margin: 10px 0 4px; }
 /* The timeline (Modified by By Mel Ross, 0.14.0): a strip that scrolls sideways, 56 px to a second. Top to bottom: seconds, frames
    from the video, the sound of it, the caption lines, the graphics, the sound effects. Tap anywhere to jump there. */
 #tl { position: relative; margin: 10px 0 0; background: #fff; border: 1px solid var(--line); border-radius: 12px; overflow-x: auto; overflow-y: hidden; touch-action: pan-x; -webkit-overflow-scrolling: touch; }
-#tli { position: relative; height: 216px; }
+#tli { position: relative; height: 290px; }
 #tl .ruler { position: absolute; top: 0; height: 16px; left: 0; right: 0; font-size: 10px; color: #6b7a78; } #tl .ruler span { position: absolute; top: 2px; padding-left: 3px; border-left: 1px solid var(--line); height: 14px; }
 #tl .strip { position: absolute; top: 18px; left: 0; height: 64px; background: #e9e6df left top / auto 64px no-repeat; }
 #tl .wave { position: absolute; top: 84px; left: 0; height: 40px; background: left center / 100% 100% no-repeat; opacity: .8; }
 #tl .mk { position: absolute; height: 20px; border-radius: 5px; font-size: 11px; line-height: 20px; padding: 0 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; box-sizing: border-box; }
+/* 0.38.2: marks keep their drawn size; each gets a 44 px tall target, and the rows sit 44 px apart so targets don't overlap */
+#tl .mk { overflow: visible; } #tl .mk > span { display: block; overflow: hidden; text-overflow: ellipsis; }
+#tl .mk::before { content: ""; position: absolute; left: -4px; right: -4px; top: -12px; bottom: -12px; }
+#tl .mk.sfx::before { left: -16px; right: -16px; top: -16px; bottom: -16px; }
 #tl .mk.cap { top: 128px; background: #f3e9b8; color: #3a3206; border: 1px solid #dccf8f; } #tl .mk.cap.gone { opacity: .35; }
-#tl .mk.gfx { top: 152px; background: #0d2b2d; color: #fff; } #tl .mk.gfx.pop { background: #e7a23b; color: #2b1c02; } #tl .mk.gfx.g2 { top: 174px; } #tl .mk.off { background: #ddd !important; color: #777 !important; }
-#tl .mk.sfx { top: 198px; height: 12px; width: 12px; padding: 0; border-radius: 50%; background: #7a4fa3; margin-left: -6px; }
+#tl .mk.gfx { top: 172px; background: #0d2b2d; color: #fff; } #tl .mk.gfx.pop { background: #e7a23b; color: #2b1c02; } #tl .mk.gfx.g2 { top: 216px; } #tl .mk.off { background: #ddd !important; color: #777 !important; }
+#tl .mk.sfx { top: 260px; height: 12px; width: 12px; padding: 0; border-radius: 50%; background: #7a4fa3; margin-left: -6px; }
 #tl .cutmark { position: absolute; top: 18px; height: 106px; width: 0; border-left: 2px dashed #c0392b; opacity: .55; }
 #tl .ph { position: absolute; top: 0; bottom: 0; width: 2px; background: #c0392b; pointer-events: none; }
 .tlkey { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 11px; color: #6b7a78; margin: 4px 2px 0; } .tlkey i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; vertical-align: -1px; margin-right: 4px; }
@@ -68,7 +72,7 @@ summary::-webkit-details-marker { display: none; } summary small { font-weight: 
 .giphy-warn{font-size:13px;line-height:1.4;background:#fff6e5;border:1.5px solid #e0b45a;border-radius:10px;padding:8px 10px;margin:6px 0;color:#5a4210}.giphy-mark{margin:6px 0 0;text-align:right;font:700 12px/1 system-ui,sans-serif;letter-spacing:.02em}.giphy-mark span{font-weight:500;opacity:.75}.giphy-mark b{background:#000;color:#fff;padding:3px 6px;border-radius:4px;letter-spacing:.06em}
 .help { font-size: 13px; color: #5b6b69; margin: 0 0 8px; }
 .cap { padding: 7px 0; border-top: 1px solid var(--line); } .cap:first-child { border-top: 0; }
-.cap .tm { font-size: 12px; color: #6b7a78; background: none; border: 0; min-height: 28px; padding: 0 6px 0 0; font-weight: 500; font-variant-numeric: tabular-nums; }
+.cap .tm { font-size: 12px; color: #6b7a78; background: none; border: 0; min-height: 44px; padding: 0 6px 0 0; font-weight: 500; font-variant-numeric: tabular-nums; }
 .w { display: inline-block; margin: 2px 3px 2px 0; padding: 7px 11px; border-radius: 10px; border: 1.5px solid var(--line); background: #fff; font-weight: 600; min-height: 40px; }
 .w.acc { background: var(--sage); border-color: var(--sage-d); } .w.now { outline: 3px solid #e7a23b; } .w.sel { border-color: var(--ink); }
 .edit { background: #f7f5ee; border-radius: 12px; padding: 10px; margin: 6px 0 4px; }
@@ -91,6 +95,9 @@ summary::-webkit-details-marker { display: none; } summary small { font-weight: 
 .steps { margin: 6px 0 0; padding: 0; list-style: none; font-size: 14px; } .steps li { padding: 2px 0; }
 #toast { position: fixed; left: 12px; right: 12px; bottom: 14px; max-width: 576px; margin: 0 auto; padding: 12px 14px; border-radius: 12px; background: var(--ink); color: #fff; z-index: 50; display: none; font-size: 15px; }
 #toast.bad { background: var(--bad); }
+#toast button { margin-left: 10px; min-height: 36px; background: #fff; color: var(--ink); border-color: #fff; }   /* 0.38.2: Undo inside the toast */
+.savedat { font-size: 12px; color: #5b6b69; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.tipb { position: relative; } .tipb::after { content: ""; position: absolute; inset: -12px; }
 .fab { position: fixed; right: 14px; bottom: 14px; z-index: 30; box-shadow: 0 4px 14px #0004; }
 
 /* Reel Studio shared look (Added by By Mel Ross): the same step bar and palette on the review, cover and touch-ups pages */
@@ -119,6 +126,7 @@ summary .tipb{margin-right:auto}
 </nav>
 <header>
   <div class="t"><h1>Touch-ups</h1><small id="sub"></small></div>
+  <span class="savedat" id="savedat" aria-live="polite"></span>
   <button id="undo" class="sm" disabled title="Takes back your last change on this page">Undo</button>
   <button id="render" class="pri" title="Builds the video again with your changes. It takes a few minutes and keeps the earlier version.">Re-render</button>
 </header>
@@ -158,4 +166,5 @@ summary .tipb{margin-right:auto}
 <div id="toast"></div>
 
 <script type="module" src="editor.js"></script>
+<script src="/steps.js"></script>
 </body></html>

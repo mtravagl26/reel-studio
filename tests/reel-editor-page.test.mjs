@@ -572,3 +572,25 @@ test("Touch-ups: Recommended for this reel comes from the reel itself; Add a loo
   const home = fs.readFileSync(path.join(review, "home.html"), "utf8");
   assert.match(home, /Recommended for this clip/); assert.match(home, /\/api\/recommend\?style=/);
 });
+
+test("quick wins (0.38.2): 2 Cover starts the thumbnail studio on this Mac and explains itself on a phone; greyed steps open a card", { skip: skipReason }, async () => {
+  await withServer(async ({ get, home }) => {
+    const s = await (await get("/api/state")).json();
+    assert.equal(s.links.cover, "/cover");
+    const phone = await get("/cover", { headers: { host: "192.168.1.20:4791" } });
+    assert.equal(phone.status, 200); assert.match(await phone.text(), /opens on your Mac/);
+    const r = await get("/cover", { redirect: "manual" });
+    assert.equal(r.status, 302, await r.text());
+    const to = r.headers.get("location"); assert.match(to, /^http:\/\/127\.0\.0\.1:48(4[89]|5[0-2])\/\?reel=r1$/);
+    const h = await (await fetch(to.replace(/\/\?.*/, "/api/health"))).json();
+    assert.equal(h.home, fs.realpathSync(home), "the studio serves this reels folder");
+    assert.equal((await get("/steps.js")).status, 200);
+  });
+  const steps = fs.readFileSync(path.join(review, "steps.js"), "utf8");
+  assert.match(steps, /opens once Claude starts it/); assert.match(steps, /\.steps \.step\.off/);
+  for (const f of ["edit.html", "editor.html", "caption.html", "reel-review.html"]) assert.match(fs.readFileSync(path.join(review, f), "utf8"), /steps\.js/, f);
+  const srv = fs.readFileSync(path.join(review, "editor-server.mjs"), "utf8"), js = fs.readFileSync(path.join(review, "editor.js"), "utf8");
+  assert.match(srv, /caffeinate/); assert.match(srv, /statfsSync/); assert.match(srv, /const plan = /);
+  assert.match(js, /step \$\{at \+ 1\} of \$\{plan\.length\}/); assert.match(js, /Keep your Mac awake/);
+  assert.match(js, /"Deleted\.", true/); assert.match(js, /toastundo/);
+});
