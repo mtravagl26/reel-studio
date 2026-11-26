@@ -116,6 +116,7 @@ What the engine gained for these (all in `scripts/build_reel.py`):
 | C14 | Chunky playful stacked type | planned | Rounded chunky words of mixed sizes stacked down the frame. |
 | C15 | One bold white word, no highlight | built | brand: `{"colors": {"caption": "#FFFFFF"}, "captions": {"size": 96, "y": 1180, "case": "sentence", "mode": "word"}}` |
 | C16 | Caption doubles as counter | cut-choice | The running caption carries the count, such as "1 of 5", so the rhythm of a list is built into the words. A writing choice: the count is typed into the captions. |
+| C17 | Each word lights up as it's said | built | `edit.json` (or brand.json `captions`) `"caption_mode": "spoken"`: short phrases, and the word being said turns the highlight color (with the highlight box, if one is set). Picked on the review page under **How captions highlight** (0.34.8) |
 | L10 | Inset card over a blurred, enlarged self | built | `{"type": "page", "bg": "blur"}` |
 | L11 | Top asset panel + face below | built (0.31.0) | `{"type": "split", "src": "rec.mp4"}`: your picture or recording fills the top panel, your face fills the bottom half. See roundup.md |
 | L12 | Photo-card cloud above the head | built | `{"type": "polaroids", "layout": "cloud", "y": 60}` + needs 6 picture(s) from them |

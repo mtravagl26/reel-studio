@@ -186,3 +186,16 @@ test("steady captions: one spot to move to, no bouncing back for a short gap, an
   const both = build({ edit: { cards: [{ ...card(0, 1.05), y: 1200 }, { type: "tag", text: "NEW", y: 250, start: 0, end: 1.05, quiet: false }] } });
   assert.equal(both.tops["0"], 900, "top covered too: the one other spot left");
 });
+
+test("caption_mode spoken lights each word as it's said; the review import splits or groups one-word captions (0.34.8)", { skip: skipReason }, () => {
+  const r = build({ edit: { caption_mode: "spoken" } });
+  assert.match(r.html, /id="c0w0"[^>]*>line<\/span> <span id="c0w1"/);
+  assert.match(r.html, /tl\.set\("#c0w0",\{color:'[^']+'\},0\.1\d*\);/); assert.match(r.html, /tl\.set\("#c0w0",\{color:'#FFFFFF'\},0\.5\);/);
+  const plain = build({}); assert.doesNotMatch(plain.html, /id="c0w0"/, "marked words only by default");
+  const out = pyrun(`import json, sys; sys.path.insert(0, sys.argv[1]); import review_sync as R
+caps = [{"start": 0, "end": 1.2, "words": [{"text": "so", "t": 0}, {"text": "here,", "t": 0.4}, {"text": "it", "t": 0.8}]}]
+one = R.split_words(caps); back = R.group_words(one)
+print(json.dumps({"one": [[c["start"], c["end"], c["words"][0]["text"]] for c in one], "back": [[w["text"] for w in c["words"]] for c in back]}))`);
+  assert.deepEqual(out.one, [[0, 0.4, "so"], [0.4, 0.8, "here,"], [0.8, 1.2, "it"]]);
+  assert.deepEqual(out.back, [["so", "here,"], ["it"]], "a new phrase after a comma");
+});

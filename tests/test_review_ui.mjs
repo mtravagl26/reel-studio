@@ -112,9 +112,20 @@ try {
   await js(`(() => { const i = document.querySelector('#hlrow input[aria-label="Highlighted word"]'); i.value = "#ff0000"; i.dispatchEvent(new Event("input", { bubbles: true })); })()`);
   await until(`[...document.querySelectorAll("#ov .capov span")].some((s) => s.style.color === "rgb(255, 0, 0)") || !document.querySelector("#ov .capov .a")`, "the highlighted word turns red on the player");
 
+  // 0.34.8: three ways captions highlight, shown on the player. The brand here is one word at a time.
+  assert.deepEqual(await js(`[...document.querySelectorAll("#capmodes button")].map((b) => b.textContent)`), ["Only words I mark", "Each word as I say it", "One word at a time"]);
+  assert.equal(await js(`document.querySelector('#capmodes [aria-checked="true"]').dataset.capmode`), "word", "starts on the brand's own choice");
+  await js(`document.querySelector('#capmodes [data-capmode="spoken"]').click()`); await sleep(400);
+  await until(`document.querySelectorAll("#ov .capov span").length > 1 && document.querySelectorAll("#ov .capov span.now").length === 1`, "a phrase on the player with one word lit");
+  assert.equal(await js(`document.querySelector("#ov .capov span.now").style.color`), "rgb(255, 0, 0)", "lit in the highlight color");
+  await sleep(1500);
+  assert.equal(decisions().capmode, "spoken");
+
   // ---- "build preview": the import, then the same link opens touch-ups
   const out = py("import", reel, join(reel, "review_db", "review", "current.json"));
   assert.match(out, /captions/);
+  assert.equal(read(reel, "edit.json").caption_mode, "spoken");
+  assert.ok(read(reel, "edit.json").captions.some((c) => c.words.length > 1), "one-word captions are put back into phrases");
   assert.equal(read(reel, "edit.json").theme, "editorial");
   copyFileSync(join(reel, "raw.mp4"), join(reel, "master.mp4")); copyFileSync(join(reel, "raw.mp4"), join(reel, "final.mp4"));
   writeFileSync(join(reel, "master_transcript.json"), JSON.stringify(read(reel, "edit.json").captions.flatMap((c) => c.words.map((w) => ({ text: w.text, start: w.t, end: w.t + 0.3 })))));

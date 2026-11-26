@@ -162,6 +162,10 @@ CAP_ACC = _HL.get("text", CAP_ACC)
 CAP_ACC_BG = _HL.get("bg") if _HL.get("bg") not in (None, "none") else None
 CAPS = brand.get("captions", {})
 CASE = CAPS.get("case", "lower")
+# Added by By Mel Ross (0.34.8): how captions highlight. "phrase" = only the words marked as accents, "spoken" = each word
+# lights up as it's said, "word" = one word at a time (auto_edit.py and the review page write one caption per word).
+CAP_MODE = edit.get("caption_mode") or CAPS.get("mode", "phrase")
+SPOKEN = CAP_MODE == "spoken"
 CAP_PX, CAP_Y = CAPS.get("size", 96), CAPS.get("y", 1250)
 # Added by By Mel Ross (0.26.0): where captions and graphics sit. brand.json or edit.json "layout": "captions-high" puts the
 # captions above the head (under Instagram's top bar) and moves the text graphics that normally sit at the top down to the lower
@@ -1729,6 +1733,21 @@ for i, c in enumerate(_caps_all):
         )
         for w in ws
     )
+    # Added by By Mel Ross (0.34.8): "caption_mode": "spoken" lights up each word in the highlight color as it's said.
+    # The words keep one font and size, so nothing shifts; the box behind the word (if any) comes and goes with it.
+    if SPOKEN and len(ws) > 1:
+        _pad = (
+            ";padding:.02em .16em .08em;margin:0 -.16em;border-radius:.16em;box-decoration-break:clone"
+            if CAP_ACC_BG
+            else ""
+        )
+        spans = "".join(f'<span id="c{i}w{k}" style="{_pad}">{esc(case(w["text"]))}</span> ' for k, w in enumerate(ws))
+        for k, w in enumerate(ws):
+            _on = f"color:'{CAP_ACC}'" + (f",backgroundColor:'{CAP_ACC_BG}',textShadow:'none'" if CAP_ACC_BG else "")
+            _off = f"color:'{CAP}'" + (",backgroundColor:'transparent',textShadow:''" if CAP_ACC_BG else "")
+            js.append(f'tl.set("#c{i}w{k}",{{{_on}}},{q(max(c["start"], w["t"]))});')
+            if k + 1 < len(ws):
+                js.append(f'tl.set("#c{i}w{k}",{{{_off}}},{q(ws[k + 1]["t"])});')
     # Added by By Mel Ross (0.19.0, Style Menu C6, C10): the words sit on a box or a bar. brand.json captions "bg": "#FFFFFF" | "rgba(0,0,0,.6)"
     _cbg = CAPS.get("bg") or ("rgba(17,17,17,.66)" if any(a_ - 0.05 <= c["start"] < b_ for a_, b_ in boxed) else None)
     if _cbg:
