@@ -101,7 +101,7 @@ print(json.dumps({"fixes": t["words"], "words": [w["text"] for w in e["captions"
 
 test("the pages: captions spot on both pages, move some captions, the Instagram overlay, looks on the home page, false-start labels", () => {
   const rv = pageText(path.join(review, "reel-review.html")), ed = pageText(path.join(review, "editor.html")), home = fs.readFileSync(path.join(review, "home.html"), "utf8");
-  for (const t of ["Where captions sit", "Above my head", "Move some captions", "Hide them", "Show what Instagram covers", "falseStarts", "Bottom (lower third)"]) assert.ok(rv.includes(t), t);
+  for (const t of ["Captions above your head instead?", "Above my head", "Move some captions", "Hide them", "Show what Instagram covers", "falseStarts", "Bottom (lower third)"]) assert.ok(rv.includes(t), t);
   for (const t of ["Where captions sit", 'data-a="layout"', "Show what Instagram covers", 'href="/styles"']) assert.ok(ed.includes(t), t);
   for (const t of ["Pick a look", "My brand as it is", "Arched title with a sparkle wave", 'href="/looks"']) assert.ok(home.includes(t), t);
   assert.match(fs.readFileSync(path.join(review, "editor-server.mjs"), "utf8"), /"\/api\/layout"/);

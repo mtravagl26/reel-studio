@@ -99,6 +99,16 @@ try {
   await sleep(1500);
   assert.equal(decisions().theme, "editorial");
   assert.match(await text("#themenote"), /serif/);
+  // 0.34.2: caption colors and size show on the player as they change; where captions sit is folded until asked for
+  await js(`document.querySelector('[data-tab="captions"]').click()`); await sleep(200);
+  assert.equal(await js(`document.querySelector(".spotfold")?.open`), false, "Captions above your head starts folded");
+  await js(`(() => { const r = document.querySelector("#csize"); r.value = 100; r.dispatchEvent(new Event("input", { bubbles: true })); })()`);
+  await until(`document.querySelector("#ov .capov")`, "a caption drawn on the player while the size moves");
+  const small = await js(`parseFloat(document.querySelector("#ov .capov").style.fontSize)`);
+  await js(`(() => { const r = document.querySelector("#csize"); r.value = 150; r.dispatchEvent(new Event("input", { bubbles: true })); })()`);
+  await until(`parseFloat(document.querySelector("#ov .capov")?.style.fontSize) > ${small}`, "the caption on the player to grow with the slider");
+  await js(`(() => { const i = document.querySelector('#hlrow input[aria-label="Highlighted word"]'); i.value = "#ff0000"; i.dispatchEvent(new Event("input", { bubbles: true })); })()`);
+  await until(`[...document.querySelectorAll("#ov .capov span")].some((s) => s.style.color === "rgb(255, 0, 0)") || !document.querySelector("#ov .capov .a")`, "the highlighted word turns red on the player");
 
   // ---- "build preview": the import, then the same link opens touch-ups
   const out = py("import", reel, join(reel, "review_db", "review", "current.json"));
