@@ -75,7 +75,7 @@ def expand(cards):
                     continue
                 keep = {
                     k_: p[k_]
-                    for k_ in ("src", "from", "loop", "fit", "bg", "face_y", "corner", "size", "quiet")
+                    for k_ in ("src", "from", "loop", "fit", "bg", "face_y", "zoom", "corner", "size", "quiet")
                     if k_ in p
                 }
                 # a slide's own line of text is "slide_title" ("title" is the chapter's name, on its chapter card)
@@ -88,12 +88,40 @@ def expand(cards):
 # ---- drawing: each returns (html for the "mid" layer, gsap timeline js) ------------------------------------------------
 
 
-def face_video(cid, i, a, b, q, box_w, box_h, face_y=520, scale=1.0):
-    """The presenter's clip (master.mp4) inside a box, sized and placed so the face sits in its upper part."""
+_HEADS = {}
+
+
+def head_top(master, a, b):
+    """Where the top of the head is in this stretch of the clip, as a fraction of the frame height, or None. Uses
+    framing_check.find_head: the Mac's outline of the person, else OpenCV face finding. Results are kept per stretch."""
+    k = (str(master), round(a, 1))
+    if k not in _HEADS:
+        try:
+            import framing_check as _fc
+
+            hb = _fc.find_head(master, _fc._probe(master), a, max(1.0, min(4.0, b - a)))
+            _HEADS[k] = float(hb["top"]) if hb else None
+        except Exception:
+            _HEADS[k] = None
+    return _HEADS[k]
+
+
+def face_video(cid, i, a, b, q, box_w, box_h, face_y=520, scale=1.0, head=None):
+    """The presenter's clip (master.mp4) inside a box, sized and placed so the face sits in its upper part. With `head` (the
+    top of the head as a fraction of the frame), the crop leaves a little room above the hair; else the eyes (face_y) go
+    about 38% down the box."""
     vw, vh = int(1080 * scale), int(1920 * scale)
     left = (box_w - vw) // 2
-    top = int(min(0, max(box_h - vh, box_h * 0.38 - face_y * scale)))
-    return (
+    want = box_h * 0.07 - head * 1920 * scale if head is not None else box_h * 0.38 - face_y * scale
+    top = int(min(0, max(box_h - vh, want)))
+    # zoomed out (narrower than the box): the same clip, enlarged and blurred, fills the sides
+    back = (
+        f'<video id="{cid}vb" src="master.mp4" muted playsinline data-start="{q(a)}" data-duration="{q(b - a)}" '
+        f'data-media-start="{q(a)}" data-track-index="{80 + i}" class="spblur"></video>'
+        if vw < box_w
+        else ""
+    )
+    return back + (
         f'<video id="{cid}v" src="master.mp4" muted playsinline data-start="{q(a)}" data-duration="{q(b - a)}" '
         f'data-media-start="{q(a)}" data-track-index="{9 + i}" style="position:absolute;left:{left}px;top:{top}px;width:{vw}px;height:{vh}px;object-fit:cover"></video>'
     )
@@ -123,12 +151,12 @@ def chapter(cid, a, b, q, title_css, sub_css, text, sub, bg, color, esc):
     return html, js
 
 
-def split(cid, i, a, b, q, asset, bg="#000", fit="contain", face_y=520):
+def split(cid, i, a, b, q, asset, bg="#000", fit="contain", face_y=520, head=None, zoom=0.86):
     """Split screen: the picture or recording fills the top panel (1080x960), the presenter fills the bottom half."""
     top = media(cid, i, a, b, q, asset, fit) if asset else ""
     html = (
         f'<div id="{cid}" class="split" style="opacity:0;visibility:hidden;background:{bg}">'
-        f'<div class="spt">{top}</div><div class="spb">{face_video(cid, i, a, b, q, 1080, 960, face_y)}</div></div>'
+        f'<div class="spt">{top}</div><div class="spb">{face_video(cid, i, a, b, q, 1080, 960, face_y, max(0.6, min(1.0, zoom)), head)}</div></div>'
     )
     js = (
         f'tl.set("#{cid}",{{autoAlpha:1}},{q(a)});'
@@ -152,14 +180,16 @@ def inset_box(corner="bottom-right", size=300):
     return x, y, w, h
 
 
-def inset(cid, i, a, b, q, asset, bg, title_html="", corner="bottom-right", size=300, fit="cover", face_y=520):
+def inset(
+    cid, i, a, b, q, asset, bg, title_html="", corner="bottom-right", size=300, fit="cover", face_y=520, head=None
+):
     """A full-screen slide with the presenter in a small rounded inset in a corner."""
     x, y, w, h = inset_box(corner, size)
     slide = media(cid, i, a, b, q, asset, fit) if asset else ""
     html = (
         f'<div id="{cid}" class="inset" style="opacity:0;visibility:hidden;background:{bg}">{slide}{title_html}'
         f'<div class="inf" style="left:{x}px;top:{y}px;width:{w}px;height:{h}px">'
-        f"{face_video(cid, i, a, b, q, w, h, face_y, scale=w / 520)}</div></div>"
+        f"{face_video(cid, i, a, b, q, w, h, face_y, w / 520, head)}</div></div>"
     )
     js = (
         f'tl.set("#{cid}",{{autoAlpha:1}},{q(a)});'
@@ -177,6 +207,8 @@ CSS = """
 .chs { letter-spacing: .3em; text-transform: uppercase; margin-bottom: 26px; opacity: .8; }
 .spt, .spb { position: absolute; left: 0; width: 1080px; height: 960px; overflow: hidden; }
 .spt { top: 0; } .spb { top: 960px; }
+.spblur { position: absolute; inset: -40px; width: calc(100% + 80px); height: calc(100% + 80px); object-fit: cover; filter: blur(28px) brightness(.8); }
 .inf { position: absolute; overflow: hidden; border-radius: 28px; border: 6px solid #fff; box-shadow: 0 18px 44px rgba(0,0,0,.35); background: #000; }
 .ints { position: absolute; left: 90px; right: 90px; top: 200px; text-align: center; line-height: 1.06; text-shadow: 0 2px 18px rgba(0,0,0,.35); }
+.ints .intb { background: rgba(17,17,17,.66); padding: .1em .38em .16em; border-radius: .22em; -webkit-box-decoration-break: clone; box-decoration-break: clone; text-shadow: none; line-height: 1.5; }
 """

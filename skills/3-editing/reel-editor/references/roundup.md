@@ -33,13 +33,13 @@ One `roundup` card holds the whole structure:
 - `src`: the picture, GIF or recording for `split` and `slide`. It's looked for in the reel folder, then `~/reels/assets/`.
 - `slide_title`: a line of text on the slide. Without a `src`, the slide is the plain colour `bg` with that line.
 - `card_seconds` (default 1.4), `color` and `text_color` (default: your brand's main and light colours) set the chapter cards. Any chapter can set its own `color` and `text_color`. `"numbers": true` puts 01, 02 above each name.
-- For `split` and `slide`: `face_y` (default 520) is where your eyes sit in the original frame, so the crop keeps your face in view. Set it higher (a smaller number) if you sit high in the frame. `fit` is `contain` (default for split; the whole recording shows, with bars) or `cover` (fills the panel, edges cut). For slides: `corner` (`bottom-right` default, `bottom-left`, `top-left`, `top-right`) and `size` (inset width, 180 to 520 px, default 300).
+- For `split` and `slide`, the build finds your head in that stretch (the Mac's outline of the person, else OpenCV face finding) and crops so there's a little room above your hair. If it can't find you, it uses `face_y` (default 520): where your eyes sit in the original frame. Set `face_y` yourself to override the finding. `zoom` (split only, 0.6 to 1, default 0.86) shrinks your half so more of you shows, with a blurred copy of the clip filling the sides. `fit` is `contain` (default for split; the whole recording shows, with bars) or `cover` (fills the panel, edges cut). For slides: `corner` (`bottom-right` default, `bottom-left`, `top-left`, `top-right`) and `size` (inset width, 180 to 520 px, default 300).
 
 The build swaps the roundup card for `chapter`, `split` and `inset` cards (`scripts/roundup.py`). Those 3 cards also work on their own in any reel.
 
 ## What carries over
 
-Captions, the name tag, popups, title cards and the "comment ___" end line all work as usual on top. Captions sit in the bottom half during a split, on your face panel. Plan the chapters from the transcript: a chapter starts on the word that names the item.
+Captions, the name tag, popups, title cards and the "comment ___" end line all work as usual on top. During a split, captions sit on the seam between the panels, off your face. During a split or a slide they get a dark box, so they stay readable over a white screen, and a slide's own line of text gets the same box when it sits over a picture. Plan the chapters from the transcript: a chapter starts on the word that names the item.
 
 ## Check before sharing
 

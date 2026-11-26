@@ -42,7 +42,7 @@ test("roundup: the build draws chapter cards with no footage, a split screen and
   ff(["-f", "lavfi", "-i", "testsrc=s=640x360:r=30:d=3", "-c:v", "libx264", "-pix_fmt", "yuv420p", path.join(reel, "rec.mp4")]);
   ff(["-f", "lavfi", "-i", "color=c=navy:s=540x960", "-frames:v", "1", path.join(reel, "slide.png")]);
   fs.writeFileSync(path.join(home, "brand.json"), JSON.stringify({ colors: { main: "#1f1a17", pop: "#B9C8A5", light: "#f4ead8" }, sfx: "none" }));
-  fs.writeFileSync(path.join(reel, "edit.json"), JSON.stringify({ captions: [{ start: 1.2, end: 2, words: [{ text: "hi", t: 1.2 }] }], punch: [], cards: [
+  fs.writeFileSync(path.join(reel, "edit.json"), JSON.stringify({ captions: [{ start: 1.2, end: 2, words: [{ text: "hi", t: 1.2 }] }, { start: 3, end: 3.6, words: [{ text: "boxed", t: 3 }] }], punch: [], cards: [
     { type: "roundup", chapters: [
       { start: 1, title: "Skills", look: "split", src: "rec.mp4" },
       { start: 5, title: "Claude Code", look: "slide", src: "slide.png", slide_title: "ships today", corner: "top-left" },
@@ -56,7 +56,8 @@ test("roundup: the build draws chapter cards with no footage, a split screen and
   assert.match(chap, /background:#1f1a17/); assert.match(chap, /color:#f4ead8/);
   const split = html.match(/<div id="k1" class="split"[^]*?<\/div><\/div>/)[0];
   assert.match(split, /class="spt"><video[^>]*src="img\/[^"]+"/, "the recording fills the top panel");
-  assert.match(split, /class="spb"><video id="k1v" src="master.mp4"[^>]*data-media-start="2\.4"/, "the presenter fills the bottom half, in sync");
+  assert.match(split, /class="spb"><video id="k1vb" src="master.mp4"[^>]*class="spblur"/, "zoomed out a little, a blurred copy fills the sides");
+  assert.match(split, /<video id="k1v" src="master.mp4"[^>]*data-media-start="2\.4"[^>]*width:928px/, "the presenter fills the bottom half, in sync, at 86%");
   const ins = html.match(/<div id="k3" class="inset"[^]*?<\/div><\/div><\/div>/)[0];
   assert.match(ins, /<img src="img\/[^"]+"/); assert.match(ins, /ships today/);
   assert.match(ins, /class="inf" style="left:56px;top:150px;width:300px;height:400px"/, "the inset sits in the corner asked for");
@@ -64,4 +65,19 @@ test("roundup: the build draws chapter cards with no footage, a split screen and
   assert.match(html, /\.spb \{ top: 960px; \}|\.spt \{ top: 0; \} \.spb \{ top: 960px; \}/);
   // the chapter card is a quiet span: the caption inside it doesn't show
   assert.doesNotMatch(html, /id="c0" class="cap/);
+  // over a picture or a slide the slide's words get a dark box
+  assert.match(ins, /<span class="intb">ships today<\/span>/);
+  assert.match(html, /id="c1" class="cap capbg" style="top:900px;[^>]*><span class="cb" style="background:rgba\(17,17,17,\.66\)/, "a caption over a split sits on the seam in a dark box");
+});
+
+test("roundup: with the head found, the crop leaves a little room above the hair; captions over a split get a dark box", { skip: skipReason }, () => {
+  const r = spawnSync("python3", ["-c", `import sys; sys.path.insert(0, sys.argv[1]); import roundup
+q = lambda t: round(t, 2)
+print(roundup.face_video("k", 1, 0, 2, q, 1080, 960, 520, 1.0, 0.25))
+print(roundup.face_video("k", 1, 0, 2, q, 1080, 960, 520, 1.0, None))`, path.join(skill, "scripts")], { encoding: "utf8" });
+  assert.equal(r.status, 0, r.stderr);
+  const [withHead, without] = r.stdout.trim().split("\n");
+  assert.match(withHead, /top:-412px/, "head top at 25% of the frame (480 px) lands 7% down the panel (67 px)");
+  assert.match(without, /top:-155px/, "no head found: eyes at y 520 go 38% down the panel");
+  assert.doesNotMatch(withHead, /spblur/, "full width: no blurred sides");
 });

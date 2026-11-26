@@ -510,6 +510,8 @@ for _k, _c in enumerate(_pics):
             _c["pos"], _d["pos"] = "side-left", "side-right"
             break
 quiet = []  # spans where a card carries its own words, so captions step aside
+# 0.31.0: spans where captions sit over a picture or a screen (split, slide), so they get a dark box to stay readable
+boxed = []
 # orbit cards (i, card, start, end), drawn once the speaker's cutout is known
 ORBITS = []
 TRAIL_REQ = []  # 0.23.0: hand trails that cards ask for ("trail": true on an arctitle)
@@ -1258,17 +1260,30 @@ for i, c in enumerate(edit.get("cards", [])):
         _asset = popup_asset(c["src"], max(b - a, 0.5), c.get("from", 0), bool(c.get("loop"))) if c.get("src") else None
         if c.get("quiet"):
             quiet.append((a, b))
+        boxed.append((a, b))
+        # where the head is in this stretch (Mac outline or face finding), unless the card sets face_y
+        _ht = None if c.get("face_y") is not None else _roundup.head_top(reel / "master.mp4", a, b)
         if kind == "split":
             # captions move off the face in the bottom half, onto the seam between the panels
             cover(a, b, 0, 860)
             cover(a, b, 1135, 1420)
             _h, _j = _roundup.split(
-                cid, i, a, b, q, _asset, c.get("bg", "#000"), c.get("fit", "contain"), int(numf(c.get("face_y"), 520))
+                cid,
+                i,
+                a,
+                b,
+                q,
+                _asset,
+                c.get("bg", "#000"),
+                c.get("fit", "contain"),
+                int(numf(c.get("face_y"), 520)),
+                _ht,
+                numf(c.get("zoom"), 0.86),
             )
         else:
             _tt = c.get("title")
             _th = (
-                f'<div class="ints" style="{font(c.get("font", "serif"), int(numf(c.get("title_size"), fit(str(_tt), 96))))};color:{c.get("text_color", LIGHT)}">{esc(str(_tt))}</div>'
+                f'<div class="ints" style="{font(c.get("font", "serif"), int(numf(c.get("title_size"), fit(str(_tt), 96))))};color:{c.get("text_color", LIGHT)}"><span{' class="intb"' if _asset else ''}>{esc(str(_tt))}</span></div>'
                 if _tt
                 else ""
             )
@@ -1290,6 +1305,7 @@ for i, c in enumerate(edit.get("cards", [])):
                 int(numf(c.get("size"), 300)),
                 c.get("fit", "cover"),
                 int(numf(c.get("face_y"), 520)),
+                _ht,
             )
         mid.append(_h)
         js.append(_j)
@@ -1640,10 +1656,11 @@ for i, c in enumerate(edit.get("captions", [])):
         for w in ws
     )
     # Added by By Mel Ross (0.19.0, Style Menu C6, C10): the words sit on a box or a bar. brand.json captions "bg": "#FFFFFF" | "rgba(0,0,0,.6)"
-    if CAPS.get("bg"):
-        spans = f'<span class="cb" style="background:{CAPS["bg"]};line-height:1.5">{spans.strip()}</span>'
+    _cbg = CAPS.get("bg") or ("rgba(17,17,17,.66)" if any(a_ - 0.05 <= c["start"] < b_ for a_, b_ in boxed) else None)
+    if _cbg:
+        spans = f'<span class="cb" style="background:{_cbg};line-height:1.5">{spans.strip()}</span>'
     front.append(
-        f'<div id="c{i}" class="cap{" capbg" if CAPS.get("bg") else ""}" style="top:{int(numf(c.get("y"), CAP_Y))}px;{font("body", int(px))};color:{CAP};letter-spacing:{CAPS.get("tracking", -0.02)}em">{spans.strip()}</div>'
+        f'<div id="c{i}" class="cap{" capbg" if _cbg else ""}" style="top:{int(numf(c.get("y"), CAP_Y))}px;{font("body", int(px))};color:{CAP};letter-spacing:{CAPS.get("tracking", -0.02)}em">{spans.strip()}</div>'
     )
     show(f"#c{i}", c["start"], c["end"], 0.06)
     js.append(
