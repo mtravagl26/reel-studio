@@ -17,7 +17,7 @@ const v = $("#v"), ov = $("#ov");
 const fmt = t => `${Math.floor(t / 60)}:${(Math.max(0, t) % 60).toFixed(1).padStart(4, "0")}`;
 let R = null, B = null, S = blank(), P = null, CAPS = [], GFX = [];
 let tab = "cuts", ref = null, saving = Promise.resolve(), timer = null, undo = [], mode = "idle", loop = null;
-function blank() { return { theme: null, colors: null, highlight: null, layout: null, sfxAll: null, cut: null, restoredFillers: [], restoredPauses: [], trimmedPauses: [], captions: null, board: {}, wanted: [], amount: null, sfxOff: {}, notes: {}, brandRequest: "", revisions: [], buildRequest: null }; }
+function blank() { return { theme: null, colors: null, highlight: null, capmode: null, layout: null, sfxAll: null, cut: null, restoredFillers: [], restoredPauses: [], trimmedPauses: [], captions: null, board: {}, wanted: [], amount: null, sfxOff: {}, notes: {}, brandRequest: "", revisions: [], buildRequest: null }; }
 
 // ---------- saving, undo ----------
 const pill = (t, err) => { $("#save").textContent = t; $("#save").classList.toggle("err", !!err); $("#retry").hidden = !err; };
@@ -98,12 +98,43 @@ let HLDRAFT = {};
 function showCaptionSample() {
   if (!R || !P || tab === "preview") return;
   const live = CAPS.filter((c) => !c.gone && c.pos !== "hide");
-  const here = live.find((c) => pos >= c.start && pos < c.end && c.words.some((w) => w.accent));
-  const cap = here || live.find((c) => c.words.some((w) => w.accent) && c.start >= pos) || live.find((c) => c.words.some((w) => w.accent)) || live[0];
+  const marked = capModeNow() === "phrase" ? (c) => c.words.some((w) => w.accent) : (c) => c.words.length > 1 || R.style.mode === "word";   // 0.34.8
+  const here = live.find((c) => pos >= c.start && pos < c.end && marked(c));
+  const cap = here || live.find((c) => marked(c) && c.start >= pos) || live.find(marked) || live[0];
   if (!cap) return;
   if (mode === "rough") stopPlay();
-  if (!here) seekCut(cap.start + Math.min(0.3, (cap.end - cap.start) / 2)); else { mode = "roughPaused"; overlay(pos); }
+  if (!here) seekCut(capModeNow() === "spoken" && cap.words[1] ? cap.words[1].t + 0.02 : cap.start + Math.min(0.3, (cap.end - cap.start) / 2)); else { mode = "roughPaused"; overlay(pos); }
   $("#player")?.scrollIntoView?.({ block: "nearest", behavior: "smooth" });
+}
+// Added by By Mel Ross (0.34.8): how captions highlight. "phrase" = only the words you mark, "spoken" = each word lights up
+// as you say it, "word" = one word at a time. The player shows the choice on the caption under it.
+const CAPMODES = [["phrase", "Only words I mark", "The words you tap below get the highlight color."], ["spoken", "Each word as I say it", "Every word lights up in the highlight color while you say it."], ["word", "One word at a time", "Captions show one word at a time, big."]];
+function capModeNow() { return S.capmode || (R && R.style && R.style.mode) || "phrase"; }
+function renderCapMode() {
+  const box = $("#capmodebox"); if (!box) return; box.hidden = !R; if (!R) return;
+  const row = $("#capmodes"), cur = capModeNow(); row.textContent = "";
+  for (const [id, name] of CAPMODES) {
+    const b = document.createElement("button"); b.type = "button"; b.className = "b quiet"; b.dataset.capmode = id; b.textContent = name;
+    b.setAttribute("role", "radio"); b.setAttribute("aria-checked", String(id === cur));
+    b.addEventListener("click", () => { mutate(() => { S.capmode = id === ((R.style && R.style.mode) || "phrase") ? null : id; }); renderCapMode(); showCaptionSample(); });
+    row.append(b);
+  }
+  $("#capmodenote").textContent = (CAPMODES.find((m) => m[0] === cur) || CAPMODES[0])[2];
+}
+// the caption the player shows at cut time t, in the chosen mode
+function shownCap(cap, t) {
+  const m = capModeNow(), ws = cap.words;
+  const at = (list) => { let k = 0; for (let j = 0; j < list.length; j++) if (list[j].t <= t + 0.001) k = j; return k; };
+  if (m === "word") { const w = ws[at(ws)]; return { ...cap, words: [w] }; }
+  let words = ws;
+  if (R.style.mode === "word") {   // the page holds one word per caption: show the phrase it belongs to
+    const live = CAPS.filter((c) => !c.gone && c.pos !== "hide"), i = live.indexOf(cap), grp = [];
+    let s = i; while (s > 0 && grp.length < 2 && live[s].start - live[s - 1].end <= 0.35 && live[s - 1].pos === cap.pos && !/[.,!?;:]$/.test(live[s - 1].words.at(-1).text)) { s--; grp.push(1); }
+    words = []; for (let k = s; k < live.length && words.length < 3; k++) { if (k > s && (live[k].start - live[k - 1].end > 0.35 || /[.,!?;:]$/.test(live[k - 1].words.at(-1).text))) break; words.push(...live[k].words); }
+    if (!words.length) words = ws;
+  }
+  if (m === "spoken") { const k = at(words); return { ...cap, words: words.map((w, j) => ({ ...w, accent: j === k })) }; }
+  return { ...cap, words };
 }
 function hlLum(h) { const c = [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16) / 255).map(x => x <= 0.03928 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4); return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]; }
 function renderHighlight() {
@@ -206,7 +237,7 @@ function overlay(c) {
   if (!R || tab === "preview" || c == null || (mode !== "rough" && mode !== "roughPaused")) { highlight(null); return; }
   for (const g of GFX) if (!g.gone && g.state !== "d" && c >= g.start && c < g.end) ov.appendChild(box(g, true));
   const cap = CAPS.find(x => !x.gone && c >= x.start && c < x.end);
-  if (cap && cap.pos !== "hide") { const el = capEl(cap); ov.appendChild(el); fitCap(el); }
+  if (cap && cap.pos !== "hide") { const shown = shownCap(cap, c), el = capEl(shown, capModeNow() === "spoken"); ov.appendChild(el); fitCap(el); }
   highlight(c, cap);
 }
 function box(g, label) {
@@ -217,14 +248,15 @@ function box(g, label) {
   if (label) el.textContent = g.kind;
   return el;
 }
-function capEl(cap) {
+function capEl(cap, plain) {   // plain: the highlighted word keeps the same font and size (spoken mode)
   const st = R.style, W = $("#player").clientWidth, one = cap.words.length === 1;
   const el = document.createElement("div"); el.className = "capov" + (st.editorial && !one ? " ed" : "");
   const base = (hlNow().size || st.capSize) / 1080 * W * (one ? 1.35 : 1);
   Object.assign(el.style, { top: capTop(cap) / 19.2 + "%", fontFamily: "rb, var(--f-body)", fontSize: base + "px", color: hlNow().words || st.cap });
   for (const w of cap.words) {
     const s = document.createElement("span");
-    if (w.accent) { const hl = hlNow(); s.className = "a"; Object.assign(s.style, { fontFamily: "ra, Georgia, serif", fontStyle: "italic", color: hl.text, fontSize: (st.editorial ? 1.7 : 1.12) + "em" });
+    if (w.accent && plain) { const hl = hlNow(); s.className = "a now"; s.style.color = hl.text; if (hl.bg !== "none") Object.assign(s.style, { background: hl.bg, padding: ".02em .16em .08em", borderRadius: ".16em", textShadow: "none" }); }
+    else if (w.accent) { const hl = hlNow(); s.className = "a"; Object.assign(s.style, { fontFamily: "ra, Georgia, serif", fontStyle: "italic", color: hl.text, fontSize: (st.editorial ? 1.7 : 1.12) + "em" });
       if (hl.bg !== "none") Object.assign(s.style, { background: hl.bg, padding: ".02em .2em .08em", borderRadius: ".16em", textShadow: "none", boxDecorationBreak: "clone", webkitBoxDecorationBreak: "clone" }, st.editorial && cap.words.length > 1 ? { width: "fit-content", margin: ".06em auto" } : {}); }
     const t = w.text.replace(/[.,!?;:]+$/, "");   // captions carry no punctuation
     s.textContent = (st.case === "lower" ? t.toLowerCase() : t) + " "; el.appendChild(s);
@@ -789,8 +821,8 @@ function renderCover() {
 }
 
 function renderAll() {
-  renderCuts(); renderGraphics(); renderWanted(); renderCaptions(); renderHighlight(); renderSound(); renderPreview(); renderCover();
-  const sent = { cuts: S.cut != null, graphics: Object.keys(S.board).length || (S.wanted || []).length || S.amount, captions: S.captions != null || S.highlight != null || S.layout != null, sound: Object.keys(S.sfxOff).length };
+  renderCuts(); renderGraphics(); renderWanted(); renderCaptions(); renderCapMode(); renderHighlight(); renderSound(); renderPreview(); renderCover();
+  const sent = { cuts: S.cut != null, graphics: Object.keys(S.board).length || (S.wanted || []).length || S.amount, captions: S.captions != null || S.highlight != null || S.layout != null || S.capmode != null, sound: Object.keys(S.sfxOff).length };
   $$(".tab").forEach(b => { const d = b.querySelector(".dot"); if (d) d.hidden = !sent[b.dataset.tab]; });
 }
 
