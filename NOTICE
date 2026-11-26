@@ -221,13 +221,16 @@ Added by By Mel Ross in 0.19.0 (November 2026), in skills/3-editing/reel-editor.
 - Storyboard (0.36.0): the newest render scene by scene, one still each, flags for dead air, missing captions and
   card words never said, and a note per scene for Claude (scripts/scenes.py, review/storyboard.html,
   review/storyboard.mjs, review/edit.html, review/editor-server.mjs).
-- UX audit quick wins (0.36.1): Undo inside the delete message instead of a dialog, a saved-at line, 44 px tap areas
+- License follow-ups (0.38.1, PR #37 by Claude Code, brought up to date by Claude): GIPHY search off until the person reads a
+  warning and ticks a box, a "Powered By GIPHY" mark, corrected HyperFrames and GSAP rows in THIRD_PARTY_NOTICES, the
+  HyperFrames motion registry pinned to v0.8.145, and a screenshot asked for before yt-dlp.
+- UX audit quick wins (0.38.2): Undo inside the delete message instead of a dialog, a saved-at line, 44 px tap areas
   on the timeline, a render banner with steps and elapsed time, caffeinate and a disk check during renders, 2 Cover
   starting the thumbnail studio itself, and a card for greyed steps (review/steps.js, review/editor.js,
   review/editor.html, review/review.js, review/reel-review.html, review/editor-server.mjs, review/serve.mjs).
-- Redo and a kept Undo (0.37.0): Redo on the review page, 60 steps each way, both kept across a reload
+- Redo and a kept Undo (0.38.3): Redo on the review page, 60 steps each way, both kept across a reload
   (review/review.js, review/reel-review.html).
-- Timeline zoom and snapping (0.37.1): whole reel, 10 s and 3 s, pinch, and snapping a dragged graphic to words,
+- Timeline zoom and snapping (0.38.4): whole reel, 10 s and 3 s, pinch, and snapping a dragged graphic to words,
   captions, graphics, cuts and the playhead (review/editor.js, review/editor.html).
-- Format check on drop (0.37.2): the clip check names a missing sound track, HDR, a changing frame rate, an unusual
+- Format check on drop (0.38.5): the clip check names a missing sound track, HDR, a changing frame rate, an unusual
   codec and a turned phone, with what the edit does about each (scripts/framing_check.py).

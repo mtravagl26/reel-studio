@@ -46,7 +46,7 @@ const v = $("#v");
 const fmt = (t) => { t = Math.max(0, +t || 0); const m = Math.floor(t / 60); return `${m}:${(t - m * 60).toFixed(1).padStart(4, "0")}`; };
 function toast(msg, bad, undoable) {
   const t = $("#toast"); t.textContent = msg; t.className = bad ? "bad" : ""; t.style.display = "block";
-  if (undoable) {   // 0.36.1: a delete shows Undo right in the message for 6 s, so no dialog is needed
+  if (undoable) {   // 0.38.2: a delete shows Undo right in the message for 6 s, so no dialog is needed
     const b = document.createElement("button"); b.type = "button"; b.className = "sm"; b.id = "toastundo"; b.textContent = "Undo";
     b.addEventListener("click", async () => { t.style.display = "none"; try { const j = await post("/api/undo"); toast(`Undid: ${j.undid}`); } catch (e) { toast(e.message, true); } });
     t.append(b);
@@ -61,7 +61,7 @@ async function post(url, body, raw) {
   return j;
 }
 async function op(o, key, msg, undoable) { try { const j = await post("/api/op", { op: o, key }); savedNow(); if (msg) toast(msg, false, undoable); return j; } catch (e) { toast(e.message, true); render(); } }
-// 0.36.1: every change saves on its own; this line says when the last one did
+// 0.38.2: every change saves on its own; this line says when the last one did
 function savedNow() { const s = $("#savedat"); if (s) s.textContent = "Saved " + new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }); }
 async function load() {
   S = await (await fetch("/api/state")).json();
@@ -91,7 +91,7 @@ function renderStatus() {
   const j = S.job; let h = "";
   const chips = { running: `<span class="chip run">Rendering: ${esc(j.step || "")}</span>`, queued: `<span class="chip run">Queued</span>` };
   if (j.state === "running" || j.state === "queued") {
-    // 0.36.1: elapsed time, which step of how many, and keep the Mac awake
+    // 0.38.2: elapsed time, which step of how many, and keep the Mac awake
     const plan = j.plan || [], at = plan.indexOf(j.step === "sound list" ? "sound" : j.step), since = j.startedAt ? Math.max(0, (Date.now() - Date.parse(j.startedAt)) / 1000) : null;
     const where = at >= 0 ? ` · step ${at + 1} of ${plan.length}: ${esc(STEPNAME[j.step] || j.step)}` : "";
     h = `<div class="banner info"><b>${chips[j.state]}</b> <span id="elapsed" data-since="${j.startedAt || ""}">${since != null ? fmtClock(since) : ""}</span>${where}<br>This takes a few minutes${S.cutsStale ? " (it cuts the video again first)" : ""}. Edits are paused until it finishes. <b>Keep your Mac awake and this page's link running</b>; you can close this page.${j.lowDisk != null ? ` <b>Low disk space:</b> ${j.lowDisk} GB free.` : ""}<ul class="steps">${(j.steps || []).map((s) => `<li>${s.ok ? "✓" : "✗"} ${esc(s.name)} (${s.secs}s)</li>`).join("")}</ul></div>`;
@@ -128,7 +128,7 @@ function renderVideo() {
   $("#ver").style.display = S.renders.length > 1 ? "" : "none";
 }
 const capLine = (c) => (c.words || []).map((w) => w.text).join(" ");
-// Modified by By Mel Ross (0.37.1): the timeline zooms. Whole reel, 10 s or 3 s across the box, or anything between by pinching
+// Modified by By Mel Ross (0.38.4): the timeline zooms. Whole reel, 10 s or 3 s across the box, or anything between by pinching
 // (two fingers on a phone, a trackpad pinch on a Mac). The server still draws the strip at 56 px a second; it's stretched to fit.
 let PX = 56, zoom = "10";
 const PX_MAX = () => ($("#tl")?.clientWidth || 360) / 3, PX_MIN = () => Math.max(2, (($("#tl")?.clientWidth || 360) - 24) / Math.max(S?.total || 1, 1));
@@ -163,11 +163,11 @@ function snapTimes(skipId) {
 }
 function snap(t, times) { let best = null; for (const s of times) if (Math.abs(s - t) * PX <= 10 && (best == null || Math.abs(s - t) < Math.abs(best - t))) best = s; return best; }
 function renderTimeline() {
-  if (!renderTimeline.zoomed && $("#tl")?.clientWidth) { renderTimeline.zoomed = true; PX = $("#tl").clientWidth / 10; }   // 0.37.1: start at 10 s across
+  if (!renderTimeline.zoomed && $("#tl")?.clientWidth) { renderTimeline.zoomed = true; PX = $("#tl").clientWidth / 10; }   // 0.38.4: start at 10 s across
   const T = Math.max(S.total, 1), x = (t) => Math.round(t * PX), r = S.renders.find((q) => q.v === (watch ?? S.renders[S.renders.length - 1]?.v)) || S.renders[S.renders.length - 1];
   const W = x(T) + 24;
   let h = `<div class="ruler">`;
-  const step = [0.5, 1, 2, 5, 10, 15, 30, 60].find((s) => s * PX >= 34) || 60, lab = step < 1 ? 2 : step;   // 0.37.1: ticks fit the zoom
+  const step = [0.5, 1, 2, 5, 10, 15, 30, 60].find((s) => s * PX >= 34) || 60, lab = step < 1 ? 2 : step;   // 0.38.4: ticks fit the zoom
   for (let k = 0, t = 0; t <= T + 1e-6; k++, t = +(k * step).toFixed(2)) h += `<span style="left:${x(t)}px">${Math.abs(t / lab - Math.round(t / lab)) < 1e-6 ? (step < 1 ? fmt(t) : fmt(t).replace(/\.\d$/, "")) : ""}</span>`;
   h += `</div>`;
   if (r) h += `<div class="strip" style="width:${x(T)}px;background-image:url(/api/strip.jpg?v=${r.v})"></div><div class="wave" style="width:${x(T)}px;background-image:url(/api/wave.png?v=${r.v})"></div>`;
@@ -374,26 +374,32 @@ function renderOrbitPick() {
 }
 
 // ---- GIPHY search (Added by By Mel Ross, 0.9.0). The search goes from this page straight to GIPHY, with your own key.
+// Opt-in with a warning (license review 2026-11-17): nothing is saved until the box is ticked.
+const GIPHY_WARN = "Before you turn GIPHY on: GIPHY's rules say apps should not store copies of GIPHY content. To build your video, Reel Studio has to keep a copy of each GIF you pick in your reel folder, so a reel you post with one may go against GIPHY's rules. Many GIFs are also clips from films, TV or sport that you may not have the right to use in a reel for your business. GIPHY is off unless you turn it on, and you use it at your own risk.";
+const GIPHY_SHORT = "GIPHY's rules say not to store copies of its GIFs, and a reel you post with one may conflict with them. Many GIFs are film or TV clips. Use at your own risk.";
+const GIPHY_MARK = `<p class="giphy-mark" aria-label="Powered By GIPHY"><span>Powered By</span> <b>GIPHY</b></p>`;
 let giphy = { q: "", kind: "gifs", items: [], busy: false, note: "" };
 function renderGiphy() {
   const box = $("#giphy"); if (!box) return;
   if (!S.giphy) {   // 0.15.0: the page takes the key and saves it on this computer
     if (box.querySelector("#gkey")) return;   // keep what they are typing
-    box.innerHTML = `<label class="f">From GIPHY, a free library of GIFs</label><p class="help">GIPHY is not set up yet. It needs a free key, once. <a href="https://developers.giphy.com/dashboard/" target="_blank" rel="noopener">Get one at developers.giphy.com</a>. Choose API (not SDK), copy the key, and paste it here.</p>
-      <div class="row"><input type="password" id="gkey" placeholder="Paste your GIPHY key" autocomplete="off" aria-label="Your GIPHY key" class="grow" style="font:inherit;padding:10px 12px;border:1.5px solid var(--line);border-radius:12px;min-width:0" /><button class="sm" data-a="giphy-key">Save key</button></div><p class="small" id="gkeymsg"></p>`;
+    box.innerHTML = `<label class="f">From GIPHY, a free library of GIFs</label><p class="giphy-warn" role="note"><b>Off until you turn it on.</b> ${esc(GIPHY_WARN)}</p><p class="help">To turn it on you need a free key, once. <a href="https://developers.giphy.com/dashboard/" target="_blank" rel="noopener">Get one at developers.giphy.com</a>. Choose API (not SDK), copy the key, and paste it here.</p>
+      <div class="row"><input type="password" id="gkey" placeholder="Paste your GIPHY key" autocomplete="off" aria-label="Your GIPHY key" class="grow" style="font:inherit;padding:10px 12px;border:1.5px solid var(--line);border-radius:12px;min-width:0" /><button class="sm" data-a="giphy-key">Save key</button></div>
+      <label class="row small" style="gap:6px;margin-top:6px"><input type="checkbox" id="gagree"> I have read the warning and want GIPHY search on</label><p class="small" id="gkeymsg"></p>${GIPHY_MARK}`;
     return;
   }
   box.innerHTML = `<label class="f">From GIPHY, a free library of GIFs</label><div class="row"><input type="text" id="gq" value="${esc(giphy.q)}" placeholder="Type what you want, e.g. thumbs up" autocapitalize="off" class="grow" /><button class="sm" data-a="giphy-go">Search</button></div>
     <div class="seg" style="margin-top:8px"><button class="${giphy.kind === "gifs" ? "on" : ""}" data-a="giphy-kind" data-v="gifs">GIFs</button><button class="${giphy.kind === "stickers" ? "on" : ""}" data-a="giphy-kind" data-v="stickers">Stickers (no background)</button></div>
     ${giphy.note ? `<p class="small">${esc(giphy.note)}</p>` : ""}
     ${giphy.items.length ? `<div class="grid3" style="margin-top:8px">${giphy.items.map((g) => `<button data-a="giphy-add" data-v="${esc(g.id)}" style="padding:4px" title="${esc(g.title)}"><img src="${esc(g.preview)}" alt="${esc(g.title)}" style="width:100%;border-radius:8px;display:block" /></button>`).join("")}</div>
-    <p class="small" style="text-align:right;font-weight:700;letter-spacing:.04em">POWERED BY GIPHY</p>` : ""}
+` : ""}
+    ${GIPHY_MARK}<p class="giphy-warn small" role="note">${esc(GIPHY_SHORT)}</p>
     <p class="small">GIFs are moving pictures with a background. Stickers have no background, so they sit over your video. Your search words are sent to GIPHY. Many GIFs are clips from films and TV, so check you are allowed to use one before it goes in a reel for your business.</p>`;
 }
 async function saveGiphyKey() {
   const msg = $("#gkeymsg"), key = ($("#gkey")?.value || "").trim(); if (msg) msg.textContent = "Checking the key…";
   try {
-    const r = await fetch("/api/giphy-key-save", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ key }) }), j = await r.json();
+    const r = await fetch("/api/giphy-key-save", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ key, agree: !!$("#gagree")?.checked }) }), j = await r.json();
     if (!j.ok) throw new Error(j.error || "couldn't save it");
     $("#giphy").innerHTML = ""; if (j.state) S = j.state; else S.giphy = true;
     giphy.note = j.tested ? "GIPHY is connected." : "Key saved. This computer couldn't reach GIPHY to test it yet."; render(); toast(giphy.note);

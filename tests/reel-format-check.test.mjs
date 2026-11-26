@@ -1,4 +1,4 @@
-// Added by By Mel Ross (0.37.2). The clip check says what the edit will do about the clip's format before the edit starts:
+// Added by By Mel Ross (0.38.5). The clip check says what the edit will do about the clip's format before the edit starts:
 // no sound stops it, a changing frame rate and HDR are named with what happens, a normal clip passes.
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
