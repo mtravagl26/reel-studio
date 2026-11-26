@@ -63,7 +63,7 @@ Tell them what changed, and what to check by ear (cuts, names, brand words spell
 
 ## Cover / thumbnail
 
-The review page's **Cover** tab links to the thumbnail studio, a local page for picking the cover frame, adding a headline in their brand fonts and downloading 1080x1920, 1080x1440 and 1080x1080 PNGs. Start it with `python3 scripts/thumbnail_studio.py <reel>` in the background, check it answers, then send the link. When they say "open my thumbnail studio", start it the same way (safe if it's already running). Details: "Thumbnail studio" in `references/review.md`. No review page? Start it with `--open` and send the link in chat.
+Since 0.36.1 the step bar's **2 Cover** starts the thumbnail studio itself from the Reel Studio link (`/cover`), so you rarely need to start it. The review page's **Cover** tab links to the thumbnail studio, a local page for picking the cover frame, adding a headline in their brand fonts and downloading 1080x1920, 1080x1440 and 1080x1080 PNGs. Start it with `python3 scripts/thumbnail_studio.py <reel>` in the background, check it answers, then send the link. When they say "open my thumbnail studio", start it the same way (safe if it's already running). Details: "Thumbnail studio" in `references/review.md`. No review page? Start it with `--open` and send the link in chat.
 
 ## Storyboard after every render (0.36.0)
 

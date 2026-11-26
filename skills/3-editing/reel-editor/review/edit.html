@@ -74,5 +74,6 @@ $("#t-touch").addEventListener("click", () => show("touch"));
 // a build that finishes in The cut: offer Touch-ups
 setInterval(async () => { try { const s = await (await fetch("/api/stage")).json(); if (s.built && !stage.built) { stage = s; if ($("#f-cut").hidden === false) $("#hint").textContent = "Built. Check it scene by scene in the Storyboard tab."; } } catch {} }, 5000);
 </script>
+<script src="/steps.js"></script>
 </body>
 </html>

@@ -32,7 +32,7 @@ function saveNow() {
   const body = JSON.parse(JSON.stringify({ ...S, updatedAt: new Date().toISOString() }));
   mine = body.updatedAt;
   pill("Saving…");
-  saving = saving.then(() => ref.set(body)).then(() => pill("Saved " + new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })),
+  saving = saving.then(() => ref.set(body)).then(() => { const at = new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }); pill("Saved " + at); const s = $("#savedat"); if (s) s.textContent = "Saved " + at; },   // 0.36.1: stays beside Undo
     e => pill("Couldn't save (" + (e?.code || "error") + ")", true));
 }
 $("#retry").addEventListener("click", saveNow);

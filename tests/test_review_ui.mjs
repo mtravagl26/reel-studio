@@ -178,14 +178,36 @@ try {
   // 0.34.9: a title hook lines up left, centred or right; it starts on the theme's way (Minimal: centred)
   const ti = read(reel, "edit.json").cards.findIndex((c) => c.type === "title");
   if (ti >= 0) {
-    await click(`button[data-a="open"][data-i="${ti}"]`);
-    await until(`document.querySelector("#alignseg .on")?.dataset.v === "center"`, "Line up showing Centred");
+    // the card may already be open (a look added from the page opens itself): open it only if its panel isn't showing
+    const panel = `[...document.querySelectorAll('#alignseg button')].some((b) => b.dataset.i === "${ti}")`;
+    // the page redraws its card list every few seconds (version check), so a tap can land on a list being replaced: retry
+    for (let k = 0; k < 4 && !(await js(panel)); k++) { await click(`#cards button[data-a="open"][data-i="${ti}"]`); for (let w = 0; w < 20 && !(await js(panel)); w++) await sleep(150); }
+    await until(`${panel} && document.querySelector("#alignseg .on")?.dataset.v === "center"`, "Line up showing Centred");
     await click(`#alignseg [data-v="left"]`);
     for (let i = 0; i < 50 && read(reel, "edit.json").cards[ti].align !== "left"; i++) await sleep(100);
     assert.equal(read(reel, "edit.json").cards[ti].align, "left");
   } else console.log(`note: the recommended look ${recLook} isn't a title, so Line up wasn't tried`);
   await click("#addPill");
   await until(`/new pill/.test(document.querySelector("#cards").textContent)`, "the new text to appear");
+  if (process.env.REEL_SHOT_TL) { await js(`document.querySelector("#tl").scrollIntoView()`); await sleep(400); const b = await js(`(() => { const r = document.querySelector("#tl").getBoundingClientRect(); return { x: r.left + scrollX, y: r.top + scrollY, w: r.width, h: r.height }; })()`);
+    writeFileSync(process.env.REEL_SHOT_TL, Buffer.from((await cdp("Page.captureScreenshot", { format: "png", clip: { x: b.x, y: b.y, width: b.w, height: b.h, scale: 1 } })).data, "base64")); }
+  // 0.36.1: the change shows a saved time; delete has no dialog, and the message carries Undo for 6 s
+  await until(`/^Saved \\d/.test(document.querySelector("#savedat")?.textContent || "")`, "the saved-at line on Touch-ups");
+  const pills = () => read(reel, "edit.json").cards.filter((c) => c.type === "tag" && c.text === "new pill").length;
+  const pi = read(reel, "edit.json").cards.findIndex((c) => c.type === "tag" && c.text === "new pill");
+  if (!(await js(`!!document.querySelector('#cards [data-a="del"][data-i="${pi}"]')`))) await click(`#cards button[data-a="open"][data-i="${pi}"]`);
+  await until(`!!document.querySelector('#cards [data-a="del"][data-i="${pi}"]')`, "the pill's Delete button");
+  await click(`#cards [data-a="del"][data-i="${pi}"]`);
+  await until(`!!document.querySelector("#toast #toastundo")`, "Undo inside the delete message");
+  for (let i = 0; i < 30 && pills() !== 0; i++) await sleep(100);
+  assert.equal(pills(), 0, "deleted without a dialog");
+  await click("#toast #toastundo");
+  for (let i = 0; i < 30 && pills() !== 1; i++) await sleep(100);
+  assert.equal(pills(), 1, "Undo in the message brought it back");
+  // a greyed step explains itself with a card and a Copy button
+  await js(`(() => { const s = document.querySelector('.steps [data-step="cover"]'); s.classList.add("off"); s.removeAttribute("href"); s.title = "Ask Claude to open my thumbnail studio"; s.click(); })()`);
+  await until(`/opens once Claude starts it/.test(document.querySelector("#stepcard")?.textContent || "") && /Open my thumbnail studio/.test(document.querySelector("#stepcard code").textContent)`, "the step card");
+  await js(`document.querySelector("#stepcard button:last-child").click()`);
   await click("#addOrbit");
   await until(`document.querySelectorAll('[data-a="orbit-pick"]').length === 2`, "the picture picker");
   for (const k of [0, 1]) { await js(`document.querySelectorAll('[data-a="orbit-pick"]')[${k}].click()`); await sleep(80); }   // the picker redraws after each pick
