@@ -142,13 +142,19 @@ def split(cid, i, a, b, q, asset, bg="#000", fit="contain", face_y=520):
 INSET = {"w": 300, "h": 400, "m": 56}
 
 
-def inset(cid, i, a, b, q, asset, bg, title_html="", corner="bottom-right", size=300, fit="cover", face_y=520):
-    """A full-screen slide with the presenter in a small rounded inset in a corner."""
+def inset_box(corner="bottom-right", size=300):
+    """(x, y, w, h) of the presenter's inset."""
     w = max(180, min(int(size), 520))
     h = int(w * 4 / 3)
     m = INSET["m"]
     x = m if "left" in corner else 1080 - m - w
     y = 150 if "top" in corner else 1920 - 380 - h  # clear of the ~380 px Instagram covers at the bottom
+    return x, y, w, h
+
+
+def inset(cid, i, a, b, q, asset, bg, title_html="", corner="bottom-right", size=300, fit="cover", face_y=520):
+    """A full-screen slide with the presenter in a small rounded inset in a corner."""
+    x, y, w, h = inset_box(corner, size)
     slide = media(cid, i, a, b, q, asset, fit) if asset else ""
     html = (
         f'<div id="{cid}" class="inset" style="opacity:0;visibility:hidden;background:{bg}">{slide}{title_html}'

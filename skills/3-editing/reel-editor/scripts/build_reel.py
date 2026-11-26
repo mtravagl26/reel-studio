@@ -1259,6 +1259,9 @@ for i, c in enumerate(edit.get("cards", [])):
         if c.get("quiet"):
             quiet.append((a, b))
         if kind == "split":
+            # captions move off the face in the bottom half, onto the seam between the panels
+            cover(a, b, 0, 860)
+            cover(a, b, 1135, 1420)
             _h, _j = _roundup.split(
                 cid, i, a, b, q, _asset, c.get("bg", "#000"), c.get("fit", "contain"), int(numf(c.get("face_y"), 520))
             )
@@ -1269,6 +1272,11 @@ for i, c in enumerate(edit.get("cards", [])):
                 if _tt
                 else ""
             )
+            # captions move out of the inset's way
+            _bx = _roundup.inset_box(c.get("corner", "bottom-right"), int(numf(c.get("size"), 300)))
+            cover(a, b, _bx[1], _bx[1] + _bx[3])
+            if c.get("title"):
+                cover(a, b, 200, 340)
             _h, _j = _roundup.inset(
                 cid,
                 i,
