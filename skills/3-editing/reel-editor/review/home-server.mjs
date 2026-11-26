@@ -19,6 +19,7 @@ import { fileURLToPath } from "node:url";
 import { trusted } from "./review-shim.mjs";
 import { lookPreviews } from "./look-preview.mjs";
 import { themePreviews, themeRoutes } from "./theme-preview.mjs";
+import { recommender } from "./recommend.mjs";
 import * as MUSIC from "./music.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url)), SKILL = path.dirname(HERE);
@@ -89,6 +90,7 @@ function lastClip() {
   try { return fs.readdirSync(INBOX).filter((n) => VIDEO.has(path.extname(n).toLowerCase())).map((n) => path.join(INBOX, n)).sort((a, b) => fs.statSync(b).mtimeMs - fs.statSync(a).mtimeMs)[0] || null; } catch { return null; }
 }
 const LOOKP = lookPreviews({ scripts: path.join(SKILL, "scripts"), home: HOME, env: { ...process.env, REELS_HOME: HOME, HYPERFRAMES_NO_TELEMETRY: "1", DO_NOT_TRACK: "1" }, tag: "home" });
+const RECOMMEND = recommender({ scripts: path.join(SKILL, "scripts"), env: { ...process.env, REELS_HOME: HOME } });   // 0.34.0
 const THEMEP = themePreviews({ scripts: path.join(SKILL, "scripts"), home: HOME, env: { ...process.env, REELS_HOME: HOME, HYPERFRAMES_NO_TELEMETRY: "1", DO_NOT_TRACK: "1" }, tag: "home" });   // 0.33.0
 function looksPage() {
   const data = { reel: null, looks: looks(), extras: extras(), themes: themes(), picks: picks(), canSave: true, saveUrl: "/api/home-picks", back: "Back to the start",
@@ -114,6 +116,9 @@ const server = http.createServer(async (req, res) => {
     if (req.method === "GET" && p === "/") { res.writeHead(200, { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store" }).end(page()); return; }
     if (req.method === "GET" && p === "/looks") { res.writeHead(200, { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store" }).end(looksPage()); return; }
     if (await themeRoutes(THEMEP, req, res, p, lastClip, json)) return;   // 0.33.0: every theme on my clip
+    if (p === "/api/recommend" && req.method === "GET") {   // 0.34.0: 3 looks for this clip, with reasons
+      try { return json(res, 200, { ok: true, ...(await RECOMMEND(lastClip(), url.searchParams.get("style"))) }); } catch (e) { return json(res, 400, { ok: false, error: e.message }); }
+    }
     if (p === "/api/look-preview" && req.method === "GET") return json(res, 200, { ok: true, ...LOOKP.state() });   // 0.27.0
     if (p === "/api/look-preview" && req.method === "POST") {
       let body = ""; for await (const c of req) { body += c; if (body.length > 1e5) return json(res, 413, { ok: false, error: "too big" }); }

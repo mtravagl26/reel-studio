@@ -126,6 +126,14 @@ try {
   await click('[data-a="theme-pick"][data-v="minimal"]');
   await until(`document.querySelector("#themePick")?.value === "minimal"`, "Minimal picked from its still");
   assert.equal(read(reel, "edit.json").theme, "minimal");
+  // 0.34.0: Recommended for this reel: 3 picks with reasons; adding one puts it in the reel
+  await until(`document.querySelectorAll('[data-a="rec-use"]').length === 3`, "3 recommended looks", 60000);
+  const recLook = await js(`document.querySelector('[data-a="rec-use"][data-k="look"]').dataset.v`);
+  const before = read(reel, "edit.json").cards.length;
+  await click('[data-a="rec-use"][data-k="look"]');
+  await until(`true`, "");
+  for (let i = 0; i < 50 && read(reel, "edit.json").cards.length === before; i++) await sleep(100);
+  assert.equal(read(reel, "edit.json").cards.length, before + 1, `the recommended look ${recLook} was added`);
   await click("#addPill");
   await until(`/new pill/.test(document.querySelector("#cards").textContent)`, "the new text to appear");
   await click("#addOrbit");

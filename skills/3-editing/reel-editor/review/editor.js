@@ -13,6 +13,15 @@ function setSteps(here, links) {
 }
 import { popupBox, isTextType } from "/core.mjs";
 const $ = (s) => document.querySelector(s), esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+// 0.34.0: 3 recommended looks for this reel, with reasons (loaded once)
+let RECS = { state: "idle", picks: [], checked: [] };
+async function loadRecs() {
+  if (RECS.state !== "idle") return;
+  RECS = { state: "running", picks: [], checked: [] };
+  try { const r = await (await fetch("/api/recommend")).json(); RECS = r.ok ? { state: "done", picks: r.picks, checked: r.checked } : { state: "failed", picks: [], checked: [] }; }
+  catch { RECS = { state: "failed", picks: [], checked: [] }; }
+  renderSettings();
+}
 // 0.33.0: the theme stills ("See them on my clip"): theme id ("" = my brand) -> picture address
 let TPS = { state: "idle", stills: {}, note: "" };
 async function seeThemes() {
@@ -345,11 +354,12 @@ async function giphySearch() {
 
 // ---- settings, versions
 function renderSettings() {
+  loadRecs();
   const L = S.textDefault.layer || "front";
   const cur = S.theme?.reel ?? S.theme?.all ?? "", all = !S.theme?.reel;
   const themeBox = (S.themes || []).length ? `<label class="f">Look (theme)</label><select id="themePick"><option value="">My brand as it is</option>${S.themes.map((t) => `<option value="${esc(t.id)}" ${t.id === cur ? "selected" : ""}>${esc(t.name)}</option>`).join("")}</select>
     <div class="seg" style="margin-top:8px"><button class="${all ? "" : "on"}" data-a="theme-scope" data-v="reel">This reel only</button><button class="${all ? "on" : ""}" data-a="theme-scope" data-v="all">Every reel</button></div>
-    <p class="help" style="margin-top:8px">${esc((S.themes.find((t) => t.id === cur) || {}).summary || "A theme changes the fonts, captions, titles and card shapes together. Your colors and name stay.")} Re-render to see it.</p>
+    <p class="help" style="margin-top:8px">${esc((S.themes.find((t) => t.id === cur) || {}).summary || "A theme changes the fonts, captions, titles and card shapes together. Your colors and name stay.")} The live preview shows it in a few seconds; the video changes when you render.</p>
     <p class="help" style="margin-top:8px"><button class="sm" data-a="see-themes" ${TPS.state === "running" ? "disabled" : ""}>${TPS.state === "idle" ? "See them on my clip" : "Make them again"}</button> ${esc(TPS.note || "One still of each theme on this reel, at the same moment. About a minute.")}</p>
     ${Object.keys(TPS.stills).length ? `<div class="tpgrid">${[["", "My brand as it is"], ...S.themes.map((t) => [t.id, t.name])].filter(([id]) => TPS.stills[id] !== undefined).map(([id, name]) => `<button class="tpb${id === cur ? " on" : ""}" data-a="theme-pick" data-v="${esc(id)}" title="Use ${esc(name)}"><img src="${esc(TPS.stills[id])}" alt="${esc(name)} on this reel" /><span>${esc(name)}</span></button>`).join("")}</div>` : ""}<hr style="border:0;border-top:1px solid var(--line);margin:14px 0">` : "";
   const C = { ...S.colors.all, ...(S.colors.reel || {}) }, mine = !!S.colors.reel;
@@ -373,9 +383,10 @@ function renderSettings() {
     <p class="help" style="margin-top:8px">${hMine ? "This reel has its own caption colors." : "This reel uses your usual caption colors."} A highlighted word is one you marked in the Captions list. Pick, then press a button.</p><hr style="border:0;border-top:1px solid var(--line);margin:14px 0">`;
   // Added by By Mel Ross (0.28.0): add a look from the Style Menu at the playhead
   if ($("#addlook")) $("#addlook").innerHTML = (S.addLooks || []).length ? `<label class="f">Add a look at this point in the video</label>
-    <div class="row" style="gap:8px"><select id="lookpick" style="flex:1;padding:10px;border-radius:10px;border:1.5px solid var(--line);font:inherit">${["Hooks", "Layouts"].map((g) => `<optgroup label="${g}">${S.addLooks.filter((l) => (l.group || "").startsWith(g.slice(0, 4))).map((l) => `<option value="${esc(l.id)}">${esc(l.id)} ${esc(l.name)}</option>`).join("")}</optgroup>`).join("")}</select>
+    <div class="row" style="gap:8px"><select id="lookpick" style="flex:1;padding:10px;border-radius:10px;border:1.5px solid var(--line);font:inherit">${["Hooks", "Layouts"].map((g) => `<optgroup label="${g}">${S.addLooks.filter((l) => (l.group || "").startsWith(g.slice(0, 4))).map((l) => `<option value="${esc(l.id)}">${esc(l.name)}</option>`).join("")}</optgroup>`).join("")}</select>
     <button class="sm" data-a="look-add">Add</button></div>
-    <p class="help" style="margin-top:6px">Pause where you want it, pick a look, press Add. It comes in with sample words: tap it in the list to change them.</p>` : "";
+    <p class="help" style="margin-top:6px">Pause where you want it, pick a look, press Add. It comes in with sample words: tap it in the list to change them.</p>
+    ${RECS.state === "done" && RECS.picks.length ? `<label class="f" style="margin-top:12px">Recommended for this reel</label>${RECS.picks.map((p) => `<div class="recp"><div><b>${esc(p.kind === "theme" ? p.name + " theme" : p.name)}</b><span>${esc(p.why)}</span></div><button class="sm" data-a="rec-use" data-k="${esc(p.kind)}" data-v="${esc(p.id)}">${p.kind === "theme" ? "Use" : "Add here"}</button></div>`).join("")}<p class="help">${esc(RECS.checked.length ? "Based on: " + RECS.checked.join("; ") + "." : "Safe picks: the reel couldn't be checked.")}</p>` : RECS.state === "running" ? `<p class="help" style="margin-top:12px">Looking at your reel for recommendations...</p>` : ""}` : "";
   // Added by By Mel Ross (0.28.0): background music for this reel
   const MU = S.music || { tracks: [], track: "", level: "normal" };
   const musicBox = `<label class="f">Background music</label>
@@ -533,8 +544,14 @@ document.addEventListener("click", async (e) => {
     try { await post("/api/colors", { colors, scope: a === "colors-reset" ? "reel" : el.dataset.v }); toast(a === "colors-reset" ? "Back to your brand colors: re-render to see it" : el.dataset.v === "all" ? "Saved for every reel: re-render to see it" : "Saved for this reel: re-render to see it"); } catch (er) { toast(er.message, true); }
   }
   else if (a === "see-themes") seeThemes();   // 0.33.0
-  else if (a === "theme-pick") { try { await post("/api/theme", { name: el.dataset.v, scope: S.theme?.reel ? "reel" : "all" }); toast("Look saved: re-render to see it"); } catch (er) { toast(er.message, true); } }
-  else if (a === "theme-scope") { try { await post("/api/theme", { name: $("#themePick").value, scope: el.dataset.v }); toast("Look saved: re-render to see it"); } catch (er) { toast(er.message, true); } }
+  else if (a === "rec-use") {   // 0.34.0
+    try {
+      if (el.dataset.k === "theme") { await post("/api/theme", { name: el.dataset.v, scope: S.theme?.reel ? "reel" : "all" }); toast("Look saved: the preview updates now"); }
+      else { const r = await post("/api/look-add", { id: el.dataset.v, t: now() }); toast(`Added ${r.name} at ${fmt(now())}`); }
+    } catch (er) { toast(er.message, true); }
+  }
+  else if (a === "theme-pick") { try { await post("/api/theme", { name: el.dataset.v, scope: S.theme?.reel ? "reel" : "all" }); toast("Look saved: the live preview updates now. Render when you're happy."); } catch (er) { toast(er.message, true); } }
+  else if (a === "theme-scope") { try { await post("/api/theme", { name: $("#themePick").value, scope: el.dataset.v }); toast("Look saved: the live preview updates now. Render when you're happy."); } catch (er) { toast(er.message, true); } }
   else if (a === "watch") { watch = +el.dataset.v; renderVideo(); v.scrollIntoView?.({ behavior: "smooth", block: "center" }); }
 });
 document.addEventListener("change", async (e) => {
@@ -619,7 +636,7 @@ $("#file").addEventListener("change", async (e) => {
 document.addEventListener("change", (e) => { if (e.target.id === "reusePick" && e.target.value) { addPopup(e.target.value); e.target.value = ""; } });
 document.addEventListener("change", async (e) => {
   if (e.target.id !== "themePick") return;
-  try { await post("/api/theme", { name: e.target.value, scope: S.theme?.reel ? "reel" : "all" }); toast("Look saved: re-render to see it"); } catch (er) { toast(er.message, true); }
+  try { await post("/api/theme", { name: e.target.value, scope: S.theme?.reel ? "reel" : "all" }); toast("Look saved: the live preview updates now. Render when you're happy."); } catch (er) { toast(er.message, true); }
 });
 document.addEventListener("keydown", (e) => { if (e.key === "Enter" && e.target.id === "gq") giphySearch(); if (e.key === "Enter" && e.target.id === "gkey") saveGiphyKey(); });
 
