@@ -1,5 +1,5 @@
 // The review page (reel-review.html). Moved out of the page in 0.30.0; it loads after core.js.
-// Reel Studio step bar (Added by By Mel Ross): links to the other pages when their address is known. The cover page only answers
+// Unmess Reels step bar (Added by By Mel Ross): links to the other pages when their address is known. The cover page only answers
 // on this computer, so its link is left off when this page is open on a phone.
 function setSteps(here, links) {
   const local = /^(127\.0\.0\.1|localhost|\[::1\])$/.test(location.hostname);
@@ -459,7 +459,7 @@ function placer(cur, set) {
   row.append(w, l); return row;
 }
 
-// Their own pictures for a graphic (Added by By Mel Ross, 0.10.2). Only at the local Reel Studio link: the picture is saved in the
+// Their own pictures for a graphic (Added by By Mel Ross, 0.10.2). Only at the local Unmess Reels link: the picture is saved in the
 // reel folder (popups/) and its path travels with the decision, so Claude uses that file when it builds the graphic.
 function uploader(files, onChange) {
   const wrap = document.createElement("div"); wrap.className = "upl";
@@ -489,7 +489,7 @@ function uploader(files, onChange) {
   const go = document.createElement("button"); go.type = "button"; go.className = "b"; go.textContent = "Search";
   const grid = document.createElement("div"); grid.className = "ggrid"; const gnote = document.createElement("p"); gnote.className = "lede";
   // Opt-in with a warning (license review 2026-11-17). The same words as the touch-ups page.
-  const GIPHY_WARN = "Before you turn GIPHY on: GIPHY's rules say apps should not store copies of GIPHY content. To build your video, Reel Studio has to keep a copy of each GIF you pick in your reel folder, so a reel you post with one may go against GIPHY's rules. Many GIFs are also clips from films, TV or sport that you may not have the right to use in a reel for your business. GIPHY is off unless you turn it on, and you use it at your own risk.";
+  const GIPHY_WARN = "Before you turn GIPHY on: GIPHY's rules say apps should not store copies of GIPHY content. To build your video, Unmess Reels has to keep a copy of each GIF you pick in your reel folder, so a reel you post with one may go against GIPHY's rules. Many GIFs are also clips from films, TV or sport that you may not have the right to use in a reel for your business. GIPHY is off unless you turn it on, and you use it at your own risk.";
   const GIPHY_SHORT = "GIPHY's rules say not to store copies of its GIFs, and a reel you post with one may conflict with them. Many GIFs are film or TV clips. Use at your own risk.";
   const credit = document.createElement("p"); credit.className = "giphy-mark"; credit.setAttribute("aria-label", "Powered By GIPHY");
   { const s = document.createElement("span"); s.textContent = "Powered By"; const b = document.createElement("b"); b.textContent = "GIPHY"; credit.append(s, " ", b); }
@@ -742,7 +742,7 @@ function renderSound() {
     const ctl = document.createElement("span"); ctl.className = "ctl";
     const play = document.createElement("button"); play.type = "button"; play.className = "b quiet"; play.textContent = "Play";
     // Modified by By Mel Ross (0.10.2): Play did nothing, with no message, when the reel's data had no address for the sound.
-    // The local Reel Studio link serves every library sound at /sfx/<name>.wav, and a sound that can't play now says so.
+    // The local Unmess Reels link serves every library sound at /sfx/<name>.wav, and a sound that can't play now says so.
     play.addEventListener("click", () => {
       const u = A.sfx?.[g.sfx.name] || (window.REEL_STUDIO_LINKS ? `/sfx/${encodeURIComponent(g.sfx.name)}.wav` : null);
       const fail = () => { play.textContent = "Can't play"; play.title = "This sound's file wasn't found. Tell Claude: run setup_engine.sh, then refresh the review page."; };
@@ -787,7 +787,7 @@ function renderPreview() {
   });
   if (!S.revisions.length) revs.innerHTML = `<div class="empty">No notes yet. Write what should change and add the note. With a draft built, pause it at the moment first.</div>`;
 }
-// Added by By Mel Ross (0.18.0): at the local Reel Studio link the page starts the build itself. It lists first what only Claude
+// Added by By Mel Ross (0.18.0): at the local Unmess Reels link the page starts the build itself. It lists first what only Claude
 // can do (a graphic to change or add, typed notes), so nobody waits 3 minutes for a preview that is missing what they asked for.
 const LOCAL = !!window.REEL_STUDIO_LINKS;
 let pageBuild = { busy: false, text: "", error: "", told: [] };
@@ -884,7 +884,7 @@ function renderAll() {
     $("#reelname").textContent = `${R.title} · raw ${fmt(R.srcDur)} → reel ${fmt(P.cutDur)}`; setPos(0);
     restoreUndo();   // 0.38.3: Undo and Redo from before a reload
     setSteps("edit", { cover: R.thumbnailUrl, edit: (() => { try { return R.editorUrl ? new URL("/edit", R.editorUrl).href : null; } catch { return null; } })(), ...(window.REEL_STUDIO_LINKS || {}) });
-    $("#lookslink").hidden = !window.REEL_STUDIO_LINKS;   // the looks page is served by the local Reel Studio link only
+    $("#lookslink").hidden = !window.REEL_STUDIO_LINKS;   // the looks page is served by the local Unmess Reels link only
     if (window.REEL_STUDIO_LINKS) fetch("/api/stage").then(r => r.json()).then(st => { $("#builtnote").hidden = !st.built; }).catch(() => {});
     $("#brand").value = S.brandRequest || "";
     renderLook();

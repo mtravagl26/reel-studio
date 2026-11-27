@@ -1,4 +1,4 @@
-Reel Studio
+Unmess Reels
 Copyright 2026 By Mel Ross (https://github.com/mtravagl26)
 
 This product combines and modifies two open-source projects:
@@ -48,7 +48,7 @@ Changes made by By Mel Ross (files carry a "Modified by By Mel Ross" or
   brand.example.md, style-reference.md) with the Lora and Inter fonts, which are
   licensed under the SIL Open Font License 1.1 (license texts in skills/3-editing/reel-editor/themes/_fonts/).
 
-Changes made by By Mel Ross in Reel Studio 0.2.0 (November 2026). Modified files carry a
+Changes made by By Mel Ross in Unmess Reels 0.2.0 (November 2026). Modified files carry a
 "Modified by By Mel Ross" or "Added by By Mel Ross" note; everything below is in
 skills/3-editing/reel-editor unless a path says otherwise.
 - Speaker cutout and layered graphics: new scripts/cutout.py and scripts/cutout_matte.swift (a
@@ -73,7 +73,7 @@ No third-party code, model or asset was added to this repository for these chang
 scripts use only the Python standard library, ffmpeg and (on macOS) Apple's Vision framework,
 all installed separately (see THIRD_PARTY_NOTICES.md).
 
-Changes made by By Mel Ross in Reel Studio 0.2.1 and 0.2.2 (November 2026), in skills/3-editing/reel-editor.
+Changes made by By Mel Ross in Unmess Reels 0.2.1 and 0.2.2 (November 2026), in skills/3-editing/reel-editor.
 - 0.2.1: the studio look is natural by default: the colour grade (exposure, colour, warmth) and
   the background blur are off unless asked for (scripts/enhance.py, SKILL.md, docs, brand
   examples); denoise and sharpen stay on.
@@ -87,7 +87,7 @@ Changes made by By Mel Ross in Reel Studio 0.2.1 and 0.2.2 (November 2026), in s
   references/look-and-layers.md describe it; tests/reel-colour.test.mjs added; package.json and
   .claude-plugin/plugin.json version 0.2.2.
 
-Changes made by By Mel Ross in Reel Studio 0.3.0 (November 2026), in skills/3-editing/reel-editor unless a path says otherwise.
+Changes made by By Mel Ross in Unmess Reels 0.3.0 (November 2026), in skills/3-editing/reel-editor unless a path says otherwise.
 - Upstream update: Claude Reel Editor commit c6939d9 (Nicola Pocock, 1 November 2026, "release fixes + optional 4K") was
   applied file by file to the combined layout: the thumbnail studio (review/thumbnail.html, scripts/thumbnail_studio.py and its
   tests, tests/test_thumbnail_studio.py and tests/test_thumbnail_ui.mjs, run under npm test by tests/reel-thumbnail.test.mjs),
@@ -130,7 +130,7 @@ Added by By Mel Ross in 0.5.0 (November 2026), in skills/3-editing/reel-editor u
   review page no longer loads fonts from Google Fonts; review/package.json keeps
   review/core.js loadable with require() inside this ES-module repo (review_sync.py crashed
   without it); editor-server.mjs takes --review-url and --cover-url.
-- 0.6.0: Reel Studio on one link. review/studio-server.mjs (editor-server.mjs under another
+- 0.6.0: Unmess Reels on one link. review/studio-server.mjs (editor-server.mjs under another
   name) serves the review page before the reel is built and the touch-ups page after it;
   review/review-shim.mjs holds the storage stand-in both servers use; the pages say which
   step is live; the on-page help text is rewritten in plainer words.
@@ -181,7 +181,7 @@ Added by By Mel Ross in 0.19.0 (November 2026), in skills/3-editing/reel-editor.
 - Editing tools and background music (0.28.0): one Edit page with The cut and Touch-ups as tabs (review/edit.html), the step bar
   as 1 Edit, 2 Cover, 3 Caption, Add a look at the playhead, dragging graphics on the timeline and the video, changing a
   graphic's words on the review page, and background music picked on the home page or the Touch-ups page from the person's own
-  ~/reels/music folder (review/music.mjs, scripts/mix_audio.py, references/music.md). Reel Studio ships no music.
+  ~/reels/music folder (review/music.mjs, scripts/mix_audio.py, references/music.md). Unmess Reels ships no music.
   Starter tracks are made on the person's computer by scripts/make_music_bed.py.
 - Word timing (0.29.0): local Whisper's word times lined up with whisper-cli's own word alignment (scripts/word_timing.py,
   scripts/transcribe.py), a check of word and caption times against the audio (transcribe.py, scripts/qa.py), and

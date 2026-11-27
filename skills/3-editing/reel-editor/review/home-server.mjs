@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Added by By Mel Ross (0.12.0). The Reel Studio home page: check a clip before editing, pick the kind of reel, copy the request.
+// Added by By Mel Ross (0.12.0). The Unmess Reels home page: check a clip before editing, pick the kind of reel, copy the request.
 // It runs with no reel folder, so it is the first link a person gets. The per-reel pages (review, looks, touch-ups) are still
 // served by studio-server.mjs once a reel exists.
 //
@@ -171,5 +171,5 @@ const server = http.createServer(async (req, res) => {
     res.writeHead(404, { "Content-Type": "text/plain" }).end("not found");
   } catch (e) { try { json(res, 500, { ok: false, error: String(e.message || e) }); } catch {} }
 });
-server.on("error", (e) => { console.error(e.code === "EADDRINUSE" ? `Port ${PORT} is in use. Reel Studio home may already be open: http://127.0.0.1:${PORT}/  (or pass --port)` : String(e)); process.exit(1); });
-server.listen(PORT, "127.0.0.1", () => console.log(`Reel Studio home: http://127.0.0.1:${PORT}/\nClips checked here are kept in ${INBOX}`));
+server.on("error", (e) => { console.error(e.code === "EADDRINUSE" ? `Port ${PORT} is in use. Unmess Reels home may already be open: http://127.0.0.1:${PORT}/  (or pass --port)` : String(e)); process.exit(1); });
+server.listen(PORT, "127.0.0.1", () => console.log(`Unmess Reels home: http://127.0.0.1:${PORT}/\nClips checked here are kept in ${INBOX}`));

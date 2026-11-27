@@ -27,7 +27,7 @@ const args = process.argv.slice(2);
 const REEL = path.resolve(args.find((a, i) => !a.startsWith("--") && !(i > 0 && ["--port", "--review-url", "--cover-url"].includes(args[i - 1]))) || ".");
 const PORT = Number(args[args.indexOf("--port") + 1]) || 4792;
 const LAN = args.includes("--lan");
-// Added by By Mel Ross: addresses of the other two Reel Studio pages, shown as links in the step bar (both optional).
+// Added by By Mel Ross: addresses of the other two Unmess Reels pages, shown as links in the step bar (both optional).
 const flag = (n) => { const i = args.indexOf(n); return i >= 0 && /^https?:\/\//.test(args[i + 1] || "") ? args[i + 1] : null; };
 const LINKS = { review: flag("--review-url") || "/review", touchups: "/touchups", edit: "/edit", cover: flag("--cover-url") || "/cover", caption: "/caption" };   // 0.28.0: edit = review + touch-ups on one page
 const KEY = LAN ? crypto.randomBytes(9).toString("base64url") : null;
@@ -46,7 +46,7 @@ const P = {
   job: path.join(REEL, "editor", "job.json"), log: path.join(REEL, "editor", "render.log"), hist: path.join(REEL, "editor", "history"),
   renders: path.join(REEL, "renders"), popups: path.join(REEL, "popups"),
 };
-// Reel Studio on one link (Added by By Mel Ross, 0.6.0): this server also serves the review page, so it can start before the reel is
+// Unmess Reels on one link (Added by By Mel Ross, 0.6.0): this server also serves the review page, so it can start before the reel is
 // built. Touch-ups need edit.json + edl.json; until they exist the touch-ups page says so and points back to the review step.
 const REVIEW_DB = path.join(REEL, "review_db");
 const built = () => fs.existsSync(P.edit) && fs.existsSync(P.edl);
@@ -1005,7 +1005,7 @@ const server = http.createServer(async (req, res) => {
     // The studio only answers on this Mac (127.0.0.1); on a phone the page says to open it on the Mac.
     if (p === "/cover") {
       const local = /^(127\.0\.0\.1|localhost|\[::1\])(:\d+)?$/.test(req.headers.host || "");
-      if (!local) { res.writeHead(200, { "Content-Type": TYPES[".html"], "Cache-Control": "no-store" }).end(`<!doctype html><meta name="viewport" content="width=device-width,initial-scale=1"><title>Cover</title><body style="font:17px/1.45 -apple-system,sans-serif;max-width:520px;margin:40px auto;padding:0 18px;color:#0d2b2d"><h1 style="font-size:22px">The cover page opens on your Mac</h1><p>It uses your footage and fonts on the Mac, so it isn't shared over Wi-Fi. On your Mac, open this same Reel Studio link and tap <b>2 Cover</b>.</p><p><a href="/edit">Back to editing</a></p>`); return; }
+      if (!local) { res.writeHead(200, { "Content-Type": TYPES[".html"], "Cache-Control": "no-store" }).end(`<!doctype html><meta name="viewport" content="width=device-width,initial-scale=1"><title>Cover</title><body style="font:17px/1.45 -apple-system,sans-serif;max-width:520px;margin:40px auto;padding:0 18px;color:#0d2b2d"><h1 style="font-size:22px">The cover page opens on your Mac</h1><p>It uses your footage and fonts on the Mac, so it isn't shared over Wi-Fi. On your Mac, open this same Unmess Reels link and tap <b>2 Cover</b>.</p><p><a href="/edit">Back to editing</a></p>`); return; }
       try { const u = await openCover(); res.writeHead(302, { Location: u }).end(); }
       catch (e) { res.writeHead(500, { "Content-Type": "text/plain; charset=utf-8" }).end("The cover page couldn't start: " + String(e.message || e)); }
       return;
@@ -1221,7 +1221,7 @@ function initBuilt() {
 }
 initBuilt();
 server.listen(PORT, LAN ? "0.0.0.0" : "127.0.0.1", () => {
-  console.log(`Reel Studio for ${path.basename(REEL)}: http://127.0.0.1:${PORT}/${KEY ? "?k=" + KEY : ""}`);
+  console.log(`Unmess Reels for ${path.basename(REEL)}: http://127.0.0.1:${PORT}/${KEY ? "?k=" + KEY : ""}`);
   if (LAN) for (const a of Object.values(os.networkInterfaces()).flat())
     if (a.family === "IPv4" && !a.internal) console.log(`same Wi-Fi: http://${a.address}:${PORT}/?k=${KEY}`);
 });

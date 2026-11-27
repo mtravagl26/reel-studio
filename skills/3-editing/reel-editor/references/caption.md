@@ -1,6 +1,6 @@
 # The caption step (0.20.0)
 
-Step 4 of Reel Studio, after the cover: the post caption that goes under the reel on Instagram. You write 3 drafts. The person picks one and edits it on the Caption page (`/caption` at their Reel Studio link, the 4th button in the step bar).
+Step 4 of Unmess Reels, after the cover: the post caption that goes under the reel on Instagram. You write 3 drafts. The person picks one and edits it on the Caption page (`/caption` at their Unmess Reels link, the 4th button in the step bar).
 
 ## What you do
 

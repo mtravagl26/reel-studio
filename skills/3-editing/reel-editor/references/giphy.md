@@ -8,7 +8,7 @@ The Popups section of the touch-ups page can search GIPHY and drop a GIF or stic
 
 Before the key box, both pages show this, and the key is not saved unless the box under it is ticked:
 
-> Before you turn GIPHY on: GIPHY's rules say apps should not store copies of GIPHY content. To build your video, Reel Studio has to keep a copy of each GIF you pick in your reel folder, so a reel you post with one may go against GIPHY's rules. Many GIFs are also clips from films, TV or sport that you may not have the right to use in a reel for your business. GIPHY is off unless you turn it on, and you use it at your own risk.
+> Before you turn GIPHY on: GIPHY's rules say apps should not store copies of GIPHY content. To build your video, Unmess Reels has to keep a copy of each GIF you pick in your reel folder, so a reel you post with one may go against GIPHY's rules. Many GIFs are also clips from films, TV or sport that you may not have the right to use in a reel for your business. GIPHY is off unless you turn it on, and you use it at your own risk.
 
 Once it is on, a short version stays beside the results with the "Powered By GIPHY" mark. Ticking the box writes `GIPHY_OPT_IN=1` next to the key. A key saved before this change is ignored until they tick the box once (the page shows the key box again). Open question: GIPHY's API Terms page could not be fetched (HTTP 403) when this was written, so the storage and posting points come from GIPHY's developer docs, not the terms themselves.
 
@@ -18,7 +18,7 @@ Once it is on, a short version stays beside the results with the "Powered By GIP
 2. They make a free account there and create a key. When GIPHY asks, they choose **API**, not SDK. A new key is a beta key: free, and limited to 100 searches an hour.
 3. They read the warning, tick the box, paste the key and press **Save key**. The page tries the key on one search, saves it, and says "GIPHY is connected." Search works right away. No restart.
 
-The page writes the key to `~/.config/reels/.env` as `GIPHY_API_KEY=...`, keeps any other line in that file (the optional ElevenLabs key), and sets the file so only the person can read it. Never ask them to open that file, use Terminal, or paste a key into chat. If they ask you to "set up GIPHY", give them the Reel Studio link and point at the box.
+The page writes the key to `~/.config/reels/.env` as `GIPHY_API_KEY=...`, keeps any other line in that file (the optional ElevenLabs key), and sets the file so only the person can read it. Never ask them to open that file, use Terminal, or paste a key into chat. If they ask you to "set up GIPHY", give them the Unmess Reels link and point at the box.
 
 If GIPHY rejects the key, the page says so. The usual cause is an SDK key or a partial copy. If the computer is offline, the key is saved untested and the first search is the test.
 

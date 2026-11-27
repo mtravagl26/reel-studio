@@ -8,7 +8,7 @@ Added by By Mel Ross (0.12.0). The first link a person gets, before any reel exi
 node review/home-server.mjs            # prints http://127.0.0.1:4790/
 ```
 
-Give them that link when they say "open Reel Studio", when they are new, or when they ask whether a clip is filmed well. It runs with no reel folder and answers only the browser on this computer. Leave it running; it is separate from the per-reel link (`studio-server.mjs`, port 4792).
+Give them that link when they say "open Unmess Reels", when they are new, or when they ask whether a clip is filmed well. It runs with no reel folder and answers only the browser on this computer. Leave it running; it is separate from the per-reel link (`studio-server.mjs`, port 4792).
 
 ## What the page does
 

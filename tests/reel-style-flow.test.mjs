@@ -100,10 +100,10 @@ test("studio server: /styles serves the looks for this reel and saves picks, ref
   const engine = path.join(c.dir, "engine"); fs.mkdirSync(path.join(engine, "sfx"), { recursive: true }); fs.writeFileSync(path.join(engine, "sfx", "pop.wav"), "RIFFtest");
   const p = spawn("node", [path.join(review, "studio-server.mjs"), c.reel, "--port", String(port)], { env: { ...process.env, REELS_HOME: c.home, REEL_ENGINE: engine, HOME: c.dir, GIPHY_API_KEY: "" }, stdio: ["ignore", "pipe", "pipe"] });
   let out = ""; p.stdout.on("data", (d) => (out += d)); p.stderr.on("data", (d) => (out += d));
-  for (let i = 0; i < 100 && !/Reel Studio for/.test(out); i++) await new Promise((r) => setTimeout(r, 100));
+  for (let i = 0; i < 100 && !/Unmess Reels for/.test(out); i++) await new Promise((r) => setTimeout(r, 100));
   const base = `http://127.0.0.1:${port}`, post = (body) => fetch(base + "/api/style-picks", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
   try {
-    assert.match(out, /Reel Studio for/, "server started: " + out);
+    assert.match(out, /Unmess Reels for/, "server started: " + out);
     const html = await (await fetch(base + "/styles")).text();
     const data = JSON.parse(/window\.STYLE_MENU = (.*);\n/.exec(html)[1]);
     assert.equal(data.reel, "r1"); assert.equal(data.canSave, true); assert.ok(data.looks.some((l) => l.id === "L8"));

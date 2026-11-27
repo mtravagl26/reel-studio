@@ -65,10 +65,10 @@ test("home server: checks an uploaded clip, keeps it in the inbox, lists reels, 
   const port = 6100 + Math.floor(Math.random() * 500);
   const p = spawn("node", [path.join(review, "home-server.mjs"), "--port", String(port)], { env: { ...process.env, REELS_HOME: home, REEL_FRAMING_MATTE: c.matte }, stdio: ["ignore", "pipe", "pipe"] });
   let out = ""; p.stdout.on("data", (d) => (out += d)); p.stderr.on("data", (d) => (out += d));
-  for (let i = 0; i < 100 && !/Reel Studio home:/.test(out); i++) await new Promise((r) => setTimeout(r, 100));
+  for (let i = 0; i < 100 && !/Unmess Reels home:/.test(out); i++) await new Promise((r) => setTimeout(r, 100));
   const base = `http://127.0.0.1:${port}`;
   try {
-    assert.match(out, /Reel Studio home:/, "server started: " + out);
+    assert.match(out, /Unmess Reels home:/, "server started: " + out);
     const data = JSON.parse(/window\.REEL_HOME = (.*);\n/.exec(await (await fetch(base + "/")).text())[1]);
     assert.deepEqual(data.formats.map((f) => f.id), ["talking-head"], "only what is built");
     assert.deepEqual(data.reels.map((r) => [r.name, r.state]), [["2026-11-01-old", "in progress"]]); assert.equal(data.brand, false);

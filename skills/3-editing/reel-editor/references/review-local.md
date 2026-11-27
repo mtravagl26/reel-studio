@@ -15,7 +15,7 @@ Added by By Mel Ross. Same page as `review.md`, but without claude.ai Artifacts:
 1. Do review.md "One time per reel" steps 1-3, writing the assets straight into the reel folder (proxy as `proxy.mp4`). Skip steps 4-5 (publish/upload).
 2. Write `review_db/reel/current.json` = `review_reel.json` plus `srcUrl`, per-graphic `thumbUrl`/`imgUrl`, `assets`, `fonts`, all as `/files/...` URLs. Move an old `review_db/review/current.json` / `builds/latest.json` aside (ask first if it holds notes).
 3. Start the server in the background and keep it running until they're done:
-   `node <this skill>/review/studio-server.mjs <reel> --lan` (default port 4792; `--port N` for another; without `--lan` it only answers on this computer). This is Reel Studio on one link: it opens on the review page, and once the reel is built the same link opens the touch-ups page (`references/editor-page.md`), with a step bar to move between them. Add `--cover-url <thumbnail studio link>` to light up the Cover step. `review/serve.mjs <reel> --lan` (port 4790) still serves the review page on its own.
+   `node <this skill>/review/studio-server.mjs <reel> --lan` (default port 4792; `--port N` for another; without `--lan` it only answers on this computer). This is Unmess Reels on one link: it opens on the review page, and once the reel is built the same link opens the touch-ups page (`references/editor-page.md`), with a step bar to move between them. Add `--cover-url <thumbnail studio link>` to light up the Cover step. `review/serve.mjs <reel> --lan` (port 4790) still serves the review page on its own.
    It prints the links. With `--lan` each link carries a one-off key (`?k=...`): send them the full link so they can review on their phone over the same Wi-Fi; a link without the key gets "missing or wrong key".
 4. When they say "build preview": `python3 scripts/review_sync.py import <reel> <reel>/review_db/review/current.json`, then review.md "When they say build preview" steps 3-4. For step 5 put the 540p proxy in the reel folder and write `review_db/builds/latest.json` = `{"url": "/files/preview_540.mp4", "hash", "at", "cutDur"}`; the open page picks it up within 2 s.
 5. Stop the server when the reel is delivered.
@@ -29,7 +29,7 @@ The Graphics tab has two ways to ask for more than the plan shows. Neither one d
 
 The looks page (`/styles`) also lists animations and moving extras (`assets/style-extras.json`). Picks land in `style-picks.json` under `"extras"`.
 
-**These pages only exist at the Reel Studio link** (`http://localhost:<port>/...` from `studio-server.mjs`). Never hand the person an HTML file to open from disk: a file has no looks page, no saving and no touch-ups.
+**These pages only exist at the Unmess Reels link** (`http://localhost:<port>/...` from `studio-server.mjs`). Never hand the person an HTML file to open from disk: a file has no looks page, no saving and no touch-ups.
 
 ## Moving a graphic on the review page (0.16.0)
 

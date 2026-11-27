@@ -360,7 +360,7 @@ test("studio server: an unbuilt reel opens on the review page, saves decisions, 
   const port = 4900 + Math.floor(Math.random() * 500);
   const p = spawn("node", [path.join(review, "studio-server.mjs"), reel, "--port", String(port)], { env: { ...process.env, REELS_HOME: home }, stdio: ["ignore", "pipe", "pipe"] });
   let out = ""; p.stdout.on("data", (d) => (out += d)); p.stderr.on("data", (d) => (out += d));
-  for (let i = 0; i < 60 && !/Reel Studio for/.test(out); i++) await new Promise((r) => setTimeout(r, 100));
+  for (let i = 0; i < 60 && !/Unmess Reels for/.test(out); i++) await new Promise((r) => setTimeout(r, 100));
   const base = `http://127.0.0.1:${port}`;
   try {
     const home0 = await fetch(base + "/", { redirect: "manual" });   // 0.28.0: the one link opens the Edit page, which shows The cut first

@@ -1,5 +1,5 @@
 // Added by By Mel Ross (0.28.0): background music. Tracks are the person's own files in ~/reels/music (downloaded from a
-// free music library, see references/music.md). Reel Studio ships no music: the libraries' licenses don't allow handing
+// free music library, see references/music.md). Unmess Reels ships no music: the libraries' licenses don't allow handing
 // their tracks out. Both servers list the folder, play a track for a preview, and take a new track from the page.
 import fs from "node:fs";
 import path from "node:path";

@@ -168,9 +168,9 @@ test("review page: Build preview imports the choices, runs the build steps, and 
   const port = 7300 + Math.floor(Math.random() * 500), base = `http://127.0.0.1:${port}`;
   const p = spawn("node", [path.join(skill, "review", "studio-server.mjs"), c.reel, "--port", String(port)], { env: { ...process.env, REELS_HOME: c.home, REEL_EDITOR_SCRIPTS: stub, GIPHY_API_KEY: "" }, stdio: ["ignore", "pipe", "pipe"] });
   let out = ""; p.stdout.on("data", (d) => (out += d)); p.stderr.on("data", (d) => (out += d));
-  for (let i = 0; i < 100 && !/Reel Studio for/.test(out); i++) await new Promise((r) => setTimeout(r, 100));
+  for (let i = 0; i < 100 && !/Unmess Reels for/.test(out); i++) await new Promise((r) => setTimeout(r, 100));
   try {
-    assert.match(out, /Reel Studio for/, out);
+    assert.match(out, /Unmess Reels for/, out);
     fs.rmSync(path.join(c.reel, "edit.json"), { force: true }); fs.rmSync(path.join(c.reel, "edl.json"), { force: true });   // never built
     assert.equal((await (await fetch(base + "/api/review-build")).json()).build.state, "idle");
     assert.equal((await fetch(base + "/api/review-build", { method: "POST", headers: { origin: "https://example.test", "sec-fetch-site": "cross-site" } })).status, 403, "another site can't start a build");
