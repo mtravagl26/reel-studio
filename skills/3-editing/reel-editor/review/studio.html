@@ -34,7 +34,7 @@ button { font: inherit; cursor: pointer; }
 .tab[aria-selected="true"] { background: var(--ink); border-color: var(--ink); color: var(--bg); } .tab[aria-selected="true"] small { color: var(--sage); }
 .wrap { display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: 20px; max-width: 1080px; margin: 0 auto; padding: 16px; align-items: start; }
 .side { position: sticky; top: 12px; order: -1; }
-#player { position: relative; width: 100%; aspect-ratio: 9 / 16; background: #000; border-radius: 22px; overflow: hidden; border: 5px solid var(--ink); }
+#player { position: relative; width: min(100%, calc((100vh - 130px) * 9 / 16)); margin: 0 auto; aspect-ratio: 9 / 16; background: #000; border-radius: 22px; overflow: hidden; border: 5px solid var(--ink); }
 #player video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
 #ov { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
 .gbox { position: absolute; border: 2px dashed rgba(255,255,255,.9); background: rgba(185,200,165,.38); border-radius: var(--r); display: flex; align-items: flex-start; justify-content: center; font: 700 11px/1.2 inherit; color: #fff; text-shadow: 0 1px 3px rgba(0,0,0,.6); padding: 4px; background-size: cover; background-position: top center; }

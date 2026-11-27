@@ -96,6 +96,13 @@ try {
   await until(`/all|fixed/i.test(document.querySelector("#ov .capov")?.textContent || "")`, "the caption on the preview");
   assert.match(await js(`document.querySelector("#pnote").textContent`), /Rough preview/);
 
+  // the preview stays on screen while the words scroll, and the whole of it fits (play button included)
+  await js(`(() => { const c = document.querySelector("#caps"); for (let i = 0; i < 40; i++) c.appendChild(Object.assign(document.createElement("div"), { className: "caprow", textContent: "filler row", style: "height:44px" })); window.scrollTo(0, 900); })()`);
+  await sleep(200);
+  const pin = await js(`(() => { const r = document.querySelector(".side").getBoundingClientRect(); return { y: window.scrollY, top: r.top, bottom: r.bottom, h: innerHeight }; })()`);
+  assert.ok(pin.y > 500 && pin.top >= 0 && pin.top < 30 && pin.bottom <= pin.h, "the preview is pinned and fully on screen: " + JSON.stringify(pin));
+  await js(`window.scrollTo(0, 0)`);
+
   // a reload keeps the cut and the Undo history
   await open("/studio");
   await until(`document.querySelector('#tx .w[data-i="1"]')?.classList.contains("cut") && !document.querySelector("#undo").disabled`, "the cut and Undo after a reload");
