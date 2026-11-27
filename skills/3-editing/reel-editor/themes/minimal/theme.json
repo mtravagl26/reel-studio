@@ -1,13 +1,15 @@
 {
   "name": "Minimal",
-  "summary": "Big stacked caps in a warm cream serif over your torso, small one-word captions low on the left, a hand-drawn word now and then. Nothing bounces.",
+  "sfx_default": "none",
+  "summary": "Big stacked caps in a warm cream serif over your torso, small one-word captions low on the left, a hand-drawn word now and then. Nothing bounces. No sound effects unless you switch them on.",
   "notes": [
     "Titles show in CAPS, one short line per slash: \"LEAVE IT / FOR 24 / HOURS\". They sit over the torso. Type them in caps too, so each line is sized for its capitals.",
     "The hook is a title with a \"sub\" line: it moves to the top by itself, and the sub becomes the small spaced-out handwritten line under it.",
     "Captions sit low on the left (y 1180), clear of most hair. If yours still reaches them, set captions y in theme_overrides.",
     "Mark 1 word now and then with \"accent\": true: it turns into the hand-drawn emphasis word.",
     "Screenshots and charts: popup with \"frame\": true gets a white rounded border. The red X sticker is themes/minimal/red-x.svg (use its full path as the sticker's src); put it beside the title, clear of the face, e.g. x 820, y 1500.",
-    "End line: a cta with a short line and an emoji, in white."
+    "End line: a cta with a short line and an emoji, in white.",
+    "Starts with no sound effects (\"sfx_default\": \"none\"). The Sound switch on the Edit page or Touch-ups turns them on, for this reel or every reel."
   ],
   "brand": {
     "fonts": {

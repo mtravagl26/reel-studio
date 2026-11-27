@@ -103,3 +103,20 @@ test("minimal theme: one-word lowercase captions low at the left edge, cream cap
   const x = fs.readFileSync(path.join(skill, "themes", "minimal", "red-x.svg"), "utf8");
   assert.match(x, /^<svg[^>]*stroke="#D93A2F"/); assert.doesNotMatch(x, /<script|href=/i);
 });
+
+// Added by By Mel Ross (0.40.1). Sound effects start on under every look except one marked quiet (Minimal), and the person's
+// own switch (brand.json for every reel, edit.json for one reel) wins in both directions.
+test("sound effects: on by default, Minimal starts silent, and the person's switch wins", { skip: skipReason }, () => {
+  const sfx = (brand, edit) => {
+    const c = makeReel(brand, edit);
+    return JSON.parse(themePy(`b = theme.load_brand(${JSON.stringify(c.home)}, ${JSON.stringify(c.reel)}, quiet=True); print(json.dumps(b.get("sfx", "subtle")))`, c.env).stdout.trim().split("\n").pop());
+  };
+  const { sfx: _drop, ...plain } = BRAND;
+  for (const n of NAMES) assert.equal(sfx({ ...plain, theme: n }), n === "minimal" ? "none" : "subtle", `${n} with no choice made`);
+  assert.equal(sfx(plain), "subtle", "no look, no choice");
+  assert.equal(sfx({ ...plain, theme: "minimal", sfx: "subtle" }), "subtle", "always on beats the quiet look");
+  assert.equal(sfx({ ...plain, theme: "minimal" }, { sfx: "subtle" }), "subtle", "on for this reel beats the quiet look");
+  assert.equal(sfx({ ...plain, theme: "bold", sfx: "none" }), "none", "always off still holds");
+  assert.equal(sfx({ ...plain, theme: "bold" }, { sfx: "none" }), "none", "off for this reel still holds");
+  assert.equal(sfx({ ...plain, theme: "bold" }, { theme: "minimal" }), "none", "a reel switched to Minimal starts silent");
+});

@@ -251,3 +251,7 @@ Added by By Mel Ross in 0.19.0 (November 2026), in skills/3-editing/reel-editor.
   redraws it in seconds with no build. A new cut drops to the rough cut and offers one button that re-cuts and redraws,
   also before the first build. The server remembers which cut master.mp4 holds, so a render and the preview never trust a
   master the other replaced (review/studio.js, review/studio.html, review/editor-server.mjs; tests/test_studio_ui.mjs).
+- Minimal starts silent (0.40.1): sound effects are on by default under every look except one whose theme.json has
+  "sfx_default": "none", which Minimal now has. The Sound switch on either page still wins, for one reel or every reel
+  (scripts/theme.py, scripts/review_sync.py, themes/minimal/theme.json, review/review.js, review/editor.js,
+  review/editor-server.mjs; tests/reel-themes.test.mjs).

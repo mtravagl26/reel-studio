@@ -725,9 +725,12 @@ function renderSound() {
   $("#colour").replaceChildren(...(A.colourBefore && R.grade ? [fig("Original", im(A.colourBefore, "Frame before grading")), fig("Graded", im(A.colourAfter, "Same frame after grading"))] : [Object.assign(document.createElement("div"), { className: "empty", textContent: "No color grade is set for this brand, so the reel keeps its original color." })]));
   const cues = $("#cues"); cues.textContent = "";
   // 0.19.0: one switch for all sound effects on this reel. On unless your brand settings say off.
-  const sfxOn = S.sfxAll ? S.sfxAll === "on" : R.sfxOn !== false, bar = $("#sfxall"); bar.textContent = "";
+  // 0.40.1: with no choice made, the look decides: on, except a look that starts silent (Minimal). The switch here wins.
+  const lookNow = S.theme ?? R.theme ?? "", quietLook = !!(R.themes || []).find((t) => t.id === lookNow)?.quiet;
+  const sfxStart = R.sfxChoice !== undefined ? (R.sfxChoice ? R.sfxChoice !== "none" : !quietLook) : R.sfxOn !== false;
+  const sfxOn = S.sfxAll ? S.sfxAll === "on" : sfxStart, bar = $("#sfxall"); bar.textContent = "";
   for (const [v, label] of [["on", "Sound effects on"], ["off", "Sound effects off"]]) { const b = document.createElement("button"); b.type = "button"; b.className = "b" + ((v === "on") === sfxOn ? " primary" : " quiet"); b.textContent = label; b.setAttribute("aria-pressed", (v === "on") === sfxOn); b.addEventListener("click", () => mutate(() => { S.sfxAll = v; })); bar.append(b); }
-  if (!sfxOn) { cues.append(Object.assign(document.createElement("div"), { className: "empty", textContent: R.sfxOn === false && !S.sfxAll ? "Sound effects are off in your brand settings. Switch them on here for this reel. To switch them on for every reel, use Sound effects on the Touch-ups page." : "Sound effects are off for this reel." })); return; }
+  if (!sfxOn) { cues.append(Object.assign(document.createElement("div"), { className: "empty", textContent: !S.sfxAll && quietLook && !R.sfxChoice ? "This look starts with no sound effects. Tap Sound effects on to add them to this reel." : !S.sfxAll ? "Sound effects are off in your brand settings. Switch them on here for this reel. To switch them on for every reel, use Sound effects on the Touch-ups page." : "Sound effects are off for this reel." })); return; }
   if (!GFX.some(g => g.sfx && !g.gone && g.state !== "d")) {   // 0.16.0: say why the list is empty
     cues.append(Object.assign(document.createElement("div"), { className: "empty", textContent: GFX.length ? "No sounds are set for this reel's graphics. Sounds are switched off in your brand settings, or this review was made before sounds were listed here. Tell Claude: \"turn sound effects on and refresh the review\"." : "Sounds come with graphics, and this reel has no graphics planned yet." }));
   }

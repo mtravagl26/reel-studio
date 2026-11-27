@@ -157,7 +157,8 @@ def load_brand(home=None, reel=None, name=None, quiet=False):
     )
     if mine:
         brand["colors"] = {**(brand.get("colors") or {}), **mine}
-    # Added by By Mel Ross (0.19.0): sound effects are the person's choice, never a theme's. They are on unless brand.json says
+    # Added by By Mel Ross (0.19.0): sound effects are the person's choice. A look can only set the starting point (0.40.1, see
+    # "sfx_default" below). They are on unless brand.json says
     # "sfx": "none"; edit.json "sfx" ("none" | "subtle" | "lots") sets it for one reel. Both are set by switches on the pages.
     sfx_own = _edit.get("sfx") if _edit.get("sfx") in ("none", "subtle", "lots") else brand.get("sfx")
     if sfx_own is not None:
@@ -202,6 +203,10 @@ def load_brand(home=None, reel=None, name=None, quiet=False):
             f["file"] = _font_file(f["file"], folder, home)
     if sfx_own is not None:
         out["sfx"] = sfx_own
+    elif theme.get("sfx_default") == "none":
+        # Added by By Mel Ross (0.40.1): a look may start silent ("sfx_default": "none" in its theme.json, as Minimal does).
+        # It is only a starting point: the switch on the pages (brand.json or edit.json "sfx") still wins either way.
+        out["sfx"] = "none"
     else:
         out.pop("sfx", None)
     out["_theme"] = {
