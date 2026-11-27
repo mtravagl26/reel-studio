@@ -128,7 +128,7 @@ function listThemes() {
     for (const n of fs.readdirSync(dir).sort()) {
       if (!THEME_OK.test(n) || !exists(path.join(dir, n, "theme.json"))) continue;
       const t = readJSON(path.join(dir, n, "theme.json"), {});
-      out.set(n, { id: n, name: String(t.name || n).slice(0, 40), summary: String(t.summary || "").slice(0, 200) });
+      out.set(n, { id: n, name: String(t.name || n).slice(0, 40), summary: String(t.summary || "").slice(0, 200), quiet: t.sfx_default === "none" });
     }
   }
   return [...out.values()];
@@ -253,13 +253,17 @@ function highlightBase(edit, brand) {
   return { words: String(words).toUpperCase(), text: String(text).toUpperCase(), bg: "none", box: HEX.test(String(box)) ? String(box).toUpperCase() : box, size: Math.round(size) };
 }
 // Added by By Mel Ross (0.19.0): sound effects on or off, for this reel (edit.json "sfx") or every reel (brand.json "sfx").
+// 0.40.1: sound effects when nobody has chosen: on, except under a look that starts silent ("sfx_default": "none", as Minimal)
+const sfxStart = (themeId) => ((listThemes().find((t) => t.id === themeId) || {}).quiet ? "none" : "subtle");
+const sfxAllNow = (brand) => brand.sfx ?? sfxStart(brand.theme);
+const sfxReelDefault = (edit, brand) => brand.sfx ?? sfxStart(edit.theme || brand.theme);
 function setSfx(body) {
   requireIdle();
   const on = body.on !== false, scope = body.scope === "all" ? "all" : "reel";
   snapshot("sfx", null, true);
   const edit = readJSON(P.edit, {}), brand = brandJSON();
   if (scope === "all") { brand.sfx = on ? (brand.sfx && brand.sfx !== "none" ? brand.sfx : "subtle") : "none"; delete edit.sfx; writeJSON(P.brand, brand); }
-  else if (on === ((brand.sfx ?? "subtle") !== "none")) delete edit.sfx; else edit.sfx = on ? "subtle" : "none";
+  else if (on === (sfxReelDefault(edit, brand) !== "none")) delete edit.sfx; else edit.sfx = on ? "subtle" : "none";
   writeJSON(P.edit, edit);
 }
 // Added by By Mel Ross (0.25.0): how loud the sound effects are, for this reel (edit.json "mix.effects") or every reel (brand.json).
@@ -572,7 +576,8 @@ function view() {
     pieces, media, popups: files, sfxNames: sfxNames(), notes, renders, job, receipt: receiptNow(st, edit, brand),
     textDefault: brand.text_default || { layer: "front", position: "above" }, hasTextDefault: !!brand.text_default, titleAlign: titleAlign(edit, brand),
     themes: listThemes(), theme: { reel: edit.theme || null, all: brand.theme || null }, giphy: !!giphyKey(),
-    sfxOn: (edit.sfx ?? brand.sfx ?? "subtle") !== "none", sfxAll: (brand.sfx ?? "subtle") !== "none",
+    sfxOn: (edit.sfx ?? sfxReelDefault(edit, brand)) !== "none", sfxAll: sfxAllNow(brand) !== "none",
+    sfxQuietLook: !edit.sfx && !brand.sfx && sfxReelDefault(edit, brand) === "none",
     music: musicNow(edit, brand), addLooks: addableLooks(),
     layout: edit.layout || brand.layout || "captions-low", layoutAll: brand.layout || "captions-low",
     captionLead: Number(edit.caption_lead ?? brand.caption_lead) || 0, captionLeadAll: Number(brand.caption_lead) || 0,

@@ -41,6 +41,14 @@ captions:C.captions(R,D,P),graphics:C.graphics(R,D,P),hash:C.hash(D)}}));"""
     )
 
 
+def _sfx_choice():
+    try:
+        v = json.load(open(HOME / "brand.json")).get("sfx")
+    except Exception:
+        v = None
+    return v if v in ("none", "subtle", "lots") else None
+
+
 def export(reel, proposal, out):
     out.mkdir(parents=True, exist_ok=True)
     sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -240,6 +248,9 @@ def export(reel, proposal, out):
         "board": board,
         "falseStarts": false,
         "sfxOn": brand.get("sfx", "subtle") != "none",
+        # 0.40.1: what the person set for every reel ("none" | "subtle" | "lots"), or None when they never chose. With None
+        # the page follows the look: on, except a look marked "quiet".
+        "sfxChoice": _sfx_choice(),
         # 0.16.0: the color box starts from these
         "colors": {
             k: brand.get("colors", {}).get(k, d_)
@@ -275,6 +286,7 @@ def export(reel, proposal, out):
                 "id": n,
                 "name": json.load(open(p / "theme.json")).get("name", n),
                 "summary": json.load(open(p / "theme.json")).get("summary", ""),
+                "quiet": json.load(open(p / "theme.json")).get("sfx_default") == "none",  # 0.40.1: starts with no sound effects
             }
             for n, p in _theme.available(HOME).items()
         ],
