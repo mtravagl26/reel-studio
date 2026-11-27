@@ -26,9 +26,6 @@ const NAMES = ["alpha", "beta", "gamma.", "delta", "epsilon", "zeta."];
 writeFileSync(join(reel, "transcript.json"), JSON.stringify(NAMES.map((text, i) => ({ text, start: i * 1.5 + 0.2, end: i * 1.5 + 0.6 }))));
 writeFileSync(join(reel, "proposal.json"), JSON.stringify({ title: "Studio test reel", proposedCut: [[0, 10]], accentWords: [], cards: [{ id: "g1", type: "tag", kind: "Pill", what: "Pill: hello", text: "hello", anchor: "gamma", after: 0, place: [240, 130, 600, 110] }] }));
 const env = { ...process.env, REELS_HOME: home };
-// stand-ins for the cut and the render, so Build my reel finishes in a second
-const stub = join(tmp, "stub"); mkdirSync(stub);
-for (const f of ["review_sync.py", "touchups.py", "pacing.py", "theme.py", "_theme.py", "recommend.py"]) { try { writeFileSync(join(stub, f), readFileSync(join(SKILL, "scripts", f))); } catch { /* not every helper exists */ } }
 const py = (...a) => execFileSync("python3", [join(SKILL, "scripts/review_sync.py"), ...a], { env, encoding: "utf8" });
 py("export", reel, join(reel, "proposal.json"), join(tmp, "out"));
 const data = read(tmp, "out", "reel.json"); data.srcUrl = "/files/raw.mp4";
@@ -115,6 +112,29 @@ try {
   await until(`!document.querySelector('[data-p="wrap"]').hidden`, "the Wrap up tab");
   assert.equal(await js(`document.querySelector("#build").textContent`), "Build my reel");
   assert.equal(await js(`document.querySelector("#buildmsg").textContent`), "Not built yet.");
+
+  // the live preview: one press cuts the video and lays the reel's own page over it, with no render
+  assert.equal(await js(`document.querySelector("#quickbtn").hidden`), false, "the button shows on the rough preview");
+  await click("#quickbtn");
+  try { await until(`document.querySelector("#live").style.display !== "none" && /Live preview/.test(document.querySelector("#pnote").textContent)`, "the live preview", 120000); }
+  catch (e) { console.log("DEBUG", await js(`document.querySelector("#pnote").textContent`), JSON.stringify(await (await fetch(base + "/api/quick-preview")).json())); throw e; }
+  assert.match(await js(`document.querySelector("#v").getAttribute("src")`), /^\/files\/master\.mp4/);
+  await until(`(() => { try { return document.querySelector("#live").contentWindow.reelLive.ready(); } catch { return false; } })()`, "the reel's page inside the preview", 20000);
+  assert.equal(await js(`document.querySelector("#quickbtn").hidden`), true);
+  if (process.env.REEL_SHOT_LIVE) { await js(`(() => { const s = document.querySelector("#scrub"); s.value = 1.0; s.dispatchEvent(new Event("input", { bubbles: true })); })()`); await sleep(1500);
+    writeFileSync(process.env.REEL_SHOT_LIVE, Buffer.from((await cdp("Page.captureScreenshot", { format: "png" })).data, "base64")); }
+  // a caption fix redraws it by itself (same cuts, so no button and no build)
+  await click('[data-tab="trim"]');
+  await click('#caps .caprow [data-tool="edit"]');
+  await js(`(() => { const i = document.querySelector("#caps .caprow input"); i.value = "fixed again"; i.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true })); })()`);
+  await until(`/Rough preview|Updating|Drawing/.test(document.querySelector("#pnote").textContent)`, "the preview dropping to rough while it redraws", 8000);
+  await until(`/Live preview/.test(document.querySelector("#pnote").textContent)`, "the live preview coming back by itself", 60000);
+  assert.match(readFileSync(join(reel, "edit.json"), "utf8"), /"again"/i, "the new wording reached the reel's plan");
+  // a new cut drops to the rough preview at once and offers the button again
+  await tap('#tx .w[data-i="4"]');
+  await until(`/Rough preview/.test(document.querySelector("#pnote").textContent) && document.querySelector("#live").style.display === "none"`, "rough after a new cut", 8000);
+  await sleep(2500);
+  await until(`!document.querySelector("#quickbtn").hidden && document.querySelector("#v").getAttribute("src").startsWith("/files/raw")`, "the button back, on the raw clip", 15000);
 
   // the current Edit page sees the same choices
   await open("/review");

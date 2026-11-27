@@ -419,6 +419,10 @@ async function giphyAdd(body) {
 }
 
 /** What the current video on disk was made from. First time here: trust final.mp4 when its length matches the cuts. */
+// 0.40.0: the cut that master.mp4 holds right now. A render and the new Edit page's quick preview both write it when they
+// cut, so neither one trusts a master the other has since replaced.
+const MASTER_KEY = path.join(REEL, "editor", "master-key.json");
+const masterKey = (st) => { const f = readJSON(MASTER_KEY, null); return f && f.key ? f.key : loadMeta(st).cut_key; };
 function loadMeta(st) {
   let m = readJSON(P.meta, null);
   if (m) return m;
@@ -562,7 +566,7 @@ function view() {
   for (const f of files) if (f.w) media[f.src] = { w: f.w, h: f.h, animated: f.animated, video: f.video };
   const renders = listRenders();
   const job = readJSON(P.job, { state: "idle" });
-  const cutsStale = meta.cut_key !== cutKeyNow(st);
+  const cutsStale = meta.cut_key !== cutKeyNow(st) || masterKey(st) !== cutKeyNow(st);
   const out = {
     reel: path.basename(REEL), speed: st.speed, total, masterDur: masterDuration(), edit: { captions: edit.captions || [], cards: edit.cards || [], sfx_events: edit.sfx_events || [], punch: edit.punch || [] },
     pieces, media, popups: files, sfxNames: sfxNames(), notes, renders, job, receipt: receiptNow(st, edit, brand),
@@ -662,7 +666,7 @@ const tailReason = (txt) => {   // the last readable lines of a failed step: no 
 
 async function runRender(opts = {}) {
   const st = loadState(), meta = loadMeta(st), env = childEnv(), steps = [];
-  const needCut = meta.cut_key !== cutKeyNow(st) || !exists(P.master);
+  const needCut = meta.cut_key !== cutKeyNow(st) || masterKey(st) !== cutKeyNow(st) || !exists(P.master);
   // 0.25.0: sound only. The picture in final.mp4 is kept; the sound list is rebuilt and the voice, music and effects are mixed
   // again from master.mp4. About 20 seconds instead of a full render. Used when only sound settings changed.
   const soundOnly = !!opts.soundOnly && !needCut && exists(P.final);
@@ -680,6 +684,7 @@ async function runRender(opts = {}) {
     if (needCut) {
       const r = await step("cut", "python3", [path.join(SCRIPTS, "cut.py"), REEL], env); steps.push({ name: "cut", secs: r.secs, ok: r.code === 0 }); setJob({ steps });
       if (r.code !== 0) return fail("cut", r);
+      writeJSON(MASTER_KEY, { key: cutKeyNow(st) });
     }
     let r;
     if (soundOnly) {
@@ -727,7 +732,7 @@ async function runRender(opts = {}) {
 function startRender(opts = {}) {
   if (job.state === "running" || job.state === "queued") throw new Error("A render is already running.");
   if (opts.soundOnly && !exists(P.final)) throw new Error("There's no finished reel yet: render it once first.");
-  if (opts.soundOnly) { const st = loadState(); if (loadMeta(st).cut_key !== cutKeyNow(st) || !exists(P.master)) throw new Error("The cuts changed since the last render, so the picture has to be made again: press Re-render."); }
+  if (opts.soundOnly) { const st = loadState(); if (loadMeta(st).cut_key !== cutKeyNow(st) || masterKey(st) !== cutKeyNow(st) || !exists(P.master)) throw new Error("The cuts changed since the last render, so the picture has to be made again: press Re-render."); }
   lastSnap = null;
   setJob({ state: "queued", step: "queued", steps: [], error: null });
   runRender(opts).catch((e) => setJob({ state: "failed", error: String(e.message || e), finishedAt: new Date().toISOString() }));   // 0.18.0: a surprise here must not stop the server
@@ -741,6 +746,7 @@ let reviewBuild = { state: "idle", told: [], error: null };
 function startReviewBuild() {
   if (!hasReview()) throw new Error("No reel is loaded on the review page yet.");
   if (job.state === "running" || job.state === "queued" || reviewBuild.state === "importing") throw new Error("A build is already running.");
+  if (quickBusy) throw new Error("The preview is updating. Try again in a few seconds.");
   if (liveChild) { try { liveChild.kill("SIGTERM"); } catch { /* gone */ } }
   const decisions = path.join(REVIEW_DB, "review", "current.json");
   let file = decisions;
@@ -760,6 +766,55 @@ function startReviewBuild() {
   c.on("error", () => fin(1)); c.on("close", fin);
 }
 // The review page reads builds/latest to show the preview and to tell whether it is out of date. Written after every render.
+// ---- quick preview for the new Edit page (Added by By Mel Ross, 0.40.0) --------------------------------------------------------------
+// The choices on the page are read in (review_sync.py import), the video is cut again only if the cuts changed, and the reel is
+// built as a web page (the live preview above). The page lays that over the cut video, so graphics and captions show with the
+// real fonts, colors and motion in seconds, with no render. A cut takes longer, so it only runs when the page says it may.
+let quick = { state: "idle", error: null, hash: null, at: null, secs: 0 };
+let quickBusy = false, quickAgain = null;
+const QUICK_DOC = path.join(REEL, "editor", "quick.json");
+const pyRun = (script, a) => new Promise((resolve) => {
+  const out = [], c = spawn("python3", [path.join(SCRIPTS, script), ...a], { cwd: REEL, env: childEnv() });
+  c.stdout.on("data", (d) => out.push(d.toString())); c.stderr.on("data", (d) => out.push(d.toString()));
+  c.on("error", (e) => resolve({ code: 1, out: String(e) })); c.on("close", (code) => resolve({ code, out: out.join("") }));
+});
+const liveDone = () => new Promise((resolve) => { const t = setInterval(() => { if (live.state !== "building" && !liveChild) { clearInterval(t); resolve(); } }, 150); });
+async function runQuick(allowCut) {
+  const t0 = Date.now();
+  try {
+    quick = { ...quick, state: "reading", error: null };
+    const decisions = path.join(REVIEW_DB, "review", "current.json");
+    let file = decisions;
+    if (!exists(decisions)) { fs.mkdirSync(path.join(REEL, "editor"), { recursive: true }); file = path.join(REEL, "editor", "no-decisions.json"); writeJSON(file, {}); }
+    const imp = await pyRun("review_sync.py", ["import", REEL, file]);
+    if (imp.code !== 0) throw new Error("Your choices could not be read: " + (tailReason(imp.out) || "unknown reason"));
+    initBuilt();
+    if (!built()) throw new Error("This reel has no plan yet.");
+    const st = loadState(), hash = readJSON(P.edit, {}).hash || null;
+    if (!exists(P.master) || masterKey(st) !== cutKeyNow(st)) {
+      if (!allowCut) { quick = { ...quick, state: "needs-cut", error: null }; return; }
+      if (job.state === "running" || job.state === "queued") throw new Error("A build is running.");
+      quick = { ...quick, state: "cutting" };
+      const c = await pyRun("cut.py", [REEL]);
+      if (c.code !== 0) throw new Error("The cut failed: " + (tailReason(c.out) || "unknown reason"));
+      writeJSON(MASTER_KEY, { key: cutKeyNow(st) });
+    }
+    quick = { ...quick, state: "drawing" };
+    startLive(true); await liveDone();
+    if (live.state !== "ready") throw new Error(live.error || "the preview could not be drawn");
+    quick = { state: "ready", error: null, hash, at: live.at, secs: Math.round((Date.now() - t0) / 100) / 10 };
+    writeJSON(QUICK_DOC, { hash, at: live.at });
+  } catch (e) { quick = { ...quick, state: "failed", error: String(e.message || e) }; }
+}
+function startQuick(allowCut) {
+  if (!hasReview()) throw new Error("No reel is loaded yet.");
+  if (job.state === "running" || job.state === "queued" || reviewBuild.state === "importing") throw new Error("A build is running. The preview comes back when it finishes.");
+  if (quickBusy) { quickAgain = { allowCut: !!allowCut || !!(quickAgain && quickAgain.allowCut) }; return quick; }
+  quickBusy = true; quick = { ...quick, state: "reading", error: null };
+  runQuick(!!allowCut).finally(() => { quickBusy = false; if (quickAgain) { const a = quickAgain; quickAgain = null; try { startQuick(a.allowCut); } catch { /* a build started meanwhile */ } } });
+  return quick;
+}
+
 function writeLatestBuild(rec) {
   try {
     if (!hasReview()) return;
@@ -831,6 +886,7 @@ function capSave(body) {
 const LIVE = path.join(REEL, "proj_live");
 let live = { state: exists(path.join(LIVE, "index.html")) ? "ready" : "none", n: 0, at: null, secs: 0, error: null, notes: [], key: null };
 let liveChild = null, liveAgain = false;
+try { const q = readJSON(QUICK_DOC, null); if (q && q.hash && live.state === "ready") quick = { state: "ready", error: null, hash: q.hash, at: q.at, secs: 0 }; } catch { /* the quick preview starts idle */ }
 const liveKey = () => { try { return crypto.createHash("sha1").update(fs.readFileSync(P.edit)).update(fs.readFileSync(P.brand)).update(String(fs.statSync(P.master).mtimeMs)).digest("hex"); } catch { return null; } };
 function startLive(force) {
   if (!built()) throw new Error("This reel is not built yet.");
@@ -1023,6 +1079,11 @@ const server = http.createServer(async (req, res) => {
     if (p === "/api/review-build" && req.method === "GET") {   // 0.18.0: works before the first build too
       if (reviewBuild.state === "rendering" && job.state === "failed") reviewBuild = { ...reviewBuild, state: "failed", error: job.error || "the render failed" };
       return json(res, 200, { ok: true, build: reviewBuild, job: { state: job.state, step: job.step, steps: job.steps || [], startedAt: job.startedAt || null } });
+    }
+    if (p === "/api/quick-preview" && req.method === "GET") return json(res, 200, { ok: true, quick });
+    if (p === "/api/quick-preview" && req.method === "POST") {
+      try { const b = JSON.parse((await readBody(req, 1e4)).toString() || "{}"); return json(res, 200, { ok: true, quick: startQuick(!!b.cut) }); }
+      catch (e) { return json(res, 400, { ok: false, error: String(e.message || e) }); }
     }
     if (p === "/api/review-build" && req.method === "POST") {
       try { startReviewBuild(); return json(res, 200, { ok: true, build: reviewBuild }); }
