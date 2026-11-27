@@ -238,3 +238,11 @@ Added by By Mel Ross in 0.19.0 (November 2026), in skills/3-editing/reel-editor.
   one-tap swap that Undo reverses (review/try-again.mjs, review/editor.js, review/editor.html, review/editor-server.mjs).
 - Fix (0.38.7): the home page keeps the checked clip and the kind of reel when you open the looks page and come back
   (review/home.html; browser test tests/test_home_ui.mjs).
+- New Edit page, step 1 of 5 (0.39.0): /studio, beside the current Edit page, with one preview, 4 tabs (Trim, Style,
+  Audio, Wrap up) and Trim working: word cuts, fillers, pauses, false starts, caption highlight, edit, nudge and merge,
+  Undo and Redo, and Build my reel. It reads and writes the same choices as the current Edit page. Style and Audio
+  point to the current page until their steps land (review/studio.html, review/studio.js, review/editor-server.mjs;
+  browser test tests/test_studio_ui.mjs). The page uses the bymelross.com look: Instrument Serif and Libre Franklin.
+  Libre Franklin (Copyright 2020 The Libre Franklin Project Authors, https://github.com/googlefonts/Libre-Franklin) is
+  the variable Latin file from @fontsource-variable/libre-franklin 5.3.0, under the SIL Open Font License 1.1
+  (themes/_fonts/LibreFranklin-Variable.woff2, themes/_fonts/OFL-LibreFranklin.txt).

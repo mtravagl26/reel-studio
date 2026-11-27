@@ -2,7 +2,7 @@
 
 > Modified by By Mel Ross (see NOTICE): adds the reel editor's pieces and the brand fonts; the FavStash preview images are not included here.
 
-This repository provides instructions and media helpers. Apart from the Montserrat, Lora, Inter, Caveat, Anton, Fredoka and Pacifico fonts, it does not vendor the projects below; setup or the creator installs them.
+This repository provides instructions and media helpers. Apart from the Montserrat, Lora, Inter, Caveat, Anton, Fredoka, Pacifico and Libre Franklin fonts, it does not vendor the projects below; setup or the creator installs them.
 
 | Project | Role | License note |
 | --- | --- | --- |
@@ -15,6 +15,7 @@ This repository provides instructions and media helpers. Apart from the Montserr
 | [Montserrat](https://github.com/JulietaUla/Montserrat) | Caption and graphics font **bundled** in `skills/3-editing-styles/breakout-card/assets/fonts/` | SIL Open Font License 1.1; the license text ships beside the fonts |
 | [Claude Reel Editor](https://github.com/nicolapocock/claude-reel-editor) | The `reel-editor` skill, **included with changes** in `skills/3-editing/reel-editor/` | MIT; the license text ships beside the skill |
 | [Lora](https://github.com/cyrealtype/Lora-Cyrillic) | Example brand head font and theme font **bundled** in `skills/3-editing/reel-editor/themes/_fonts/` | SIL Open Font License 1.1, Reserved Font Name "Lora"; `skills/3-editing/reel-editor/themes/_fonts/OFL-Lora.txt` |
+| [Libre Franklin](https://github.com/googlefonts/Libre-Franklin) | Body font of the new Edit page (`/studio`), **bundled** in `skills/3-editing/reel-editor/themes/_fonts/` | SIL Open Font License 1.1; `skills/3-editing/reel-editor/themes/_fonts/OFL-LibreFranklin.txt` |
 | [Inter](https://github.com/rsms/inter) | Example brand body font and theme font **bundled** in `skills/3-editing/reel-editor/themes/_fonts/` | SIL Open Font License 1.1; `skills/3-editing/reel-editor/themes/_fonts/OFL-Inter.txt` |
 | [Caveat](https://github.com/googlefonts/caveat) | Handwriting font for the Style Menu cards (`polaroids`, `xlist`, `tiles`, `popup` captions, title overlines) **bundled** in `skills/3-editing/reel-editor/assets/fonts/` (Latin subset of the Bold weight, WOFF2, as served by Google Fonts) | SIL Open Font License 1.1, Copyright 2014 The Caveat Project Authors; no Reserved Font Name; `skills/3-editing/reel-editor/assets/fonts/OFL-Caveat.txt` |
 | [Anton](https://github.com/googlefonts/AntonFont) | Head font of the Bold and Handwritten themes **bundled** in `skills/3-editing/reel-editor/themes/_fonts/` (from google/fonts) | SIL Open Font License 1.1; `skills/3-editing/reel-editor/themes/_fonts/OFL-Anton.txt` |

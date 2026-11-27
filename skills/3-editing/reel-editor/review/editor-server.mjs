@@ -980,6 +980,18 @@ const server = http.createServer(async (req, res) => {
       }
     }
     if (p === "/shim.js") { res.writeHead(200, { "Content-Type": TYPES[".js"] }).end(SHIM); return; }
+    // Added by By Mel Ross (0.39.0): the new Edit page (step 1 of 5), beside the current one until it replaces it
+    if (p === "/studio") {
+      const links = `<script>window.REEL_STUDIO_LINKS=${JSON.stringify({ edit: LINKS.edit, cover: LINKS.cover, caption: LINKS.caption }).replace(/</g, "\\u003c")}</script>`;
+      const html = fs.readFileSync(path.join(HERE, "studio.html"), "utf8").replace('<script src="core.js"></script>', links + '<script src="shim.js"></script><script src="core.js"></script>');
+      res.writeHead(200, { "Content-Type": TYPES[".html"], "Cache-Control": "no-store" }).end(html); return;
+    }
+    if (p === "/studio.js") return sendFile(req, res, path.join(HERE, "studio.js"));
+    if (p.startsWith("/fonts/")) {   // the page's own fonts, from themes/_fonts
+      const n = decodeURIComponent(p.slice(7));
+      if (!/^[A-Za-z0-9-]+\.(ttf|woff2)$/.test(n)) { res.writeHead(404).end(); return; }
+      return sendFile(req, res, path.join(SKILL, "themes", "_fonts", n));
+    }
     if (p === "/core.js") return sendFile(req, res, path.join(HERE, "core.js"));
     if (p === "/steps.js") return sendFile(req, res, path.join(HERE, "steps.js"));   // 0.38.2: greyed steps explain themselves
     if (p === "/review.js" || p === "/editor.js") return sendFile(req, res, path.join(HERE, p.slice(1)));   // 0.30.0: the pages' code
