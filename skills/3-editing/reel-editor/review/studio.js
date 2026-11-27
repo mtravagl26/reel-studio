@@ -1,6 +1,6 @@
 // Added by By Mel Ross (0.39.0). The new Edit page (studio.html), step 1 of 5: the preview, the 4 tabs, and the Trim tab.
 // It reads and writes the same decisions as the review page (review/current through the page's db), and uses the same
-// core.js to turn them into a cut, so a cut made here is the cut that renders. Style and Sound arrive in the next steps.
+// core.js to turn them into a cut, so a cut made here is the cut that renders. Style and Audio arrive in the next steps.
 (() => {
   const $ = (s) => document.querySelector(s), $$ = (s) => [...document.querySelectorAll(s)];
   const fmt = (t) => { t = Math.max(0, +t || 0); return `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, "0")}`; };
@@ -189,8 +189,6 @@
       }
       row.append(ts, ws); tx.appendChild(row);
     }
-    const fills = R.words.filter((w, i) => w.filler && !fb.has(i)).length, pt = P.pauses.filter((p) => !p.kept).length, nfs = (R.falseStarts || []).filter((f) => f.w.some((i) => cut.has(i))).length;
-    $("#ctally").innerHTML = `<span>reel <b>${fmt(P.cutDur)}</b> from ${fmt(R.srcDur)}</span><span><b>${cut.size}</b> ${cut.size === 1 ? "word" : "words"} cut</span>${(R.falseStarts || []).length ? `<span><b>${nfs}</b> of ${R.falseStarts.length} false starts cut</span>` : ""}<span><b>${fills}</b> fillers removed</span><span><b>${pt}</b> of ${P.pauses.length} pauses trimmed</span>`;
     $("#reelname").textContent = `${R.title} · ${fmt(R.srcDur)} raw, ${fmt(P.cutDur)} as a reel`;
   }
   (function wireWords() {
@@ -261,8 +259,6 @@
       }));
       row.append(ts, cw, tools); box.appendChild(row);
     }
-    const acc = live.reduce((n, c) => n + c.words.filter((w) => w.accent).length, 0);
-    $("#captally").innerHTML = `<span><b>${live.length}</b> captions</span><span><b>${acc}</b> highlighted words</span>`;
   }
 
   // ---------- Wrap up: build ----------
@@ -321,7 +317,7 @@
       }, () => {});
       db.doc("builds/latest").onSnapshot((s) => { B = s.exists ? s.data() : null; if (R && P) { renderBuild(); syncSource(); } }, () => {});
       recompute(); restoreUndo();
-      const want = location.hash.slice(1); tab = ["trim", "style", "sound", "wrap"].includes(want) ? want : "trim";
+      const want = location.hash.slice(1); tab = ["trim", "style", "audio", "wrap"].includes(want) ? want : "trim";
       renderWords(); renderCaps(); showTab(tab); pollBuild();
     } catch (e) { $("#reelname").textContent = "The reel didn't load. Reload the page."; console.error(e); }
   })();

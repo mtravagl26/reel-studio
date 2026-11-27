@@ -63,14 +63,15 @@ try {
 
   await open("/studio");
   await until(`document.querySelectorAll("#tx .w").length === 6 && document.querySelectorAll("#caps .caprow").length > 0`, "the words and captions");
-  assert.deepEqual(await js(`[...document.querySelectorAll(".tab")].map((b) => b.firstChild.textContent)`), ["Trim", "Style", "Sound", "Wrap up"]);
+  assert.deepEqual(await js(`[...document.querySelectorAll(".tab")].map((b) => b.firstChild.textContent)`), ["Trim", "Style", "Audio", "Wrap up"]);
   assert.match(await js(`document.querySelector("#reelname").textContent`), /Studio test reel/);
   assert.match(await js(`getComputedStyle(document.querySelector("h2")).fontFamily`), /Instrument Serif/);
+  assert.equal(await js(`document.querySelector("#player").getBoundingClientRect().left < document.querySelector("#tx").getBoundingClientRect().left`), true, "the preview sits left of the words");
+  assert.equal(await js(`document.querySelectorAll(".tally").length`), 0, "no summary line");
   assert.equal(await js(`document.fonts.check('16px "Libre Franklin"') && document.fonts.check('26px "Instrument Serif"')`), true, "both fonts load from this computer");
   assert.equal(await js(`performance.getEntriesByType("resource").every((r) => new URL(r.name).host === location.host)`), true, "no outside requests");
 
   // Trim: cut a word, the reel gets shorter, it saves; Undo and Redo
-  const len = () => js(`document.querySelector("#ctally b").textContent`), before = await len();
   await tap('#tx .w[data-i="1"]');
   await until(`document.querySelector('#tx .w[data-i="1"]').classList.contains("cut")`, "beta struck out");
   await waitSaved((d) => JSON.stringify(d.cut) === "[1]", "the cut");
@@ -98,11 +99,11 @@ try {
   await open("/studio");
   await until(`document.querySelector('#tx .w[data-i="1"]')?.classList.contains("cut") && !document.querySelector("#undo").disabled`, "the cut and Undo after a reload");
 
-  // the tabs: Next buttons walk Trim to Wrap up; Style and Sound say where things live for now
+  // the tabs: Next buttons walk Trim to Wrap up; Style and Audio say where things live for now
   await click('[data-p="trim"] [data-next]');
   await until(`document.querySelector('.tab[data-tab="style"]').getAttribute("aria-selected") === "true" && !document.querySelector('[data-p="style"]').hidden`, "the Style tab");
   assert.match(await js(`document.querySelector('[data-p="style"] .soon').textContent`), /being built/);
-  await click('[data-p="style"] [data-next]'); await click('[data-p="sound"] [data-next]');
+  await click('[data-p="style"] [data-next]'); await click('[data-p="audio"] [data-next]');
   await until(`!document.querySelector('[data-p="wrap"]').hidden`, "the Wrap up tab");
   assert.equal(await js(`document.querySelector("#build").textContent`), "Build my reel");
   assert.equal(await js(`document.querySelector("#buildmsg").textContent`), "Not built yet.");

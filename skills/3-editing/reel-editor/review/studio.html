@@ -2,12 +2,12 @@
 <html lang="en"><head><meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <title>Reel Studio</title>
-<!-- Added by By Mel Ross (0.39.0). The new Edit page, step 1 of 5: one page with 4 tabs (Trim, Style, Sound, Wrap up), one
-     preview that stays on screen, and one main button per tab. Trim works here; Style and Sound arrive in the next steps and
+<!-- Added by By Mel Ross (0.39.0). The new Edit page, step 1 of 5: one page with 4 tabs (Trim, Style, Audio, Wrap up), one
+     preview that stays on screen, and one main button per tab. Trim works here; Style and Audio arrive in the next steps and
      point at the current pages until then. Served at /studio by editor-server.mjs; the current Edit page (/edit) is untouched.
      Same saved decisions as the review page (review_db/review/current.json), so nothing is lost moving between them. -->
 <style>
-:root { --bg:#F4F1E8; --ink:#2C3325; --mute:#5c6353; --line:#d9d4bf; --card:#F4F1E8; --surface:#E8E4D3; --sage:#A9BC8B; --sage-d:#6E8B3D; --soft:#E8E4D3; --orange:#D98159;
+:root { --bg:#F4F1E8; --ink:#2C3325; --mute:#5c6353; --line:#d9d4bf; --card:#FFFEFA; --surface:#E8E4D3; --sage:#A9BC8B; --sage-d:#6E8B3D; --soft:#E8E4D3; --orange:#D98159;
   --cut-bg:#f1d9cc; --cut-fg:#7d3413; --auto:#6b5a1c; --warn:#b8582f; --f-mono:ui-monospace,Menlo,monospace; --f-head:"Instrument Serif",Georgia,serif; }
 /* The By Mel Ross look (0.39.0): Matcha Paper colors, Instrument Serif headings, Libre Franklin body, graph paper. Both fonts
    are served from this computer (themes/_fonts, SIL Open Font License), so the page still makes no outside requests. */
@@ -32,8 +32,8 @@ button { font: inherit; cursor: pointer; }
 .tab { flex: 1 1 0; min-width: 76px; min-height: 48px; font-weight: 700; border: 1.5px solid var(--ink); border-bottom: 0; background: var(--surface); color: var(--ink); border-radius: 4px 4px 0 0; padding: 6px 10px; }
 .tab small { display: block; font-weight: 500; font-size: 11px; color: var(--mute); }
 .tab[aria-selected="true"] { background: var(--ink); border-color: var(--ink); color: var(--bg); } .tab[aria-selected="true"] small { color: var(--sage); }
-.wrap { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 20px; max-width: 1080px; margin: 0 auto; padding: 16px; align-items: start; }
-.side { position: sticky; top: 12px; }
+.wrap { display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: 20px; max-width: 1080px; margin: 0 auto; padding: 16px; align-items: start; }
+.side { position: sticky; top: 12px; order: -1; }
 #player { position: relative; width: 100%; aspect-ratio: 9 / 16; background: #000; border-radius: 22px; overflow: hidden; border: 5px solid var(--ink); }
 #player video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
 #ov { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
@@ -48,7 +48,6 @@ button { font: inherit; cursor: pointer; }
 section[data-p] { background: var(--card); border: 1.5px solid var(--ink); border-radius: 4px; padding: 18px; box-shadow: 4px 4px 0 rgba(44,51,37,.18); }
 h2 { font: 400 26px/1.1 var(--f-head); margin: 0 0 4px; } h2 + .lede { margin-top: 0; }
 .lede { color: var(--mute); font-size: 15px; margin: 0 0 12px; }
-.tally { font: 500 13px var(--f-mono); color: var(--mute); display: flex; gap: 6px 14px; flex-wrap: wrap; margin: 0 0 10px; } .tally b { color: var(--ink); }
 .sent { display: grid; grid-template-columns: 44px 1fr; gap: 8px; padding: 8px 0; border-top: 1px solid var(--line); }
 .ts { font: 500 12px var(--f-mono); color: var(--mute); background: none; border: 0; padding: 6px 0; text-align: left; min-height: 36px; }
 .words { display: flex; flex-wrap: wrap; gap: 4px 2px; align-items: center; user-select: none; touch-action: pan-y; }
@@ -99,7 +98,7 @@ h2 { font: 400 26px/1.1 var(--f-head); margin: 0 0 4px; } h2 + .lede { margin-to
 <div class="tabs" role="tablist" aria-label="Edit your reel">
   <button class="tab" role="tab" type="button" data-tab="trim" aria-selected="true">Trim<small>what stays, captions</small></button>
   <button class="tab" role="tab" type="button" data-tab="style" aria-selected="false">Style<small>looks, graphics</small></button>
-  <button class="tab" role="tab" type="button" data-tab="sound" aria-selected="false">Sound<small>effects, music</small></button>
+  <button class="tab" role="tab" type="button" data-tab="audio" aria-selected="false">Audio<small>effects, music</small></button>
   <button class="tab" role="tab" type="button" data-tab="wrap" aria-selected="false">Wrap up<small>build, check</small></button>
 </div>
 <div class="wrap">
@@ -107,21 +106,19 @@ h2 { font: 400 26px/1.1 var(--f-head); margin: 0 0 4px; } h2 + .lede { margin-to
     <section data-p="trim">
       <h2>What you say</h2>
       <p class="lede">Tap a word to cut it, or drag across several. Tap it again to bring it back. Tap a time to hear that line.</p>
-      <div class="tally" id="ctally"></div>
       <div id="tx"></div>
       <h2 style="margin-top:22px">Captions</h2>
       <p class="lede">Captions follow your cuts. Tap a word to highlight it. <b>edit</b> fixes the wording, ±0.1 moves the start, and <b>merge</b> joins a line to the next one.</p>
-      <div class="tally" id="captally"></div>
       <div id="caps"></div>
       <div class="next"><span>Your changes save as you go.</span><button class="b pri" type="button" data-next="style">Next: Style</button></div>
     </section>
     <section data-p="style" hidden>
       <h2>Style</h2>
       <p class="soon">This tab is being built. Until it's here, the theme, caption look and graphics are on <a href="/edit#cut" target="_top">the current Edit page</a>, under Captions and Graphics. Anything you change there shows up here too.</p>
-      <div class="next"><span></span><button class="b pri" type="button" data-next="sound">Next: Sound</button></div>
+      <div class="next"><span></span><button class="b pri" type="button" data-next="audio">Next: Audio</button></div>
     </section>
-    <section data-p="sound" hidden>
-      <h2>Sound</h2>
+    <section data-p="audio" hidden>
+      <h2>Audio</h2>
       <p class="soon">This tab is being built. Until it's here, sound effects and the voice clean-up are on <a href="/edit#cut" target="_top">the current Edit page</a>, under Sound.</p>
       <div class="next"><span></span><button class="b pri" type="button" data-next="wrap">Next: Wrap up</button></div>
     </section>
