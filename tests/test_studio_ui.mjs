@@ -68,6 +68,7 @@ try {
   assert.match(await js(`getComputedStyle(document.querySelector("h2")).fontFamily`), /Instrument Serif/);
   assert.equal(await js(`document.querySelector("#player").getBoundingClientRect().left < document.querySelector("#tx").getBoundingClientRect().left`), true, "the preview sits left of the words");
   assert.equal(await js(`document.querySelectorAll(".tally").length`), 0, "no summary line");
+  assert.deepEqual(await js(`[...new Set([".pz", ".cw .x", ".tools button", ".steps .step", "section[data-p]", ".b", "#tx .w"].map((q) => getComputedStyle(document.querySelector(q)).borderTopLeftRadius))]`), ["4px"], "every box has the same corner");
   assert.equal(await js(`document.fonts.check('16px "Libre Franklin"') && document.fonts.check('26px "Instrument Serif"')`), true, "both fonts load from this computer");
   assert.equal(await js(`performance.getEntriesByType("resource").every((r) => new URL(r.name).host === location.host)`), true, "no outside requests");
 
