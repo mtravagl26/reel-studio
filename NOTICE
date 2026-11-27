@@ -246,3 +246,8 @@ Added by By Mel Ross in 0.19.0 (November 2026), in skills/3-editing/reel-editor.
   Libre Franklin (Copyright 2020 The Libre Franklin Project Authors, https://github.com/googlefonts/Libre-Franklin) is
   the variable Latin file from @fontsource-variable/libre-franklin 5.3.0, under the SIL Open Font License 1.1
   (themes/_fonts/LibreFranklin-Variable.woff2, themes/_fonts/OFL-LibreFranklin.txt).
+- Live preview on the new Edit page (0.40.0): the preview shows the built reel when it matches your choices, else the cut
+  video with the reel's own page laid over it (real fonts, colors, graphics and motion), else the rough cut. A caption fix
+  redraws it in seconds with no build. A new cut drops to the rough cut and offers one button that re-cuts and redraws,
+  also before the first build. The server remembers which cut master.mp4 holds, so a render and the preview never trust a
+  master the other replaced (review/studio.js, review/studio.html, review/editor-server.mjs; tests/test_studio_ui.mjs).

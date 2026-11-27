@@ -16,7 +16,7 @@
   function saveNow() {
     if (!ref) return; dirty = false;
     const body = JSON.parse(JSON.stringify({ ...S, updatedAt: new Date().toISOString() })); mine = body.updatedAt;
-    saving = saving.then(() => ref.set(body)).then(() => { $("#savedat").textContent = "Saved " + new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }); },
+    saving = saving.then(() => ref.set(body)).then(() => { $("#savedat").textContent = "Saved " + new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }); quickSoon(); },
       (e) => pill("Couldn't save (" + (e?.code || "error") + "). Check the Reel Studio link is still running.", true));
   }
   let undo = [], redo = [];
@@ -60,25 +60,50 @@
   $$(".tab").forEach((b) => b.addEventListener("click", () => showTab(b.dataset.tab)));
   document.addEventListener("click", (e) => { const n = e.target.closest("[data-next]"); if (n) { showTab(n.dataset.next); window.scrollTo({ top: 0, behavior: "smooth" }); } });
 
-  // ---------- the preview: the rough cut while you trim, the built reel once a build matches your choices ----------
-  const showsBuilt = () => tab !== "trim" && fresh();
+  // ---------- the preview: the best picture there is for your choices as they stand ----------
+  // built: the finished reel, when the last build matches your choices. live: the cut video with the reel's own page laid over
+  // it (real fonts, colors, graphics and motion), made in seconds by the quick preview. rough: the raw clip with the cuts
+  // skipped and graphics as outlines, always there and always instant. pos is the time in the cut reel in all 3.
+  const live = $("#live");
+  let kind = "rough", Q = { state: "idle" }, lineHold = false, seekOnLoad = null, quickT = null, quickPollT = null;
+  const hashNow = () => ReelCore.hash(decisions());
+  const quickBusy = () => ["reading", "cutting", "drawing"].includes(Q.state);
+  const quickOk = () => Q.state === "ready" && !!Q.hash && Q.hash === hashNow();
+  const wantKind = () => (lineHold ? "rough" : fresh() ? "built" : quickOk() ? "live" : "rough");
+  const srcTime = () => (kind === "rough" ? P.toSrc(pos) : pos);
   function syncSource() {
-    if (!R) return;
-    const want = showsBuilt() ? B.url : R.srcUrl;
-    const changed = v.getAttribute("src") !== want;
-    if (changed) { stop(); v.setAttribute("src", want); v.load(); }
-    if (showsBuilt()) { mode = "built"; ov.textContent = ""; if (changed) { $("#scrub").max = (B.cutDur || P.cutDur).toFixed(1); $("#scrub").value = 0; clock(0, +$("#scrub").max); }
-      $("#pnote").textContent = "Your built reel. It matches your choices."; }
-    else { if (mode === "built") mode = "idle"; setPos(pos); overlay(pos);
-      $("#pnote").textContent = B && B.url ? "Rough preview. You've changed things since the last build, so build again in Wrap up to see them finished." : "Rough preview: your cuts and captions, with graphics as outlines. Build in Wrap up to see the finished look."; }
+    if (!R || !P) return;
+    const k = wantKind(), url = k === "built" ? B.url : k === "live" ? "/files/master.mp4?v=" + encodeURIComponent(Q.at || "") : R.srcUrl;
+    if (v.getAttribute("src") !== url) { stop(); kind = k; seekOnLoad = srcTime(); v.setAttribute("src", url); v.load(); }
+    else if (kind !== k) { kind = k; }
+    if (k === "live") { const want = "/live/index.html?at=" + encodeURIComponent(Q.at || ""); if (live.getAttribute("src") !== want) live.setAttribute("src", want); }
+    live.style.display = k === "live" ? "" : "none";
+    setPos(pos); if (k === "rough") overlay(pos); else { ov.textContent = ""; marks(pos); }
+    const note = $("#pnote"), btn = $("#quickbtn"); note.className = "";
+    btn.hidden = !(k === "rough" && !quickBusy() && !build.busy && !lineHold);
+    btn.textContent = Q.state === "needs-cut" || B || Q.hash ? "Show my cuts with real graphics (about a minute)" : "Show real graphics (about a minute)";
+    if (Q.state === "cutting") note.textContent = "Cutting the video for the preview. About a minute.";
+    else if (Q.state === "drawing") note.textContent = "Drawing your graphics…";
+    else if (Q.state === "reading") note.textContent = "Updating the preview…";
+    else if (k === "built") note.textContent = "Your built reel. It matches your choices.";
+    else if (k === "live") note.textContent = "Live preview: your real fonts, colors and graphics. Sound effects and music come with Build.";
+    else if (Q.state === "failed") { note.textContent = "The live preview didn't update: " + (Q.error || "unknown reason"); note.className = "bad"; }
+    else note.textContent = "Rough preview: your cuts and captions, with graphics as outlines.";
   }
   const clock = (a, b) => { $("#clock").textContent = `${fmt(a)} / ${fmt(b)}`; };
-  function stop() { cancelAnimationFrame(loop); v.pause(); v.playbackRate = 1; if (mode !== "built") mode = "paused"; $("#playbtn").textContent = "▶"; $("#playbtn").setAttribute("aria-label", "Play"); }
-  function setPos(c) { if (!P) return; pos = Math.max(0, Math.min(c, P.cutDur - 0.05)); if (mode === "built") return; $("#scrub").max = P.cutDur.toFixed(1); $("#scrub").value = pos.toFixed(1); clock(pos, P.cutDur); }
-  function seekCut(c) { setPos(c); v.currentTime = P.toSrc(pos); if (mode !== "rough") { mode = "paused"; overlay(pos); } }
+  function stop() { cancelAnimationFrame(loop); v.pause(); v.playbackRate = 1; mode = "paused"; $("#playbtn").textContent = "▶"; $("#playbtn").setAttribute("aria-label", "Play"); }
+  function setPos(c) { if (!P) return; pos = Math.max(0, Math.min(c, P.cutDur - 0.05)); $("#scrub").max = P.cutDur.toFixed(1); $("#scrub").value = pos.toFixed(1); clock(pos, P.cutDur); }
+  function seekCut(c) { if (mode !== "paused") stop(); setPos(c); try { v.currentTime = srcTime(); } catch { seekOnLoad = srcTime(); } if (kind === "rough") overlay(pos); else marks(pos); }
   function playing() { $("#playbtn").textContent = "❚❚"; $("#playbtn").setAttribute("aria-label", "Pause"); }
-  function playRough(from = pos) {
+  function playFrom(from = pos) {
     if (from >= P.cutDur - 0.1) from = 0;
+    if (kind === "rough") return playRough(from);
+    stop(); mode = "final"; setPos(from); v.currentTime = pos; playing();
+    v.play().catch(() => { stop(); pill("Playback was blocked. Tap play again.", true); });
+    const tick = () => { if (mode !== "final") return; if (v.ended) { stop(); return; } setPos(v.currentTime); marks(pos); loop = requestAnimationFrame(tick); };
+    loop = requestAnimationFrame(tick);
+  }
+  function playRough(from = pos) {
     stop(); mode = "rough"; v.playbackRate = P.speed; setPos(from); v.currentTime = P.toSrc(pos); playing();
     v.play().catch(() => { stop(); pill("Playback was blocked. Tap play again.", true); });
     const tick = () => {
@@ -91,22 +116,44 @@
     loop = requestAnimationFrame(tick);
   }
   function playLine(s, e) {   // one line from the raw clip, cuts and all, so you can hear what a cut word sounds like
-    if (mode === "built") return;
-    stop(); mode = "line"; v.currentTime = s; playing(); ov.textContent = "";
-    v.play().catch(() => { stop(); pill("Playback was blocked. Tap the time again.", true); });
-    const tick = () => { if (mode !== "line") return; if (v.currentTime >= e) { stop(); overlay(pos); return; } nowWord(v.currentTime); loop = requestAnimationFrame(tick); };
-    loop = requestAnimationFrame(tick);
+    const go = () => {
+      stop(); mode = "line"; v.currentTime = s; playing(); ov.textContent = "";
+      v.play().catch(() => { endLine(); pill("Playback was blocked. Tap the time again.", true); });
+      const tick = () => { if (mode !== "line") return; if (v.currentTime >= e) { endLine(); return; } nowWord(v.currentTime); loop = requestAnimationFrame(tick); };
+      loop = requestAnimationFrame(tick);
+    };
+    const endLine = () => { stop(); lineHold = false; syncSource(); };
+    if (kind === "rough") return go();
+    lineHold = true; syncSource(); seekOnLoad = null; v.addEventListener("loadedmetadata", go, { once: true });   // the raw clip has to load first
   }
   $("#playbtn").addEventListener("click", () => {
     if (!R) return;
-    if (mode === "built") { if (v.paused) { v.play().catch(() => {}); playing(); } else stop(); return; }
-    if (mode === "rough" || mode === "line") { stop(); overlay(pos); } else playRough(pos);
+    if (mode === "line") { stop(); lineHold = false; syncSource(); return; }
+    if (mode === "rough" || mode === "final") { stop(); if (kind === "rough") overlay(pos); } else playFrom(pos);
   });
-  $("#scrub").addEventListener("input", (e) => { if (!R) return; if (mode === "built") { v.currentTime = +e.target.value; clock(+e.target.value, +e.target.max); } else seekCut(+e.target.value); });
-  v.addEventListener("timeupdate", () => { if (mode !== "built") return; $("#scrub").value = v.currentTime.toFixed(1); clock(v.currentTime, v.duration || +$("#scrub").max); });
-  v.addEventListener("loadedmetadata", () => { if (mode === "built" && v.duration) { $("#scrub").max = v.duration.toFixed(1); clock(0, v.duration); } });
-  v.addEventListener("ended", () => { if (mode === "built") stop(); });
+  $("#scrub").addEventListener("input", (e) => { if (R) seekCut(+e.target.value); });
+  v.addEventListener("loadedmetadata", () => { if (seekOnLoad != null) { try { v.currentTime = seekOnLoad; } catch { /* the first frame shows */ } seekOnLoad = null; } });
   v.addEventListener("error", () => pill("The video didn't load. Reload the page.", true));
+  (function liveLoop() {   // the reel's page has no clock of its own: it follows the player
+    if (kind === "live" && live.style.display !== "none") {
+      live.style.transform = `scale(${$("#player").clientWidth / 1080})`;
+      try { const w = live.contentWindow; if (w && w.reelLive && w.reelLive.ready()) w.reelLive.sync(v.currentTime || 0, !v.paused && !v.seeking && !v.ended); } catch { /* the frame is loading */ }
+    }
+    requestAnimationFrame(liveLoop);
+  })();
+  // the quick preview: after a save it redraws by itself when the cuts are the same (seconds); a new cut waits for the button
+  async function quickPoll() {
+    try { Q = (await (await fetch("/api/quick-preview")).json()).quick || Q; } catch { /* try again */ }
+    syncSource(); clearTimeout(quickPollT); if (quickBusy()) quickPollT = setTimeout(quickPoll, 700);
+  }
+  async function quickStart(cut) {
+    if (build.busy) return;
+    try { const j = await (await fetch("/api/quick-preview", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ cut: !!cut }) })).json(); if (!j.ok) throw new Error(j.error || "failed"); Q = j.quick; }
+    catch (e) { Q = { ...Q, state: "failed", error: /Failed to fetch|NetworkError/.test(String(e.message)) ? "this page can't reach Reel Studio" : e.message }; }
+    syncSource(); clearTimeout(quickPollT); if (quickBusy()) quickPollT = setTimeout(quickPoll, 700);
+  }
+  function quickSoon() { if (!(B || Q.hash) || fresh() || quickOk()) return; clearTimeout(quickT); quickT = setTimeout(() => { if (!dirty && !fresh() && !quickOk()) quickStart(false); }, 900); }
+  $("#quickbtn").addEventListener("click", async () => { clearTimeout(timer); if (dirty) saveNow(); await saving; quickStart(true); });
 
   // what's drawn on the rough preview at a cut time: outlines for graphics, and the caption in your caption style
   const hlNow = () => ({ words: R.style.cap, text: R.style.acc, bg: R.style.accBg || "none", box: R.style.capBox || "none", size: R.style.capSize, ...(S.highlight || {}) });
@@ -138,18 +185,18 @@
     if (hl.box && hl.box !== "none") { const wrap = document.createElement("span"); Object.assign(wrap.style, { background: hl.box, padding: ".05em .25em", borderRadius: ".2em", lineHeight: "1.5", textShadow: "none" }); wrap.append(...el.childNodes); el.appendChild(wrap); }
     return el;
   }
+  function marks(c) { const cap = CAPS.find((x) => !x.gone && c >= x.start && c < x.end); nowWord(P.toSrc(c)); $$(".caprow").forEach((r) => r.classList.toggle("now", !!cap && +r.dataset.ci === cap.ci)); return cap; }
   function overlay(c) {
     ov.textContent = "";
-    if (!R || mode === "built" || mode === "line" || c == null) return;
+    if (!R || kind !== "rough" || mode === "line" || c == null) return;
     for (const g of GFX) if (!g.gone && g.state !== "d" && c >= g.start && c < g.end) {
       const [x, y, w, h] = g.place || [90, 200, 900, 500], b = document.createElement("div"); b.className = "gbox"; b.textContent = g.kind;
       Object.assign(b.style, { left: x / 10.8 + "%", top: y / 19.2 + "%", width: w / 10.8 + "%", height: h / 19.2 + "%" });
       if (g.imgUrl) b.style.backgroundImage = `url(${JSON.stringify(g.imgUrl)})`;
       ov.appendChild(b);
     }
-    const cap = CAPS.find((x) => !x.gone && c >= x.start && c < x.end);
+    const cap = marks(c);
     if (cap && cap.pos !== "hide") { const el = capEl(shown(cap, c), capMode() === "spoken"); ov.appendChild(el); let fs = parseFloat(el.style.fontSize); for (let i = 0; i < 25 && el.scrollWidth > el.clientWidth + 1; i++) { fs *= 0.92; el.style.fontSize = fs + "px"; } }
-    nowWord(P.toSrc(c)); $$(".caprow").forEach((r) => r.classList.toggle("now", !!cap && +r.dataset.ci === cap.ci));
   }
   function nowWord(src) { $$("#tx .w.now").forEach((e) => e.classList.remove("now")); const i = R.words.findIndex((w) => src >= w.s && src < w.e); if (i >= 0) $(`#tx .w[data-i="${i}"]`)?.classList.add("now"); }
 
@@ -225,7 +272,7 @@
       const ts = document.createElement("button"); ts.className = "ts"; ts.type = "button";
       const cw = document.createElement("div"); cw.className = "cw";
       if (c.gone) { ts.textContent = "cut"; ts.disabled = true; cw.textContent = src.text || src.w.map((i) => R.words[i].text).join(" "); row.append(ts, cw, document.createElement("span")); box.appendChild(row); continue; }
-      ts.textContent = fmt(c.start); ts.title = "Play from this caption"; ts.addEventListener("click", () => { if (mode === "built") showTab("trim"); playRough(c.start); });
+      ts.textContent = fmt(c.start); ts.title = "Play from this caption"; ts.addEventListener("click", () => playFrom(c.start));
       c.words.forEach((w, k) => {
         const b = document.createElement("button"); b.type = "button"; b.className = "x" + (w.accent ? " acc" : ""); b.textContent = w.text; b.setAttribute("aria-pressed", String(!!w.accent));
         b.title = w.accent ? "Highlighted. Tap for plain" : "Tap to highlight this word";
@@ -282,14 +329,15 @@
       if (st === "importing") build = { ...build, busy: true, text: "Reading your choices." };
       else if (st === "rendering") build = { ...build, busy: true, text: STEP_TEXT[j.job.step] || "Building." };
       else if (st === "failed") build = { busy: false, text: "", error: "The build stopped: " + (j.build.error || "unknown reason") + " Tell Claude \"the build failed\" and it will look.", told: [] };
-      else if (st === "done") build = { busy: false, text: "", error: "", told: j.build.told || [] };
+      else if (st === "done") { const was = build.busy; build = { busy: false, text: "", error: "", told: j.build.told || [] }; if (was) quickPoll(); }
       else build = { ...build, busy: false };
     } catch { build = { ...build, busy: false }; }
     renderBuild(); if (build.busy) setTimeout(pollBuild, 2000);
   }
   $("#build").addEventListener("click", async () => {
-    clearTimeout(timer); if (dirty) saveNow(); await saving;
-    build = { busy: true, text: "Reading your choices.", error: "", told: [] }; renderBuild();
+    clearTimeout(timer); clearTimeout(quickT); if (dirty) saveNow(); await saving;
+    build = { busy: true, text: "Reading your choices.", error: "", told: [] }; renderBuild(); syncSource();
+    for (let i = 0; i < 200 && quickBusy(); i++) { await new Promise((r) => setTimeout(r, 500)); await quickPoll(); }
     try { const r = await fetch("/api/review-build", { method: "POST" }), j = await r.json(); if (!j.ok) throw new Error(j.error || "the build did not start"); }
     catch (e) { build = { busy: false, text: "", error: /Failed to fetch|NetworkError|404/.test(String(e.message)) ? "This page can't start a build from here. Tell Claude \"build preview\"." : "The build did not start: " + e.message, told: [] }; renderBuild(); return; }
     setTimeout(pollBuild, 1500);
@@ -318,7 +366,7 @@
       db.doc("builds/latest").onSnapshot((s) => { B = s.exists ? s.data() : null; if (R && P) { renderBuild(); syncSource(); } }, () => {});
       recompute(); restoreUndo();
       const want = location.hash.slice(1); tab = ["trim", "style", "audio", "wrap"].includes(want) ? want : "trim";
-      renderWords(); renderCaps(); showTab(tab); pollBuild();
+      renderWords(); renderCaps(); showTab(tab); pollBuild(); quickPoll();
     } catch (e) { $("#reelname").textContent = "The reel didn't load. Reload the page."; console.error(e); }
   })();
 })();
