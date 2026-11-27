@@ -1,4 +1,4 @@
-# Reel Studio
+# Unmess Reels
 
 **AI reel editing for Claude Code: FavStash + Claude Reel Editor, with By Mel Ross's workflow.**
 
@@ -42,7 +42,7 @@ Two free, open-source skill sets in one folder, plus one creator's way of workin
   - **Material kits** (added by By Mel Ross, 0.11.0): cards built from pictures of real paper, tape, labels and stickers, so a list is a taped sheet of paper and not a drawn box. Bring your own materials; the bundled kit is a marked placeholder. See `skills/3-editing/reel-editor/references/material-kits.md`.
   - **A looks page, a style card, labelled checks, and notes that become rules** (added by By Mel Ross, 0.10.0): pick looks by sight and copy the request; see the plan in 6 lines before anything renders; get a report that separates Measured, Looked at and Not checked; and a note you give twice becomes a rule for every reel. See `skills/3-editing/reel-editor/references/style-flow.md`.
   - **A storyboard before you build** (added by By Mel Ross): `scripts/storyboard.py` shows stills of two to four looks on your own reel, side by side in one image, with no video render, so you pick before anything is built.
-  - **Captions on the word** (added by By Mel Ross, 0.29.0): local Whisper hears the words right but times them late. Reel Studio lines each word up with the audio using Whisper's own word alignment, checks the caption times against your voice on every reel, and has a **When captions appear** setting on the Edit page (`"caption_lead"` in your brand file) to show captions up to 0.5 s earlier.
+  - **Captions on the word** (added by By Mel Ross, 0.29.0): local Whisper hears the words right but times them late. Unmess Reels lines each word up with the audio using Whisper's own word alignment, checks the caption times against your voice on every reel, and has a **When captions appear** setting on the Edit page (`"caption_lead"` in your brand file) to show captions up to 0.5 s earlier.
   - **A word list for names** (added by By Mel Ross): add the names and brand words Whisper mishears to `"vocabulary"` in your brand file once, and every caption after that comes out spelled right.
   - **A smoother audio join at cuts** (added by By Mel Ross): the audio crossfades across each cut while the picture cuts at the same instant, so cuts do not click.
   - **A thumbnail studio** (from Claude Reel Editor): pick a cover frame, add a headline in your brand fonts and download 1080x1920, 1080x1440 and 1080x1080 PNGs. It runs on your Mac only. Say "open my thumbnail studio".
@@ -92,16 +92,16 @@ brew install ffmpeg node git yt-dlp
 
 You can close Terminal now.
 
-**5. Install Reel Studio.** Back in the Claude app, on the Code tab, paste:
+**5. Install Unmess Reels.** Back in the Claude app, on the Code tab, paste:
 
 ```text
-Set up Reel Studio from github.com/mtravagl26/reel-studio for my reels.
+Set up Unmess Reels from github.com/mtravagl26/reel-studio for my reels.
 Follow its INSTALL_FOR_AGENTS.md: install the reel editor and the two planning
 skills (no extras yet), keep telemetry off,
 copy the example brand so I can make it mine, and run both doctor checks.
 ```
 
-Claude may ask permission to install things. Check each request is about this setup (Reel Studio, HyperFrames, ffmpeg, node) before you say yes. You're done when the reel editor's check ends with **READY** (or **READY WITH LIMITS**, which means something optional is missing and you can still edit).
+Claude may ask permission to install things. Check each request is about this setup (Unmess Reels, HyperFrames, ffmpeg, node) before you say yes. You're done when the reel editor's check ends with **READY** (or **READY WITH LIMITS**, which means something optional is missing and you can still edit).
 
 ![a finished check that says READY](docs/images/check-ready.png)
 
@@ -109,7 +109,7 @@ Claude may ask permission to install things. Check each request is about this se
 
 1. Film yourself talking to camera on your phone, **in 1080p at 30 fps with HDR off** (see "Camera settings" below). Under two minutes is easiest.
 2. Get the video onto your Mac (AirDrop, or film into a synced folder like iCloud Drive).
-3. In Claude Code, type **edit this into a reel** and drag the video into the message box. Or type **open Reel Studio**: Claude gives you a page where you drop the video in, see whether it was filmed well, pick the kind of reel, pick a look and background music if you want them, then copy the request to Claude.
+3. In Claude Code, type **edit this into a reel** and drag the video into the message box. Or type **open Unmess Reels**: Claude gives you a page where you drop the video in, see whether it was filmed well, pick the kind of reel, pick a look and background music if you want them, then copy the request to Claude.
 4. **First time only:** Claude asks about your brand, one question at a time: colors, fonts, caption style, sounds, pacing, zooms and your usual call to action. A reel you wish you'd made is the most useful thing to share. About 5 minutes.
 5. **Review the cut.** Claude sends you one link to the Edit page. The cut tab comes first: tap words to cut them, bring back any "um" it removed, check the false starts, captions and graphics, then tell Claude **build preview**. After the build, the Touch-ups tab on the same page handles small fixes to the finished reel. Step 2 is the cover, picked from the finished reel, and step 3 writes the post caption. No link? Claude does the same review with you in chat.
 6. Watch the preview. Tell Claude what to change, with the time it happens ("at 0:12 the caption covers my face").
@@ -218,4 +218,4 @@ The agent contract is [AGENTS.md](AGENTS.md); setup for agents is [INSTALL_FOR_A
 - **HyperFrames** by HeyGen renders the video; it's installed during setup, not included here.
 - Combined and adapted by **By Mel Ross**. What changed is listed in [NOTICE](NOTICE). This project isn't affiliated with or endorsed by FavStash, Nicola Pocock or HeyGen.
 
-Reel Studio is released under the [Apache License 2.0](LICENSE). The reel editor parts are also under their original [MIT license](skills/3-editing/reel-editor/LICENSE).
+Unmess Reels is released under the [Apache License 2.0](LICENSE). The reel editor parts are also under their original [MIT license](skills/3-editing/reel-editor/LICENSE).

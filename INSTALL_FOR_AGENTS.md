@@ -1,4 +1,4 @@
-# Install Reel Studio
+# Install Unmess Reels
 
 > Modified by By Mel Ross from the FavStash install guide (see NOTICE): installs the
 > reel editor too, keeps telemetry off and leaves posting services unconnected.
@@ -16,7 +16,7 @@ Repository: [mtravagl26/reel-studio](https://github.com/mtravagl26/reel-studio).
 
 Detect the current agent, operating system and available package manager. Use
 the active creator project when one exists; otherwise ask where the user wants
-their edits to live (a folder like `~/Movies/Reel Studio` works well; keep it off
+their edits to live (a folder like `~/Movies/Unmess Reels` works well; keep it off
 cloud-synced folders, since working files are large). Do not use a temporary
 directory as the lasting installation. If you only have hosted chat access, hand
 these instructions to a local coding agent; do not report local installation as
@@ -160,7 +160,7 @@ their phone: upright, 1080p at 30 fps, HDR video off (iPhone: Settings > Camera 
 Record Video). Then offer first prompts:
 
 ```text
-Open Reel Studio.
+Open Unmess Reels.
 ```
 
 That one gives them a page to drop a clip into: it checks how the clip was filmed,

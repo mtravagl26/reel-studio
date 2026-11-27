@@ -11,7 +11,7 @@ Ends with a report that labels every check (Added by By Mel Ross, 0.10.0):
 import difflib, json, os, re, subprocess, sys
 
 # Modified by By Mel Ross: HyperFrames pinned to the version render.sh uses, telemetry off unless you opt in; also checks true peak,
-# clipping and the cover size (Reel Studio 0.2.0).
+# clipping and the cover size (Unmess Reels 0.2.0).
 os.environ.setdefault("HYPERFRAMES_NO_TELEMETRY", "1")
 os.environ.setdefault("DO_NOT_TRACK", "1")
 from pathlib import Path

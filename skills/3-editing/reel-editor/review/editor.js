@@ -1,5 +1,5 @@
 // The Touch-ups page (editor.html). Moved out of the page in 0.30.0; served at /editor.js.
-// Reel Studio step bar (Added by By Mel Ross): links to the other pages when their address is known. The cover page only answers
+// Unmess Reels step bar (Added by By Mel Ross): links to the other pages when their address is known. The cover page only answers
 // on this computer, so its link is left off when this page is open on a phone.
 function setSteps(here, links) {
   const local = /^(127\.0\.0\.1|localhost|\[::1\])$/.test(location.hostname);
@@ -399,7 +399,7 @@ function renderOrbitPick() {
 
 // ---- GIPHY search (Added by By Mel Ross, 0.9.0). The search goes from this page straight to GIPHY, with your own key.
 // Opt-in with a warning (license review 2026-11-17): nothing is saved until the box is ticked.
-const GIPHY_WARN = "Before you turn GIPHY on: GIPHY's rules say apps should not store copies of GIPHY content. To build your video, Reel Studio has to keep a copy of each GIF you pick in your reel folder, so a reel you post with one may go against GIPHY's rules. Many GIFs are also clips from films, TV or sport that you may not have the right to use in a reel for your business. GIPHY is off unless you turn it on, and you use it at your own risk.";
+const GIPHY_WARN = "Before you turn GIPHY on: GIPHY's rules say apps should not store copies of GIPHY content. To build your video, Unmess Reels has to keep a copy of each GIF you pick in your reel folder, so a reel you post with one may go against GIPHY's rules. Many GIFs are also clips from films, TV or sport that you may not have the right to use in a reel for your business. GIPHY is off unless you turn it on, and you use it at your own risk.";
 const GIPHY_SHORT = "GIPHY's rules say not to store copies of its GIFs, and a reel you post with one may conflict with them. Many GIFs are film or TV clips. Use at your own risk.";
 const GIPHY_MARK = `<p class="giphy-mark" aria-label="Powered By GIPHY"><span>Powered By</span> <b>GIPHY</b></p>`;
 let giphy = { q: "", kind: "gifs", items: [], busy: false, note: "" };

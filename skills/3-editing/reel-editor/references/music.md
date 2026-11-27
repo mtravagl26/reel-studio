@@ -4,7 +4,7 @@ Added by By Mel Ross (0.28.0). Soft music under the voice, picked before the fir
 
 ## Where the music comes from
 
-Reel Studio ships no music. The free libraries let people use their tracks in videos, not hand the files out, so each person keeps their own tracks in `~/reels/music`. Subfolders are moods: `~/reels/music/calm/soft piano.mp3`. The pages group tracks by folder.
+Unmess Reels ships no music. The free libraries let people use their tracks in videos, not hand the files out, so each person keeps their own tracks in `~/reels/music`. Subfolders are moods: `~/reels/music/calm/soft piano.mp3`. The pages group tracks by folder.
 
 Sources that allow use in social videos (check each license; this is not legal advice):
 

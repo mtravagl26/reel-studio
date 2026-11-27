@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-<title>Reel Studio: storyboard</title>
+<title>Unmess Reels: storyboard</title>
 <!-- Added by By Mel Ross (0.35.0). The storyboard: the newest render, scene by scene, with a note per scene for Claude.
      Served by editor-server.mjs (review/storyboard.mjs). Vanilla JS, nothing leaves this computer. -->
 <style>
@@ -53,7 +53,7 @@ let SB = null, stopAt = null, poll = null;
 const v = $("#v");
 function msg(text, kind) { const m = $("#msg"); m.hidden = !text; m.textContent = text || ""; m.className = "banner" + (kind ? " " + kind : ""); }
 async function load() {
-  let j; try { j = await (await fetch("/api/storyboard", { cache: "no-store" })).json(); } catch { return msg("The storyboard couldn't be loaded. Is the Reel Studio link still running?", "warn"); }
+  let j; try { j = await (await fetch("/api/storyboard", { cache: "no-store" })).json(); } catch { return msg("The storyboard couldn't be loaded. Is the Unmess Reels link still running?", "warn"); }
   clearTimeout(poll);
   if (j.none) { $("#scenes").textContent = ""; $("#foot").hidden = true; $("#playerbar").hidden = true; msg("The storyboard appears after the first render. Build the reel in The cut first."); poll = setTimeout(load, 3000); return; }
   if (j.error) return msg("The storyboard couldn't be made: " + j.error, "warn");

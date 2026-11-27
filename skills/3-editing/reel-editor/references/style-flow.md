@@ -6,7 +6,7 @@ Added by By Mel Ross (0.10.0). 4 habits that make an edit predictable: the perso
 
 Every usable look in `assets/style-menu.json` drawn as a small sketch, with an Add button, plus the themes. One hook, one captions look, as many layouts as the reel has room for, one theme. The bar at the bottom writes the request ("Edit the reel "2026-11-18-demo" with H3, C2, L8 and the Bold theme. Show me the style card before you build.") and **Copy the request** puts it on the clipboard.
 
-- **For a reel:** the Reel Studio link plus `/styles` (the review page links to it under "Look for this reel"). Picks are saved to `<reel>/style-picks.json` as `{"ids": ["H3", "C2"], "theme": "bold"}`. Read that file when they say "use my picks".
+- **For a reel:** the Unmess Reels link plus `/styles` (the review page links to it under "Look for this reel"). Picks are saved to `<reel>/style-picks.json` as `{"ids": ["H3", "C2"], "theme": "bold"}`. Read that file when they say "use my picks".
 - **Without a reel:** `python3 scripts/style_menu_page.py [--out looks.html]` writes one stand-alone HTML file (default `~/reels/looks.html`). Nothing is saved; they paste the request into the chat.
 
 The sketches are drawn from each look's recipe (card type, caption size and position). They show where things sit. They are sketches, so for the real fonts and footage run `scripts/storyboard.py` with the picked IDs. Looks marked *not built* never appear on the page. A *partial* look shows what it leaves out.

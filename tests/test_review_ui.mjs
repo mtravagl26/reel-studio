@@ -1,4 +1,4 @@
-// Added by By Mel Ross (0.9.0). The Reel Studio pages in a real browser, on one link: the review page (tap a word to cut it, tabs,
+// Added by By Mel Ross (0.9.0). The Unmess Reels pages in a real browser, on one link: the review page (tap a word to cut it, tabs,
 // the theme picker, decisions saved to disk), then the touch-ups page once the reel is built (step bar, theme picker, adding text,
 // pictures that circle the head, and the GIPHY box staying off without a key).
 // Run by hand, like test_thumbnail_ui.mjs (it is not part of `npm test` or CI): node tests/test_review_ui.mjs   (needs Node 22+, python3, ffmpeg and Google Chrome; set CHROME=/path/to/chrome if it's elsewhere)
@@ -269,7 +269,7 @@ try {
   const again = py("import", reel, join(reel, "review_db", "review", "current.json"));
   assert.match(again, /TOUCH-UP KEPT: tag "new pill"/); assert.match(again, /TOUCH-UP KEPT: orbit/);
   assert.ok(read(reel, "edit.json").cards.some((c) => c.type === "orbit"));
-  console.log("PASS: Reel Studio pages (review: cut, tabs, theme, saved decisions; touch-ups: step bar, theme, text, orbit, GIPHY off; rebuild keeps touch-ups)");
+  console.log("PASS: Unmess Reels pages (review: cut, tabs, theme, saved decisions; touch-ups: step bar, theme, text, orbit, GIPHY off; rebuild keeps touch-ups)");
 } finally {
   ws?.close(); chrome.kill(); server.kill();
   await sleep(300); rmSync(tmp, { recursive: true, force: true });

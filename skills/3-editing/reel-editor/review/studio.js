@@ -17,7 +17,7 @@
     if (!ref) return; dirty = false;
     const body = JSON.parse(JSON.stringify({ ...S, updatedAt: new Date().toISOString() })); mine = body.updatedAt;
     saving = saving.then(() => ref.set(body)).then(() => { $("#savedat").textContent = "Saved " + new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }); quickSoon(); },
-      (e) => pill("Couldn't save (" + (e?.code || "error") + "). Check the Reel Studio link is still running.", true));
+      (e) => pill("Couldn't save (" + (e?.code || "error") + "). Check the Unmess Reels link is still running.", true));
   }
   let undo = [], redo = [];
   const STEPS = 60, strip = (x) => { const { updatedAt, ...rest } = x || {}; return JSON.stringify(rest); };
@@ -149,7 +149,7 @@
   async function quickStart(cut) {
     if (build.busy) return;
     try { const j = await (await fetch("/api/quick-preview", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ cut: !!cut }) })).json(); if (!j.ok) throw new Error(j.error || "failed"); Q = j.quick; }
-    catch (e) { Q = { ...Q, state: "failed", error: /Failed to fetch|NetworkError/.test(String(e.message)) ? "this page can't reach Reel Studio" : e.message }; }
+    catch (e) { Q = { ...Q, state: "failed", error: /Failed to fetch|NetworkError/.test(String(e.message)) ? "this page can't reach Unmess Reels" : e.message }; }
     syncSource(); clearTimeout(quickPollT); if (quickBusy()) quickPollT = setTimeout(quickPoll, 700);
   }
   function quickSoon() { if (!(B || Q.hash) || fresh() || quickOk()) return; clearTimeout(quickT); quickT = setTimeout(() => { if (!dirty && !fresh() && !quickOk()) quickStart(false); }, 900); }
@@ -350,7 +350,7 @@
     const links = window.REEL_STUDIO_LINKS || {};
     $$(".steps .step[data-step]").forEach((el) => { const u = links[el.dataset.step]; if (typeof u === "string" && /^\/[\w\-\/]*$/.test(u)) { el.href = u; el.classList.remove("off"); el.removeAttribute("title"); } });
     const db = await window.claude?.use?.("db");
-    if (!db) { $("#reelname").textContent = "This page can't load the reel. Open it from your Reel Studio link."; return; }
+    if (!db) { $("#reelname").textContent = "This page can't load the reel. Open it from your Unmess Reels link."; return; }
     try {
       const rs = await db.doc("reel/current").get();
       if (!rs.exists) { $("#reelname").textContent = "No reel loaded yet. Ask Claude to edit a clip first."; return; }

@@ -1,6 +1,6 @@
 # Reel brand: By Mel Ross
 
-This is the example brand that ships with Reel Studio. Copy it to `~/reels/brand.md` (and `brand.example.json` to `~/reels/brand.json`), then change it to fit you. The reel editor reads both files before every edit; this one is for people, the JSON is for the scripts. Keep them in step.
+This is the example brand that ships with Unmess Reels. Copy it to `~/reels/brand.md` (and `brand.example.json` to `~/reels/brand.json`), then change it to fit you. The reel editor reads both files before every edit; this one is for people, the JSON is for the scripts. Keep them in step.
 
 ## Account
 Practical AI and operations for small-business owners and solo founders. Audience: business owners who want AI to save them time without losing their own voice.

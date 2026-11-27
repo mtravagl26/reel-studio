@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Added by By Mel Ross (0.20.0). The caption step: the post caption that goes under a reel on Instagram.
 
-Step 4 of Reel Studio, after the cover. You (Claude) write 3 drafts; the person picks one and edits it on the Caption page.
+Step 4 of Unmess Reels, after the cover. You (Claude) write 3 drafts; the person picks one and edits it on the Caption page.
 
   caption.py brief <reel>          what to write from: the words of the reel, the voice rules, the shape and the limits
   caption.py check <reel>          checks <reel>/caption.json against the limits; exit 1 with the reasons when it fails

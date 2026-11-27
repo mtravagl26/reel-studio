@@ -19,12 +19,12 @@ test("the pages save a GIPHY key to this computer, keep other keys, and take SVG
   const port = 6100 + Math.floor(Math.random() * 500);
   const p = spawn("node", [path.join(review, "studio-server.mjs"), reel, "--port", String(port)], { env: { ...process.env, REELS_HOME: home, HOME: dir, GIPHY_API_KEY: "", REEL_GIPHY_NO_CHECK: "1" }, stdio: ["ignore", "pipe", "pipe"] });
   let out = ""; p.stdout.on("data", (d) => (out += d)); p.stderr.on("data", (d) => (out += d));
-  for (let i = 0; i < 100 && !/Reel Studio for/.test(out); i++) await new Promise((r) => setTimeout(r, 100));
+  for (let i = 0; i < 100 && !/Unmess Reels for/.test(out); i++) await new Promise((r) => setTimeout(r, 100));
   const base = `http://127.0.0.1:${port}`;
   const save = (key, headers = {}, agree = true) => fetch(base + "/api/giphy-key-save", { method: "POST", headers: { "content-type": "application/json", ...headers }, body: JSON.stringify({ key, agree }) });
   const up = (name, body) => fetch(base + "/api/review-upload?name=" + encodeURIComponent(name), { method: "POST", body });
   try {
-    assert.match(out, /Reel Studio for/, "server started: " + out);
+    assert.match(out, /Unmess Reels for/, "server started: " + out);
     assert.deepEqual(await (await fetch(base + "/api/review-giphy-key")).json(), { key: null });
     for (const bad of ["", "has spaces in it", "short", "../../etc/passwd", "abc\nELEVENLABS_API_KEY=x"]) {
       const r = await save(bad); assert.equal(r.status, 400, JSON.stringify(bad)); assert.equal((await r.json()).ok, false);

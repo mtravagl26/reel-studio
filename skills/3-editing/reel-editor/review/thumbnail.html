@@ -2,7 +2,7 @@
 <html lang="en">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Reel Studio: cover</title>
+<title>Unmess Reels: cover</title>
 <style>
 /* layout: the cover preview (phone-shaped) on the left, controls on the right; stacks at phone width */
 :root{
@@ -64,7 +64,7 @@ input[type=color]{width:44px;height:34px;border:2px solid var(--line);border-rad
 .empty{padding:16px;border:2px dashed var(--line);border-radius:16px;color:var(--muted)}
 .empty a{color:var(--ink);font-weight:700}
 
-/* Reel Studio shared look (Added by By Mel Ross): the same step bar and palette on the review, cover and touch-ups pages */
+/* Unmess Reels shared look (Added by By Mel Ross): the same step bar and palette on the review, cover and touch-ups pages */
 .steps{display:flex;align-items:center;gap:6px;flex-wrap:wrap;max-width:1180px;margin:0 auto;padding:12px 16px 0;font:600 13px/1 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
 .steps .brand{font-weight:800;margin-right:6px;color:#0d2b2d}
 .steps .step{display:inline-flex;align-items:center;min-height:36px;padding:0 12px;border-radius:999px;border:1.5px solid #e1dccf;background:#fff;color:#0d2b2d;text-decoration:none}
@@ -72,8 +72,8 @@ input[type=color]{width:44px;height:34px;border:2px solid var(--line);border-rad
 .steps .step.off{opacity:.55}
 </style>
 
-<nav class="steps" aria-label="Reel Studio steps">
-  <span class="brand">Reel Studio</span>
+<nav class="steps" aria-label="Unmess Reels steps">
+  <span class="brand">Unmess Reels</span>
   <a class="step off" data-step="edit" title="Ask Claude to open the editor page">1 Edit</a>
   <a class="step off" data-step="cover" title="Ask Claude to open my thumbnail studio">2 Cover</a>
   <a class="step off" data-step="caption" title="Ask Claude to open the caption page">3 Caption</a>
@@ -145,7 +145,7 @@ input[type=color]{width:44px;height:34px;border:2px solid var(--line);border-rad
 const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
 const video = $("#video"), sampler = $("#sampler"), cv = $("#cover"), ctx = cv.getContext("2d");
 const W = 1080, H = 1920, MARGIN = 96, MAXW = 900, LH = 1.08;
-// Reel Studio step bar (Added by By Mel Ross): links to the other pages when their address is known. The cover page only answers
+// Unmess Reels step bar (Added by By Mel Ross): links to the other pages when their address is known. The cover page only answers
 // on this computer, so its link is left off when this page is open on a phone.
 function setSteps(here, links) {
   const local = /^(127\.0\.0\.1|localhost|\[::1\])$/.test(location.hostname);
