@@ -107,6 +107,17 @@ h3 { font-size: 15px; margin: 18px 0 8px; font-weight: 700; } .hint { font-size:
 .gd label { display: block; font-size: 14px; font-weight: 600; margin: 10px 0 0; } .gd input[type=text], .gd textarea, .gd select { display: block; width: 100%; min-height: 44px; margin-top: 4px; padding: 8px 10px; border: 1.5px solid var(--ink); border-radius: var(--r); background: var(--card); color: var(--ink); font: inherit; font-weight: 400; }
 .gd .what { font-size: 15px; margin: 2px 0 10px; } .gd .warn { color: #a33a22; font-size: 14px; } .gd .two { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; } @media (max-width: 560px) { .gd .two { grid-template-columns: 1fr; } }
 main > section[data-p] + section[data-p] { margin-top: 16px; }
+/* ---- Audio tab ---- */
+.cue { display: grid; grid-template-columns: 52px minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 8px 0; border-top: 1px solid var(--line); } .cue.off .cname { text-decoration: line-through; opacity: .55; }
+.cue .ct { font: 13px/1 ui-monospace, Menlo, monospace; } .cue .cname { font-size: 15px; } .cue .cname small { display: block; font-size: 13px; opacity: .75; }
+.cue .cctl { display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; } .cue select { min-height: 36px; border: 1.5px solid var(--ink); border-radius: var(--r); background: var(--bg); color: var(--ink); font: inherit; font-size: 14px; padding: 0 6px; max-width: 150px; }
+@media (max-width: 560px) { .cue { grid-template-columns: 44px 1fr; } .cue .cctl { grid-column: 1 / -1; justify-content: flex-start; } }
+#cues { margin-top: 12px; } .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; } .pair figure { margin: 0; } .pair figcaption { font-size: 14px; font-weight: 600; margin-bottom: 4px; } .pair audio, #musicbox audio { width: 100%; }
+@media (max-width: 560px) { .pair { grid-template-columns: 1fr; } }
+#musicbox select, #musicbox input[type=number] { min-height: 44px; border: 1.5px solid var(--ink); border-radius: var(--r); background: var(--bg); color: var(--ink); font: inherit; padding: 0 10px; } #musicbox select { width: 100%; } #musicbox .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 8px; }
+/* ---- Wrap up ---- */
+.needs { border: 1.5px solid var(--ink); border-radius: var(--r); background: var(--bg); padding: 12px 14px; margin: 12px 0; font-size: 15px; } .needs ul { margin: 6px 0 6px 18px; padding: 0; } .needs p { margin: 6px 0 0; }
+#wrapnote { display: block; width: 100%; min-height: 88px; margin-top: 6px; padding: 10px; border: 1.5px solid var(--ink); border-radius: var(--r); background: var(--bg); color: var(--ink); font: inherit; }
 </style></head>
 <body>
 <nav class="steps" aria-label="Unmess Reels steps">
@@ -175,17 +186,44 @@ main > section[data-p] + section[data-p] { margin-top: 16px; }
       <div class="next"><span></span><button class="b pri" type="button" data-next="audio">Next: Audio</button></div>
     </section>
     <section data-p="audio" hidden>
-      <h2>Audio</h2>
-      <p class="soon">This tab is being built. Until it's here, sound effects and the voice clean-up are on <a href="/edit#cut" target="_top">the current Edit page</a>, under Sound.</p>
+      <h2>Sound effects</h2>
+      <p class="lede">A short sound plays as each graphic comes on. Switch them all off, or change them one at a time.</p>
+      <div class="seg" id="sfxall" role="radiogroup" aria-label="Sound effects for this reel"></div>
+      <p class="hint" id="sfxnote"></p>
+      <div id="cues"></div>
+      <h3>How loud</h3>
+      <div class="seg" id="sfxvol" role="radiogroup" aria-label="Sound effects volume"></div>
+      <p class="hint" id="sfxvolnote"></p>
+    </section>
+    <section data-p="audio" hidden>
+      <h2>Music</h2>
+      <div id="musicbox"><p class="hint">Loading…</p></div>
+    </section>
+    <section data-p="audio" hidden>
+      <h2>Your voice</h2>
+      <p class="lede">The same 10 seconds, before and after the clean-up. Background noise comes down and the volume is set for Instagram.</p>
+      <div class="pair" id="voicepair"></div>
       <div class="next"><span></span><button class="b pri" type="button" data-next="wrap">Next: Wrap up</button></div>
     </section>
     <section data-p="wrap" hidden>
       <h2>Wrap up</h2>
       <p class="lede">Build your reel from your choices. It takes about 3 minutes, and you can leave this page open while it works. Keep your Mac awake until it finishes.</p>
+      <div class="needs" id="needs" hidden></div>
       <button class="b pri" id="build" type="button">Build my reel</button>
       <p id="buildmsg" aria-live="polite"></p>
       <ul id="told"></ul>
-      <p class="soon" style="margin-top:14px">The scene-by-scene check and small fixes are on <a href="/edit" target="_top">the current Edit page</a> (Storyboard and Touch-ups) until they move here.</p>
+    </section>
+    <section data-p="wrap" hidden>
+      <h2>Check it</h2>
+      <p class="lede">After a build, look at every scene on 1 page before you post.</p>
+      <div class="tlrow" style="justify-content:flex-start"><a class="b" id="sblink" href="/storyboard" target="_top" style="display:inline-flex;align-items:center;text-decoration:none">Open the storyboard</a>
+        <a class="b" id="tulink" href="/touchups" target="_top" style="display:inline-flex;align-items:center;text-decoration:none">Small fixes in Touch-ups</a></div>
+      <p class="hint" id="checknote"></p>
+      <h3>Notes for Claude</h3>
+      <label class="hint" for="wrapnote">Anything this page can't do. For example: take off the last half second.</label>
+      <textarea id="wrapnote" maxlength="1200"></textarea>
+      <p class="hint">Saved as you type. Claude reads them when you type "build preview" in your chat.</p>
+      <div class="next"><span></span><a class="b pri" id="tocover" href="/cover" target="_top" style="display:inline-flex;align-items:center;text-decoration:none">Next: 2 Cover</a></div>
     </section>
   </main>
   <aside class="side" aria-label="Preview">

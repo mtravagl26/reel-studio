@@ -1092,6 +1092,7 @@ const server = http.createServer(async (req, res) => {
       return json(res, 200, { ok: true, build: reviewBuild, job: { state: job.state, step: job.step, steps: job.steps || [], startedAt: job.startedAt || null } });
     }
     const buildingNow = () => job.state === "running" || job.state === "queued" || reviewBuild.state === "importing";
+    if (p === "/api/sfx-library" && req.method === "GET") return json(res, 200, { ok: true, sounds: sfxNames() });   // 0.42.0: for the Audio tab's swap list
     if (p === "/api/quick-preview" && req.method === "GET") return json(res, 200, { ok: true, quick, building: buildingNow(), now: new Date().toISOString() });
     if (p === "/api/quick-preview" && req.method === "POST") {
       if (buildingNow()) return json(res, 200, { ok: true, quick, building: true, now: new Date().toISOString() });

@@ -41,6 +41,14 @@ captions:C.captions(R,D,P),graphics:C.graphics(R,D,P),hash:C.hash(D)}}));"""
     )
 
 
+def _sfx_library():
+    try:
+        mf = json.load(open(Path(__file__).resolve().parent.parent / "assets" / "sfx-manifest.json"))
+        return {e["name"] for e in mf.get("effects", [])}
+    except Exception:
+        return set()
+
+
 def _sfx_choice():
     try:
         v = json.load(open(HOME / "brand.json")).get("sfx")
@@ -426,6 +434,12 @@ def do_import(reel, review):
         spec.update(start=round(g["start"], 3), end=round(g["end"], 3), id=g["id"])
         if g["id"] in (d.get("sfxOff") or {}) and d["sfxOff"][g["id"]]:
             spec["sfx"] = False
+        else:
+            # Added by By Mel Ross (0.42.0): a sound swapped on the Audio tab ("sfxPick": {graphic id: library name})
+            _pick = (d.get("sfxPick") or {}).get(g["id"])
+            if isinstance(_pick, str) and _pick in _sfx_library():
+                _old = spec.get("sfx") if isinstance(spec.get("sfx"), dict) else {}
+                spec["sfx"] = {"name": _pick, "db": _old.get("db", -12)}
         # Added by By Mel Ross (0.16.0): where they put it on the review page. A layer applies to any card; a place is written
         # straight onto a popup, and passed to you in words for the other kinds (their place is set by different fields).
         _b = (d.get("board") or {}).get(g["id"]) or {}

@@ -1,10 +1,10 @@
 // Added by By Mel Ross (0.39.0). The new Edit page (studio.html), step 1 of 5: the preview, the 4 tabs, and the Trim tab.
 // It reads and writes the same decisions as the review page (review/current through the page's db), and uses the same
-// core.js to turn them into a cut, so a cut made here is the cut that renders. Audio arrives in the next step.
+// core.js to turn them into a cut, so a cut made here is the cut that renders. Small fixes after a build are still on Touch-ups.
 (() => {
   const $ = (s) => document.querySelector(s), $$ = (s) => [...document.querySelectorAll(s)];
   const fmt = (t) => { t = Math.max(0, +t || 0); return `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, "0")}`; };
-  const blank = () => ({ theme: null, colors: null, highlight: null, capmode: null, layout: null, sfxAll: null, cut: null, restoredFillers: [], restoredPauses: [], trimmedPauses: [], captions: null, board: {}, wanted: [], amount: null, sfxOff: {}, notes: {}, brandRequest: "", revisions: [], buildRequest: null });
+  const blank = () => ({ theme: null, colors: null, highlight: null, capmode: null, layout: null, sfxAll: null, sfxPick: {}, cut: null, restoredFillers: [], restoredPauses: [], trimmedPauses: [], captions: null, board: {}, wanted: [], amount: null, sfxOff: {}, notes: {}, brandRequest: "", revisions: [], buildRequest: null });
   const v = $("#v"), ov = $("#ov");
   let R = null, B = null, S = blank(), P = null, CAPS = [], GFX = [], ref = null;
   let tab = "trim", mode = "idle", loop = null, pos = 0, timer = null, dirty = false, mine = null, saving = Promise.resolve();
@@ -55,7 +55,8 @@
     $$(".tab").forEach((b) => b.setAttribute("aria-selected", String(b.dataset.tab === t)));
     $$("section[data-p]").forEach((s) => (s.hidden = s.dataset.p !== t));
     history.replaceState(null, "", "#" + t);
-    if (t === "style" && P) renderLine();   // the line needs its real width, which a hidden tab doesn't have
+    if (t === "style" && P) renderLine();
+    if (t === "audio" && R) tuState();   // the line needs its real width, which a hidden tab doesn't have
     syncSource(); renderBuild();
   }
   $$(".tab").forEach((b) => b.addEventListener("click", () => showTab(b.dataset.tab)));
@@ -490,6 +491,106 @@
   });
   function renderStyle() { renderLooks(); renderCapStyle(); renderLine(); renderDetail(); }
 
+  // ---------- Audio: sound effects, music, your voice (Added by By Mel Ross, 0.42.0) ----------
+  // Sound effects are choices like the rest (sfxAll, sfxOff, and sfxPick for a swapped sound). Music and loudness are the
+  // reel's own settings, written by the same calls Touch-ups uses, so they need the reel's plan to exist (after the first
+  // build or live preview).
+  let LIB = null, TU = null, tuAsked = false;
+  const sfxStart = () => { const look = S.theme ?? R.theme ?? "", quiet = !!(R.themes || []).find((t) => t.id === look)?.quiet; return R.sfxChoice !== undefined ? (R.sfxChoice ? R.sfxChoice !== "none" : !quiet) : R.sfxOn !== false; };
+  const sfxOnNow = () => (S.sfxAll ? S.sfxAll === "on" : sfxStart());
+  const sfxUrl = (name) => (R.assets && R.assets.sfx && R.assets.sfx[name]) || `/sfx/${encodeURIComponent(name)}.wav`;
+  function playSfx(name, db, btn) { const a = new Audio(sfxUrl(name)); a.volume = Math.min(1, Math.pow(10, ((db ?? -12) + 8) / 20)); const fail = () => { btn.textContent = "Can't play"; }; a.addEventListener("error", fail); a.play().catch(fail); }
+  async function tuState() { try { const r = await fetch("/api/state"); TU = r.ok ? await r.json() : null; } catch { TU = null; } tuAsked = true; if (R) renderAudio(); }
+  async function tuPost(path, body) {
+    try { const j = await (await fetch(path, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) })).json(); if (!j.ok) throw new Error(j.error || "that didn't save"); TU = j.state || TU; soundChanged = true; pill("Saved"); }
+    catch (e) { pill(e.message, true); }
+    renderAudio();
+  }
+  let soundChanged = false;
+  function renderAudio() {
+    const on = sfxOnNow(), bar = $("#sfxall"); bar.textContent = "";
+    for (const [v, label] of [["on", "Sound effects on"], ["off", "Sound effects off"]]) { const b = el("button", { type: "button", textContent: label }); b.setAttribute("role", "radio"); b.setAttribute("aria-checked", String((v === "on") === on)); b.dataset.sfx = v;
+      b.addEventListener("click", () => mutate(() => { S.sfxAll = (v === "on") === sfxStart() ? null : v; })); bar.append(b); }
+    const look = S.theme ?? R.theme ?? "", quiet = !!(R.themes || []).find((t) => t.id === look)?.quiet;
+    $("#sfxnote").textContent = on ? "You'll hear them in the built reel. The live preview plays your voice only." : !S.sfxAll && quiet && !R.sfxChoice ? "This look starts with no sound effects. Tap Sound effects on to add them to this reel." : "Graphics come on silently in this reel.";
+    const cues = $("#cues"); cues.textContent = "";
+    const list = GFX.filter((g) => g.sfx && !g.gone && boardOf(g.id).state !== "d");
+    if (on && !list.length) cues.append(el("p", { className: "hint", textContent: GFX.length ? "No sounds are set for this reel's graphics yet." : "Sounds are added with graphics, and this reel has none." }));
+    if (on) for (const g of list) {
+      const off = !!S.sfxOff[g.id], name = (S.sfxPick || {})[g.id] || g.sfx.name, row = el("div", { className: "cue" + (off ? " off" : "") }); row.dataset.g = g.id;
+      const play = el("button", { type: "button", className: "b sm", textContent: "Play" }); play.addEventListener("click", () => playSfx(name, g.sfx.db, play));
+      const tg = el("button", { type: "button", className: "b sm", textContent: off ? "Switch on" : "Switch off" }); tg.dataset.toggle = "1";
+      tg.addEventListener("click", () => mutate(() => { if (off) delete S.sfxOff[g.id]; else S.sfxOff[g.id] = true; }));
+      const ctl = el("span", { className: "cctl" }, play);
+      if (LIB && LIB.length && !off) {
+        const sel = el("select"); sel.setAttribute("aria-label", `Sound for ${g.kind}`); sel.dataset.swap = "1";
+        for (const cat of [...new Set(LIB.map((x) => x.category))]) { const og = el("optgroup", { label: cat }); for (const x of LIB.filter((y) => y.category === cat)) og.append(new Option(x.name, x.name)); sel.append(og); }
+        if (!LIB.some((x) => x.name === name)) sel.prepend(new Option(name, name)); sel.value = name;
+        sel.addEventListener("change", () => { const pickd = sel.value; mutate(() => { const p2 = { ...(S.sfxPick || {}) }; if (pickd === g.sfx.name) delete p2[g.id]; else p2[g.id] = pickd; S.sfxPick = p2; }); playSfx(pickd, g.sfx.db, play); });
+        ctl.append(sel);
+      }
+      ctl.append(tg);
+      row.append(el("span", { className: "ct", textContent: fmt(g.start) }), el("span", { className: "cname" }, name, el("small", { textContent: g.kind })), ctl); cues.append(row);
+    }
+    // how loud, and music: the reel's own settings
+    const vol = $("#sfxvol"), has = !!(TU && TU.built !== false && TU.music); vol.textContent = "";
+    if (has) for (const k of ["quieter", "normal", "louder"]) { const b = el("button", { type: "button", textContent: k[0].toUpperCase() + k.slice(1) }); b.setAttribute("role", "radio"); b.setAttribute("aria-checked", String(TU.sfxVol === k)); b.dataset.vol = k; b.addEventListener("click", () => tuPost("/api/sfx-volume", { level: k, scope: "reel" })); vol.append(b); }
+    $("#sfxvolnote").textContent = has ? "Your voice and the sounds are balanced for you on every build. Change this only if the effects feel off." : tuAsked ? "Opens after your first build or live preview." : "";
+    const mb = $("#musicbox"); mb.textContent = "";
+    if (!has) { mb.append(el("p", { className: "hint", textContent: tuAsked ? "Music opens after your first build or live preview. Press \"Show real graphics\" under the preview, or build in Wrap up." : "Loading…" })); }
+    else {
+      const MU = TU.music, sel = el("select"); sel.setAttribute("aria-label", "Background music"); sel.id = "mtrack"; sel.append(new Option("No music", ""));
+      for (const mood of [...new Set((MU.tracks || []).map((t) => t.mood))]) { const og = el("optgroup", { label: mood || "My tracks" }); for (const t of MU.tracks.filter((x) => x.mood === mood)) og.append(new Option(t.name.replace(/^[^/]*\//, "").replace(/\.[^.]+$/, ""), t.name)); sel.append(og); }
+      sel.value = MU.track || ""; sel.addEventListener("change", () => tuPost("/api/music", { track: sel.value }));
+      mb.append(sel);
+      if (!(MU.tracks || []).length) mb.append(el("p", { className: "hint", textContent: "Your music folder is empty. Add a track below, or ask Claude: help me add background music." }));
+      if (MU.missing) mb.append(el("p", { className: "hint", textContent: `The track "${MU.track}" isn't in your music folder any more, so the reel plays without music. Pick another.`, style: "color:#a33a22" }));
+      if (MU.track) {
+        const au = el("audio", { controls: true, src: "/music/" + encodeURIComponent(MU.track) }); au.id = "mplayer"; au.style.marginTop = "8px"; mb.append(au);
+        const seg = el("div", { className: "seg" }); seg.style.marginTop = "8px";
+        for (const k of ["softer", "normal", "louder"]) { const b = el("button", { type: "button", textContent: k[0].toUpperCase() + k.slice(1) }); b.setAttribute("role", "radio"); b.setAttribute("aria-checked", String(MU.level === k)); b.addEventListener("click", () => tuPost("/api/music", { level: k })); seg.append(b); }
+        const st = el("input", { type: "number", min: 0, max: 600, step: 0.5, value: MU.start || 0 }); st.setAttribute("aria-label", "Start the track at, in seconds"); st.style.width = "90px";
+        const save = el("button", { type: "button", className: "b sm", textContent: "Save" }); save.addEventListener("click", () => tuPost("/api/music", { start: +st.value || 0 }));
+        const here = el("button", { type: "button", className: "b sm", textContent: "Where the track above is paused" }); here.addEventListener("click", () => tuPost("/api/music", { start: +(au.currentTime || 0).toFixed(1) }));
+        mb.append(seg, el("div", { className: "row" }, el("b", { textContent: "Start the track at (seconds)" }), st, save, here), el("p", { className: "hint", textContent: "Skip a slow intro: play the track, pause where it gets good, then press the button." }));
+      }
+      const add = el("input", { type: "file", accept: ".mp3,.m4a,.wav,.aac,.ogg,.flac,audio/*", hidden: true }), addBtn = el("button", { type: "button", className: "b sm", textContent: "Add a track from my computer" });
+      addBtn.addEventListener("click", () => add.click());
+      add.addEventListener("change", async () => { const f = add.files[0]; if (!f) return; try { const j = await (await fetch("/api/music-upload?name=" + encodeURIComponent(f.name), { method: "POST", body: f })).json(); if (!j.ok) throw new Error(j.error || "upload failed"); await tuState(); await tuPost("/api/music", { track: j.name }); } catch (e) { pill(e.message, true); } });
+      mb.append(el("div", { className: "row" }, addBtn, add), el("p", { className: "hint", textContent: `The music dips while you talk and under each sound effect. Tracks live in ${MU.dir || "~/reels/music"}. Use music you're allowed to use.` }));
+      if (TU.hasFinal && soundChanged) { const rm = el("button", { type: "button", className: "b", textContent: "Update the sound on my built reel (about 20 seconds)" }); rm.id = "remix";
+        rm.addEventListener("click", async () => { try { const j = await (await fetch("/api/remix", { method: "POST" })).json(); if (!j.ok) throw new Error(j.error || "that didn't start"); soundChanged = false; pill("Updating the sound…"); build = { ...build, busy: true, text: "Mixing the sound." }; renderBuild(); setTimeout(pollBuild, 1500); } catch (e) { pill(e.message, true); } renderAudio(); });
+        mb.append(el("div", { className: "row" }, rm)); }
+    }
+    const A = R.assets || {}, vp = $("#voicepair"); vp.textContent = "";
+    if (A.audioOriginal && A.audioCleaned) for (const [cap, src] of [["Original", A.audioOriginal], ["Cleaned", A.audioCleaned]]) vp.append(el("figure", {}, el("figcaption", { textContent: cap }), el("audio", { controls: true, preload: "none", src })));
+    else vp.append(el("p", { className: "hint", textContent: "No before and after for this reel. Your voice is still cleaned and set to Instagram's loudness on every build." }));
+  }
+  // what this page can't make by itself, said before the build, in plain words
+  function needsClaude() {
+    const out = [], b = S.board || {};
+    const ch = GFX.filter((g) => !g.gone && (b[g.id] || {}).state === "c").length; if (ch) out.push(`${ch} graphic${ch > 1 ? "s" : ""} set to Change`);
+    const w = (S.wanted || []).filter((x) => !x.done).length; if (w) out.push(`${w} graphic${w > 1 ? "s" : ""} you added`);
+    if (S.amount) out.push("a new answer to \"How many graphics\"");
+    const mv = GFX.filter((g) => !g.gone && (b[g.id] || {}).state !== "d" && g.type !== "popup" && (b[g.id] || {}).where).length; if (mv) out.push(`${mv} graphic${mv > 1 ? "s" : ""} moved to a new place`);
+    const n = Object.values(S.notes || {}).filter((x) => String(x || "").trim()).length; if (n) out.push(`${n} typed note${n > 1 ? "s" : ""}`);
+    if ((S.revisions || []).length) out.push(`${S.revisions.length} note${S.revisions.length > 1 ? "s" : ""} on the draft`);
+    if (String(S.brandRequest || "").trim()) out.push("a change to your brand");
+    return out;
+  }
+  function renderWrap() {
+    const need = needsClaude(), box = $("#needs"); box.hidden = !need.length; box.textContent = "";
+    if (need.length) { const ul = el("ul"); for (const x of need) ul.append(el("li", { textContent: x }));
+      box.append(el("b", { textContent: "Build my reel can't make these:" }), ul, el("p", { textContent: "They need something new written, and only Claude does that. The button builds everything else: your cuts, captions, sounds, look and the graphics you kept." }),
+        el("p", { innerHTML: "To get all of it, go to your Claude chat and type <b>build preview</b>." })); }
+    const built = !!(B && B.url); $("#sblink").style.opacity = built ? "" : ".45"; $("#tulink").style.opacity = built ? "" : ".45";
+    $("#checknote").textContent = built ? (fresh() ? "" : "These show your last build. Build again to see your newest changes there.") : "Both open after your first build.";
+    const wn = $("#wrapnote"); if (document.activeElement !== wn) wn.value = (S.notes || {}).preview || "";
+  }
+  $("#wrapnote").addEventListener("input", (e) => { S.notes = { ...(S.notes || {}), preview: e.target.value }; if (!e.target.value.trim()) delete S.notes.preview; queueSave(); renderWrapNeeds(); });
+  const renderWrapNeeds = () => { const keep = $("#wrapnote").value; renderWrap(); $("#wrapnote").value = keep; };
+  for (const id of ["sblink", "tulink"]) $("#" + id).addEventListener("click", (e) => { if (!(B && B.url)) { e.preventDefault(); pill("That opens after your first build."); } });
+
   // ---------- Wrap up: build ----------
   const STEP_TEXT = { queued: "Waiting to start.", cut: "Cutting the video.", render: "Building the video. This is the long part.", sound: "Mixing the sound.", checks: "Checking it.", copies: "Saving this version." };
   let build = { busy: false, text: "", error: "", told: [] };
@@ -525,7 +626,7 @@
     setTimeout(pollBuild, 1500);
   });
 
-  function renderAll() { renderWords(); renderCaps(); renderStyle(); renderBuild(); syncSource(); }
+  function renderAll() { renderWords(); renderCaps(); renderStyle(); renderAudio(); renderWrap(); renderBuild(); syncSource(); }
 
   // ---------- load ----------
   (async () => {
@@ -548,7 +649,10 @@
       db.doc("builds/latest").onSnapshot((s) => { B = s.exists ? s.data() : null; if (R && P) { renderBuild(); syncSource(); } }, () => {});
       recompute(); restoreUndo();
       const want = location.hash.slice(1); tab = ["trim", "style", "audio", "wrap"].includes(want) ? want : "trim";
-      renderWords(); renderCaps(); renderStyle(); showTab(tab); pollBuild(); quickPoll();
+      renderWords(); renderCaps(); renderStyle(); renderAudio(); renderWrap(); showTab(tab); pollBuild(); quickPoll();
+      fetch("/api/sfx-library").then((r) => (r.ok ? r.json() : null)).then((j) => { LIB = j && j.sounds ? j.sounds : null; renderAudio(); }).catch(() => {});
+      tuState();
+      const L = window.REEL_STUDIO_LINKS || {}; if (L.cover) $("#tocover").href = L.cover; if (L.touchups) $("#tulink").href = L.touchups;
     } catch (e) { $("#reelname").textContent = "The reel didn't load. Reload the page."; console.error(e); }
   })();
 })();

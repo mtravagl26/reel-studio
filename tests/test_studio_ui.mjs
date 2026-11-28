@@ -127,7 +127,24 @@ try {
   await until(`document.querySelectorAll("#tl .tlb.w").length === 1`, "the asked-for graphic on the line, dashed");
   await click('#amount [data-amt="few"]'); await waitSaved((d) => d.amount === "few", "how many graphics");
   await click("#undo"); await waitSaved((d) => d.amount == null, "Undo on the Style tab");
-  await click('[data-p="style"] [data-next]'); await click('[data-p="audio"] [data-next]');
+  await click('[data-p="style"] [data-next]');
+  // Audio: all effects off and on, 1 sound switched off, 1 swapped for another from the library
+  await until(`document.querySelectorAll("#cues .cue").length === 1 && !!document.querySelector("#cues .cue select")`, "the graphic's sound with its swap list");
+  await click('#sfxall [data-sfx="off"]'); await waitSaved((d) => d.sfxAll === "off", "sound effects off");
+  assert.equal(await js(`document.querySelectorAll("#cues .cue").length`), 0, "no list while they are off");
+  await click('#sfxall [data-sfx="on"]'); await waitSaved((d) => d.sfxAll == null, "sound effects back on (the default, so nothing is stored)");
+  await click("#cues .cue [data-toggle]"); await waitSaved((d) => d.sfxOff?.g1 === true, "1 sound switched off");
+  await click("#cues .cue [data-toggle]"); await waitSaved((d) => !d.sfxOff?.g1, "and back on");
+  await js(`(() => { const s = document.querySelector("#cues .cue select"); s.value = "ding"; s.dispatchEvent(new Event("change", { bubbles: true })); })()`);
+  await waitSaved((d) => d.sfxPick?.g1 === "ding", "the swapped sound");
+  assert.match(await js(`document.querySelector("#cues .cue .cname").textContent`), /^ding/);
+  assert.match(await js(`document.querySelector("#musicbox").textContent`), /Music opens after your first build or live preview/);
+  await click('[data-p="audio"] [data-next]');
+  // Wrap up: what needs Claude is said before the build, and a typed note is saved
+  assert.match(await js(`document.querySelector("#needs").textContent`), /Build my reel can't make these:.*1 graphic you added.*only Claude does that/s);
+  await js(`(() => { const n = document.querySelector("#wrapnote"); n.value = "take off the last half second"; n.dispatchEvent(new Event("input", { bubbles: true })); })()`);
+  await waitSaved((d) => d.notes?.preview === "take off the last half second", "the note for Claude");
+  await until(`/1 typed note/.test(document.querySelector("#needs").textContent)`, "the note counted in the list");
   await until(`!document.querySelector('[data-p="wrap"]').hidden`, "the Wrap up tab");
   assert.equal(await js(`document.querySelector("#build").textContent`), "Build my reel");
   assert.equal(await js(`document.querySelector("#buildmsg").textContent`), "Not built yet.");
@@ -145,6 +162,7 @@ try {
   assert.match(await js(`document.querySelector("#v").getAttribute("src")`), /^\/files\/master\.mp4/);
   await until(`(() => { try { return document.querySelector("#live").contentWindow.reelLive.ready(); } catch { return false; } })()`, "the reel's page inside the preview", 20000);
   assert.equal(await js(`document.querySelector("#quickbtn").hidden`), true);
+  assert.equal(JSON.parse(readFileSync(join(reel, "edit.json"), "utf8")).cards.find((c) => c.id === "g1").sfx.name, "ding", "the swapped sound is in the reel's plan");
   if (process.env.REEL_SHOT_LIVE) { await js(`(() => { const s = document.querySelector("#scrub"); s.value = 1.0; s.dispatchEvent(new Event("input", { bubbles: true })); })()`); await sleep(1500);
     writeFileSync(process.env.REEL_SHOT_LIVE, Buffer.from((await cdp("Page.captureScreenshot", { format: "png" })).data, "base64")); }
   // a caption fix redraws it by itself (same cuts, so no button and no build)
