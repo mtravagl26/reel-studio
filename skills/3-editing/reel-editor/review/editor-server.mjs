@@ -775,7 +775,10 @@ function startReviewBuild() {
 // The choices on the page are read in (review_sync.py import), the video is cut again only if the cuts changed, and the reel is
 // built as a web page (the live preview above). The page lays that over the cut video, so graphics and captions show with the
 // real fonts, colors and motion in seconds, with no render. A cut takes longer, so it only runs when the page says it may.
-let quick = { state: "idle", error: null, hash: null, at: null, secs: 0 };
+let quick = { state: "idle", error: null, hash: null, at: null, secs: 0, started: null };
+// 0.40.3: what the last quick preview printed, kept for the person's Claude to read when one fails (editor/quick.log)
+const QUICK_LOG = path.join(REEL, "editor", "quick.log");
+const quickLog = (title, text) => { try { fs.mkdirSync(path.dirname(QUICK_LOG), { recursive: true }); fs.appendFileSync(QUICK_LOG, `\n== ${new Date().toISOString()} ${title}\n${String(text || "").slice(-6000)}\n`); } catch { /* the log is a help, never a blocker */ } };
 let quickBusy = false, quickAgain = null;
 const QUICK_DOC = path.join(REEL, "editor", "quick.json");
 const pyRun = (script, a) => new Promise((resolve) => {
@@ -791,7 +794,9 @@ async function runQuick(allowCut) {
     const decisions = path.join(REVIEW_DB, "review", "current.json");
     let file = decisions;
     if (!exists(decisions)) { fs.mkdirSync(path.join(REEL, "editor"), { recursive: true }); file = path.join(REEL, "editor", "no-decisions.json"); writeJSON(file, {}); }
+    try { fs.rmSync(QUICK_LOG, { force: true }); } catch { /* none yet */ }
     const imp = await pyRun("review_sync.py", ["import", REEL, file]);
+    quickLog("read the choices (exit " + imp.code + ")", imp.out);
     if (imp.code !== 0) throw new Error("Your choices could not be read: " + (tailReason(imp.out) || "unknown reason"));
     initBuilt();
     if (!built()) throw new Error("This reel has no plan yet.");
@@ -801,21 +806,22 @@ async function runQuick(allowCut) {
       if (job.state === "running" || job.state === "queued") throw new Error("A build is running.");
       quick = { ...quick, state: "cutting" };
       const c = await pyRun("cut.py", [REEL]);
+      quickLog("cut the video (exit " + c.code + ")", c.out);
       if (c.code !== 0) throw new Error("The cut failed: " + (tailReason(c.out) || "unknown reason"));
       writeJSON(MASTER_KEY, { key: cutKeyNow(st) });
     }
     quick = { ...quick, state: "drawing" };
     startLive(true); await liveDone();
     if (live.state !== "ready") throw new Error(live.error || "the preview could not be drawn");
-    quick = { state: "ready", error: null, hash, at: live.at, secs: Math.round((Date.now() - t0) / 100) / 10 };
+    quick = { state: "ready", error: null, hash, at: live.at, secs: Math.round((Date.now() - t0) / 100) / 10, started: null };
     writeJSON(QUICK_DOC, { hash, at: live.at });
-  } catch (e) { quick = { ...quick, state: "failed", error: String(e.message || e) }; }
+  } catch (e) { quick = { ...quick, state: "failed", error: String(e.message || e) }; quickLog("failed", String((e && e.stack) || e)); }
 }
 function startQuick(allowCut) {
   if (!hasReview()) throw new Error("No reel is loaded yet.");
   if (job.state === "running" || job.state === "queued" || reviewBuild.state === "importing") throw new Error("A build is running. The preview comes back when it finishes.");
   if (quickBusy) { quickAgain = { allowCut: !!allowCut || !!(quickAgain && quickAgain.allowCut) }; return quick; }
-  quickBusy = true; quick = { ...quick, state: "reading", error: null };
+  quickBusy = true; quick = { ...quick, state: "reading", error: null, started: new Date().toISOString() };
   runQuick(!!allowCut).finally(() => { quickBusy = false; if (quickAgain) { const a = quickAgain; quickAgain = null; try { startQuick(a.allowCut); } catch { /* a build started meanwhile */ } } });
   return quick;
 }
@@ -1085,9 +1091,11 @@ const server = http.createServer(async (req, res) => {
       if (reviewBuild.state === "rendering" && job.state === "failed") reviewBuild = { ...reviewBuild, state: "failed", error: job.error || "the render failed" };
       return json(res, 200, { ok: true, build: reviewBuild, job: { state: job.state, step: job.step, steps: job.steps || [], startedAt: job.startedAt || null } });
     }
-    if (p === "/api/quick-preview" && req.method === "GET") return json(res, 200, { ok: true, quick });
+    const buildingNow = () => job.state === "running" || job.state === "queued" || reviewBuild.state === "importing";
+    if (p === "/api/quick-preview" && req.method === "GET") return json(res, 200, { ok: true, quick, building: buildingNow(), now: new Date().toISOString() });
     if (p === "/api/quick-preview" && req.method === "POST") {
-      try { const b = JSON.parse((await readBody(req, 1e4)).toString() || "{}"); return json(res, 200, { ok: true, quick: startQuick(!!b.cut) }); }
+      if (buildingNow()) return json(res, 200, { ok: true, quick, building: true, now: new Date().toISOString() });
+      try { const b = JSON.parse((await readBody(req, 1e4)).toString() || "{}"); return json(res, 200, { ok: true, quick: startQuick(!!b.cut), building: false, now: new Date().toISOString() }); }
       catch (e) { return json(res, 400, { ok: false, error: String(e.message || e) }); }
     }
     if (p === "/api/review-build" && req.method === "POST") {
