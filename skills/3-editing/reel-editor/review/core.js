@@ -98,6 +98,7 @@
     if (d.layout) parts.push(d.layout);   // Added by By Mel Ross (0.26.0): captions high or low for this reel (only added when set)   // Added by By Mel Ross (0.23.0): the highlighted caption word's colors (only added when set)
     if (d.sfxAll) parts.push(d.sfxAll);   // 0.19.0: sound effects switched on or off for this reel   // Added by By Mel Ross (0.16.0): this reel's own colors change the render too (only added when set)
     if ((d.wanted && d.wanted.length) || d.amount) parts.push(d.wanted || [], d.amount || null);   // Added by By Mel Ross (0.10.1): graphics asked for on the page; only added when present, so older fingerprints still match   // Added by By Mel Ross (0.9.0): a theme picked on the page changes the render too (only added when one is picked, so older fingerprints still match)
+    if (d.sfxPick && Object.keys(d.sfxPick).length) parts.push(d.sfxPick);   // Added by By Mel Ross (0.42.0): a sound swapped for another on the Audio tab
     const s = JSON.stringify(parts);
     let h = 5381; for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) | 0;
     return (h >>> 0).toString(36);
