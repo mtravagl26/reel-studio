@@ -29,6 +29,8 @@ The Graphics tab has two ways to ask for more than the plan shows. Neither one d
 
 The looks page (`/styles`) also lists animations and moving extras (`assets/style-extras.json`). Picks land in `style-picks.json` under `"extras"`.
 
+**Since 0.43.0 the link opens the new Edit page (`/studio`)**, not the Reel Review page. It saves to the same `review_db/review/current.json`, so every step in this file works the same. The Reel Review page is still served at `/review`.
+
 **These pages only exist at the Unmess Reels link** (`http://localhost:<port>/...` from `studio-server.mjs`). Never hand the person an HTML file to open from disk: a file has no looks page, no saving and no touch-ups.
 
 ## Moving a graphic on the review page (0.16.0)

@@ -364,7 +364,10 @@ test("studio server: an unbuilt reel opens on the review page, saves decisions, 
   const base = `http://127.0.0.1:${port}`;
   try {
     const home0 = await fetch(base + "/", { redirect: "manual" });   // 0.28.0: the one link opens the Edit page, which shows The cut first
-    assert.equal(home0.status, 200); assert.match(await home0.text(), /The cut[\s\S]*Touch-ups/);
+    assert.equal(home0.status, 302); assert.equal(home0.headers.get("location"), "/studio");   // 0.43.0: the reel link opens the new Edit page
+    assert.equal((await fetch(base + "/edit", { redirect: "manual" })).headers.get("location"), "/studio");
+    assert.match(await (await fetch(base + "/edit-classic")).text(), /The cut[\s\S]*Touch-ups/);   // the earlier shell is kept at its own link
+    assert.match(await (await fetch(base + "/studio")).text(), /"edit":"\/studio"/, "step 1 points at the new page");
     const page = await (await fetch(base + "/review")).text();
     assert.ok(page.includes("shim.js") && page.includes("REEL_STUDIO_LINKS") && page.includes('"/touchups"'), "review page gets the storage shim and the step links");
     assert.deepEqual(await (await fetch(base + "/api/stage")).json(), { reel: "r1", built: false, review: true, storyboardDone: false });
@@ -391,7 +394,7 @@ test("studio server: an unbuilt reel opens on the review page, saves decisions, 
     fs.writeFileSync(path.join(reel, "edl.json"), JSON.stringify(EDL));
     fs.writeFileSync(path.join(reel, "master_transcript.json"), JSON.stringify(TR));
     const built = await fetch(base + "/", { redirect: "manual" });
-    assert.equal(built.status, 200); assert.match(await built.text(), /Touch-ups/);
+    assert.equal(built.status, 302); assert.equal(built.headers.get("location"), "/studio");
     const st2 = await (await fetch(base + "/api/state")).json();
     assert.equal(st2.built, true); assert.equal(st2.pieces.length, 3);
     assert.equal((await (await fetch(base + "/api/stage")).json()).built, true);

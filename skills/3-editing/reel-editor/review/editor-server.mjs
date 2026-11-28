@@ -29,7 +29,7 @@ const PORT = Number(args[args.indexOf("--port") + 1]) || 4792;
 const LAN = args.includes("--lan");
 // Added by By Mel Ross: addresses of the other two Unmess Reels pages, shown as links in the step bar (both optional).
 const flag = (n) => { const i = args.indexOf(n); return i >= 0 && /^https?:\/\//.test(args[i + 1] || "") ? args[i + 1] : null; };
-const LINKS = { review: flag("--review-url") || "/review", touchups: "/touchups", edit: "/edit", cover: flag("--cover-url") || "/cover", caption: "/caption" };   // 0.28.0: edit = review + touch-ups on one page
+const LINKS = { review: flag("--review-url") || "/review", touchups: "/touchups", edit: "/studio", cover: flag("--cover-url") || "/cover", caption: "/caption" };   // 0.28.0: edit = review + touch-ups on one page
 const KEY = LAN ? crypto.randomBytes(9).toString("base64url") : null;
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const SKILL = path.resolve(HERE, "..");
@@ -1004,7 +1004,10 @@ const server = http.createServer(async (req, res) => {
     initBuilt();   // the reel may have been built since this server started
     // 0.28.0: one link, one page. /edit holds the review page (the cut, before the first build) and the touch-ups page
     // (after it) as 2 tabs, and opens on the one that fits. /review and /touchups still work on their own.
-    if (p === "/" || p === "/index.html" || p === "/edit") return sendFile(req, res, path.join(HERE, "edit.html"));
+    // 0.43.0: the swap. The reel link and step 1 open the new Edit page (/studio). A reel with no review data (one built
+    // before the review page existed) still gets the earlier shell, which is also kept at /edit-classic.
+    if ((p === "/" || p === "/index.html" || p === "/edit") && hasReview()) { res.writeHead(302, { Location: "/studio", "Cache-Control": "no-store" }); return res.end(); }
+    if (p === "/" || p === "/index.html" || p === "/edit" || p === "/edit-classic") return sendFile(req, res, path.join(HERE, "edit.html"));
     if (p === "/favicon.ico") { res.writeHead(204); return res.end(); }   // no icon: answer quietly so the page shows no failed request
     if (p === "/touchups") return sendFile(req, res, path.join(HERE, "editor.html"));
     // Added by By Mel Ross (0.38.2): 2 Cover starts the thumbnail studio itself, so nobody has to ask Claude to open it.

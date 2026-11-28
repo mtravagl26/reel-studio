@@ -66,7 +66,7 @@ function savedNow() { const s = $("#savedat"); if (s) s.textContent = "Saved " +
 async function load() {
   S = await (await fetch("/api/state")).json();
   if (S.built === false) {   // the reel has not been built yet: nothing to touch up
-    document.body.classList.add("unbuilt"); $("#sub").textContent = S.reel; setSteps("edit", S.links);
+    document.body.classList.add("unbuilt"); $("#sub").textContent = S.reel; setSteps("touchups", S.links)   /* 0.43.0: Touch-ups opens from Wrap up now, so 1 Edit is the way back */;
     $("#unbuilt").hidden = false; setTimeout(load, 4000); return;
   }
   if (document.body.classList.contains("unbuilt")) { document.body.classList.remove("unbuilt"); $("#unbuilt").hidden = true; }
@@ -78,7 +78,7 @@ const dur = () => S.total;
 
 // ------------------------------------------------------------------ render
 function render() {
-  $("#sub").textContent = `${S.reel} · ${fmt(S.total)} long · ${S.edit.cards.length} cards`; setSteps("edit", S.links);
+  $("#sub").textContent = `${S.reel} · ${fmt(S.total)} long · ${S.edit.cards.length} cards`; setSteps("touchups", S.links)   /* 0.43.0: Touch-ups opens from Wrap up now, so 1 Edit is the way back */;
   $("#undo").disabled = !S.canUndo || running(); $("#undo").title = S.undoLabel ? `Undo: ${S.undoLabel}` : "";
   $("#render").disabled = running(); $("#render").textContent = running() ? "Rendering…" : "Re-render";
   renderStatus(); renderVideo(); renderTimeline(); renderCaps(); renderPieces(); renderCards(); renderPopups(); renderSfx(); renderSettings(); renderVersions(); drawOverlay();

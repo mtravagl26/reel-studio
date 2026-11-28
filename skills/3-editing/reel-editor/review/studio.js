@@ -421,11 +421,17 @@
     if (!items.length) tl.append(el("span", { className: "hint", textContent: "No graphics on this reel yet. Add one below.", style: "position:absolute;left:12px;top:26px" }));
   }
   $("#tl").addEventListener("click", (e) => { if (!P) return; const r = $("#tl").getBoundingClientRect(); seekCut(((e.clientX - r.left) / r.width) * P.cutDur); });
+  // Their own picture, clip or GIF for a graphic. The file is saved in the reel folder and its path travels with the choice.
+  // GIPHY search (0.43.0, moved here from the earlier Edit page): off until the person turns it on with their own key, with the
+  // same warning words as Touch-ups (license review 2026-11-17). The key stays on their computer.
+  const GIPHY_WARN = "Before you turn GIPHY on: GIPHY's rules say apps should not store copies of GIPHY content. To build your video, Unmess Reels has to keep a copy of each GIF you pick in your reel folder, so a reel you post with one may go against GIPHY's rules. Many GIFs are also clips from films, TV or sport that you may not have the right to use in a reel for your business. GIPHY is off unless you turn it on, and you use it at your own risk.";
+  const GIPHY_SHORT = "GIPHY's rules say not to store copies of its GIFs, and a reel you post with one may conflict with them. Many GIFs are film or TV clips. Use at your own risk.";
+  let giphyOpen = false;
   function uploadBtn(files, onChange) {
-    const wrap = el("div", { className: "hint" });
+    const wrap = el("div", { className: "upl" });
     if (!window.REEL_STUDIO_LINKS) return wrap;
     const inp = el("input", { type: "file", accept: "image/*,video/mp4,video/quicktime,.gif,.heic,.heif,.svg,.mp4,.mov,.m4v", multiple: true, hidden: true });
-    const btn = el("button", { type: "button", className: "b sm", textContent: files.length ? "Add another picture or clip" : "Use my own picture, GIF or video clip" }), msg = el("span", { textContent: files.length ? ` ${files.length} added.` : "" });
+    const btn = el("button", { type: "button", className: "b sm", textContent: files.length ? "Add another picture or clip" : "Use my own picture, GIF or video clip" }), msg = el("span", { className: "hint" });
     btn.addEventListener("click", () => inp.click());
     inp.addEventListener("change", async () => {
       const got = [...files];
@@ -434,7 +440,52 @@
         catch (e) { msg.textContent = ` ${f.name}: ${e.message}`; return; } }
       onChange(got.slice(0, 6));
     });
-    wrap.append(btn, inp, msg); return wrap;
+    const gbtn = el("button", { type: "button", className: "b sm", textContent: "Search GIPHY" }); gbtn.dataset.giphy = "1";
+    const gbox = el("div", { className: "giphy", hidden: !giphyOpen }), gq = el("input", { type: "search", placeholder: "Search GIFs, for example: mind blown" }); gq.setAttribute("aria-label", "Search GIPHY");
+    const kind = el("select"); kind.setAttribute("aria-label", "GIFs or stickers"); kind.append(new Option("GIFs", "gifs"), new Option("Stickers (see-through)", "stickers"));
+    const go = el("button", { type: "button", className: "b sm", textContent: "Search" }), grid = el("div", { className: "ggrid" }), gnote = el("p", { className: "hint" });
+    const keyForm = () => {
+      if (gbox.querySelector(".gkey")) return gbox.querySelector(".gkey input").focus();
+      const kin = el("input", { type: "password", placeholder: "Paste your GIPHY key", autocomplete: "off" }); kin.setAttribute("aria-label", "Your GIPHY key");
+      const agree = el("input", { type: "checkbox" }), save = el("button", { type: "button", className: "b sm", textContent: "Save key" }), out = el("p", { className: "hint" });
+      const link = el("a", { href: "https://developers.giphy.com/dashboard/", target: "_blank", rel: "noopener", textContent: "Get one at developers.giphy.com" });
+      const box = el("div", { className: "gkey" }, el("p", { className: "giphy-warn" }, el("b", { textContent: "Off until you turn it on. " }), GIPHY_WARN),
+        el("p", { className: "hint" }, "To turn it on you need a free key, once. ", link, ". Choose API (not SDK), copy the key, and paste it here."), el("div", { className: "row" }, kin, save),
+        el("label", { className: "hint" }, agree, " I have read the warning and want GIPHY search on"), out);
+      const doSave = async () => { out.textContent = "Checking the key…";
+        try { const j = await (await fetch("/api/giphy-key-save", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ key: kin.value, agree: agree.checked }) })).json(); if (!j.ok) throw new Error(j.error || "couldn't save it");
+          box.remove(); gnote.textContent = j.tested ? "GIPHY is connected." : "Key saved. This computer couldn't reach GIPHY to test it yet."; if (gq.value.trim()) search(); else gq.focus(); }
+        catch (e) { out.textContent = e.message; } };
+      save.addEventListener("click", doSave); kin.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); doSave(); } });
+      gbox.prepend(box); kin.focus();
+    };
+    const search = async () => {
+      const q = gq.value.trim(); if (!q) return gq.focus();
+      gnote.textContent = "Searching…"; grid.textContent = "";
+      try {
+        const { key } = await (await fetch("/api/review-giphy-key")).json(); if (!key) { gnote.textContent = ""; keyForm(); return; }
+        const u = new URL(`https://api.giphy.com/v1/${kind.value}/search`); u.search = new URLSearchParams({ api_key: key, q, limit: "12", rating: "g", bundle: "messaging_non_clips" });
+        const r = await fetch(u); if (r.status === 429) throw new Error("GIPHY's hourly limit is used up for this key. Try again later."); if (!r.ok) throw new Error(`GIPHY said no (${r.status}). Ask Claude to check the key.`);
+        const items = ((await r.json()).data || []).map((d) => ({ id: d.id, title: d.title || "GIF", preview: d.images?.fixed_width_small?.url || d.images?.fixed_width?.url || "" })).filter((g) => /^https:\/\/[\w-]+\.giphy\.com\//.test(g.preview));
+        gnote.textContent = items.length ? "Tap one to use it for this graphic." : "Nothing found. Try other words.";
+        for (const g of items) { const b = el("button", { type: "button", title: g.title }, el("img", { src: g.preview, alt: g.title, loading: "lazy" }));
+          b.addEventListener("click", async () => { gnote.textContent = "Adding it…";
+            try { const j = await (await fetch("/api/review-giphy", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: g.id }) })).json(); if (!j.ok) throw new Error(j.error || "couldn't add it"); onChange([...files, j.upload.src].slice(0, 6)); }
+            catch (e) { gnote.textContent = e.message; } });
+          grid.append(b); }
+      } catch (e) { gnote.textContent = e.message; }
+    };
+    go.addEventListener("click", search); gq.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); search(); } });
+    gbtn.addEventListener("click", async () => { giphyOpen = gbox.hidden; gbox.hidden = !giphyOpen; if (!giphyOpen) return; gq.focus(); try { const { key } = await (await fetch("/api/review-giphy-key")).json(); if (!key) keyForm(); } catch { /* the search says what's wrong */ } });
+    const credit = el("p", { className: "giphy-mark" }, el("span", { textContent: "Powered By" }), " ", el("b", { textContent: "GIPHY" })); credit.setAttribute("aria-label", "Powered By GIPHY");
+    gbox.append(el("div", { className: "row" }, gq, kind, go), gnote, grid, el("p", { className: "giphy-warn", textContent: GIPHY_SHORT }), credit);
+    wrap.append(el("div", { className: "row" }, btn, gbtn, inp, msg), gbox);
+    files.forEach((src, k) => {
+      const clip = /\.(mp4|mov|m4v|webm)$/i.test(src), im = el(clip ? "video" : "img", { src: "/files/" + src + (clip ? "#t=0.5" : "") }); if (clip) { im.muted = true; im.playsInline = true; im.preload = "metadata"; } else im.alt = "";
+      const rm = el("button", { type: "button", textContent: "×", title: "Remove this picture" }); rm.setAttribute("aria-label", "Remove this picture"); rm.addEventListener("click", () => onChange(files.filter((_, i) => i !== k)));
+      wrap.append(el("span", { className: "upchip" }, im, rm));
+    });
+    return wrap;
   }
   function renderDetail() {
     const box = $("#gdetail"); box.textContent = "";
@@ -562,6 +613,9 @@
         rm.addEventListener("click", async () => { try { const j = await (await fetch("/api/remix", { method: "POST" })).json(); if (!j.ok) throw new Error(j.error || "that didn't start"); soundChanged = false; pill("Updating the sound…"); build = { ...build, busy: true, text: "Mixing the sound." }; renderBuild(); setTimeout(pollBuild, 1500); } catch (e) { pill(e.message, true); } renderAudio(); });
         mb.append(el("div", { className: "row" }, rm)); }
     }
+    const cp = $("#colorpair"), A0 = R.assets || {}; cp.textContent = "";
+    if (A0.colourBefore && R.grade) for (const [cap, src] of [["Original", A0.colourBefore], ["With your color", A0.colourAfter]]) cp.append(el("figure", {}, el("figcaption", { textContent: cap }), el("img", { src, alt: cap + " frame", style: "width:100%;border-radius:var(--r);display:block" })));
+    else cp.append(el("p", { className: "hint", textContent: "No color change is set for your brand, so the reel keeps its original color." }));
     const A = R.assets || {}, vp = $("#voicepair"); vp.textContent = "";
     if (A.audioOriginal && A.audioCleaned) for (const [cap, src] of [["Original", A.audioOriginal], ["Cleaned", A.audioCleaned]]) vp.append(el("figure", {}, el("figcaption", { textContent: cap }), el("audio", { controls: true, preload: "none", src })));
     else vp.append(el("p", { className: "hint", textContent: "No before and after for this reel. Your voice is still cleaned and set to Instagram's loudness on every build." }));
@@ -578,7 +632,23 @@
     if (String(S.brandRequest || "").trim()) out.push("a change to your brand");
     return out;
   }
+  function renderRevs() {
+    const box = $("#revs"); box.textContent = "";
+    (S.revisions || []).forEach((r, k) => {
+      const go = el("button", { type: "button", className: "ts", textContent: fmt(r.t), title: "Go to this moment" }); go.addEventListener("click", () => seekCut(r.t));
+      const del = el("button", { type: "button", className: "b sm", textContent: "Remove" }); del.addEventListener("click", () => mutate(() => { S.revisions.splice(k, 1); }));
+      box.append(el("div", { className: "cue" }, go, el("span", { className: "cname", textContent: r.text }), el("span", { className: "cctl" }, del)));
+    });
+  }
+  function addRev() {
+    const text = $("#revtext").value.trim(); if (!text) return $("#revtext").focus();
+    const isBuilt = kind === "built";
+    mutate(() => { S.revisions = [...(S.revisions || []), { t: +pos.toFixed(2), text, hash: isBuilt ? B.hash : null, ...(isBuilt ? {} : { rough: true }) }].sort((x, y) => x.t - y.t); }); $("#revtext").value = "";
+  }
+  $("#revadd").addEventListener("click", addRev); $("#revtext").addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); addRev(); } });
+  $("#brandreq").addEventListener("input", (e) => { S.brandRequest = e.target.value; queueSave(); });
   function renderWrap() {
+    renderRevs(); const br = $("#brandreq"); if (document.activeElement !== br) br.value = S.brandRequest || "";
     const need = needsClaude(), box = $("#needs"); box.hidden = !need.length; box.textContent = "";
     if (need.length) { const ul = el("ul"); for (const x of need) ul.append(el("li", { textContent: x }));
       box.append(el("b", { textContent: "Build my reel can't make these:" }), ul, el("p", { textContent: "They need something new written, and only Claude does that. The button builds everything else: your cuts, captions, sounds, look and the graphics you kept." }),

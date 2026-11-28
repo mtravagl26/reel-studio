@@ -74,7 +74,9 @@ try {
 
   // ---- 1 Review: the one link opens the review page while the reel is not built
   // 0.28.0: the one link opens the Edit page, on The cut while the reel is not built
-  await open("/");
+  await open("/");   // 0.43.0: the reel link lands on the new Edit page
+  await until(`location.pathname === "/studio" && document.querySelectorAll(".tab").length === 4`, "the reel link opening the new Edit page");
+  await open("/edit-classic");
   await until(`document.querySelector("#t-cut")?.getAttribute("aria-selected") === "true" && document.querySelector("#f-cut")?.getAttribute("src") === "/review?embed=1"`, "the Edit page on The cut");
   await open("/review");
   await until(`location.pathname === "/review" && /UI test reel/.test(document.querySelector("#reelname")?.textContent || "")`, "the review page to load the reel");
@@ -145,7 +147,7 @@ try {
   for (const n of ["a", "b"]) ff(["-f", "lavfi", "-i", "color=c=red:s=80x100", "-frames:v", "1", join(reel, "popups", `${n}.png`)]);
 
   // ---- 2 Storyboard (0.35.0): first after a render, a note per scene, then Touch-ups once the notes are sent
-  await open("/");
+  await open("/edit-classic");
   await until(`document.querySelector("#t-board")?.getAttribute("aria-selected") === "true"`, "the Edit page on the Storyboard once built");
   await open("/storyboard");
   await until(`document.querySelectorAll(".scene").length > 0 && [...document.querySelectorAll(".scene img")].every((i) => i.complete && i.naturalWidth > 0)`, "the storyboard's scenes and stills", 60000);
@@ -163,11 +165,11 @@ try {
   assert.ok(existsSync(join(sbDir, "sheet.jpg")), "the one-picture sheet for Claude");
 
   // ---- 3 Touch-ups
-  await open("/");
+  await open("/edit-classic");
   await until(`document.querySelector("#t-touch")?.getAttribute("aria-selected") === "true"`, "the Edit page on Touch-ups once the storyboard notes are sent");
   await open("/touchups");
   await until(`document.querySelector("h1")?.textContent === "Touch-ups" && document.querySelector("#caps .w")`, "the touch-ups page");
-  assert.equal(await text('.steps [aria-current="step"]'), "1 Edit");
+  assert.equal(await js(`document.querySelector('.steps [data-step="edit"]').getAttribute("href")`), "/studio", "1 Edit is the way back to the new Edit page");
   assert.equal(await js(`document.querySelector('.steps [data-step="caption"]').getAttribute("href")`), "/caption");
   await js(`document.querySelectorAll("details").forEach((d) => (d.open = true))`);
   assert.equal(await js(`document.querySelector("#themePick").value`), "editorial", "the theme picked in review shows here");

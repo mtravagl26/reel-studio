@@ -121,6 +121,12 @@ try {
   await waitSaved((d) => d.board?.g1?.set?.text === "hi there", "the graphic's new words");
   await click('#gdetail [data-state="c"]'); await until(`!!document.querySelector("#gnote")`, "the what-should-change box");
   await click('#gdetail [data-state="k"]'); await waitSaved((d) => d.board?.g1?.state === "k", "back to Keep");
+  // GIPHY search lives on a graphic's card now: off until a key is saved, with the warning shown first
+  await click('#gdetail [data-state="c"]'); await until(`!!document.querySelector("#gdetail [data-giphy]")`, "the GIPHY button on the card");
+  await click("#gdetail [data-giphy]");
+  await until(`/Off until you turn it on\..*GIPHY's rules say apps should not store copies/s.test(document.querySelector("#gdetail .giphy")?.textContent || "")`, "the GIPHY warning before any key");
+  assert.match(await js(`document.querySelector("#gdetail .giphy-mark").textContent`), /Powered By\s+GIPHY/);
+  await click('#gdetail [data-state="k"]');
   await click("#addg"); await until(`!document.querySelector("#addform").hidden`, "the add form");
   await js(`(() => { document.querySelector("#addnote").value = "the 3 steps"; document.querySelector("#addform").requestSubmit(); })()`);
   await waitSaved((d) => (d.wanted || []).length === 1 && d.wanted[0].note === "the 3 steps", "the graphic asked for");
@@ -145,6 +151,11 @@ try {
   await js(`(() => { const n = document.querySelector("#wrapnote"); n.value = "take off the last half second"; n.dispatchEvent(new Event("input", { bubbles: true })); })()`);
   await waitSaved((d) => d.notes?.preview === "take off the last half second", "the note for Claude");
   await until(`/1 typed note/.test(document.querySelector("#needs").textContent)`, "the note counted in the list");
+  await js(`(() => { document.querySelector("#revtext").value = "make this bigger"; document.querySelector("#revadd").click(); })()`);
+  await waitSaved((d) => (d.revisions || []).length === 1 && d.revisions[0].text === "make this bigger" && d.revisions[0].rough === true, "a note at a moment");
+  await js(`(() => { const n = document.querySelector("#brandreq"); n.value = "use my new colors"; n.dispatchEvent(new Event("input", { bubbles: true })); })()`);
+  await waitSaved((d) => d.brandRequest === "use my new colors", "the brand note");
+  assert.equal(await js(`document.querySelector('.steps [aria-current="step"]').textContent`), "1 Edit");
   await until(`!document.querySelector('[data-p="wrap"]').hidden`, "the Wrap up tab");
   assert.equal(await js(`document.querySelector("#build").textContent`), "Build my reel");
   assert.equal(await js(`document.querySelector("#buildmsg").textContent`), "Not built yet.");
