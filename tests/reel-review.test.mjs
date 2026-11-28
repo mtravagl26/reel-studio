@@ -185,7 +185,7 @@ test("review page: Build preview imports the choices, runs the build steps, and 
     assert.ok(fs.existsSync(path.join(c.reel, "final.mp4")) && fs.existsSync(path.join(c.reel, "edl.json")));
   } finally { p.kill(); }
   const rv = pageText(path.join(skill, "review", "reel-review.html"));
-  for (const t of ["Build now without those", "I'll tell Claude", "/api/review-build", "function needsClaude", "Step 2 of 4"]) assert.ok(rv.includes(t), t);
+  for (const t of ["Build now, skip those for now", "Cancel, I'll ask Claude", "/api/review-build", "function needsClaude", "Step 2 of 4"]) assert.ok(rv.includes(t), t);
 });
 
 test("words changed on the review page go into the card (0.28.0); bad values are cut down or ignored", { skip: skipReason }, () => {

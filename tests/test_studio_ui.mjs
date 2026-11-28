@@ -35,7 +35,7 @@ writeFileSync(join(reel, "review_reel.json"), JSON.stringify(data));
 const port = await new Promise((ok) => { const s = createServer().listen(0, "127.0.0.1", () => { const p = s.address().port; s.close(() => ok(p)); }); }), base = `http://127.0.0.1:${port}`;
 const server = spawn("node", [join(SKILL, "review/studio-server.mjs"), reel, "--port", String(port)], { env, stdio: "ignore" });
 const profile = join(tmp, "chrome");
-const chrome = spawn(CHROME, ["--headless=new", "--no-sandbox", "--remote-debugging-port=0", `--user-data-dir=${profile}`, "--no-first-run", "--mute-audio", "--window-size=1200,900", "about:blank"], { stdio: "ignore" });
+const chrome = spawn(CHROME, ["--headless=new", "--no-sandbox", "--remote-debugging-port=0", `--user-data-dir=${profile}`, "--no-first-run", "--mute-audio", "--autoplay-policy=no-user-gesture-required", "--window-size=1200,900", "about:blank"], { stdio: "ignore" });
 let ws, id = 0; const pending = new Map();
 const cdp = (method, params = {}) => new Promise((ok, fail) => { const i = ++id; pending.set(i, { ok, fail }); ws.send(JSON.stringify({ id: i, method, params })); });
 async function js(expr) { const r = await cdp("Runtime.evaluate", { expression: expr, awaitPromise: true, returnByValue: true }); if (r.exceptionDetails) throw new Error(r.exceptionDetails.exception?.description || r.exceptionDetails.text); return r.result.value; }
@@ -139,6 +139,25 @@ try {
   // the current Edit page sees the same choices
   await open("/review");
   await until(`document.querySelector('#tx .w[data-i="1"]')?.classList.contains("cut")`, "the same cut on the current Edit page");
+
+  // 0.40.2 on the current Edit page: tapping the picture plays and pauses the rough cut on the Graphics and Captions tabs,
+  // a graphic's picture plays from just before it, and the Preview tab keeps the rough cut until something is built
+  for (const t of ["graphics", "captions"]) {
+    await click(`.tab[data-tab="${t}"]`);
+    await click("#player"); await until(`document.querySelector("#rough").textContent === "Pause"`, `the picture starting the rough cut on ${t}`);
+    await click("#player"); await until(`document.querySelector("#rough").textContent === "Play rough cut"`, `the picture pausing it on ${t}`);
+  }
+  await click('.tab[data-tab="graphics"]');
+  await click(".card .thumb[role=button]"); await until(`document.querySelector("#rough").textContent === "Pause"`, "a graphic's picture playing the rough cut");
+  await click("#rough");
+  await click('.tab[data-tab="preview"]');
+  assert.equal(await js(`document.querySelector("#rough").hidden`), false, "the Preview tab keeps the rough cut until something is built");
+  await js(`(() => { const n = document.querySelector("#notes"); n.value = "take off the last half second"; n.dispatchEvent(new Event("input", { bubbles: true })); })()`);
+  await click("#build");
+  assert.match(await js(`document.querySelector("#needbox").textContent`), /This button can't make these:.*They need something new written, and only Claude does that.*Pick one\./s);
+  assert.deepEqual(await js(`[...document.querySelectorAll("#needbox button")].map((b) => b.textContent)`), ["Build now, skip those for now", "Cancel, I'll ask Claude"]);
+  await click("#needbox button.quiet");
+  assert.match(await js(`document.querySelector("#needbox").textContent`), /Nothing was built\. Your choices are saved\./);
   if (process.env.REEL_SHOT) { await open("/studio"); await until(`document.querySelectorAll("#tx .w").length === 6`, "page"); await sleep(600);
     writeFileSync(process.env.REEL_SHOT, Buffer.from((await cdp("Page.captureScreenshot", { format: "png" })).data, "base64")); }
   console.log("PASS: /studio (4 tabs, your site's look, Trim end to end, saved and shared with the current Edit page)");

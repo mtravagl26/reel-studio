@@ -84,7 +84,8 @@ function showTab(t) {
   $("#notetab").textContent = { cuts: "cuts", graphics: "graphics", captions: "captions", sound: "sound and color", preview: "preview" }[t];
   $("#notes").value = S.notes[t] || ""; $("#resetbox").hidden = t === "preview"; 
   stopPlay();
-  if (t === "preview") { if (B?.url && v.getAttribute("src") !== B.url) { v.setAttribute("src", B.url); v.load(); } $("#rough").hidden = $("#back5").hidden = $("#fwd5").hidden = true; $(".scrub").hidden = true; v.controls = true; }
+  // 0.40.2: with nothing built yet, the Preview tab keeps the rough cut and its controls (it used to show the raw clip)
+  if (t === "preview" && B?.url) { if (v.getAttribute("src") !== B.url) { v.setAttribute("src", B.url); v.load(); } $("#rough").hidden = $("#back5").hidden = $("#fwd5").hidden = true; $(".scrub").hidden = true; v.controls = true; }
   else { if (v.getAttribute("src") !== R.srcUrl) { v.setAttribute("src", R.srcUrl); v.load(); } $("#rough").hidden = $("#back5").hidden = $("#fwd5").hidden = false; $(".scrub").hidden = false; v.controls = false; }
   overlay(0);
 }
@@ -257,6 +258,9 @@ function playRough(fromCut = pos) {
   loop = requestAnimationFrame(tick);
 }
 $("#rough").addEventListener("click", () => { if (mode === "rough") { stopPlay(); mode = "roughPaused"; overlay(pos); } else playRough(pos); });
+// Added by By Mel Ross (0.40.2): tapping the picture plays or pauses the rough cut, on every tab that shows it. The built
+// preview keeps the video's own controls.
+$("#player").addEventListener("click", (e) => { if (!R || !P || v.controls || e.target.closest("button, input, a, .capov[contenteditable]")) return; $("#rough").click(); });
 v.addEventListener("error", () => pill("The video didn't load. Reload the page; if it keeps failing, ask Claude to re-upload it.", true));
 
 // overlay at a cut time: approximate graphic boxes + caption style preview
@@ -414,6 +418,10 @@ function renderGraphics() {
     const th = document.createElement("div");
     const tb = document.createElement("div"); tb.className = "thumb"; if (g.thumbUrl) tb.style.backgroundImage = `url(${JSON.stringify(g.thumbUrl)})`;
     tb.appendChild(box_(g)); const ap = document.createElement("div"); ap.className = "approx"; ap.textContent = "Approx. layout";
+    // 0.40.2: tap the picture to watch the rough cut from just before this graphic
+    tb.setAttribute("role", "button"); tb.tabIndex = 0; tb.title = "Play the rough cut from here"; tb.setAttribute("aria-label", `Play the rough cut from ${g.kind}`);
+    const from = () => { if (v.controls) { v.controls = false; if (v.getAttribute("src") !== R.srcUrl) { v.setAttribute("src", R.srcUrl); v.load(); } } playRough(Math.max(0, g.start - 0.5)); $("#player")?.scrollIntoView?.({ block: "nearest", behavior: "smooth" }); };
+    tb.addEventListener("click", from); tb.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); from(); } });
     th.append(tb, ap);
     const body = document.createElement("div");
     const kind = document.createElement("div"); kind.className = "kind"; kind.textContent = g.kind;
@@ -829,12 +837,15 @@ $("#build").addEventListener("click", () => {
   if (!LOCAL) return;
   const need = needsClaude(), box = $("#needbox"); box.textContent = "";
   if (!need.length) return buildHere();
-  const p1 = document.createElement("p"); p1.className = "lede"; p1.innerHTML = "<b>Some of what you asked for needs Claude:</b> " + need.map(x => x.replace(/</g, "&lt;")).join(", ") + ".";
-  const p2 = document.createElement("p"); p2.className = "lede"; p2.textContent = "To get all of it, tell Claude \"build preview\" in chat. Or build now and see the rest (cuts, captions, sounds, colors, kept graphics) in about 3 minutes.";
-  const go = document.createElement("button"); go.type = "button"; go.className = "b"; go.textContent = "Build now without those";
-  const no = document.createElement("button"); no.type = "button"; no.className = "b quiet"; no.textContent = "I'll tell Claude";
-  go.addEventListener("click", () => { box.textContent = ""; buildHere(); }); no.addEventListener("click", () => { box.textContent = ""; });
-  const row = document.createElement("div"); row.className = "ctl"; row.append(go, no); box.append(p1, p2, row);
+  // Modified by By Mel Ross (0.40.2): this box read as a riddle. It now says what this button can build, what it can't and why,
+  // and what each choice does.
+  const p1 = document.createElement("p"); p1.className = "lede"; p1.innerHTML = "<b>This button can't make these:</b> " + need.map(x => x.replace(/</g, "&lt;")).join(", ") + ".";
+  const p2 = document.createElement("p"); p2.className = "lede"; p2.textContent = "They need something new written, and only Claude does that. This button builds what's already made: your cuts, captions, sounds, colors and the graphics you kept.";
+  const p3 = document.createElement("p"); p3.className = "lede"; p3.innerHTML = "<b>Pick one.</b> Build now and see everything else in about 3 minutes. Or get all of it: go to your Claude chat and type <b>build preview</b>.";
+  const go = document.createElement("button"); go.type = "button"; go.className = "b"; go.textContent = "Build now, skip those for now";
+  const no = document.createElement("button"); no.type = "button"; no.className = "b quiet"; no.textContent = "Cancel, I'll ask Claude";
+  go.addEventListener("click", () => { box.textContent = ""; buildHere(); }); no.addEventListener("click", () => { box.textContent = ""; box.append(Object.assign(document.createElement("p"), { className: "lede", innerHTML: "Nothing was built. Your choices are saved. In your Claude chat, type <b>build preview</b>." })); });
+  const row = document.createElement("div"); row.className = "ctl"; row.append(go, no); box.append(p1, p2, p3, row);
 });
 if (LOCAL) pollBuild();
 $("#revadd").addEventListener("click", () => {
