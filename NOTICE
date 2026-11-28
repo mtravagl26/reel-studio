@@ -255,3 +255,8 @@ Added by By Mel Ross in 0.19.0 (November 2026), in skills/3-editing/reel-editor.
   "sfx_default": "none", which Minimal now has. The Sound switch on either page still wins, for one reel or every reel
   (scripts/theme.py, scripts/review_sync.py, themes/minimal/theme.json, review/review.js, review/editor.js,
   review/editor-server.mjs; tests/reel-themes.test.mjs).
+- Tap the picture to play (0.40.2): on the current Edit page, tapping the preview plays or pauses the rough cut on every
+  tab, tapping a graphic's picture plays the rough cut from just before it, and the Preview tab keeps the rough cut until
+  something is built. The box that appears when a build can't include everything now says what the button can build,
+  what needs Claude and why, and what each choice does (review/review.js, review/reel-review.html;
+  tests/test_studio_ui.mjs, tests/reel-review.test.mjs).
