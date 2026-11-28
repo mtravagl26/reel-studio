@@ -1,6 +1,6 @@
 // Added by By Mel Ross (0.39.0). The new Edit page (studio.html), step 1 of 5: the preview, the 4 tabs, and the Trim tab.
 // It reads and writes the same decisions as the review page (review/current through the page's db), and uses the same
-// core.js to turn them into a cut, so a cut made here is the cut that renders. Style and Audio arrive in the next steps.
+// core.js to turn them into a cut, so a cut made here is the cut that renders. Audio arrives in the next step.
 (() => {
   const $ = (s) => document.querySelector(s), $$ = (s) => [...document.querySelectorAll(s)];
   const fmt = (t) => { t = Math.max(0, +t || 0); return `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, "0")}`; };
@@ -55,6 +55,7 @@
     $$(".tab").forEach((b) => b.setAttribute("aria-selected", String(b.dataset.tab === t)));
     $$("section[data-p]").forEach((s) => (s.hidden = s.dataset.p !== t));
     history.replaceState(null, "", "#" + t);
+    if (t === "style" && P) renderLine();   // the line needs its real width, which a hidden tab doesn't have
     syncSource(); renderBuild();
   }
   $$(".tab").forEach((b) => b.addEventListener("click", () => showTab(b.dataset.tab)));
@@ -97,7 +98,7 @@
   }
   const clock = (a, b) => { $("#clock").textContent = `${fmt(a)} / ${fmt(b)}`; };
   function stop() { cancelAnimationFrame(loop); v.pause(); v.playbackRate = 1; mode = "paused"; $("#playbtn").textContent = "▶"; $("#playbtn").setAttribute("aria-label", "Play"); }
-  function setPos(c) { if (!P) return; pos = Math.max(0, Math.min(c, P.cutDur - 0.05)); $("#scrub").max = P.cutDur.toFixed(1); $("#scrub").value = pos.toFixed(1); clock(pos, P.cutDur); }
+  function setPos(c) { if (!P) return; pos = Math.max(0, Math.min(c, P.cutDur - 0.05)); $("#scrub").max = P.cutDur.toFixed(1); $("#scrub").value = pos.toFixed(1); clock(pos, P.cutDur); const ph = $("#tlhead"); if (ph) ph.style.left = (pos / Math.max(1, P.cutDur)) * 100 + "%"; }
   function seekCut(c) { if (mode !== "paused") stop(); setPos(c); try { v.currentTime = srcTime(); } catch { seekOnLoad = srcTime(); } if (kind === "rough") overlay(pos); else marks(pos); }
   function playing() { $("#playbtn").textContent = "❚❚"; $("#playbtn").setAttribute("aria-label", "Pause"); }
   function playFrom(from = pos) {
@@ -324,6 +325,171 @@
     }
   }
 
+  // ---------- Style: look, captions, and the graphics laid out on the reel's own line (Added by By Mel Ross, 0.41.0) ----------
+  // Every control writes the same choices the current Edit page writes (theme, colors, capmode, layout, highlight, board,
+  // wanted, amount), so the import and the build need nothing new. The live preview redraws after each one.
+  const el = (tag, props = {}, ...kids) => { const e = Object.assign(document.createElement(tag), props); for (const k of kids) if (k != null) e.append(k); return e; };
+  const HEX = /^#[0-9a-f]{6}$/i;
+  function renderLooks() {
+    const box = $("#looks"), cur = S.theme ?? R.theme ?? ""; box.textContent = "";
+    for (const t of [{ id: "", name: "My brand", summary: "Your brand's own fonts and shapes, with no look laid over them." }, ...(Array.isArray(R.themes) ? R.themes : [])]) {
+      const b = el("button", { type: "button", className: "lookcard" }, el("b", { textContent: t.name }), el("span", { textContent: t.summary || "" }));
+      b.setAttribute("role", "radio"); b.setAttribute("aria-checked", String(t.id === cur)); b.dataset.look = t.id;
+      b.addEventListener("click", () => mutate(() => { S.theme = t.id === (R.theme ?? "") ? null : t.id; }));
+      box.append(b);
+    }
+    const base = R.colors || {}, now = { ...base, ...(S.colors || {}) }, sw = $("#swatches"); sw.textContent = "";
+    for (const [k, name, what] of [["main", "Main", "text and dark shapes"], ["pop", "Pop", "highlights and accents"], ["light", "Light", "card backgrounds"]]) {
+      if (!HEX.test(now[k] || "")) continue;
+      const inp = el("input", { type: "color", value: now[k] }); inp.setAttribute("aria-label", name + " color"); inp.dataset.color = k;
+      inp.addEventListener("change", () => mutate(() => { S.colors = { ...base, ...(S.colors || {}), [k]: inp.value.toUpperCase() }; }));
+      sw.append(el("label", {}, inp, el("span", { innerHTML: `<b>${name}</b>: ${what}` })));
+    }
+    if (S.colors) { const r = el("button", { type: "button", className: "b sm", textContent: "Back to my brand colors" }); r.addEventListener("click", () => mutate(() => { S.colors = null; })); sw.append(r); }
+    $("#colornote").textContent = S.colors ? "This reel has its own colors. Every look uses these 3." : "These are your brand colors. Every look uses these 3. Changing one here changes it for this reel only.";
+  }
+  const CAPMODES = [["phrase", "Only words I mark", "The words you tap on the Trim tab get the highlight color."], ["spoken", "Each word as I say it", "Every word lights up while you say it."], ["word", "One word at a time", "Captions show 1 word at a time, big."]];
+  const layoutNow = () => S.layout || (R.style && R.style.layout) || "captions-low";
+  function renderCapStyle() {
+    const modes = $("#capmodes"), cur = capMode(); modes.textContent = "";
+    for (const [id, name] of CAPMODES) {
+      const b = el("button", { type: "button", textContent: name }); b.setAttribute("role", "radio"); b.setAttribute("aria-checked", String(id === cur)); b.dataset.capmode = id;
+      b.addEventListener("click", () => mutate(() => { S.capmode = id === ((R.style && R.style.mode) || "phrase") ? null : id; })); modes.append(b);
+    }
+    $("#capmodenote").textContent = (CAPMODES.find((m) => m[0] === cur) || CAPMODES[0])[2];
+    const lay = $("#caplay"); lay.textContent = "";
+    for (const [id, name] of [["captions-low", "Low, under my face"], ["captions-high", "High, above my head"]]) {
+      const b = el("button", { type: "button", textContent: name }); b.setAttribute("role", "radio"); b.setAttribute("aria-checked", String(id === layoutNow())); b.dataset.lay = id;
+      b.addEventListener("click", () => mutate(() => { S.layout = id === ((R.style && R.style.layout) || "captions-low") ? null : id; })); lay.append(b);
+    }
+    const hl = hlNow(), row = $("#capstyle"), set = (patch) => mutate(() => { S.highlight = { ...hlNow(), ...patch }; }); row.textContent = "";
+    const main = () => ((S.colors || {}).main || (R.colors || {}).main || "#141414").toUpperCase();
+    const pick = (name, key, val, off) => { const inp = el("input", { type: "color", value: HEX.test(val || "") ? val : "#FFFFFF", disabled: !!off }); inp.setAttribute("aria-label", name); inp.dataset.hl = key;
+      inp.addEventListener("change", () => set({ [key]: inp.value.toUpperCase() })); row.append(el("label", {}, inp, el("b", { textContent: name }))); };
+    const size = el("input", { type: "range", min: 60, max: 160, step: 2, value: hl.size || 96, id: "csize" }); size.setAttribute("aria-label", "Caption size");
+    const sizeLab = el("b", { textContent: "Size " + size.value });
+    size.addEventListener("input", () => { sizeLab.textContent = "Size " + size.value; }); size.addEventListener("change", () => set({ size: +size.value }));
+    row.append(el("label", {}, sizeLab, size));
+    if (HEX.test(hl.words || "")) pick("Words", "words", hl.words);
+    if (HEX.test(hl.text || "")) pick("Highlighted word", "text", hl.text);
+    const boxOn = hl.bg && hl.bg !== "none", allOn = hl.box && hl.box !== "none";
+    const c1 = el("input", { type: "checkbox", checked: !!boxOn, id: "hlon" }); c1.addEventListener("change", () => set(c1.checked ? { bg: (hl.text || "#FFFFFF").toUpperCase(), text: main() } : { bg: "none" }));
+    row.append(el("label", {}, c1, el("b", { textContent: "Box behind the highlighted word" })));
+    if (boxOn) pick("Its color", "bg", hl.bg);
+    const c2 = el("input", { type: "checkbox", checked: !!allOn, id: "cbon" }); c2.addEventListener("change", () => set(c2.checked ? { box: "#FFFFFF", ...(/^#fff/i.test(hl.words || "") ? { words: main() } : {}) } : { box: "none" }));
+    row.append(el("label", {}, c2, el("b", { textContent: "Box behind all the words" })));
+    if (allOn) pick("Its color", "box", hl.box);
+    if (S.highlight) { const r = el("button", { type: "button", className: "b sm", textContent: "Back to my usual captions" }); r.addEventListener("click", () => mutate(() => { S.highlight = null; })); row.append(r); }
+    $("#capnote").textContent = "For this reel. The preview shows each change on a caption.";
+  }
+  // --- graphics on the line ---
+  const KEEP = { k: "Keep", c: "Change", d: "Remove" };
+  const KINDS = [["choose", "You choose what fits", ""], ["title", "Big headline", ""], ["list", "List that builds row by row", ""], ["checks", "Check or X list", ""], ["label", "Small label", ""], ["note", "Handwritten note on taped paper", ""], ["number", "Number or stat card", ""],
+    ["photo", "My photo or screenshot", "Add the picture after, with the button on its card."], ["clip", "My video clip or screen recording", "Add the clip after, with the button on its card. It plays without sound."], ["gif", "GIF", "Say what the GIF should be."],
+    ["carousel", "Animation: picture carousel", "Needs 3 or more pictures from you."], ["chart", "Animation: chart that draws itself", "Say the numbers."], ["counter", "Animation: number that counts up", "Say the number."], ["follow", "Animation: words written across the screen", ""], ["social", "Animation: comment, message or notification", "Say what it should read."], ["orbit", "Photos circling my head", "Needs 1 to 6 pictures from you. Mac only."]];
+  const WORD_FIELDS = { title: [["text", "Words"]], tag: [["text", "Words"]], cta: [["text", "Words"]], note: [["text", "Words"]], quote: [["text", "Words"]], arctitle: [["text", "Arched words"], ["sub", "Line under it"]], card: [["title", "List title"], ["rows", "Rows, one per line"]], chips: [["title", "Title"]],
+    stat: [["value", "The number"], ["label", "Words above it"], ["delta", "The change"]], xlist: [["items", "Lines, one per line"]], shot: [["label", "Label"]] };
+  const WHERE = [["", "As planned"], ["center", "Middle (covers part of my face)"], ["top-center", "Top, above my head"], ["top-left", "Top left"], ["top-right", "Top right"], ["middle-left", "Left of my face"], ["middle-right", "Right of my face"], ["lower", "Bottom (lower third)"]];
+  const LAYER = [["", "As planned"], ["front", "In front of my face"], ["behind", "Behind my head (Mac only)"]];
+  const AMOUNT = { few: ["Few", "about 1 every 10 seconds"], some: ["Some", "about 1 every 5 seconds"], lots: ["Lots", "about 1 every 3 seconds"] };
+  let selG = null;
+  const boardOf = (id) => S.board[id] || {};
+  const capText = (c) => c.words.map((w) => w.text).join(" ");
+  const capAt = (t) => { const live = CAPS.filter((c) => !c.gone); return live.find((c) => t >= c.start && t < c.end) || live.filter((c) => c.start <= t).pop() || live[0] || null; };
+  function renderLine() {
+    const tl = $("#tl"), D = Math.max(1, P.cutDur); tl.textContent = "";
+    for (let t = 0; t < D; t += D > 90 ? 20 : 10) tl.append(el("span", { className: "tick", textContent: fmt(t), style: `left:${(t / D) * 100}%` }));
+    const lanes = [], items = [];
+    for (const g of GFX) items.push({ id: g.id, start: g.gone ? 0 : g.start, end: g.gone ? 0.1 : g.end, label: g.kind, cls: (boardOf(g.id).state || "k") + (g.gone ? " gone" : ""), title: `${g.kind}: ${g.what}` });
+    for (const w of S.wanted || []) if (!w.done) { const c = CAPS.find((x) => x.ci === w.ci); items.push({ id: w.id, start: c ? c.start : 0, end: (c ? c.start : 0) + 2, label: "New: " + (KINDS.find((k) => k[0] === w.kind) || KINDS[0])[1], cls: "w", title: "A graphic you asked for" }); }
+    items.sort((a, b) => a.start - b.start);
+    for (const it of items) {
+      const minW = (D * 60) / Math.max(200, tl.clientWidth || 600);   // a block is never thinner than a finger
+      let lane = lanes.findIndex((end) => end <= it.start); if (lane < 0) { lane = lanes.length; lanes.push(0); }
+      lanes[lane] = Math.max(it.end, it.start + minW) + D * 0.004;
+      const b = el("button", { type: "button", className: "tlb " + it.cls, textContent: it.label, title: it.title, style: `left:${(it.start / D) * 100}%;width:${(Math.max(it.end - it.start, minW) / D) * 100}%;top:${20 + lane * 36}px` });
+      b.dataset.g = it.id; b.setAttribute("aria-pressed", String(it.id === selG));
+      b.addEventListener("click", (e) => { e.stopPropagation(); selG = it.id; seekCut(Math.min(D - 0.1, it.start + 0.4)); renderLine(); renderDetail(); $("#addform").hidden = true; });
+      tl.append(b);
+    }
+    tl.style.height = 26 + Math.max(1, lanes.length) * 36 + "px";
+    tl.append(el("i", { id: "tlhead", style: `left:${(pos / D) * 100}%` }));
+    const amt = $("#amount"), curA = S.amount || R.graphicsAmount || "some"; amt.textContent = ""; amt.append("How many: ");
+    for (const k of ["few", "some", "lots"]) { const b = el("button", { type: "button", textContent: AMOUNT[k][0], title: AMOUNT[k][1] }); b.setAttribute("role", "radio"); b.setAttribute("aria-checked", String(k === curA)); b.dataset.amt = k;
+      b.addEventListener("click", () => mutate(() => { S.amount = k === (R.graphicsAmount || "some") ? null : k; })); amt.append(b); }
+    if (!items.length) tl.append(el("span", { className: "hint", textContent: "No graphics on this reel yet. Add one below.", style: "position:absolute;left:12px;top:26px" }));
+  }
+  $("#tl").addEventListener("click", (e) => { if (!P) return; const r = $("#tl").getBoundingClientRect(); seekCut(((e.clientX - r.left) / r.width) * P.cutDur); });
+  function uploadBtn(files, onChange) {
+    const wrap = el("div", { className: "hint" });
+    if (!window.REEL_STUDIO_LINKS) return wrap;
+    const inp = el("input", { type: "file", accept: "image/*,video/mp4,video/quicktime,.gif,.heic,.heif,.svg,.mp4,.mov,.m4v", multiple: true, hidden: true });
+    const btn = el("button", { type: "button", className: "b sm", textContent: files.length ? "Add another picture or clip" : "Use my own picture, GIF or video clip" }), msg = el("span", { textContent: files.length ? ` ${files.length} added.` : "" });
+    btn.addEventListener("click", () => inp.click());
+    inp.addEventListener("change", async () => {
+      const got = [...files];
+      for (const f of inp.files) { msg.textContent = ` Uploading ${f.name}…`;
+        try { const j = await (await fetch("/api/review-upload?name=" + encodeURIComponent(f.name), { method: "POST", body: f })).json(); if (!j.ok) throw new Error(j.error || "upload failed"); got.push(j.upload.src); }
+        catch (e) { msg.textContent = ` ${f.name}: ${e.message}`; return; } }
+      onChange(got.slice(0, 6));
+    });
+    wrap.append(btn, inp, msg); return wrap;
+  }
+  function renderDetail() {
+    const box = $("#gdetail"); box.textContent = "";
+    const w = (S.wanted || []).find((x) => x.id === selG && !x.done);
+    if (w) {
+      const rm = el("button", { type: "button", className: "b sm", textContent: "Take it back" }); rm.addEventListener("click", () => { selG = null; mutate(() => { S.wanted = S.wanted.filter((x) => x.id !== w.id); }); });
+      box.append(el("div", { className: "gd" }, el("h3", { textContent: "You asked for: " + (KINDS.find((k) => k[0] === w.kind) || KINDS[0])[1] }), el("p", { className: "what", textContent: (w.note || "No details given. Claude picks.") + ` At "${w.line}".` }),
+        uploadBtn(w.files || [], (files) => mutate(() => { S.wanted = S.wanted.map((x) => (x.id === w.id ? { ...x, files } : x)); })), el("p", { className: "hint", textContent: "Claude makes it at your next build from your chat." }), rm));
+      return;
+    }
+    const g = GFX.find((x) => x.id === selG); if (!g) return;
+    const st = boardOf(g.id).state || "k", card = el("div", { className: "gd" });
+    card.dataset.g = g.id;
+    card.append(el("h3", { textContent: `${g.kind} at ${fmt(g.start)}` }), el("p", { className: "what", textContent: g.what }));
+    if (g.gone) card.append(el("p", { className: "warn", textContent: "Its line is cut, so this graphic won't appear." }));
+    else if (g.moved) card.append(el("p", { className: "warn", textContent: "Its first word is cut, so it moved to the next kept word." }));
+    const seg = el("div", { className: "seg" }); seg.setAttribute("role", "group"); seg.setAttribute("aria-label", "What to do with this graphic");
+    for (const k of ["k", "c", "d"]) { const b = el("button", { type: "button", textContent: KEEP[k] }); b.dataset.state = k; b.setAttribute("aria-pressed", String(st === k));
+      b.addEventListener("click", () => mutate(() => { S.board[g.id] = { ...boardOf(g.id), state: k }; })); seg.append(b); }
+    card.append(seg);
+    if (st === "c") {
+      const inp = el("input", { type: "text", placeholder: "For example: make it a list of 3", value: boardOf(g.id).note || "" }); inp.id = "gnote";
+      inp.addEventListener("input", () => { S.board[g.id] = { ...boardOf(g.id), state: "c", note: inp.value }; queueSave(); });
+      card.append(el("label", { textContent: "What should change?" }, inp), uploadBtn(boardOf(g.id).files || [], (files) => mutate(() => { S.board[g.id] = { ...boardOf(g.id), state: "c", files }; })),
+        el("p", { className: "hint", textContent: "Claude makes this change at your next build from your chat. Fixing the words below needs no Claude." }));
+    }
+    if (st !== "d" && !g.gone) {
+      const set = boardOf(g.id).set || {};
+      for (const [f, name] of WORD_FIELDS[g.type] || []) {
+        const list = f === "rows" || f === "items", now = f in set ? set[f] : g[f]; if (now == null && f === "delta") continue;
+        const inp = el(list ? "textarea" : "input", { value: list ? (now || []).join("\n") : now ?? "" }); if (!list) inp.type = "text"; else inp.rows = Math.max(3, (now || []).length); inp.maxLength = list ? 300 : 80; inp.dataset.wf = f;
+        inp.addEventListener("change", () => mutate(() => {
+          const cur = { ...boardOf(g.id) }, s2 = { ...(cur.set || {}) }, v = list ? inp.value.split("\n").map((x) => x.trim()).filter(Boolean).slice(0, 6) : inp.value.trim();
+          if (JSON.stringify(v) === JSON.stringify(g[f]) || (!list && !v && f !== "sub" && f !== "delta")) delete s2[f]; else s2[f] = v;
+          if (Object.keys(s2).length) cur.set = s2; else delete cur.set; S.board[g.id] = cur;
+        }));
+        card.append(el("label", { textContent: name }, inp));
+      }
+      const pickSel = (key, name, opts) => { const sel = el("select"); sel.append(...opts.map(([v, t]) => new Option(t, v))); sel.value = boardOf(g.id)[key] || ""; sel.dataset.place = key;
+        sel.addEventListener("change", () => mutate(() => { const cur = { ...boardOf(g.id) }; if (sel.value) cur[key] = sel.value; else delete cur[key]; S.board[g.id] = cur; })); return el("label", { textContent: name }, sel); };
+      card.append(el("div", { className: "two" }, pickSel("where", "Where on screen", WHERE), pickSel("layer", "In front or behind", LAYER)));
+      if (boardOf(g.id).where && g.type !== "popup") card.append(el("p", { className: "hint", textContent: "Claude moves it at your next build from your chat." }));
+    }
+    box.append(card);
+  }
+  $("#addkind").append(...KINDS.map(([v, t]) => new Option(t, v)));
+  $("#addkind").addEventListener("change", () => { $("#addhint").textContent = (KINDS.find((k) => k[0] === $("#addkind").value) || [])[2] || ""; });
+  $("#addg").addEventListener("click", () => { if (!P) return; const c = capAt(pos); $("#addtitle").textContent = c ? `Add a graphic at ${fmt(c.start)}, "${capText(c).slice(0, 40)}"` : "Add a graphic at the start"; $("#addkind").value = "choose"; $("#addnote").value = ""; $("#addhint").textContent = ""; $("#addform").hidden = false; selG = null; renderLine(); renderDetail(); $("#addkind").focus(); });
+  $("#addcancel").addEventListener("click", () => { $("#addform").hidden = true; });
+  $("#addform").addEventListener("submit", (e) => {
+    e.preventDefault(); const c = capAt(pos);
+    const w = { id: "w" + Date.now().toString(36), kind: $("#addkind").value, ci: c ? c.ci : null, word: c ? c.words[0].i ?? null : null, line: c ? capText(c).slice(0, 80) : "the start of the reel", note: $("#addnote").value.trim().slice(0, 300) };
+    $("#addform").hidden = true; selG = w.id; mutate(() => { S.wanted = [...(S.wanted || []), w]; });
+  });
+  function renderStyle() { renderLooks(); renderCapStyle(); renderLine(); renderDetail(); }
+
   // ---------- Wrap up: build ----------
   const STEP_TEXT = { queued: "Waiting to start.", cut: "Cutting the video.", render: "Building the video. This is the long part.", sound: "Mixing the sound.", checks: "Checking it.", copies: "Saving this version." };
   let build = { busy: false, text: "", error: "", told: [] };
@@ -359,7 +525,7 @@
     setTimeout(pollBuild, 1500);
   });
 
-  function renderAll() { renderWords(); renderCaps(); renderBuild(); syncSource(); }
+  function renderAll() { renderWords(); renderCaps(); renderStyle(); renderBuild(); syncSource(); }
 
   // ---------- load ----------
   (async () => {
@@ -382,7 +548,7 @@
       db.doc("builds/latest").onSnapshot((s) => { B = s.exists ? s.data() : null; if (R && P) { renderBuild(); syncSource(); } }, () => {});
       recompute(); restoreUndo();
       const want = location.hash.slice(1); tab = ["trim", "style", "audio", "wrap"].includes(want) ? want : "trim";
-      renderWords(); renderCaps(); showTab(tab); pollBuild(); quickPoll();
+      renderWords(); renderCaps(); renderStyle(); showTab(tab); pollBuild(); quickPoll();
     } catch (e) { $("#reelname").textContent = "The reel didn't load. Reload the page."; console.error(e); }
   })();
 })();

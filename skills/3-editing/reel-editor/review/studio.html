@@ -85,6 +85,28 @@ h2 { font: 400 26px/1.1 var(--f-head); margin: 0 0 4px; } h2 + .lede { margin-to
 }
 /* every box on this page shares one corner (--r), the step card from steps.js included */
 #stepcard, #stepcard code, #stepcard button { border-radius: var(--r) !important; }
+/* ---- Style tab ---- */
+h3 { font-size: 15px; margin: 18px 0 8px; font-weight: 700; } .hint { font-size: 14px; opacity: .8; margin: 6px 0 0; }
+.looks { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 10px; }
+.lookcard { text-align: left; padding: 12px; min-height: 44px; border: 1.5px solid var(--ink); border-radius: var(--r); background: var(--bg); color: var(--ink); cursor: pointer; font: inherit; }
+.lookcard b { display: block; font-family: "Instrument Serif", Georgia, serif; font-weight: 400; font-size: 21px; line-height: 1.1; } .lookcard span { display: block; font-size: 13px; margin-top: 4px; opacity: .85; }
+.lookcard[aria-checked="true"] { background: var(--ink); color: var(--bg); box-shadow: 3px 3px 0 var(--orange, #D98159); }
+.swatches { display: flex; flex-wrap: wrap; gap: 14px 22px; align-items: center; } .swatches label { display: flex; align-items: center; gap: 8px; font-size: 14px; min-height: 44px; }
+.swatches input[type=color] { width: 44px; height: 44px; padding: 0; border: 1.5px solid var(--ink); border-radius: var(--r); background: none; cursor: pointer; }
+.swatches input[type=range] { width: 180px; } .swatches input[type=checkbox] { width: 20px; height: 20px; }
+.seg { display: flex; flex-wrap: wrap; gap: 8px; } .seg button, .amt button { min-height: 44px; padding: 0 14px; border: 1.5px solid var(--ink); border-radius: var(--r); background: var(--bg); color: var(--ink); font: inherit; font-weight: 600; cursor: pointer; }
+.seg button[aria-checked="true"], .seg button[aria-pressed="true"], .amt button[aria-checked="true"] { background: var(--ink); color: var(--bg); }
+.tl { position: relative; border: 1.5px solid var(--ink); border-radius: var(--r); background: var(--bg); margin: 10px 0; min-height: 64px; cursor: pointer; overflow: hidden; }
+.tl .tick { position: absolute; top: 0; bottom: 0; border-left: 1px dashed rgba(44,51,37,.25); font-size: 11px; padding: 2px 0 0 3px; pointer-events: none; }
+.tl .tlb { position: absolute; height: 30px; min-width: 44px; padding: 0 6px; border: 1.5px solid var(--ink); border-radius: var(--r); background: #A9BC8B; color: var(--ink); font: 600 12px/1 inherit; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; text-align: left; }
+.tl .tlb.c { background: var(--orange, #D98159); } .tl .tlb.d { background: transparent; text-decoration: line-through; opacity: .6; border-style: dashed; } .tl .tlb.w { background: transparent; border-style: dashed; }
+.tl .tlb[aria-pressed="true"] { box-shadow: 3px 3px 0 var(--ink); z-index: 2; } .tl .tlb.gone { opacity: .4; }
+.tl #tlhead { position: absolute; top: 0; bottom: 0; width: 2px; background: #b8582f; pointer-events: none; z-index: 3; }
+.tlrow { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between; } .amt { display: flex; gap: 6px; align-items: center; font-size: 14px; }
+.gd { border: 1.5px solid var(--ink); border-radius: var(--r); padding: 14px; margin: 12px 0; background: var(--bg); } .gd h3 { margin-top: 0; }
+.gd label { display: block; font-size: 14px; font-weight: 600; margin: 10px 0 0; } .gd input[type=text], .gd textarea, .gd select { display: block; width: 100%; min-height: 44px; margin-top: 4px; padding: 8px 10px; border: 1.5px solid var(--ink); border-radius: var(--r); background: var(--card); color: var(--ink); font: inherit; font-weight: 400; }
+.gd .what { font-size: 15px; margin: 2px 0 10px; } .gd .warn { color: #a33a22; font-size: 14px; } .gd .two { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; } @media (max-width: 560px) { .gd .two { grid-template-columns: 1fr; } }
+main > section[data-p] + section[data-p] { margin-top: 16px; }
 </style></head>
 <body>
 <nav class="steps" aria-label="Unmess Reels steps">
@@ -117,8 +139,39 @@ h2 { font: 400 26px/1.1 var(--f-head); margin: 0 0 4px; } h2 + .lede { margin-to
       <div class="next"><span>Your changes save as you go.</span><button class="b pri" type="button" data-next="style">Next: Style</button></div>
     </section>
     <section data-p="style" hidden>
-      <h2>Style</h2>
-      <p class="soon">This tab is being built. Until it's here, the theme, caption look and graphics are on <a href="/edit#cut" target="_top">the current Edit page</a>, under Captions and Graphics. Anything you change there shows up here too.</p>
+      <h2>Your look</h2>
+      <p class="lede">Pick a look. It sets the fonts, the caption style and the shape of your graphics together.</p>
+      <div class="looks" id="looks" role="radiogroup" aria-label="Look for this reel"></div>
+      <h3>Colors</h3>
+      <div class="swatches" id="swatches"></div>
+      <p class="hint" id="colornote"></p>
+    </section>
+    <section data-p="style" hidden>
+      <h2>Captions</h2>
+      <h3>How the words light up</h3>
+      <div class="seg" id="capmodes" role="radiogroup" aria-label="How the words light up"></div>
+      <p class="hint" id="capmodenote"></p>
+      <h3>Where they sit</h3>
+      <div class="seg" id="caplay" role="radiogroup" aria-label="Where captions sit"></div>
+      <h3>Size and colors</h3>
+      <div class="swatches" id="capstyle"></div>
+      <p class="hint" id="capnote"></p>
+    </section>
+    <section data-p="style" hidden>
+      <h2>Graphics on your reel</h2>
+      <p class="lede">Each block is a graphic, placed where it shows in your reel. Tap one to see it in the preview and change it.</p>
+      <div class="tl" id="tl" aria-label="Your reel, start to end, with its graphics"></div>
+      <div class="tlrow"><button class="b" id="addg" type="button">Add a graphic at this moment</button>
+        <span class="amt" id="amount" role="radiogroup" aria-label="How many graphics"></span></div>
+      <form id="addform" class="gd" hidden>
+        <h3 id="addtitle">Add a graphic</h3>
+        <label>What kind<select id="addkind"></select></label>
+        <p class="hint" id="addhint"></p>
+        <label>What it should say or show<input type="text" id="addnote" maxlength="300" placeholder="For example: the 3 steps as a list"></label>
+        <p class="hint">Claude makes it at your next build from your chat. It shows on the line above as a dashed block until then.</p>
+        <div class="next"><button class="b" type="button" id="addcancel">Cancel</button><button class="b pri" type="submit">Add it</button></div>
+      </form>
+      <div id="gdetail"></div>
       <div class="next"><span></span><button class="b pri" type="button" data-next="audio">Next: Audio</button></div>
     </section>
     <section data-p="audio" hidden>
