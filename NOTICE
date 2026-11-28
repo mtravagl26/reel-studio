@@ -288,3 +288,8 @@ Added by By Mel Ross in 0.19.0 (November 2026), in skills/3-editing/reel-editor.
   graphic's outline: a popup or sticker goes anywhere and snaps to the centre line, text kinds move up and down. Saved on
   the board entry as "shift", "len" and "xy"; core.js applies the time, review_sync.py writes the place
   (review/studio.html, review/studio.js, review/core.js, scripts/review_sync.py; tests/test_studio_ui.mjs).
+- Lookbook, versions and the record on the new Edit page (0.45.0): the Style tab's lookbook lists every built look by
+  kind, with the ones recommended for this reel first, a still of any look on the person's own clip, and "Use this
+  look" on a graphic or a new one (the look's id travels to Claude in the note). A title gets Line up. Wrap up lists
+  each kept build with Watch, and what was done to the reel. GET /api/lookbook serves the catalog without recipes
+  (review/studio.html, review/studio.js, review/editor-server.mjs, scripts/review_sync.py; tests/test_studio_ui.mjs).

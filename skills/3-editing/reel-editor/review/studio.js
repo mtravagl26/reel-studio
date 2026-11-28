@@ -57,7 +57,7 @@
     history.replaceState(null, "", "#" + t);
     if (t === "style" && P) renderLine();
     if (P) drawSel();
-    if (t === "audio" && R) tuState();   // the line needs its real width, which a hidden tab doesn't have
+    if ((t === "audio" || t === "wrap") && R) tuState();   // the line needs its real width, which a hidden tab doesn't have
     syncSource(); renderBuild();
   }
   $$(".tab").forEach((b) => b.addEventListener("click", () => showTab(b.dataset.tab)));
@@ -577,19 +577,65 @@
       const pickSel = (key, name, opts) => { const sel = el("select"); sel.append(...opts.map(([v, t]) => new Option(t, v))); sel.value = boardOf(g.id)[key] || ""; sel.dataset.place = key;
         sel.addEventListener("change", () => mutate(() => { const cur = { ...boardOf(g.id) }; if (sel.value) cur[key] = sel.value; else delete cur[key]; S.board[g.id] = cur; })); return el("label", { textContent: name }, sel); };
       card.append(el("div", { className: "two" }, pickSel("where", "Where on screen", WHERE), pickSel("layer", "In front or behind", LAYER)));
+      if (g.type === "title") card.append(pickSel("align", "Line up", [["", "As planned"], ["left", "Left"], ["center", "Centred"], ["right", "Right"]]));
+      { const sw = el("button", { type: "button", className: "b sm", textContent: boardOf(g.id).look ? "Swap its look again" : "Swap its look" }); sw.dataset.swaplook = "1"; sw.addEventListener("click", () => openLookbook({ g: g.id })); card.append(el("p", { className: "hint" }, sw, boardOf(g.id).look ? ` Asked for: ${boardOf(g.id).look}` : "")); }
       if (g.dragged || g.placed) { const back = el("button", { type: "button", className: "b sm", textContent: "Back to its planned time and place" }); back.dataset.back = "1";
         back.addEventListener("click", () => mutate(() => { const cur = { ...boardOf(g.id) }; delete cur.shift; delete cur.len; delete cur.xy; S.board[g.id] = cur; })); card.append(el("p", { className: "hint" }, back)); }
             if (boardOf(g.id).where && g.type !== "popup") card.append(el("p", { className: "hint", textContent: "Claude moves it at your next build from your chat." }));
     }
     box.append(card);
   }
+  // --- the lookbook (0.45.0): every look in 1 place, opened on a graphic ("Swap its look") or on a new one ("Pick a look").
+  // Picking writes a request Claude carries out at the next build (the look's id travels in the note), since a look has to
+  // be filled with the person's own words. "See it on my clip" makes a still of the look on their footage first.
+  let LOOKS = null, RECS = null, lbFor = null, lbGroup = "", lbPick = null, lbPollT = null;
+  async function openLookbook(target) {
+    lbFor = target; lbPick = null; $("#lookbook").hidden = false; $("#lbstill").textContent = "";
+    const g = target.g ? GFX.find((x) => x.id === target.g) : null;
+    $("#lbtitle").textContent = g ? `Swap the look of: ${g.kind} at ${fmt(g.start)}` : "Pick a look for the new graphic";
+    $("#lbnote").textContent = "Claude puts your words into the look at your next build from your chat.";
+    if (!LOOKS) { $("#lbgrid").textContent = "Loading…"; try { LOOKS = (await (await fetch("/api/lookbook")).json()).looks || []; } catch { LOOKS = []; } }
+    if (RECS === null) { RECS = []; fetch("/api/recommend").then((r) => r.json()).then((j) => { RECS = (j.picks || []).filter((p) => p.kind !== "theme"); if (!$("#lookbook").hidden) renderLookbook(); }).catch(() => {}); }
+    if (!lbGroup) lbGroup = g && g.type === "title" ? "Hooks" : "Layouts";
+    renderLookbook(); $("#lookbook").scrollIntoView({ block: "nearest", behavior: "smooth" });
+  }
+  function renderLookbook() {
+    const groups = [...new Set((LOOKS || []).map((l) => l.group))], gb = $("#lbgroups"), grid = $("#lbgrid"); gb.textContent = ""; grid.textContent = "";
+    if (!groups.includes(lbGroup)) lbGroup = groups[0] || "";
+    for (const name of groups) { const b = el("button", { type: "button", textContent: `${name} (${LOOKS.filter((l) => l.group === name).length})` }); b.setAttribute("role", "radio"); b.setAttribute("aria-checked", String(name === lbGroup)); b.dataset.lbg = name; b.addEventListener("click", () => { lbGroup = name; renderLookbook(); }); gb.append(b); }
+    if (!(LOOKS || []).length) { grid.append(el("p", { className: "hint", textContent: "The look list didn't load. Reload the page, or tell Claude: restart the editor." })); return; }
+    const rec = new Map((RECS || []).map((p) => [p.id, p.why]));   // recommended for this reel come first, with the reason
+    for (const l of LOOKS.filter((x) => x.group === lbGroup).sort((a, b) => rec.has(b.id) - rec.has(a.id))) {
+      const see = el("button", { type: "button", className: "b sm", textContent: "See it on my clip" }), use = el("button", { type: "button", className: "b sm pri", textContent: "Use this look" }); use.dataset.use = l.id;
+      see.addEventListener("click", () => lookStill(l));
+      use.addEventListener("click", () => { const note = `Use the look "${l.name}" (${l.id}).`;
+        if (lbFor.g) { const id = lbFor.g; mutate(() => { S.board[id] = { ...boardOf(id), state: "c", look: l.id, note }; }); pill("Saved. Claude swaps it at your next build."); $("#lookbook").hidden = true; }
+        else { lbPick = l; $("#addlookname").textContent = `Picked: ${l.name}`; $("#lookbook").hidden = true; $("#addform").hidden = false; $("#addnote").focus(); } });
+      const card = el("div", { className: "lbcard" + ((lbFor.g && boardOf(lbFor.g).look === l.id) ? " on" : "") }, el("b", { textContent: l.name }), el("small", { textContent: rec.has(l.id) ? `${l.id} · Recommended for this reel: ${rec.get(l.id)}` : l.id }), el("span", { textContent: l.does + (l.needs ? " Needs: " + l.needs + "." : "") }), el("div", { className: "row" }, see, use));
+      card.dataset.look = l.id; grid.append(card);
+    }
+  }
+  async function lookStill(l) {
+    const box = $("#lbstill"); box.textContent = ""; const msg = el("p", { className: "hint", textContent: `Making a still of "${l.name}" on your clip. About half a minute.` }); box.append(msg);
+    try { const j = await (await fetch("/api/look-preview", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ids: [l.id] }) })).json(); if (!j.ok) throw new Error(j.error || "that didn't start"); }
+    catch (e) { msg.textContent = "The still couldn't be made: " + e.message; return; }
+    clearInterval(lbPollT); lbPollT = setInterval(async () => {
+      try { const j = await (await fetch("/api/look-preview")).json(); if (j.state === "running") return; clearInterval(lbPollT);
+        if (j.state === "done") { msg.textContent = `"${l.name}" on your clip, with sample words.` + ((j.notes || []).length ? " " + j.notes.join(" ") : ""); box.append(el("img", { src: "/look-preview.jpg?at=" + Date.now(), alt: `A still of your clip with the look ${l.name}` })); }
+        else msg.textContent = "The still couldn't be made: " + (j.error || "unknown reason");
+      } catch { /* try again */ } }, 1500);
+  }
+  $("#lbclose").addEventListener("click", () => { $("#lookbook").hidden = true; });
+  $("#addlook").addEventListener("click", () => openLookbook({}));
+
   $("#addkind").append(...KINDS.map(([v, t]) => new Option(t, v)));
   $("#addkind").addEventListener("change", () => { $("#addhint").textContent = (KINDS.find((k) => k[0] === $("#addkind").value) || [])[2] || ""; });
-  $("#addg").addEventListener("click", () => { if (!P) return; const c = capAt(pos); $("#addtitle").textContent = c ? `Add a graphic at ${fmt(c.start)}, "${capText(c).slice(0, 40)}"` : "Add a graphic at the start"; $("#addkind").value = "choose"; $("#addnote").value = ""; $("#addhint").textContent = ""; $("#addform").hidden = false; selG = null; renderLine(); renderDetail(); $("#addkind").focus(); });
+  $("#addg").addEventListener("click", () => { if (!P) return; const c = capAt(pos); $("#addtitle").textContent = c ? `Add a graphic at ${fmt(c.start)}, "${capText(c).slice(0, 40)}"` : "Add a graphic at the start"; $("#addkind").value = "choose"; $("#addnote").value = ""; lbPick = null; $("#addlookname").textContent = ""; $("#addhint").textContent = ""; $("#addform").hidden = false; selG = null; renderLine(); renderDetail(); $("#addkind").focus(); });
   $("#addcancel").addEventListener("click", () => { $("#addform").hidden = true; });
   $("#addform").addEventListener("submit", (e) => {
     e.preventDefault(); const c = capAt(pos);
-    const w = { id: "w" + Date.now().toString(36), kind: $("#addkind").value, ci: c ? c.ci : null, word: c ? c.words[0].i ?? null : null, line: c ? capText(c).slice(0, 80) : "the start of the reel", note: $("#addnote").value.trim().slice(0, 300) };
+    const w = { id: "w" + Date.now().toString(36), kind: $("#addkind").value, ci: c ? c.ci : null, word: c ? c.words[0].i ?? null : null, line: c ? capText(c).slice(0, 80) : "the start of the reel", note: ((lbPick ? `Use the look "${lbPick.name}" (${lbPick.id}). ` : "") + $("#addnote").value.trim()).slice(0, 300), ...(lbPick ? { look: lbPick.id } : {}) };
+    lbPick = null; $("#addlookname").textContent = "";
     $("#addform").hidden = true; selG = w.id; mutate(() => { S.wanted = [...(S.wanted || []), w]; });
   });
   function renderStyle() { renderLooks(); renderCapStyle(); renderLine(); renderDetail(); drawSel(); }
@@ -603,7 +649,7 @@
   const sfxOnNow = () => (S.sfxAll ? S.sfxAll === "on" : sfxStart());
   const sfxUrl = (name) => (R.assets && R.assets.sfx && R.assets.sfx[name]) || `/sfx/${encodeURIComponent(name)}.wav`;
   function playSfx(name, db, btn) { const a = new Audio(sfxUrl(name)); a.volume = Math.min(1, Math.pow(10, ((db ?? -12) + 8) / 20)); const fail = () => { btn.textContent = "Can't play"; }; a.addEventListener("error", fail); a.play().catch(fail); }
-  async function tuState() { try { const r = await fetch("/api/state"); TU = r.ok ? await r.json() : null; } catch { TU = null; } tuAsked = true; if (R) renderAudio(); }
+  async function tuState() { try { const r = await fetch("/api/state"); TU = r.ok ? await r.json() : null; } catch { TU = null; } tuAsked = true; if (R) { renderAudio(); renderRecord(); } }
   async function tuPost(path, body) {
     try { const j = await (await fetch(path, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) })).json(); if (!j.ok) throw new Error(j.error || "that didn't save"); TU = j.state || TU; soundChanged = true; pill("Saved"); }
     catch (e) { pill(e.message, true); }
@@ -699,8 +745,22 @@
   }
   $("#revadd").addEventListener("click", addRev); $("#revtext").addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); addRev(); } });
   $("#brandreq").addEventListener("input", (e) => { S.brandRequest = e.target.value; queueSave(); });
+  // Versions and the plain list of what was done (0.45.0, moved here from Touch-ups). Both come from the reel's own record.
+  function renderRecord() {
+    const vs = $("#versions"), list = (TU && TU.built !== false && Array.isArray(TU.renders)) ? TU.renders : []; vs.textContent = "";
+    if (!list.length) vs.append(el("p", { className: "hint", textContent: "Each build is kept. They show here after your first build." }));
+    list.slice().reverse().forEach((x, k) => {
+      const name = x.baseline ? "Before editing" : "Build " + x.v, when = x.at ? new Date(x.at).toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) : "";
+      const open = el("a", { className: "b sm", href: "/files/" + (x.full || ""), target: "_blank", rel: "noopener", textContent: "Watch" }); open.style.textDecoration = "none"; open.style.display = "inline-flex"; open.style.alignItems = "center";
+      const row = el("div", { className: "cue" }, el("span", { className: "ct", textContent: x.len ? fmt(x.len) : "" }), el("span", { className: "cname" }, name + (k === 0 ? " (newest)" : ""), el("small", { textContent: [when, ...(x.notes || []).slice(0, 2)].filter(Boolean).join(" · ") })), el("span", { className: "cctl" }, x.full ? open : null));
+      row.dataset.v = x.v; vs.append(row);
+    });
+    const rc = $("#receipt"), lines = (TU && Array.isArray(TU.receipt)) ? TU.receipt : []; rc.textContent = "";
+    if (!lines.length) rc.append(el("li", { textContent: "This fills in after your first build: seconds cut, speed, captions, graphics and sounds.", style: "list-style:none;margin-left:-18px" }));
+    for (const l of lines) rc.append(el("li", { textContent: l.text }));
+  }
   function renderWrap() {
-    renderRevs(); const br = $("#brandreq"); if (document.activeElement !== br) br.value = S.brandRequest || "";
+    renderRevs(); renderRecord(); const br = $("#brandreq"); if (document.activeElement !== br) br.value = S.brandRequest || "";
     const need = needsClaude(), box = $("#needs"); box.hidden = !need.length; box.textContent = "";
     if (need.length) { const ul = el("ul"); for (const x of need) ul.append(el("li", { textContent: x }));
       box.append(el("b", { textContent: "Build my reel can't make these:" }), ul, el("p", { textContent: "They need something new written, and only Claude does that. The button builds everything else: your cuts, captions, sounds, look and the graphics you kept." }),
@@ -734,7 +794,7 @@
       if (st === "importing") build = { ...build, busy: true, text: "Reading your choices." };
       else if (st === "rendering") build = { ...build, busy: true, text: STEP_TEXT[j.job.step] || "Building." };
       else if (st === "failed") build = { busy: false, text: "", error: "The build stopped: " + (j.build.error || "unknown reason") + " Tell Claude \"the build failed\" and it will look.", told: [] };
-      else if (st === "done") { const was = build.busy; build = { busy: false, text: "", error: "", told: j.build.told || [] }; if (was) quickPoll(); }
+      else if (st === "done") { const was = build.busy; build = { busy: false, text: "", error: "", told: j.build.told || [] }; if (was) { quickPoll(); tuState(); } }
       else build = { ...build, busy: false };
     } catch { build = { ...build, busy: false }; }
     renderBuild(); syncSource(); if (build.busy) setTimeout(pollBuild, 2000);

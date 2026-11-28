@@ -1095,6 +1095,8 @@ const server = http.createServer(async (req, res) => {
       return json(res, 200, { ok: true, build: reviewBuild, job: { state: job.state, step: job.step, steps: job.steps || [], startedAt: job.startedAt || null } });
     }
     const buildingNow = () => job.state === "running" || job.state === "queued" || reviewBuild.state === "importing";
+    // 0.45.0: the look list for the new Edit page's lookbook (the same catalog the looks gallery reads, without the recipes)
+    if (p === "/api/lookbook" && req.method === "GET") return json(res, 200, { ok: true, looks: menuLooks().filter((l) => ["built", "partial"].includes(l.status)).map((l) => ({ id: l.id, name: l.name, group: l.group, does: l.does || "", needs: l.needs || "" })) });
     if (p === "/api/sfx-library" && req.method === "GET") return json(res, 200, { ok: true, sounds: sfxNames() });   // 0.42.0: for the Audio tab's swap list
     if (p === "/api/quick-preview" && req.method === "GET") return json(res, 200, { ok: true, quick, building: buildingNow(), now: new Date().toISOString() });
     if (p === "/api/quick-preview" && req.method === "POST") {
