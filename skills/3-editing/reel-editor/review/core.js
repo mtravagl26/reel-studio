@@ -84,8 +84,22 @@
       let endSrc;
       if (g.w1 != null && !P.removed(g.w1)) endSrc = W[g.w1].e;
       else { let k = a; while (k < W.length - 1 && !/[.,!?;:]$/.test(W[k].text) && W[k + 1].s - W[k].e < 0.35 && P.toCut(W[k].e) - P.toCut(W[a].s) < 4) k++; endSrc = W[k].e; }
-      const start = P.toCut(W[a].s), end = Math.max(start + 1, P.toCut(endSrc) + 0.15);
-      return { ...g, state, start, end: Math.min(end, P.cutDur), moved: a !== g.w0 };
+      let start = P.toCut(W[a].s), end = Math.min(Math.max(start + 1, P.toCut(endSrc) + 0.15), P.cutDur);
+      // Added by By Mel Ross (0.44.0): a graphic dragged on the new Edit page. "shift" moves it in time from where its word
+      // puts it (so it still follows the word when cuts change), "len" sets how long it stays, and "xy" is where it sits
+      // on the 1080x1920 frame: the centre for a popup or sticker, the top edge for the kinds that only move up and down.
+      const b = (d.board || {})[g.id] || {}, out = { ...g, state, moved: a !== g.w0 };
+      const planned = { start, end };
+      if (typeof b.shift === "number" && isFinite(b.shift)) start = Math.max(0, Math.min(start + b.shift, P.cutDur - 0.3));
+      const len = typeof b.len === "number" && isFinite(b.len) ? Math.max(0.3, Math.min(b.len, 60)) : planned.end - planned.start;
+      end = Math.min(start + len, P.cutDur);
+      if (typeof b.shift === "number" || typeof b.len === "number") out.dragged = true;
+      if (b.xy && isFinite(b.xy.y) && Array.isArray(g.place)) {
+        const [px, , pw, ph] = g.place, free = g.type === "popup" || g.type === "sticker";
+        out.place = free && isFinite(b.xy.x) ? [Math.round(b.xy.x - pw / 2), Math.round(b.xy.y - ph / 2), pw, ph] : [px, Math.round(b.xy.y), pw, ph];
+        out.placed = true;
+      }
+      return { ...out, start, end };
     });
   }
 

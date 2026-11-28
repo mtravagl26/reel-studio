@@ -121,6 +121,17 @@ try {
   await waitSaved((d) => d.board?.g1?.set?.text === "hi there", "the graphic's new words");
   await click('#gdetail [data-state="c"]'); await until(`!!document.querySelector("#gnote")`, "the what-should-change box");
   await click('#gdetail [data-state="k"]'); await waitSaved((d) => d.board?.g1?.state === "k", "back to Keep");
+  // drag the block on the line to move it in time, its edge to change how long it stays, and its outline on the video to move it
+  const drag = (sel, dx, dy) => js(`(() => { const e = document.querySelector(${JSON.stringify(sel)}); if (!e) throw new Error("no element: " + ${JSON.stringify(sel)}); const r = e.getBoundingClientRect(), x = r.left + Math.min(8, r.width / 2), y = r.top + r.height / 2, o = (X, Y) => ({ bubbles: true, clientX: X, clientY: Y, pointerId: 1, button: 0 });
+    e.dispatchEvent(new PointerEvent("pointerdown", o(x, y))); e.dispatchEvent(new PointerEvent("pointermove", o(x + ${dx} / 2, y + ${dy} / 2))); e.dispatchEvent(new PointerEvent("pointermove", o(x + ${dx}, y + ${dy}))); e.dispatchEvent(new PointerEvent("pointerup", o(x + ${dx}, y + ${dy}))); return true; })()`);
+  const start0 = await js(`parseFloat(document.querySelector("#tl .tlb").style.left)`);
+  await drag("#tl .tlb", 90, 0); await waitSaved((d) => typeof d.board?.g1?.shift === "number" && d.board.g1.shift > 0.2, "the graphic moved later in time");
+  assert.ok((await js(`parseFloat(document.querySelector("#tl .tlb").style.left)`)) > start0, "the block sits further right");
+  await drag("#tl .tlb .grip", 60, 0); await waitSaved((d) => typeof d.board?.g1?.len === "number", "how long it stays");
+  await until(`!document.querySelector("#gsel").hidden && document.querySelector("#gsel").dataset.can === "y"`, "the outline on the video (a tag moves up and down)");
+  await drag("#gsel", 0, 60); await waitSaved((d) => typeof d.board?.g1?.xy?.y === "number" && d.board.g1.xy.x === undefined, "its new height on the video");
+  await click('#tlzoom [data-zoom="6"]'); assert.equal(await js(`document.querySelector("#tl").style.width`), "600%"); await click('#tlzoom [data-zoom="1"]');
+  assert.equal(await js(`!!document.querySelector("#gdetail [data-back]")`), true, "a way back to its planned time and place");
   // GIPHY search lives on a graphic's card now: off until a key is saved, with the warning shown first
   await click('#gdetail [data-state="c"]'); await until(`!!document.querySelector("#gdetail [data-giphy]")`, "the GIPHY button on the card");
   await click("#gdetail [data-giphy]");
@@ -174,6 +185,8 @@ try {
   await until(`(() => { try { return document.querySelector("#live").contentWindow.reelLive.ready(); } catch { return false; } })()`, "the reel's page inside the preview", 20000);
   assert.equal(await js(`document.querySelector("#quickbtn").hidden`), true);
   assert.equal(JSON.parse(readFileSync(join(reel, "edit.json"), "utf8")).cards.find((c) => c.id === "g1").sfx.name, "ding", "the swapped sound is in the reel's plan");
+  { const d = saved().board.g1, c = JSON.parse(readFileSync(join(reel, "edit.json"), "utf8")).cards.find((x) => x.id === "g1");
+    assert.equal(c.y, d.xy.y, "the dragged height is in the reel's plan"); assert.ok(Math.abs(c.end - c.start - d.len) < 0.05, "and so is how long it stays: " + JSON.stringify([c.start, c.end, d.len])); }
   if (process.env.REEL_SHOT_LIVE) { await js(`(() => { const s = document.querySelector("#scrub"); s.value = 1.0; s.dispatchEvent(new Event("input", { bubbles: true })); })()`); await sleep(1500);
     writeFileSync(process.env.REEL_SHOT_LIVE, Buffer.from((await cdp("Page.captureScreenshot", { format: "png" })).data, "base64")); }
   // a caption fix redraws it by itself (same cuts, so no button and no build)

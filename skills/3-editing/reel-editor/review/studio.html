@@ -128,6 +128,13 @@ main > section[data-p] + section[data-p] { margin-top: 16px; }
 .giphy-warn { font-size: 13px; line-height: 1.4; background: #fff6e5; border: 1.5px solid #e0b45a; border-radius: var(--r); padding: 8px 10px; margin: 6px 0; color: #5a4210; } .giphy-mark { margin: 6px 0 0; text-align: right; font: 700 12px/1 system-ui, sans-serif; }
 .upchip { position: relative; display: inline-block; width: 64px; height: 64px; margin: 8px 8px 0 0; border: 1.5px solid var(--ink); border-radius: var(--r); overflow: hidden; vertical-align: top; } .upchip img, .upchip video { width: 100%; height: 100%; object-fit: cover; display: block; }
 .upchip button { position: absolute; top: 0; right: 0; width: 24px; height: 24px; border: 0; background: var(--ink); color: var(--bg); cursor: pointer; font: 700 14px/1 inherit; }
+/* ---- dragging graphics ---- */
+.tlwrap { overflow-x: auto; margin: 10px 0; } .tlwrap .tl { margin: 0; min-width: 100%; }
+.tl .tlb { touch-action: none; } .tl .tlb .grip { position: absolute; right: 0; top: 0; bottom: 0; width: 12px; cursor: ew-resize; border-left: 1.5px solid var(--ink); background: rgba(44,51,37,.18); }
+.tl .tlb.drag { opacity: .8; z-index: 4; } .tl .tlb.dragged::before { content: "↔ "; }
+#gsel { position: absolute; border: 2px dashed #fff; outline: 2px dashed #2C3325; outline-offset: -4px; border-radius: 6px; z-index: 5; touch-action: none; cursor: grab; display: flex; align-items: flex-start; }
+#gsel[hidden] { display: none; } #gsel.fixed { cursor: default; border-style: dotted; } #gsel span { background: #2C3325; color: #F4F1E8; font: 600 11px/1.4 "Libre Franklin", system-ui, sans-serif; padding: 1px 6px; border-radius: 0 0 4px 0; white-space: nowrap; }
+#gguide { position: absolute; top: 0; bottom: 0; left: 50%; width: 0; border-left: 2px solid #D98159; z-index: 4; pointer-events: none; } #gguide[hidden] { display: none; }
 </style></head>
 <body>
 <nav class="steps" aria-label="Unmess Reels steps">
@@ -181,7 +188,9 @@ main > section[data-p] + section[data-p] { margin-top: 16px; }
     <section data-p="style" hidden>
       <h2>Graphics on your reel</h2>
       <p class="lede">Each block is a graphic, placed where it shows in your reel. Tap one to see it in the preview and change it.</p>
-      <div class="tl" id="tl" aria-label="Your reel, start to end, with its graphics"></div>
+      <div class="tlrow" style="justify-content:flex-start"><span class="amt" id="tlzoom" role="radiogroup" aria-label="Zoom the line"></span></div>
+      <div class="tlwrap" id="tlwrap"><div class="tl" id="tl" aria-label="Your reel, start to end, with its graphics"></div></div>
+      <p class="hint">Drag a block to change when it shows. Drag its right edge to change how long it stays. On the video, drag the dashed outline to move it.</p>
       <div class="tlrow"><button class="b" id="addg" type="button">Add a graphic at this moment</button>
         <span class="amt" id="amount" role="radiogroup" aria-label="How many graphics"></span></div>
       <form id="addform" class="gd" hidden>
@@ -248,7 +257,7 @@ main > section[data-p] + section[data-p] { margin-top: 16px; }
     </section>
   </main>
   <aside class="side" aria-label="Preview">
-    <div id="player"><video id="v" playsinline preload="metadata"></video><iframe id="live" title="Live preview of your reel" tabindex="-1" aria-hidden="true" style="display:none"></iframe><div id="ov"></div></div>
+    <div id="player"><video id="v" playsinline preload="metadata"></video><iframe id="live" title="Live preview of your reel" tabindex="-1" aria-hidden="true" style="display:none"></iframe><div id="ov"></div><div id="gsel" hidden></div><i id="gguide" hidden></i></div>
     <div>
       <div class="bar"><button id="playbtn" type="button" aria-label="Play">▶</button><input id="scrub" type="range" min="0" max="1" step="0.1" value="0" aria-label="Where you are in the reel"><span id="clock">0:00 / 0:00</span></div>
       <p id="pnote"></p>
