@@ -264,3 +264,9 @@ Added by By Mel Ross in 0.19.0 (November 2026), in skills/3-editing/reel-editor.
   long cut each get their own line under the preview, with the time so far and what to do. A failed preview keeps the
   rough cut working and writes what happened to editor/quick.log for Claude to read (review/studio.js,
   review/editor-server.mjs; tests/test_studio_ui.mjs).
+- New Edit page, step 2 of 5 (0.41.0): the Style tab. Look cards and the 3 colors; caption style (how words light up,
+  low or high, size, colors, boxes); and the reel's graphics as blocks on one line from start to end. Tapping a block
+  shows that moment in the preview and opens its card: Keep, Change or Remove, its words, and where it sits. Add a
+  graphic at the playhead, and how many graphics. Every control writes the choices the current Edit page writes, so the
+  import and build are unchanged, and the live preview redraws after each one (review/studio.html, review/studio.js;
+  tests/test_studio_ui.mjs). The line of blocks is our own layout; nothing is copied from another product.

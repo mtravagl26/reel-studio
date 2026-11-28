@@ -104,10 +104,29 @@ try {
   await open("/studio");
   await until(`document.querySelector('#tx .w[data-i="1"]')?.classList.contains("cut") && !document.querySelector("#undo").disabled`, "the cut and Undo after a reload");
 
-  // the tabs: Next buttons walk Trim to Wrap up; Style and Audio say where things live for now
+  // the tabs: Next buttons walk Trim to Wrap up; Audio says where things live for now
   await click('[data-p="trim"] [data-next]');
   await until(`document.querySelector('.tab[data-tab="style"]').getAttribute("aria-selected") === "true" && !document.querySelector('[data-p="style"]').hidden`, "the Style tab");
-  assert.match(await js(`document.querySelector('[data-p="style"] .soon').textContent`), /being built/);
+  // Style: a look, the caption style, and the graphics on the reel's line all save to the same choices
+  assert.ok((await js(`document.querySelectorAll(".lookcard").length`)) >= 6, "My brand plus the 5 built-in looks");
+  await click('.lookcard[data-look="bold"]'); await waitSaved((d) => d.theme === "bold", "the look");
+  assert.equal(await js(`document.querySelector('.lookcard[data-look="bold"]').getAttribute("aria-checked")`), "true");
+  await click('#capmodes [data-capmode="spoken"]'); await waitSaved((d) => d.capmode === "spoken", "how the words light up");
+  await click('#caplay [data-lay="captions-high"]'); await waitSaved((d) => d.layout === "captions-high", "where captions sit");
+  await click("#hlon"); await waitSaved((d) => d.highlight && d.highlight.bg !== "none", "the box behind the highlighted word");
+  assert.equal(await js(`document.querySelectorAll("#tl .tlb").length`), 1, "the fixture's 1 graphic is on the line");
+  await click("#tl .tlb"); await until(`!!document.querySelector('#gdetail .gd [data-state="d"]')`, "the graphic's card");
+  assert.equal(await js(`document.querySelector("#tl .tlb").getAttribute("aria-pressed")`), "true");
+  await js(`(() => { const i = document.querySelector('#gdetail [data-wf="text"]'); i.value = "hi there"; i.dispatchEvent(new Event("change", { bubbles: true })); })()`);
+  await waitSaved((d) => d.board?.g1?.set?.text === "hi there", "the graphic's new words");
+  await click('#gdetail [data-state="c"]'); await until(`!!document.querySelector("#gnote")`, "the what-should-change box");
+  await click('#gdetail [data-state="k"]'); await waitSaved((d) => d.board?.g1?.state === "k", "back to Keep");
+  await click("#addg"); await until(`!document.querySelector("#addform").hidden`, "the add form");
+  await js(`(() => { document.querySelector("#addnote").value = "the 3 steps"; document.querySelector("#addform").requestSubmit(); })()`);
+  await waitSaved((d) => (d.wanted || []).length === 1 && d.wanted[0].note === "the 3 steps", "the graphic asked for");
+  await until(`document.querySelectorAll("#tl .tlb.w").length === 1`, "the asked-for graphic on the line, dashed");
+  await click('#amount [data-amt="few"]'); await waitSaved((d) => d.amount === "few", "how many graphics");
+  await click("#undo"); await waitSaved((d) => d.amount == null, "Undo on the Style tab");
   await click('[data-p="style"] [data-next]'); await click('[data-p="audio"] [data-next]');
   await until(`!document.querySelector('[data-p="wrap"]').hidden`, "the Wrap up tab");
   assert.equal(await js(`document.querySelector("#build").textContent`), "Build my reel");
