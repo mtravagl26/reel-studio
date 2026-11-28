@@ -41,6 +41,10 @@ captions:C.captions(R,D,P),graphics:C.graphics(R,D,P),hash:C.hash(D)}}));"""
     )
 
 
+# the kinds whose "y" (top edge) can be set, same list as FIELDS in review/editor-core.mjs
+MOVES_UP_DOWN = ("tag", "title", "cta", "quote", "chips", "columns", "note", "shot", "stat")
+
+
 def _sfx_library():
     try:
         mf = json.load(open(Path(__file__).resolve().parent.parent / "assets" / "sfx-manifest.json"))
@@ -429,7 +433,7 @@ def do_import(reel, review):
                 + (f". Use their own picture(s), already in the reel folder: {', '.join(mine)}" if mine else "")
             )
         spec = {
-            k: v for k, v in g.items() if k not in ("id", "kind", "what", "w0", "w1", "state", "place", "moved", "gone")
+            k: v for k, v in g.items() if k not in ("id", "kind", "what", "w0", "w1", "state", "place", "moved", "gone", "dragged", "placed")
         }
         spec.update(start=round(g["start"], 3), end=round(g["end"], 3), id=g["id"])
         if g["id"] in (d.get("sfxOff") or {}) and d["sfxOff"][g["id"]]:
@@ -446,6 +450,16 @@ def do_import(reel, review):
         _where, _layer = _b.get("where") if _b.get("where") in WHERE else None, (
             _b.get("layer") if _b.get("layer") in ("front", "behind") else None
         )
+        # Added by By Mel Ross (0.44.0): dragged on the video on the new Edit page ("xy" on the board entry). A popup or sticker
+        # goes anywhere (its centre); the kinds below only move up and down (their top edge). Other kinds keep their place.
+        _xy = _b.get("xy") if isinstance(_b.get("xy"), dict) else None
+        if _xy and isinstance(_xy.get("y"), (int, float)):
+            if g.get("type") in ("popup", "sticker") and isinstance(_xy.get("x"), (int, float)):
+                spec.update(x=int(max(-200, min(1280, _xy["x"]))), y=int(max(0, min(1920, _xy["y"]))))
+                if g.get("type") == "popup":
+                    spec["pos"] = "custom"
+            elif g.get("type") in MOVES_UP_DOWN:
+                spec["y"] = int(max(0, min(1800, _xy["y"])))
         if _layer == "behind":
             spec["layer"] = "behind"
         elif _layer == "front":

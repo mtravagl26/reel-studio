@@ -56,6 +56,7 @@
     $$("section[data-p]").forEach((s) => (s.hidden = s.dataset.p !== t));
     history.replaceState(null, "", "#" + t);
     if (t === "style" && P) renderLine();
+    if (P) drawSel();
     if (t === "audio" && R) tuState();   // the line needs its real width, which a hidden tab doesn't have
     syncSource(); renderBuild();
   }
@@ -99,7 +100,7 @@
   }
   const clock = (a, b) => { $("#clock").textContent = `${fmt(a)} / ${fmt(b)}`; };
   function stop() { cancelAnimationFrame(loop); v.pause(); v.playbackRate = 1; mode = "paused"; $("#playbtn").textContent = "▶"; $("#playbtn").setAttribute("aria-label", "Play"); }
-  function setPos(c) { if (!P) return; pos = Math.max(0, Math.min(c, P.cutDur - 0.05)); $("#scrub").max = P.cutDur.toFixed(1); $("#scrub").value = pos.toFixed(1); clock(pos, P.cutDur); const ph = $("#tlhead"); if (ph) ph.style.left = (pos / Math.max(1, P.cutDur)) * 100 + "%"; }
+  function setPos(c) { if (!P) return; pos = Math.max(0, Math.min(c, P.cutDur - 0.05)); $("#scrub").max = P.cutDur.toFixed(1); $("#scrub").value = pos.toFixed(1); clock(pos, P.cutDur); const ph = $("#tlhead"); if (ph) ph.style.left = (pos / Math.max(1, P.cutDur)) * 100 + "%"; if (typeof drawSel === "function") drawSel(); }
   function seekCut(c) { if (mode !== "paused") stop(); setPos(c); try { v.currentTime = srcTime(); } catch { seekOnLoad = srcTime(); } if (kind === "rough") overlay(pos); else marks(pos); }
   function playing() { $("#playbtn").textContent = "❚❚"; $("#playbtn").setAttribute("aria-label", "Pause"); }
   function playFrom(from = pos) {
@@ -397,20 +398,46 @@
   const boardOf = (id) => S.board[id] || {};
   const capText = (c) => c.words.map((w) => w.text).join(" ");
   const capAt = (t) => { const live = CAPS.filter((c) => !c.gone); return live.find((c) => t >= c.start && t < c.end) || live.filter((c) => c.start <= t).pop() || live[0] || null; };
+  // --- the line: blocks you can drag in time, and zoom (0.44.0, moved here from the Touch-ups timeline) ---
+  const FREE = new Set(["popup", "sticker"]), UPDOWN = new Set(["tag", "title", "cta", "quote", "chips", "columns", "note", "shot", "stat"]);
+  const ZOOMS = [["1", "Whole reel"], ["2.5", "Closer"], ["6", "Closest"]];
+  let tlZoom = 1, tlDragging = false;
+  const snapTime = (t) => { let best = t, d = 0.18; for (const c of CAPS) if (!c.gone) for (const w of c.words) if (Math.abs(w.t - t) < d) { d = Math.abs(w.t - t); best = w.t; } return best; };   // snaps to the start of a word when close
   function renderLine() {
-    const tl = $("#tl"), D = Math.max(1, P.cutDur); tl.textContent = "";
-    for (let t = 0; t < D; t += D > 90 ? 20 : 10) tl.append(el("span", { className: "tick", textContent: fmt(t), style: `left:${(t / D) * 100}%` }));
+    if (tlDragging) return;
+    const tl = $("#tl"), D = Math.max(1, P.cutDur); tl.textContent = ""; tl.style.width = tlZoom * 100 + "%";
+    const zb = $("#tlzoom"); zb.textContent = ""; zb.append("Zoom: ");
+    for (const [z, name] of ZOOMS) { const b = el("button", { type: "button", textContent: name }); b.setAttribute("role", "radio"); b.setAttribute("aria-checked", String(+z === tlZoom)); b.dataset.zoom = z;
+      b.addEventListener("click", () => { tlZoom = +z; renderLine(); const w = $("#tlwrap"); w.scrollLeft = Math.max(0, (pos / D) * tl.scrollWidth - w.clientWidth / 2); }); zb.append(b); }
+    const W = Math.max(200, tl.clientWidth || 600 * tlZoom);
+    for (let t = 0; t < D; t += D / tlZoom > 90 ? 20 : D / tlZoom > 25 ? 10 : D / tlZoom > 8 ? 2 : 1) tl.append(el("span", { className: "tick", textContent: fmt(t), style: `left:${(t / D) * 100}%` }));
     const lanes = [], items = [];
-    for (const g of GFX) items.push({ id: g.id, start: g.gone ? 0 : g.start, end: g.gone ? 0.1 : g.end, label: g.kind, cls: (boardOf(g.id).state || "k") + (g.gone ? " gone" : ""), title: `${g.kind}: ${g.what}` });
+    for (const g of GFX) items.push({ id: g.id, g, start: g.gone ? 0 : g.start, end: g.gone ? 0.1 : g.end, label: g.kind, cls: (boardOf(g.id).state || "k") + (g.gone ? " gone" : "") + (g.dragged ? " dragged" : ""), title: `${g.kind}: ${g.what}` });
     for (const w of S.wanted || []) if (!w.done) { const c = CAPS.find((x) => x.ci === w.ci); items.push({ id: w.id, start: c ? c.start : 0, end: (c ? c.start : 0) + 2, label: "New: " + (KINDS.find((k) => k[0] === w.kind) || KINDS[0])[1], cls: "w", title: "A graphic you asked for" }); }
     items.sort((a, b) => a.start - b.start);
+    const minW = (D * 60) / W;   // a block is never thinner than a finger
     for (const it of items) {
-      const minW = (D * 60) / Math.max(200, tl.clientWidth || 600);   // a block is never thinner than a finger
       let lane = lanes.findIndex((end) => end <= it.start); if (lane < 0) { lane = lanes.length; lanes.push(0); }
       lanes[lane] = Math.max(it.end, it.start + minW) + D * 0.004;
       const b = el("button", { type: "button", className: "tlb " + it.cls, textContent: it.label, title: it.title, style: `left:${(it.start / D) * 100}%;width:${(Math.max(it.end - it.start, minW) / D) * 100}%;top:${20 + lane * 36}px` });
       b.dataset.g = it.id; b.setAttribute("aria-pressed", String(it.id === selG));
-      b.addEventListener("click", (e) => { e.stopPropagation(); selG = it.id; seekCut(Math.min(D - 0.1, it.start + 0.4)); renderLine(); renderDetail(); $("#addform").hidden = true; });
+      const pick = () => { selG = it.id; seekCut(Math.min(D - 0.1, it.start + 0.4)); renderLine(); renderDetail(); drawSel(); $("#addform").hidden = true; };
+      b.addEventListener("click", (e) => { e.stopPropagation(); if (b.dataset.moved) { delete b.dataset.moved; return; } pick(); });
+      if (it.g && !it.g.gone && boardOf(it.id).state !== "d") {
+        const grip = el("i", { className: "grip", title: "Drag to change how long it stays" }); b.append(grip);
+        b.addEventListener("pointerdown", (e) => {
+          if (e.button) return; const resize = e.target === grip, x0 = e.clientX, per = D / tl.getBoundingClientRect().width, s0 = it.start, len0 = it.end - it.start; let moved = false, ns = s0, nl = len0;
+          try { b.setPointerCapture(e.pointerId); } catch { /* a synthetic pointer has nothing to capture */ }
+          const move = (ev) => { const dt = (ev.clientX - x0) * per; if (Math.abs(ev.clientX - x0) < 4 && !moved) return; moved = true; tlDragging = true; b.classList.add("drag");
+            if (resize) { nl = Math.max(0.3, Math.min(len0 + dt, D - s0)); b.style.width = (Math.max(nl, minW) / D) * 100 + "%"; }
+            else { ns = snapTime(Math.max(0, Math.min(s0 + dt, D - 0.3))); b.style.left = (ns / D) * 100 + "%"; } };
+          const up = () => { b.removeEventListener("pointermove", move); b.classList.remove("drag"); tlDragging = false; if (!moved) return; b.dataset.moved = "1"; selG = it.id;
+            mutate(() => { const cur = { ...boardOf(it.id) }; if (resize) cur.len = +nl.toFixed(2); else cur.shift = +((cur.shift || 0) + (ns - s0)).toFixed(2); S.board[it.id] = cur; }); seekCut(Math.min(D - 0.1, (resize ? s0 : ns) + 0.4)); drawSel(); };
+          b.addEventListener("pointermove", move); b.addEventListener("pointerup", up, { once: true }); b.addEventListener("pointercancel", up, { once: true });
+        });
+        b.addEventListener("keydown", (e) => { if (!e.altKey || (e.key !== "ArrowLeft" && e.key !== "ArrowRight")) return; e.preventDefault(); selG = it.id; const step = e.key === "ArrowLeft" ? -0.1 : 0.1;
+          mutate(() => { const cur = { ...boardOf(it.id) }; if (e.shiftKey) cur.len = +Math.max(0.3, (cur.len ?? it.end - it.start) + step).toFixed(2); else cur.shift = +((cur.shift || 0) + step).toFixed(2); S.board[it.id] = cur; }); $(`#tl .tlb[data-g="${it.id}"]`)?.focus(); });
+      }
       tl.append(b);
     }
     tl.style.height = 26 + Math.max(1, lanes.length) * 36 + "px";
@@ -420,7 +447,30 @@
       b.addEventListener("click", () => mutate(() => { S.amount = k === (R.graphicsAmount || "some") ? null : k; })); amt.append(b); }
     if (!items.length) tl.append(el("span", { className: "hint", textContent: "No graphics on this reel yet. Add one below.", style: "position:absolute;left:12px;top:26px" }));
   }
-  $("#tl").addEventListener("click", (e) => { if (!P) return; const r = $("#tl").getBoundingClientRect(); seekCut(((e.clientX - r.left) / r.width) * P.cutDur); });
+  $("#tl").addEventListener("click", (e) => { if (!P || e.target.closest(".tlb")) return; const r = $("#tl").getBoundingClientRect(); seekCut(((e.clientX - r.left) / r.width) * P.cutDur); drawSel(); });
+  // --- on the video: the picked graphic's outline. A popup goes anywhere and snaps to the centre line; text moves up and down.
+  function drawSel() {
+    const box = $("#gsel"), g = GFX.find((x) => x.id === selG);
+    const show = tab === "style" && g && !g.gone && boardOf(g.id).state !== "d" && Array.isArray(g.place) && pos >= g.start - 0.05 && pos < g.end;
+    box.hidden = !show; $("#gguide").hidden = true; if (!show) return;
+    const [x, y, w, h] = g.place, can = FREE.has(g.type) ? "any" : UPDOWN.has(g.type) ? "y" : "";
+    Object.assign(box.style, { left: x / 10.8 + "%", top: y / 19.2 + "%", width: w / 10.8 + "%", height: h / 19.2 + "%" });
+    box.className = can ? "" : "fixed"; box.dataset.can = can; box.dataset.g = g.id; box.textContent = "";
+    box.append(el("span", { textContent: can === "any" ? "Drag to move" : can === "y" ? "Drag up or down" : g.kind }));
+    box.title = can ? "" : "This kind keeps its place. Use Where on screen on its card.";
+  }
+  $("#gsel").addEventListener("pointerdown", (e) => {
+    const box = $("#gsel"), can = box.dataset.can, g = GFX.find((x) => x.id === box.dataset.g); if (!can || !g || e.button) return;
+    e.preventDefault(); if (mode !== "paused") stop();
+    const k = 1080 / $("#player").clientWidth, x0 = e.clientX, y0 = e.clientY, [px, py, pw, ph] = g.place; let nx = px, ny = py, moved = false;
+    try { box.setPointerCapture(e.pointerId); } catch { /* a synthetic pointer has nothing to capture */ } box.style.cursor = "grabbing";
+    const move = (ev) => { moved = true; ny = Math.max(0, Math.min(py + (ev.clientY - y0) * k, 1920 - ph));
+      if (can === "any") { nx = Math.max(-200, Math.min(px + (ev.clientX - x0) * k, 1280 - pw)); const centred = Math.abs(nx + pw / 2 - 540) < 24; if (centred) nx = 540 - pw / 2; $("#gguide").hidden = !centred; }
+      box.style.left = nx / 10.8 + "%"; box.style.top = ny / 19.2 + "%"; };
+    const up = () => { box.removeEventListener("pointermove", move); box.style.cursor = ""; $("#gguide").hidden = true; if (!moved || Math.abs(nx - px) + Math.abs(ny - py) < 4) return;
+      mutate(() => { const cur = { ...boardOf(g.id) }; delete cur.where; cur.xy = can === "any" ? { x: Math.round(nx + pw / 2), y: Math.round(ny + ph / 2) } : { y: Math.round(ny) }; S.board[g.id] = cur; }); drawSel(); };
+    box.addEventListener("pointermove", move); box.addEventListener("pointerup", up, { once: true }); box.addEventListener("pointercancel", up, { once: true });
+  });
   // Their own picture, clip or GIF for a graphic. The file is saved in the reel folder and its path travels with the choice.
   // GIPHY search (0.43.0, moved here from the earlier Edit page): off until the person turns it on with their own key, with the
   // same warning words as Touch-ups (license review 2026-11-17). The key stays on their computer.
@@ -527,7 +577,9 @@
       const pickSel = (key, name, opts) => { const sel = el("select"); sel.append(...opts.map(([v, t]) => new Option(t, v))); sel.value = boardOf(g.id)[key] || ""; sel.dataset.place = key;
         sel.addEventListener("change", () => mutate(() => { const cur = { ...boardOf(g.id) }; if (sel.value) cur[key] = sel.value; else delete cur[key]; S.board[g.id] = cur; })); return el("label", { textContent: name }, sel); };
       card.append(el("div", { className: "two" }, pickSel("where", "Where on screen", WHERE), pickSel("layer", "In front or behind", LAYER)));
-      if (boardOf(g.id).where && g.type !== "popup") card.append(el("p", { className: "hint", textContent: "Claude moves it at your next build from your chat." }));
+      if (g.dragged || g.placed) { const back = el("button", { type: "button", className: "b sm", textContent: "Back to its planned time and place" }); back.dataset.back = "1";
+        back.addEventListener("click", () => mutate(() => { const cur = { ...boardOf(g.id) }; delete cur.shift; delete cur.len; delete cur.xy; S.board[g.id] = cur; })); card.append(el("p", { className: "hint" }, back)); }
+            if (boardOf(g.id).where && g.type !== "popup") card.append(el("p", { className: "hint", textContent: "Claude moves it at your next build from your chat." }));
     }
     box.append(card);
   }
@@ -540,7 +592,7 @@
     const w = { id: "w" + Date.now().toString(36), kind: $("#addkind").value, ci: c ? c.ci : null, word: c ? c.words[0].i ?? null : null, line: c ? capText(c).slice(0, 80) : "the start of the reel", note: $("#addnote").value.trim().slice(0, 300) };
     $("#addform").hidden = true; selG = w.id; mutate(() => { S.wanted = [...(S.wanted || []), w]; });
   });
-  function renderStyle() { renderLooks(); renderCapStyle(); renderLine(); renderDetail(); }
+  function renderStyle() { renderLooks(); renderCapStyle(); renderLine(); renderDetail(); drawSel(); }
 
   // ---------- Audio: sound effects, music, your voice (Added by By Mel Ross, 0.42.0) ----------
   // Sound effects are choices like the rest (sfxAll, sfxOff, and sfxPick for a swapped sound). Music and loudness are the

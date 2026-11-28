@@ -283,3 +283,8 @@ Added by By Mel Ross in 0.19.0 (November 2026), in skills/3-editing/reel-editor.
   move too; the earlier Reel Review page stays at /review for the claude.ai Artifact path, and the earlier shell at
   /edit-classic (review/editor-server.mjs, review/studio.html, review/studio.js, review/editor.js,
   review/storyboard.html, review/reel-review.html, SKILL.md, references/review-local.md).
+- Drag graphics on the new Edit page (0.44.0): on the Style tab's line, drag a block to change when it shows (it snaps to
+  the start of a word), drag its right edge to change how long it stays, and zoom the line. On the video, drag the picked
+  graphic's outline: a popup or sticker goes anywhere and snaps to the centre line, text kinds move up and down. Saved on
+  the board entry as "shift", "len" and "xy"; core.js applies the time, review_sync.py writes the place
+  (review/studio.html, review/studio.js, review/core.js, scripts/review_sync.py; tests/test_studio_ui.mjs).
