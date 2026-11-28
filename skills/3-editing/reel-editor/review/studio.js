@@ -65,7 +65,7 @@
   // it (real fonts, colors, graphics and motion), made in seconds by the quick preview. rough: the raw clip with the cuts
   // skipped and graphics as outlines, always there and always instant. pos is the time in the cut reel in all 3.
   const live = $("#live");
-  let kind = "rough", Q = { state: "idle" }, lineHold = false, seekOnLoad = null, quickT = null, quickPollT = null;
+  let kind = "rough", Q = { state: "idle" }, lineHold = false, seekOnLoad = null, quickT = null, quickPollT = null, oldEngine = false, clockSkew = 0;
   const hashNow = () => ReelCore.hash(decisions());
   const quickBusy = () => ["reading", "cutting", "drawing"].includes(Q.state);
   const quickOk = () => Q.state === "ready" && !!Q.hash && Q.hash === hashNow();
@@ -80,14 +80,19 @@
     live.style.display = k === "live" ? "" : "none";
     setPos(pos); if (k === "rough") overlay(pos); else { ov.textContent = ""; marks(pos); }
     const note = $("#pnote"), btn = $("#quickbtn"); note.className = "";
-    btn.hidden = !(k === "rough" && !quickBusy() && !build.busy && !lineHold);
-    btn.textContent = Q.state === "needs-cut" || B || Q.hash ? "Show my cuts with real graphics (about a minute)" : "Show real graphics (about a minute)";
-    if (Q.state === "cutting") note.textContent = "Cutting the video for the preview. About a minute.";
+    btn.hidden = !(k === "rough" && !quickBusy() && !build.busy && !lineHold && !oldEngine);
+    btn.textContent = Q.state === "needs-cut" || B || Q.hash ? "Show my cuts with real graphics" : "Show real graphics";
+    // 0.40.3: every state says what is happening and what to do. A build that is running, an editor that needs a restart and
+    // a long cut all used to look like "it doesn't work".
+    const took = Q.started ? " " + fmt(Math.max(0, (Date.now() + clockSkew - Date.parse(Q.started)) / 1000)) + " so far." : "";
+    if (oldEngine) { note.textContent = "The editor needs a restart before it can show real graphics. In your Claude chat, say: restart the editor. Then reload this page."; note.className = "bad"; }
+    else if (build.busy) note.textContent = "Building your reel. " + (build.text || "") + " The finished reel shows here when it's done.";
+    else if (Q.state === "cutting") note.textContent = "Cutting the video for the preview." + took + " A short clip takes about a minute, a long one a few.";
     else if (Q.state === "drawing") note.textContent = "Drawing your graphics…";
     else if (Q.state === "reading") note.textContent = "Updating the preview…";
     else if (k === "built") note.textContent = "Your built reel. It matches your choices.";
     else if (k === "live") note.textContent = "Live preview: your real fonts, colors and graphics. Sound effects and music come with Build.";
-    else if (Q.state === "failed") { note.textContent = "The live preview didn't update: " + (Q.error || "unknown reason"); note.className = "bad"; }
+    else if (Q.state === "failed") { note.textContent = "The live preview didn't update: " + (Q.error || "unknown reason") + " The rough preview still works. To get it fixed, tell Claude: the live preview failed."; note.className = "bad"; }
     else note.textContent = "Rough preview: your cuts and captions, with graphics as outlines.";
   }
   const clock = (a, b) => { $("#clock").textContent = `${fmt(a)} / ${fmt(b)}`; };
@@ -142,14 +147,25 @@
     requestAnimationFrame(liveLoop);
   })();
   // the quick preview: after a save it redraws by itself when the cuts are the same (seconds); a new cut waits for the button
+  // the editor's answer: its state, whether a build is running, and its clock. An editor started before this page existed
+  // answers 404 or a web page, which means it needs a restart.
+  async function quickAsk(body) {
+    const r = await fetch("/api/quick-preview", body ? { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) } : undefined);
+    if (r.status === 404 || !/json/.test(r.headers.get("content-type") || "")) { oldEngine = true; return; }
+    const j = await r.json(); oldEngine = false;
+    if (!j.ok) throw new Error(j.error || "failed");
+    if (j.now) clockSkew = Date.parse(j.now) - Date.now();
+    Q = j.quick || Q;
+    if (j.building && !build.busy) pollBuild();   // a build started somewhere else: show it, then the built reel
+  }
   async function quickPoll() {
-    try { Q = (await (await fetch("/api/quick-preview")).json()).quick || Q; } catch { /* try again */ }
+    try { await quickAsk(); } catch { /* try again */ }
     syncSource(); clearTimeout(quickPollT); if (quickBusy()) quickPollT = setTimeout(quickPoll, 700);
   }
   async function quickStart(cut) {
     if (build.busy) return;
-    try { const j = await (await fetch("/api/quick-preview", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ cut: !!cut }) })).json(); if (!j.ok) throw new Error(j.error || "failed"); Q = j.quick; }
-    catch (e) { Q = { ...Q, state: "failed", error: /Failed to fetch|NetworkError/.test(String(e.message)) ? "this page can't reach Unmess Reels" : e.message }; }
+    try { await quickAsk({ cut: !!cut }); }
+    catch (e) { Q = { ...Q, state: "failed", error: /Failed to fetch|NetworkError/.test(String(e.message)) ? "this page can't reach the editor. Check the link is still running." : e.message }; }
     syncSource(); clearTimeout(quickPollT); if (quickBusy()) quickPollT = setTimeout(quickPoll, 700);
   }
   function quickSoon() { if (!(B || Q.hash) || fresh() || quickOk()) return; clearTimeout(quickT); quickT = setTimeout(() => { if (!dirty && !fresh() && !quickOk()) quickStart(false); }, 900); }
@@ -332,7 +348,7 @@
       else if (st === "done") { const was = build.busy; build = { busy: false, text: "", error: "", told: j.build.told || [] }; if (was) quickPoll(); }
       else build = { ...build, busy: false };
     } catch { build = { ...build, busy: false }; }
-    renderBuild(); if (build.busy) setTimeout(pollBuild, 2000);
+    renderBuild(); syncSource(); if (build.busy) setTimeout(pollBuild, 2000);
   }
   $("#build").addEventListener("click", async () => {
     clearTimeout(timer); clearTimeout(quickT); if (dirty) saveNow(); await saving;

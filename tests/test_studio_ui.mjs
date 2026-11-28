@@ -73,7 +73,7 @@ try {
   await tap('#tx .w[data-i="1"]');
   await until(`document.querySelector('#tx .w[data-i="1"]').classList.contains("cut")`, "beta struck out");
   await waitSaved((d) => JSON.stringify(d.cut) === "[1]", "the cut");
-  assert.match(await js(`document.querySelector("#savedat").textContent`), /^Saved \d/);
+  await until(`/^Saved \\d/.test(document.querySelector("#savedat").textContent)`, "the saved time");
   await click("#undo"); await waitSaved((d) => !(d.cut || []).length, "Undo");
   await click("#redo"); await waitSaved((d) => JSON.stringify(d.cut) === "[1]", "Redo");
   assert.notEqual(await js(`document.querySelector("#clock").textContent`), "0:00 / 0:00");
@@ -113,6 +113,11 @@ try {
   assert.equal(await js(`document.querySelector("#build").textContent`), "Build my reel");
   assert.equal(await js(`document.querySelector("#buildmsg").textContent`), "Not built yet.");
 
+  // an editor started before this page existed answers 404: the page says to restart it, and hides the button
+  await js(`(() => { window.realFetch = window.fetch; window.fetch = (u, o) => String(u).includes("/api/quick-preview") ? Promise.resolve(new Response("Not found", { status: 404 })) : window.realFetch(u, o); })()`);
+  await click("#quickbtn");
+  await until(`/needs a restart/.test(document.querySelector("#pnote").textContent) && document.querySelector("#quickbtn").hidden`, "the restart message");
+  await js(`window.fetch = window.realFetch`); await cdp("Page.reload"); await sleep(400); await until(`document.querySelectorAll("#tx .w").length === 6 && /Rough preview/.test(document.querySelector("#pnote").textContent)`, "the page again");
   // the live preview: one press cuts the video and lays the reel's own page over it, with no render
   assert.equal(await js(`document.querySelector("#quickbtn").hidden`), false, "the button shows on the rough preview");
   await click("#quickbtn");

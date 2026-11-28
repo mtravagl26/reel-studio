@@ -260,3 +260,7 @@ Added by By Mel Ross in 0.19.0 (November 2026), in skills/3-editing/reel-editor.
   something is built. The box that appears when a build can't include everything now says what the button can build,
   what needs Claude and why, and what each choice does (review/review.js, review/reel-review.html;
   tests/test_studio_ui.mjs, tests/reel-review.test.mjs).
+- Live preview says what it is doing (0.40.3): on the new Edit page, a running build, an editor that needs a restart and a
+  long cut each get their own line under the preview, with the time so far and what to do. A failed preview keeps the
+  rough cut working and writes what happened to editor/quick.log for Claude to read (review/studio.js,
+  review/editor-server.mjs; tests/test_studio_ui.mjs).
