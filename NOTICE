@@ -277,3 +277,9 @@ Added by By Mel Ross in 0.19.0 (November 2026), in skills/3-editing/reel-editor.
   lists what needs Claude before the build, links the storyboard and Touch-ups, and keeps notes for Claude
   (review/studio.html, review/studio.js, review/core.js, review/editor-server.mjs, scripts/review_sync.py;
   tests/test_studio_ui.mjs).
+- The swap (0.43.0): the reel link and step 1 open the new Edit page (/studio). GIPHY search (same opt-in and warning),
+  notes at a moment, the brand note and the color before and after moved onto it. Touch-ups, the storyboard and the
+  looks gallery stay on their own pages, linked from it, until dragging graphics, earlier versions and the full look list
+  move too; the earlier Reel Review page stays at /review for the claude.ai Artifact path, and the earlier shell at
+  /edit-classic (review/editor-server.mjs, review/studio.html, review/studio.js, review/editor.js,
+  review/storyboard.html, review/reel-review.html, SKILL.md, references/review-local.md).

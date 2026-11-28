@@ -4,7 +4,8 @@
 <title>Unmess Reels</title>
 <!-- Added by By Mel Ross (0.39.0). The new Edit page, step 1 of 5: one page with 4 tabs (Trim, Style, Audio, Wrap up), one
      preview that stays on screen, and one main button per tab. Trim works here; Style and Audio arrive in the next steps and
-     point at the current pages until then. Served at /studio by editor-server.mjs; the current Edit page (/edit) is untouched.
+     point at the current pages until then. Served at /studio by editor-server.mjs. Since 0.43.0 this is the Edit page: the reel
+     link and step 1 open it.
      Same saved decisions as the review page (review_db/review/current.json), so nothing is lost moving between them. -->
 <style>
 :root { --r:4px; --bg:#F4F1E8; --ink:#2C3325; --mute:#5c6353; --line:#d9d4bf; --card:#FFFEFA; --surface:#E8E4D3; --sage:#A9BC8B; --sage-d:#6E8B3D; --soft:#E8E4D3; --orange:#D98159;
@@ -118,6 +119,15 @@ main > section[data-p] + section[data-p] { margin-top: 16px; }
 /* ---- Wrap up ---- */
 .needs { border: 1.5px solid var(--ink); border-radius: var(--r); background: var(--bg); padding: 12px 14px; margin: 12px 0; font-size: 15px; } .needs ul { margin: 6px 0 6px 18px; padding: 0; } .needs p { margin: 6px 0 0; }
 #wrapnote { display: block; width: 100%; min-height: 88px; margin-top: 6px; padding: 10px; border: 1.5px solid var(--ink); border-radius: var(--r); background: var(--bg); color: var(--ink); font: inherit; }
+/* ---- own pictures and GIPHY ---- */
+.upl { margin-top: 10px; } .upl .row, .gkey .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.giphy { border: 1.5px solid var(--ink); border-radius: var(--r); padding: 10px; margin-top: 8px; background: var(--card); } .giphy[hidden] { display: none; }
+.giphy input[type=search], .giphy input[type=password] { flex: 1 1 160px; min-width: 0; min-height: 44px; padding: 0 10px; border: 1.5px solid var(--ink); border-radius: var(--r); background: var(--bg); color: var(--ink); font: inherit; }
+.giphy select { min-height: 44px; border: 1.5px solid var(--ink); border-radius: var(--r); background: var(--bg); color: var(--ink); font: inherit; padding: 0 8px; }
+.ggrid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin: 8px 0; } .ggrid button { padding: 0; border: 1.5px solid var(--ink); border-radius: var(--r); overflow: hidden; background: #eee; cursor: pointer; aspect-ratio: 1; } .ggrid img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.giphy-warn { font-size: 13px; line-height: 1.4; background: #fff6e5; border: 1.5px solid #e0b45a; border-radius: var(--r); padding: 8px 10px; margin: 6px 0; color: #5a4210; } .giphy-mark { margin: 6px 0 0; text-align: right; font: 700 12px/1 system-ui, sans-serif; }
+.upchip { position: relative; display: inline-block; width: 64px; height: 64px; margin: 8px 8px 0 0; border: 1.5px solid var(--ink); border-radius: var(--r); overflow: hidden; vertical-align: top; } .upchip img, .upchip video { width: 100%; height: 100%; object-fit: cover; display: block; }
+.upchip button { position: absolute; top: 0; right: 0; width: 24px; height: 24px; border: 0; background: var(--ink); color: var(--bg); cursor: pointer; font: 700 14px/1 inherit; }
 </style></head>
 <body>
 <nav class="steps" aria-label="Unmess Reels steps">
@@ -203,6 +213,9 @@ main > section[data-p] + section[data-p] { margin-top: 16px; }
       <h2>Your voice</h2>
       <p class="lede">The same 10 seconds, before and after the clean-up. Background noise comes down and the volume is set for Instagram.</p>
       <div class="pair" id="voicepair"></div>
+      <h3>Color</h3>
+      <p class="hint">One frame, before and after your brand's color change.</p>
+      <div class="pair" id="colorpair"></div>
       <div class="next"><span></span><button class="b pri" type="button" data-next="wrap">Next: Wrap up</button></div>
     </section>
     <section data-p="wrap" hidden>
@@ -219,10 +232,18 @@ main > section[data-p] + section[data-p] { margin-top: 16px; }
       <div class="tlrow" style="justify-content:flex-start"><a class="b" id="sblink" href="/storyboard" target="_top" style="display:inline-flex;align-items:center;text-decoration:none">Open the storyboard</a>
         <a class="b" id="tulink" href="/touchups" target="_top" style="display:inline-flex;align-items:center;text-decoration:none">Small fixes in Touch-ups</a></div>
       <p class="hint" id="checknote"></p>
+      <h3>A note at a moment</h3>
+      <p class="hint">Pause the preview where something is off, write what should change, and add the note.</p>
+      <div class="tlrow" style="justify-content:flex-start"><input type="text" id="revtext" maxlength="300" placeholder="What to change at this moment" style="flex:1 1 220px;min-height:44px;padding:0 10px;border:1.5px solid var(--ink);border-radius:var(--r);background:var(--bg);color:var(--ink);font:inherit"><button class="b" id="revadd" type="button">Add note at this moment</button></div>
+      <div id="revs"></div>
       <h3>Notes for Claude</h3>
       <label class="hint" for="wrapnote">Anything this page can't do. For example: take off the last half second.</label>
       <textarea id="wrapnote" maxlength="1200"></textarea>
       <p class="hint">Saved as you type. Claude reads them when you type "build preview" in your chat.</p>
+      <h3>Change my brand</h3>
+      <label class="hint" for="brandreq">Something to change for every reel. For example: use my new logo colors.</label>
+      <textarea id="brandreq" maxlength="600" style="display:block;width:100%;min-height:60px;margin-top:6px;padding:10px;border:1.5px solid var(--ink);border-radius:var(--r);background:var(--bg);color:var(--ink);font:inherit"></textarea>
+      <p class="hint">The earlier pages are still here while the last pieces move over: <a href="/review" target="_top">The cut</a> and <a href="/styles" target="_top">all looks</a>.</p>
       <div class="next"><span></span><a class="b pri" id="tocover" href="/cover" target="_top" style="display:inline-flex;align-items:center;text-decoration:none">Next: 2 Cover</a></div>
     </section>
   </main>

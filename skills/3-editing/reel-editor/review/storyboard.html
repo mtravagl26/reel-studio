@@ -38,6 +38,7 @@ footer #donemsg { flex: 1 1 200px; font-size: 14px; color: var(--mute); }
 @media (max-width: 420px) { .scene { grid-template-columns: 92px 1fr; } .scene .still { width: 92px; } }
 </style></head>
 <body>
+<p id="backedit" style="margin:0 0 6px"><a href="/studio" target="_top" style="color:inherit;font-weight:700">Back to Edit</a></p><script>if (new URLSearchParams(location.search).get("embed")) document.getElementById("backedit").remove();</script>
 <h1>Storyboard</h1>
 <p class="lede">Your newest render, one still per scene. Tap a still to play that scene. Write what should change under any scene, or mark it good. Claude reads your notes when you send them.</p>
 <div id="msg" class="banner" hidden></div>
