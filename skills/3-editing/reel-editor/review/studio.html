@@ -135,6 +135,11 @@ main > section[data-p] + section[data-p] { margin-top: 16px; }
 #gsel { position: absolute; border: 2px dashed #fff; outline: 2px dashed #2C3325; outline-offset: -4px; border-radius: 6px; z-index: 5; touch-action: none; cursor: grab; display: flex; align-items: flex-start; }
 #gsel[hidden] { display: none; } #gsel.fixed { cursor: default; border-style: dotted; } #gsel span { background: #2C3325; color: #F4F1E8; font: 600 11px/1.4 "Libre Franklin", system-ui, sans-serif; padding: 1px 6px; border-radius: 0 0 4px 0; white-space: nowrap; }
 #gguide { position: absolute; top: 0; bottom: 0; left: 50%; width: 0; border-left: 2px solid #D98159; z-index: 4; pointer-events: none; } #gguide[hidden] { display: none; }
+/* ---- lookbook ---- */
+.lbgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 10px; margin: 12px 0; max-height: 420px; overflow: auto; }
+.lbcard { border: 1.5px solid var(--ink); border-radius: var(--r); padding: 10px; background: var(--card); display: flex; flex-direction: column; gap: 6px; } .lbcard b { font-size: 15px; } .lbcard small { font-size: 12px; opacity: .7; } .lbcard span { font-size: 13px; flex: 1; }
+.lbcard .row { display: flex; gap: 6px; flex-wrap: wrap; } .lbcard.on { box-shadow: 3px 3px 0 var(--orange, #D98159); }
+#lbstill img { width: 100%; max-width: 520px; border: 1.5px solid var(--ink); border-radius: var(--r); display: block; margin-top: 8px; }
 </style></head>
 <body>
 <nav class="steps" aria-label="Unmess Reels steps">
@@ -197,11 +202,20 @@ main > section[data-p] + section[data-p] { margin-top: 16px; }
         <h3 id="addtitle">Add a graphic</h3>
         <label>What kind<select id="addkind"></select></label>
         <p class="hint" id="addhint"></p>
+        <p class="hint"><button class="b sm" type="button" id="addlook">Pick a look from the lookbook</button> <span id="addlookname"></span></p>
         <label>What it should say or show<input type="text" id="addnote" maxlength="300" placeholder="For example: the 3 steps as a list"></label>
         <p class="hint">Claude makes it at your next build from your chat. It shows on the line above as a dashed block until then.</p>
         <div class="next"><button class="b" type="button" id="addcancel">Cancel</button><button class="b pri" type="submit">Add it</button></div>
       </form>
       <div id="gdetail"></div>
+      <div class="gd" id="lookbook" hidden>
+        <h3 id="lbtitle">Lookbook</h3>
+        <p class="hint" id="lbnote"></p>
+        <div class="seg" id="lbgroups" role="radiogroup" aria-label="Kind of look"></div>
+        <div class="lbgrid" id="lbgrid"></div>
+        <div id="lbstill"></div>
+        <div class="next"><button class="b" type="button" id="lbclose">Close</button><span></span></div>
+      </div>
       <div class="next"><span></span><button class="b pri" type="button" data-next="audio">Next: Audio</button></div>
     </section>
     <section data-p="audio" hidden>
@@ -241,6 +255,10 @@ main > section[data-p] + section[data-p] { margin-top: 16px; }
       <div class="tlrow" style="justify-content:flex-start"><a class="b" id="sblink" href="/storyboard" target="_top" style="display:inline-flex;align-items:center;text-decoration:none">Open the storyboard</a>
         <a class="b" id="tulink" href="/touchups" target="_top" style="display:inline-flex;align-items:center;text-decoration:none">Small fixes in Touch-ups</a></div>
       <p class="hint" id="checknote"></p>
+      <h3>Versions</h3>
+      <div id="versions"><p class="hint">Each build is kept. They show here after your first build.</p></div>
+      <h3>What was done to this reel</h3>
+      <ul id="receipt" class="hint" style="margin:6px 0 0 18px;padding:0"></ul>
       <h3>A note at a moment</h3>
       <p class="hint">Pause the preview where something is off, write what should change, and add the note.</p>
       <div class="tlrow" style="justify-content:flex-start"><input type="text" id="revtext" maxlength="300" placeholder="What to change at this moment" style="flex:1 1 220px;min-height:44px;padding:0 10px;border:1.5px solid var(--ink);border-radius:var(--r);background:var(--bg);color:var(--ink);font:inherit"><button class="b" id="revadd" type="button">Add note at this moment</button></div>

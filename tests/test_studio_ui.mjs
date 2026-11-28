@@ -132,6 +132,14 @@ try {
   await drag("#gsel", 0, 60); await waitSaved((d) => typeof d.board?.g1?.xy?.y === "number" && d.board.g1.xy.x === undefined, "its new height on the video");
   await click('#tlzoom [data-zoom="6"]'); assert.equal(await js(`document.querySelector("#tl").style.width`), "600%"); await click('#tlzoom [data-zoom="1"]');
   assert.equal(await js(`!!document.querySelector("#gdetail [data-back]")`), true, "a way back to its planned time and place");
+  // the lookbook: every built look, by kind, opened from a graphic's card; picking one asks Claude for the swap by id
+  await click("#gdetail [data-swaplook]");
+  await until(`!document.querySelector("#lookbook").hidden && document.querySelectorAll("#lbgrid .lbcard").length > 5`, "the lookbook with its looks");
+  assert.ok((await js(`document.querySelectorAll("#lbgroups button").length`)) >= 2, "looks are grouped by kind");
+  const lookId = await js(`document.querySelector("#lbgrid .lbcard").dataset.look`);
+  await click("#lbgrid .lbcard [data-use]");
+  await waitSaved((d) => d.board?.g1?.look === lookId && d.board.g1.state === "c" && d.board.g1.note.includes(lookId), "the look asked for on this graphic");
+  assert.equal(await js(`document.querySelector("#lookbook").hidden`), true);
   // GIPHY search lives on a graphic's card now: off until a key is saved, with the warning shown first
   await click('#gdetail [data-state="c"]'); await until(`!!document.querySelector("#gdetail [data-giphy]")`, "the GIPHY button on the card");
   await click("#gdetail [data-giphy]");
@@ -162,6 +170,8 @@ try {
   await js(`(() => { const n = document.querySelector("#wrapnote"); n.value = "take off the last half second"; n.dispatchEvent(new Event("input", { bubbles: true })); })()`);
   await waitSaved((d) => d.notes?.preview === "take off the last half second", "the note for Claude");
   await until(`/1 typed note/.test(document.querySelector("#needs").textContent)`, "the note counted in the list");
+  assert.match(await js(`document.querySelector("#versions").textContent`), /Each build is kept/);
+  assert.match(await js(`document.querySelector("#receipt").textContent`), /fills in after your first build/);
   await js(`(() => { document.querySelector("#revtext").value = "make this bigger"; document.querySelector("#revadd").click(); })()`);
   await waitSaved((d) => (d.revisions || []).length === 1 && d.revisions[0].text === "make this bigger" && d.revisions[0].rough === true, "a note at a moment");
   await js(`(() => { const n = document.querySelector("#brandreq"); n.value = "use my new colors"; n.dispatchEvent(new Event("input", { bubbles: true })); })()`);

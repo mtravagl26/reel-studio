@@ -476,6 +476,9 @@ def do_import(reel, review):
                 rows = [re.sub(r"[\r\n\t]+", " ", str(x)).strip()[:40] for x in v if str(x).strip()][:6]
                 if rows:
                     spec[k] = rows
+        # Added by By Mel Ross (0.45.0): "Line up" for a title, set on the new Edit page (left, center or right)
+        if spec.get("type") == "title" and _b.get("align") in ("left", "center", "right"):
+            spec["align"] = _b["align"]
         if _where and spec.get("type") == "popup" and _where != "lower":
             spec["pos"] = _where
             spec.pop("x", None)
